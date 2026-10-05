@@ -1,0 +1,1165 @@
+// ============================================================================
+// FOOTBALL CLUB PLATFORM — DATABASE SCHEMA
+// ============================================================================
+// Notes on design decisions:
+//  - Auth uses NextAuth (Auth.js) with the Credentials provider + JWT
+//    sessions (no Account/Session tables needed). `tokenVersion` on User lets
+//    us invalidate all existing sessions instantly (force logout) when an
+//    admin disables a user or a password changes — checked in the JWT
+//    callback in src/lib/auth.ts.
+//  - RBAC is real and DB-driven: Role <-> Permission is many-to-many via
+//    RolePermission, not a hardcoded enum, so Super Admin can adjust which
+//    permissions a role grants from Dashboard > Roles without a deploy.
+//  - Content that appears on the public site in both languages (News,
+//    Announcements, Player biography) uses a *Translation side table per
+//    locale, so editors can genuinely publish independent Arabic and French
+//    content — not just a UI-string translation. This is distinct from the
+//    UI i18n system (src/i18n/messages/*.json), which only translates
+//    interface labels/buttons, not admin-authored content.
+//  - `DataClassification` implements section 46 of the spec directly:
+//    PUBLIC / INTERNAL / RESTRICTED. Every Document carries a classification,
+//    and secure download route (src/app/api/documents/[id]/download) checks
+//    it against the caller's permissions server-side — see lib/permissions.ts.
+//  - AuditLog rows are append-only from the application layer: no update/delete
+//    server action exists for AuditLog. (For true immutability, add a DB
+//    trigger/REVOKE UPDATE,DELETE at the database-user level in production.)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// AUTH / RBAC
+// ----------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  image         String?
+  isActive      Boolean   @default(true)
+  tokenVersion  Int       @default(0) // bump to invalidate all issued JWTs
+  roleId        String
+  role          Role      @relation(fields: [roleId], references: [id])
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  auditLogs           AuditLog[]
+  uploadedDocuments    Document[]        @relation("DocumentUploadedBy")
+  ownedDocuments       Document[]        @relation("DocumentOwner")
+  authoredNews         News[]
+  createdAnnouncements Announcement[]
+  createdAlbums        Album[]
+  correspondences      Correspondence[]
+  meetingMinutes       MeetingMinute[]
+  passwordResetTokens  PasswordResetToken[]
+  documentTemplates    DocumentTemplate[]
+  documentTemplateVersions DocumentTemplateVersion[]
+  generatedDocuments   GeneratedDocument[]
+  notifications        Notification[]
+  createdBudgets              Budget[]
+  createdExpenses             Expense[]             @relation("ExpenseCreatedBy")
+  updatedExpenses             Expense[]             @relation("ExpenseUpdatedBy")
+  createdTreasuryAccounts     TreasuryAccount[]
+  createdTreasuryTransactions TreasuryTransaction[]
+
+  @@index([roleId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "super_admin", "coach" — stable, code-referenced
+  name        String   // display name, editable
+  description String?
+  isSystem    Boolean  @default(false) // system roles (super_admin) cannot be deleted
+  createdAt   DateTime @default(now())
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique // e.g. "players.create", "documents.view.restricted"
+  group       String // e.g. "players", "documents" — for grouping in the Roles UI
+  description String?
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// SHARED ENUMS
+// ----------------------------------------------------------------------------
+
+enum DataClassification {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+// ----------------------------------------------------------------------------
+// PLAYERS & STAFF
+// ----------------------------------------------------------------------------
+
+enum PlayerPosition {
+  GOALKEEPER
+  DEFENDER
+  MIDFIELDER
+  FORWARD
+}
+
+enum PreferredFoot {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+enum PlayerStatus {
+  ACTIVE
+  INJURED
+  SUSPENDED
+  ON_LOAN
+  ARCHIVED
+}
+
+// ============================================================================
+// TEAM / CATEGORY (spec sections 3–7) — a real business entity, not a
+// scattered string. Exactly four rows in practice (SENIOR/U20/U17/U15);
+// `category` is unique so there's one canonical team per category.
+// birthYearFrom/To are null for SENIOR (no youth birth-year restriction).
+// ============================================================================
+enum TeamCategory {
+  SENIOR
+  U20
+  U17
+  U15
+}
+
+model Team {
+  id            String       @id @default(cuid())
+  name          String // admin-editable display label, e.g. "Espoir Sidi Hosni — Seniors"
+  shortName     String?
+  category      TeamCategory @unique
+  birthYearFrom Int?
+  birthYearTo   Int?
+  description   String?      @db.Text
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  players           Player[]
+  staff             Staff[]
+  matches           Match[]
+  competitions      Competition[]
+  trainingSessions  TrainingSession[]
+  contracts         Contract[]
+  documents         Document[]
+  calendarEvents    CalendarEvent[]
+  announcements     Announcement[]
+  albums            Album[]
+  correspondences   Correspondence[]
+  meetingMinutes    MeetingMinute[]
+  budgets           Budget[]
+  expenses          Expense[]
+}
+
+model Player {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  firstName      String
+  lastName       String
+  photoUrl       String?
+  shirtNumber    Int?
+  position       PlayerPosition
+  nationality    String
+  dateOfBirth    DateTime
+  height         Int? // cm
+  preferredFoot  PreferredFoot?
+  joiningDate    DateTime?
+  biography      String?        @db.Text
+  status         PlayerStatus   @default(ACTIVE)
+  internalNotes  String?        @db.Text // INTERNAL — never exposed on public site
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Nullable so this migration never destroys pre-existing rows (spec
+  // section 9: "Do not destroy existing data during migrations") — the seed
+  // backfills demo players onto a real team, and the dashboard form requires
+  // a team going forward, but the column itself stays optional at the DB
+  // level.
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  translations   PlayerTranslation[]
+  statistics     PlayerStatistic[]
+  contracts      Contract[]
+  documents      Document[]
+  matchEvents    MatchEvent[]
+  matchLineups   MatchLineup[]
+  trainingAttendances TrainingAttendance[]
+  correspondences Correspondence[]
+
+  @@index([status])
+  @@index([position])
+  @@index([teamId])
+}
+
+// Per-locale biography content (real translated content, not just UI labels)
+model PlayerTranslation {
+  id        String @id @default(cuid())
+  playerId  String
+  locale    String // "ar" | "fr"
+  biography String @db.Text
+  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, locale])
+}
+
+model PlayerStatistic {
+  id             String @id @default(cuid())
+  playerId       String
+  player         Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  seasonId       String
+  season         Season @relation(fields: [seasonId], references: [id])
+  appearances    Int    @default(0)
+  goals          Int    @default(0)
+  assists        Int    @default(0)
+  yellowCards    Int    @default(0)
+  redCards       Int    @default(0)
+  minutesPlayed  Int    @default(0)
+
+  @@unique([playerId, seasonId])
+}
+
+enum StaffRole {
+  HEAD_COACH
+  ASSISTANT_COACH
+  GOALKEEPING_COACH
+  FITNESS_COACH
+  MEDICAL_STAFF
+  ADMINISTRATIVE_STAFF
+  OTHER
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model Staff {
+  id              String      @id @default(cuid())
+  firstName       String
+  lastName        String
+  role            StaffRole
+  photoUrl        String?
+  biography       String?     @db.Text
+  internalContact String? // phone/email — INTERNAL, never public
+  status          StaffStatus @default(ACTIVE)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  contracts        Contract[]
+  documents        Document[]
+  trainingSessions TrainingSession[]
+  correspondences  Correspondence[]
+
+  @@index([teamId])
+}
+
+// ----------------------------------------------------------------------------
+// CONTRACTS
+// ----------------------------------------------------------------------------
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  PENDING
+}
+
+model Contract {
+  id         String         @id @default(cuid())
+  type       String // e.g. "Professional", "Amateur", "Loan", "Staff"
+  playerId   String?
+  player     Player?        @relation(fields: [playerId], references: [id])
+  staffId    String?
+  staff      Staff?         @relation(fields: [staffId], references: [id])
+  teamId     String?
+  team       Team?          @relation(fields: [teamId], references: [id])
+  startDate  DateTime
+  endDate    DateTime
+  status     ContractStatus @default(PENDING)
+  notes      String?        @db.Text
+  documentId String?        @unique
+  document   Document?      @relation(fields: [documentId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([status])
+  @@index([endDate])
+  @@index([teamId])
+}
+
+// ----------------------------------------------------------------------------
+// DOCUMENT MANAGEMENT (private storage — see src/lib/storage.ts)
+// ----------------------------------------------------------------------------
+
+model DocumentCategory {
+  id       String             @id @default(cuid())
+  key      String             @unique // e.g. "contract", "correspondence"
+  name     String
+  parentId String?
+  parent   DocumentCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children DocumentCategory[] @relation("CategoryHierarchy")
+  documents Document[]
+}
+
+enum DocumentStatus {
+  PENDING_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+model Document {
+  id             String             @id @default(cuid())
+  name           String
+  categoryId     String
+  category       DocumentCategory   @relation(fields: [categoryId], references: [id])
+  description    String?            @db.Text
+  documentDate   DateTime?
+  classification DataClassification @default(INTERNAL)
+  department     String?
+  status         DocumentStatus     @default(PENDING_REVIEW)
+
+  // Private storage pointers — NEVER a public URL. See lib/storage.ts.
+  storageKey   String @unique // object key inside the private bucket
+  mimeType     String
+  sizeBytes    Int
+  originalName String
+
+  ownerId      String
+  owner        User   @relation("DocumentOwner", fields: [ownerId], references: [id])
+  uploadedById String
+  uploadedBy   User   @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  relatedPlayerId String?
+  relatedPlayer   Player? @relation(fields: [relatedPlayerId], references: [id])
+  relatedStaffId  String?
+  relatedStaff    Staff?  @relation(fields: [relatedStaffId], references: [id])
+  relatedMatchId  String?
+  relatedMatch    Match?  @relation(fields: [relatedMatchId], references: [id])
+  teamId          String?
+  team            Team?   @relation(fields: [teamId], references: [id])
+
+  contract               Contract?
+  correspondenceAttachments CorrespondenceAttachment[]
+  meetingAttachments     MeetingAttachment[]
+  generatedFrom          GeneratedDocument?
+  expense                Expense?
+  treasuryTransaction    TreasuryTransaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([classification])
+  @@index([relatedPlayerId])
+  @@index([teamId])
+}
+
+// ----------------------------------------------------------------------------
+// CORRESPONDENCE & MEETING MINUTES
+// ----------------------------------------------------------------------------
+
+enum CorrespondenceType {
+  INCOMING
+  OUTGOING
+}
+
+enum CorrespondenceStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Correspondence {
+  id                String               @id @default(cuid())
+  referenceNumber   String               @unique
+  subject           String
+  sender            String
+  recipient         String
+  date              DateTime
+  type              CorrespondenceType
+  priority          Priority             @default(NORMAL)
+  status            CorrespondenceStatus @default(NEW)
+  responsibleUserId String
+  responsibleUser   User                 @relation(fields: [responsibleUserId], references: [id])
+  teamId            String?
+  team              Team?                @relation(fields: [teamId], references: [id])
+  relatedPlayerId   String?
+  relatedPlayer     Player?              @relation(fields: [relatedPlayerId], references: [id])
+  relatedStaffId    String?
+  relatedStaff      Staff?               @relation(fields: [relatedStaffId], references: [id])
+  relatedMatchId    String?
+  relatedMatch      Match?               @relation(fields: [relatedMatchId], references: [id])
+  notes             String?              @db.Text
+  attachments       CorrespondenceAttachment[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([teamId])
+  @@index([status])
+  @@index([type])
+}
+
+model CorrespondenceAttachment {
+  correspondenceId String
+  documentId       String
+  correspondence   Correspondence @relation(fields: [correspondenceId], references: [id], onDelete: Cascade)
+  document         Document       @relation(fields: [documentId], references: [id])
+
+  @@id([correspondenceId, documentId])
+}
+
+enum MeetingStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+model MeetingMinute {
+  id                 String        @id @default(cuid())
+  title              String
+  date               DateTime
+  location            String?
+  attendees          String[] // simple list of names; link to User where relevant via notes
+  teamId             String?
+  team               Team?         @relation(fields: [teamId], references: [id])
+  agenda             String?       @db.Text
+  content            String        @db.Text
+  decisions          String?       @db.Text
+  notes              String?       @db.Text
+  responsiblePersonId String
+  responsiblePerson  User          @relation(fields: [responsiblePersonId], references: [id])
+  status             MeetingStatus @default(DRAFT)
+  attachments        MeetingAttachment[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([teamId])
+}
+
+model MeetingAttachment {
+  meetingId  String
+  documentId String
+  meeting    MeetingMinute @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  document   Document      @relation(fields: [documentId], references: [id])
+
+  @@id([meetingId, documentId])
+}
+
+// ----------------------------------------------------------------------------
+// COMPETITIONS, SEASONS & MATCHES
+// ----------------------------------------------------------------------------
+
+model Season {
+  id        String   @id @default(cuid())
+  label     String   @unique // e.g. "2026/2027"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+
+  competitions Competition[]
+  statistics   PlayerStatistic[]
+  budgets      Budget[]
+  expenses     Expense[]
+}
+
+enum CompetitionStatus {
+  UPCOMING
+  ONGOING
+  FINISHED
+}
+
+model Competition {
+  id           String            @id @default(cuid())
+  name         String
+  organization String?
+  seasonId     String
+  season       Season            @relation(fields: [seasonId], references: [id])
+  teamId       String?
+  team         Team?             @relation(fields: [teamId], references: [id])
+  status       CompetitionStatus @default(UPCOMING)
+
+  matches Match[]
+
+  @@index([teamId])
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  teamId        String?
+  team          Team?       @relation(fields: [teamId], references: [id])
+  homeTeamName  String // "Our Club" or opponent name
+  awayTeamName  String
+  isHomeFixture Boolean     @default(true) // whether the club plays at home
+  homeScore     Int?
+  awayScore     Int?
+  matchDate     DateTime
+  stadium       String?
+  refereeName   String?
+  status        MatchStatus @default(SCHEDULED)
+  matchReport   String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  events        MatchEvent[]
+  lineups       MatchLineup[]
+  documents     Document[]
+  calendarEvent CalendarEvent?
+  media         Media[]
+  correspondences Correspondence[]
+  expenses      Expense[]
+
+  @@index([matchDate])
+  @@index([status])
+  @@index([teamId])
+}
+
+enum MatchEventType {
+  GOAL
+  OWN_GOAL
+  ASSIST
+  YELLOW_CARD
+  RED_CARD
+  SUBSTITUTION_IN
+  SUBSTITUTION_OUT
+}
+
+model MatchEvent {
+  id       String         @id @default(cuid())
+  matchId  String
+  match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId String?
+  player   Player?        @relation(fields: [playerId], references: [id])
+  type     MatchEventType
+  minute   Int
+  notes    String?
+}
+
+model MatchLineup {
+  matchId    String
+  playerId   String
+  match      Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player     Player  @relation(fields: [playerId], references: [id])
+  isStarting Boolean @default(true)
+  position   String?
+
+  @@id([matchId, playerId])
+}
+
+// ----------------------------------------------------------------------------
+// CALENDAR & TRAINING
+// ----------------------------------------------------------------------------
+
+enum CalendarEventType {
+  MATCH
+  TRAINING
+  MEETING
+  ADMINISTRATIVE
+  OTHER
+}
+
+model CalendarEvent {
+  id              String            @id @default(cuid())
+  title           String
+  type            CalendarEventType
+  startDateTime   DateTime
+  endDateTime     DateTime
+  location        String?
+  description     String?           @db.Text
+  teamId          String?
+  team            Team?             @relation(fields: [teamId], references: [id])
+  relatedMatchId  String?           @unique
+  relatedMatch    Match?            @relation(fields: [relatedMatchId], references: [id])
+  relatedTrainingId String?         @unique
+  relatedTraining TrainingSession?  @relation(fields: [relatedTrainingId], references: [id])
+  createdAt       DateTime          @default(now())
+
+  @@index([startDateTime])
+  @@index([teamId])
+}
+
+enum TrainingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model TrainingSession {
+  id        String         @id @default(cuid())
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+  location  String?
+  coachId   String?
+  coach     Staff?         @relation(fields: [coachId], references: [id])
+  teamId    String?
+  team      Team?          @relation(fields: [teamId], references: [id])
+  notes     String?        @db.Text
+  status    TrainingStatus @default(SCHEDULED)
+
+  calendarEvent CalendarEvent?
+  attendances   TrainingAttendance[]
+  expenses      Expense[]
+
+  @@index([teamId])
+}
+
+model TrainingAttendance {
+  trainingId String
+  playerId   String
+  training   TrainingSession @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  player     Player          @relation(fields: [playerId], references: [id])
+  status     AttendanceStatus @default(PRESENT)
+
+  @@id([trainingId, playerId])
+}
+
+// Spec section 13: attendance must be one of these four states, not a
+// simple present/absent boolean.
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  INJURED
+  EXCUSED
+}
+
+// ----------------------------------------------------------------------------
+// NEWS & ANNOUNCEMENTS (CMS)
+// ----------------------------------------------------------------------------
+
+model News {
+  id              String        @id @default(cuid())
+  featuredImageUrl String?
+  category        String?
+  tags            String[]
+  authorId        String
+  author          User          @relation(fields: [authorId], references: [id])
+  status          ContentStatus @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  translations NewsTranslation[]
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model NewsTranslation {
+  id      String @id @default(cuid())
+  newsId  String
+  news    News   @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  locale  String // "ar" | "fr"
+  title   String
+  slug    String
+  content String @db.Text
+
+  @@unique([newsId, locale])
+  @@unique([locale, slug])
+}
+
+model Announcement {
+  id                 String        @id @default(cuid())
+  priority           Priority      @default(NORMAL)
+  startDate          DateTime
+  endDate            DateTime?
+  homepageVisibility Boolean       @default(true)
+  status             ContentStatus @default(DRAFT)
+  teamId             String? // null = club-wide (spec section 28)
+  team               Team?         @relation(fields: [teamId], references: [id])
+  createdById        String
+  createdBy          User          @relation(fields: [createdById], references: [id])
+  createdAt          DateTime      @default(now())
+
+  translations AnnouncementTranslation[]
+
+  @@index([teamId])
+}
+
+model AnnouncementTranslation {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  locale         String
+  title          String
+  content        String       @db.Text
+
+  @@unique([announcementId, locale])
+}
+
+// ----------------------------------------------------------------------------
+// GALLERY
+// ----------------------------------------------------------------------------
+
+enum AlbumCategory {
+  MATCHES
+  TRAINING
+  TEAM
+  EVENTS
+  CLUB
+}
+
+model Album {
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  coverImageUrl String?
+  category      AlbumCategory
+  teamId        String?
+  team          Team?         @relation(fields: [teamId], references: [id])
+  published     Boolean       @default(true)
+  createdById   String
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+
+  media Media[]
+
+  @@index([teamId])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  albumId   String
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  url       String   // public CDN url (gallery images are PUBLIC classification)
+  storageKey String
+  caption   String?
+  order     Int      @default(0)
+  matchId   String?
+  match     Match?   @relation(fields: [matchId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([albumId])
+}
+
+// ----------------------------------------------------------------------------
+// CLUB SETTINGS (single row) & AUDIT LOG
+// ----------------------------------------------------------------------------
+
+model ClubSettings {
+  id              String   @id @default("singleton")
+  name            String   @default("Football Club")
+  shortName       String   @default("FC")
+  logoUrl         String?
+  primaryColor    String   @default("#0B3D2E")
+  secondaryColor  String   @default("#D4AF37")
+  description     String?  @db.Text
+  stadium         String?
+  contactEmail    String?
+  contactPhone    String?
+  address         String?
+  socialLinks     Json?
+  defaultLocale   String   @default("ar")
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================================================
+// DOCUMENT TEMPLATE ENGINE (spec: "one of the most important features")
+// ----------------------------------------------------------------------------
+// The official template file is uploaded ONCE (into the same private bucket
+// as regular Documents — see lib/storage.ts) and never re-uploaded. Its
+// design (logo, header, footer, tables, typography) is preserved exactly:
+// generation only ever replaces {{PLACEHOLDER}} tokens inside the existing
+// .docx via docxtemplater — it never rebuilds the document from scratch.
+// ============================================================================
+
+enum TemplateType {
+  MATCH_REPORT
+  MEETING_MINUTES
+  CORRESPONDENCE
+  ANNOUNCEMENT
+  PLAYER_REPORT
+  TRAINING_REPORT
+  ADMINISTRATIVE_REPORT
+  EXPENSE_STATEMENT
+  DEPOSIT_RECEIPT
+  WITHDRAWAL_RECEIPT
+  OTHER
+}
+
+enum TemplateVersionStatus {
+  DRAFT // uploaded, fields detected, mapping not yet confirmed
+  ACTIVE // mapping confirmed — usable for generation
+  ARCHIVED // superseded by a newer version; kept for historical GeneratedDocuments
+}
+
+// Where a placeholder's value comes from when generating a document.
+enum FieldSourceType {
+  DATABASE_FIELD // auto-filled from the related entity (e.g. "match.homeTeamName")
+  MANUAL_INPUT // the user types it in at generation time (e.g. free-text description)
+  AI_ASSISTED // AI may restructure/improve a MANUAL_INPUT value, but never invents facts
+}
+
+model DocumentTemplate {
+  id          String       @id @default(cuid())
+  name        String
+  type        TemplateType
+  language    String // "ar" | "fr" — the template file's own language
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  versions DocumentTemplateVersion[]
+
+  @@index([type])
+}
+
+model DocumentTemplateVersion {
+  id               String                 @id @default(cuid())
+  templateId       String
+  template         DocumentTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  versionNumber    Int
+  status           TemplateVersionStatus  @default(DRAFT)
+  storageKey       String                 @unique // private bucket — the uploaded .docx itself, untouched
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  // Placeholders detected by scanning the .docx's text runs for {{TOKEN}}
+  // patterns at upload time (see lib/documents/template-engine.ts). Purely
+  // informational/UI-driving — DocumentFieldMapping rows are the source of
+  // truth for what actually gets substituted.
+  detectedFields   String[]
+  createdById      String
+  createdBy        User                   @relation(fields: [createdById], references: [id])
+  createdAt        DateTime               @default(now())
+
+  fieldMappings      DocumentFieldMapping[]
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([templateId, versionNumber])
+  @@index([templateId, status])
+}
+
+model DocumentFieldMapping {
+  id                String                  @id @default(cuid())
+  templateVersionId String
+  templateVersion   DocumentTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+  placeholder       String // e.g. "PLAYER_FIRST_NAME" (without the {{ }})
+  label             String // human-readable prompt shown in the generation form
+  sourceType        FieldSourceType
+  // Dot-path into the structured data bundle the generation service builds
+  // for the related entity (e.g. "match.homeTeamName", "player.firstName")
+  // — only meaningful when sourceType is DATABASE_FIELD.
+  sourcePath        String?
+
+  @@unique([templateVersionId, placeholder])
+}
+
+model GeneratedDocument {
+  id                String                  @id @default(cuid())
+  templateVersionId String
+  templateVersion   DocumentTemplateVersion @relation(fields: [templateVersionId], references: [id])
+  relatedEntityType String? // "Match" | "MeetingMinute" | "Player" | "Correspondence" | null
+  relatedEntityId   String?
+  // The final resolved placeholder -> value map actually used to generate
+  // this specific file — kept even if the source records change later, so
+  // a generated document's history is never silently rewritten (spec:
+  // "Do not silently change historical documents").
+  inputData         Json
+  aiUsed            Boolean                 @default(false)
+  storageKey        String                  @unique // private bucket — the generated .docx
+  mimeType          String
+  sizeBytes         Int
+  documentId        String?                 @unique // optional: registered into the main Document explorer
+  document          Document?               @relation(fields: [documentId], references: [id])
+  createdById       String
+  createdBy         User                    @relation(fields: [createdById], references: [id])
+  createdAt         DateTime                @default(now())
+
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+// ============================================================================
+// NOTIFICATIONS (spec section 29/68)
+// ============================================================================
+enum NotificationType {
+  CONTRACT_EXPIRING
+  CONTRACT_EXPIRED
+  NEW_DOCUMENT
+  DOCUMENT_GENERATED
+  DOCUMENT_PENDING_REVIEW
+  NEW_CORRESPONDENCE
+  UPCOMING_MATCH
+  UPCOMING_TRAINING
+  NEW_ANNOUNCEMENT
+  PERMISSION_CHANGED
+  PLAYER_MISSING_DOCUMENTS
+  MATCH_REPORT_MISSING
+  MATCH_MISSING_INFO
+  TRAINING_ATTENDANCE_MISSING
+  BUDGET_NEARING_EXHAUSTION
+  BUDGET_EXCEEDED
+  EXPENSE_DRAFT_PENDING
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String?
+  // Insight params captured at creation. The notifications page renders the
+  // localized text from `insights.types.<type>` + these params in the VIEWER's
+  // locale (ar/fr); `title` remains as the fallback for rows created before
+  // this column existed.
+  params    Json?
+  link      String? // internal dashboard path, e.g. "/dashboard/contracts/abc123"
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ============================================================================
+// FINANCE & TREASURY
+// ----------------------------------------------------------------------------
+// Four distinct concepts, deliberately never conflated (see engineering
+// report): Budget (authorized amount) vs Expense (an obligation/spend,
+// DRAFT until POSTED) vs TreasuryAccount (a real cash/bank account) vs
+// TreasuryTransaction (the ledger — the ONLY authoritative record of money
+// actually moving). TreasuryAccount has no cached mutable balance field on
+// purpose: current balance is always openingBalance + Σ(deposits) −
+// Σ(withdrawals) over posted ledger rows, computed on read inside a
+// SERIALIZABLE transaction when a new movement is being validated — there is
+// no independent writable balance that could drift from the ledger.
+// ============================================================================
+
+enum BudgetStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ExpenseCategory {
+  FOOD
+  TRANSPORT
+  LODGING
+  EQUIPMENT
+  MEDICAL
+  ADMINISTRATION
+  TRAINING
+  MATCH
+  TRAVEL
+  OTHER
+}
+
+enum ExpenseStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum TreasuryAccountType {
+  CASH
+  BANK
+  OTHER
+}
+
+enum TreasuryTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+model Budget {
+  id              String           @id @default(cuid())
+  seasonId        String
+  season          Season           @relation(fields: [seasonId], references: [id])
+  teamId          String? // null = club-level budget — spec: do not blindly make everything team-scoped
+  team            Team?            @relation(fields: [teamId], references: [id])
+  category        ExpenseCategory?
+  allocatedAmount Int // whole DZD — see money-representation note in the engineering report; never Float
+  currency        String           @default("DZD")
+  status          BudgetStatus     @default(ACTIVE)
+  notes           String?          @db.Text
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  expenses Expense[]
+
+  @@index([seasonId, teamId])
+  @@index([status])
+}
+
+model Expense {
+  id                String           @id @default(cuid())
+  referenceNumber   String           @unique
+  amount            Int // whole DZD, always positive (enforced in validation, never trusted from the client alone)
+  currency          String           @default("DZD")
+  category          ExpenseCategory
+  date              DateTime
+  description       String
+  payeeName         String? // free text — deliberately not a Staff/Player relation (a Staff member may belong to multiple teams; this avoids ever inferring an expense's team from a payee's team)
+  paymentMethod     PaymentMethod?
+  teamId            String?
+  team              Team?            @relation(fields: [teamId], references: [id])
+  seasonId          String
+  season            Season           @relation(fields: [seasonId], references: [id])
+  budgetId          String?
+  budget            Budget?          @relation(fields: [budgetId], references: [id])
+  relatedMatchId    String?
+  relatedMatch      Match?           @relation(fields: [relatedMatchId], references: [id])
+  relatedTrainingId String?
+  relatedTraining   TrainingSession? @relation(fields: [relatedTrainingId], references: [id])
+  status            ExpenseStatus    @default(DRAFT) // only POSTED counts toward budget/expenditure calculations
+  documentId        String?          @unique // optional supporting document (receipt/invoice) — reuses the existing Document registry
+  document          Document?        @relation(fields: [documentId], references: [id])
+  notes             String?          @db.Text
+  createdById       String
+  createdBy         User             @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  updatedById       String?
+  updatedBy         User?            @relation("ExpenseUpdatedBy", fields: [updatedById], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  treasuryTransaction TreasuryTransaction? // at most one payment movement per expense — prevents double-counting by construction (see relatedExpenseId @unique below)
+
+  @@index([status])
+  @@index([teamId])
+  @@index([seasonId])
+  @@index([category])
+  @@index([date])
+}
+
+model TreasuryAccount {
+  id             String              @id @default(cuid())
+  name           String
+  type           TreasuryAccountType @default(CASH)
+  currency       String              @default("DZD")
+  openingBalance Int                 @default(0)
+  active         Boolean             @default(true)
+  notes          String?             @db.Text
+  createdById    String
+  createdBy      User                @relation(fields: [createdById], references: [id])
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  transactions TreasuryTransaction[]
+
+  @@index([active])
+}
+
+model TreasuryTransaction {
+  id                      String                  @id @default(cuid())
+  referenceNumber         String                  @unique
+  idempotencyKey          String                  @unique // server-generated per form render; a resubmit collides here instead of double-posting
+  treasuryAccountId       String
+  treasuryAccount         TreasuryAccount         @relation(fields: [treasuryAccountId], references: [id])
+  type                    TreasuryTransactionType
+  amount                  Int // always positive; direction comes from `type`, never a signed amount
+  currency                String                  @default("DZD")
+  transactionDate         DateTime
+  description             String?
+  // Immutable snapshot captured atomically at write time inside the same
+  // SERIALIZABLE transaction that validated sufficiency — NEVER edited
+  // afterward, and NEVER itself the source of truth for later balance
+  // calculations (the ledger sum always is). Kept for receipts/audit only.
+  balanceBefore           Int
+  balanceAfter            Int
+  relatedExpenseId        String?                 @unique // at most one transaction per expense
+  relatedExpense          Expense?                @relation(fields: [relatedExpenseId], references: [id])
+  documentId              String?                 @unique
+  document                Document?               @relation(fields: [documentId], references: [id])
+  reversalOfTransactionId String?                 @unique
+  reversalOfTransaction   TreasuryTransaction?    @relation("Reversal", fields: [reversalOfTransactionId], references: [id])
+  reversedBy              TreasuryTransaction?    @relation("Reversal")
+  createdById             String
+  createdBy               User                    @relation(fields: [createdById], references: [id])
+  createdAt               DateTime                @default(now())
+
+  @@index([treasuryAccountId, transactionDate])
+  @@index([type])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // e.g. "player.create", "document.download"
+  entityType String   // e.g. "Player", "Document"
+  entityId   String?
+  changes    Json?    // before/after diff where relevant
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

@@ -1,0 +1,44 @@
+name: Quality checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/football_club?schema=public
+      AUTH_SECRET: ci-only-placeholder-secret-do-not-use-in-production
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Generate Prisma Client
+        run: npm run db:generate
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Check translations
+        run: npm run i18n:check
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Run unit and security regression suites
+        run: npm run test:all
+      - name: Audit all dependencies
+        run: npm audit --audit-level=moderate
+      - name: Build production application
+        run: npm run build

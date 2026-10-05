@@ -1,0 +1,24 @@
+node_modules/
+.next/
+.turbo/
+out/
+build/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environment files: keep only the safe template in source control.
+.env*
+!.env.example
+
+# Local databases, uploaded files and credentials.
+prisma/dev.db
+.storage/
+/scratch/
+*.enc
+.faf-session.enc
+
+# Local logs and operating-system metadata.
+*.log
+.DS_Store
+Thumbs.db

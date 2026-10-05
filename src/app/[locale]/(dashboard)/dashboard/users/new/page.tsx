@@ -1,0 +1,93 @@
+import { ArrowRight, Save, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
+import { createUserAction } from "../actions";
+import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-select";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
+
+export default async function NewUserPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  await requirePermission("users.manage");
+  const t = await getTranslations("users");
+  const tCommon = await getTranslations("common");
+
+  const roles = await db.role.findMany({ orderBy: { name: "asc" } });
+
+  async function action(formData: FormData) {
+    "use server";
+    const { id } = await createUserAction(formData);
+    redirect(`/${locale}/dashboard/users/${id}`);
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-4xl space-y-5">
+      <SettingsNavTabs locale={locale} />
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-club-primary/25 bg-club-primary/10 text-club-primary">
+          <UserPlus className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">{t("addUser")}</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {locale === "ar" ? "أنشئ حسابًا وحدد صلاحيات الوصول المناسبة" : "Créez un compte et définissez son rôle d’accès."}
+          </p>
+        </div>
+      </div>
+      <form action={action} encType="multipart/form-data" className="overflow-visible rounded-2xl border border-border bg-card shadow-xs">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-5 p-4 sm:grid-cols-2 sm:p-6">
+          <div className="sm:col-span-2">
+            <FileUploadDropzone
+              name="photo"
+              label={locale === "ar" ? "الصورة الشخصية (اختياري)" : "Photo de profil (facultative)"}
+              accept="image/png,image/jpeg,image/webp,image/avif"
+              hint={locale === "ar" ? "PNG أو JPG أو WebP — حتى 5 ميغابايت" : "PNG, JPG ou WebP — 5 Mo maximum"}
+              theme="primary"
+            />
+          </div>
+          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+            <span>{t("fields.name")}</span>
+            <input name="name" autoComplete="name" required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+            <span>{t("fields.email")}</span>
+            <input name="email" type="email" dir="ltr" autoComplete="email" required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+            <span>{t("fields.password")}</span>
+            <input name="password" type="password" dir="ltr" autoComplete="new-password" minLength={8} maxLength={72} required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+            <span className="block text-[11px] font-normal text-muted-foreground">
+              {locale === "ar" ? "8 أحرف على الأقل" : "8 caractères minimum"}
+            </span>
+          </label>
+          <div className="space-y-1.5 text-xs font-semibold text-foreground">
+            <span className="block">{t("fields.role")}</span>
+            <FormSelect
+              name="roleId"
+              required
+              locale={locale}
+              ariaLabel={t("fields.role")}
+              defaultValue={roles[0]?.id ?? ""}
+              options={roles.map((role) => ({ value: role.id, label: role.name }))}
+              placeholder={locale === "ar" ? "اختر الدور" : "Sélectionner un rôle"}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 border-t border-border px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <Link href={`/${locale}/dashboard/users`} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            {tCommon("cancel")}
+          </Link>
+          <Button type="submit" className="gap-2 rounded-lg">
+            <Save className="h-4 w-4" aria-hidden="true" />
+            <span>{tCommon("save")}</span>
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

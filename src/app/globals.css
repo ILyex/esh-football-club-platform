@@ -1,0 +1,535 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  /* Master Color Palette (Locked Spec Section A.2) */
+  /* Light mode page background #F8F9FA, surfaces #FFFFFF, borders #E5E7EB */
+  --background: 210 20% 98%;
+  --foreground: 220 15% 6%;
+  --card: 0 0% 100%;
+  --muted: 210 16% 95%;
+  --muted-foreground: 215 14% 46%;
+  --border: 220 13% 91%;
+  --destructive: 0 84.2% 60.2%;
+
+  /* Authentic ESH (Espoir Sidi Hosni) Club Identity */
+  --club-primary: #DC2626;
+  --club-primary-rgb: 220 38 38;
+  --club-primary-hover: #bd2020;
+  --club-secondary: #111214;      /* Approved Structural Brand Black */
+  --club-secondary-rgb: 17 18 20;
+}
+
+.dark {
+  color-scheme: dark;
+  /* Dark mode near-black base #0D0E0F, surface #161819 (Locked Spec Section A.2) */
+  --background: 210 7% 5%;
+  --foreground: 210 17% 96%;
+  --card: 210 6% 9%;
+  --muted: 210 6% 12%;
+  --muted-foreground: 215 14% 55%;
+  --border: 215 14% 15%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keep the viewport width constant while navigating between short and long dashboard pages. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* The dashboard sidebar is a full-width mobile menu trigger, then a fixed-width
+   navigation column from the tablet breakpoint upward. */
+@media (max-width: 767px) {
+  [data-dashboard-sidebar] {
+    width: 100% !important;
+    height: auto;
+    min-height: 0;
+  }
+}
+
+/* Short, color-only transitions keep theme changes calm without animating layout. */
+html.theme-transition,
+html.theme-transition body,
+html.theme-transition body *,
+html.theme-transition body *::before,
+html.theme-transition body *::after {
+  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: ease;
+}
+
+html.locale-transition body {
+  animation: locale-content-enter 220ms ease-out both;
+}
+
+@keyframes locale-content-enter {
+  from { opacity: 0.94; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition,
+  html.theme-transition body,
+  html.theme-transition body *,
+  html.theme-transition body *::before,
+  html.theme-transition body *::after {
+    transition-duration: 0ms !important;
+  }
+
+  html.locale-transition body {
+    animation: none;
+  }
+
+}
+
+/* Keep browser-saved login values aligned with the active platform theme. */
+.login-input:autofill,
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus,
+.login-input:-webkit-autofill:active {
+  background-color: hsl(var(--muted)) !important;
+  background-image: none !important;
+  color: hsl(var(--foreground)) !important;
+  -webkit-text-fill-color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--muted)) inset !important;
+  box-shadow: 0 0 0 1000px hsl(var(--muted)) inset !important;
+}
+
+.login-input:-moz-autofill {
+  background-color: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 0 0 1000px hsl(var(--muted)) inset !important;
+}
+
+/* Consistent filter rows across dashboard sections and both locales. */
+.dashboard-filter-toolbar {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 0.875rem;
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+.dashboard-filter-toolbar input:not([type="hidden"]) {
+  min-height: 2.25rem;
+  border-radius: 0.625rem;
+}
+
+.dashboard-filter-toolbar > button {
+  min-height: 2.25rem;
+  border-radius: 0.625rem;
+}
+
+.dashboard-filter-toolbar [data-filter-control] > button {
+  min-width: 10rem;
+  min-height: 2.25rem;
+  justify-content: space-between;
+  border-radius: 0.625rem;
+}
+
+/* Keep the insurance summary, category selector, and print action on one
+   consistent control rhythm despite their different component internals. */
+.insurance-header-actions > * {
+  min-height: 2.75rem;
+}
+
+.insurance-coverage-card {
+  display: flex;
+  min-width: 9.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block: 0.35rem;
+}
+
+.insurance-category-select > button {
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
+  border-radius: 0.75rem;
+}
+
+.insurance-preview-trigger {
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+}
+
+/* Keep native numeric steppers, but bring their surface and contrast in line
+   with the platform inputs in both themes. Applied globally to all 43 number fields. */
+input[type="number"] {
+  color-scheme: light;
+}
+
+.dark input[type="number"] {
+  color-scheme: dark;
+}
+
+input[type="number"]::-webkit-inner-spin-button {
+  min-height: 1.5rem;
+  margin-inline-start: 0.15rem;
+  padding-inline-start: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  opacity: 0.72;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+input[type="number"]::-webkit-inner-spin-button:hover {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .dashboard-filter-toolbar > button {
+    flex: 1 1 100%;
+  }
+
+  .dashboard-filter-toolbar [data-filter-control] {
+    flex: 1 1 10rem;
+  }
+
+  .dashboard-filter-toolbar [data-filter-control] > button {
+    width: 100%;
+  }
+
+  /* Compact legacy forms that were authored as two columns without a
+     mobile breakpoint. Keep controls and labels readable on narrow phones. */
+  form.grid.grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1rem;
+  }
+
+  form.grid.grid-cols-2 > .col-span-2 {
+    grid-column: 1 / -1;
+  }
+
+  /* Keep long identifiers, URLs, and untranslated labels inside their cards. */
+  main {
+    min-width: 0;
+  }
+
+  main :where(h1, h2, h3, p, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Elegant Custom Scrollbar for Sidebar & Dashboard */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border) / 0.8);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border) / 0.8) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* LTR (French / Latin) Typography (Locked Spec Section A.1) */
+[dir="ltr"] body {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+/* Arabic RTL Typography (Locked Spec Section A.1 & A.4) */
+[dir="rtl"] body {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  line-height: 1.85;
+  letter-spacing: normal !important;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] .font-display {
+  font-family: "Cairo", "IBM Plex Sans Arabic", sans-serif;
+  line-height: 1.35;
+  text-transform: none !important;
+}
+
+/* Monospace & Tabular Numerical Alignment (Locked Spec Section A.1) */
+.font-mono,
+.tabular-nums {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   DOCUMENT ENGINE PREVIEW & PRINT STYLES (Phase 6)
+   ========================================================================== */
+
+/* Official Algerian Institutional Documents Typography — Traditional Arabic & Arabic Typesetting Only */
+.printable-document,
+.printable-document *,
+#official-inventory-document,
+#official-inventory-document *,
+#official-inventory-preview-document,
+#official-inventory-preview-document *,
+.esh-official-document,
+.esh-official-document * {
+  font-family: 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+}
+
+/* Official Institutional Club Documents: All numbers, digits, tabular-nums, mono, dates, and amounts must strictly be Arial Bold (ARIAL EN GRAS). Strictly NO other font allowed. */
+.printable-document .font-mono,
+.printable-document .tabular-nums,
+.printable-document [class*="font-mono"],
+.printable-document [class*="tabular-nums"],
+#official-inventory-document .font-mono,
+#official-inventory-document .tabular-nums,
+#official-inventory-preview-document .font-mono,
+#official-inventory-preview-document .tabular-nums,
+.esh-official-document .font-mono,
+.esh-official-document .tabular-nums {
+  font-family: Arial, sans-serif !important;
+  font-weight: 700 !important;
+}
+
+
+/* Visual canvas view for docx-preview in browser */
+.docx-preview-root .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.docx-preview-root .docx-wrapper > section.docx {
+  background: white !important;
+  border-top: 3px solid #c8102e !important;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjAwIDEwMCI+CiAgPHRleHQgeD0iNTAiIHk9IjQyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDUwIDQyKSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjQiPkVTSDwvdGV4dD4KICA8dGV4dCB4PSIxNTAiIHk9IjkyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDE1MCA5MikiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSI0Ij5FU0g8L3RleHQ+Cjwvc3ZnPg==") !important;
+  background-size: 100px 50px !important;
+  background-repeat: repeat !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color: black !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  margin: 0 auto 1.5rem auto !important;
+  border-radius: 2px !important;
+  transition: transform 0.2s ease;
+}
+
+/* RTL support for Arabic documents */
+.docx-rtl .docx-wrapper > section.docx {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.docx-rtl .docx-wrapper > section.docx table {
+  direction: rtl !important;
+}
+
+/* Isolated Print Styles: Strips all dashboard chrome and preserves A4 layout */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+
+  /* Hide entire dashboard navigation, sidebar, topbar, search, and action tools */
+  aside,
+  header,
+  nav,
+  footer,
+  [class*="print:hidden"],
+  .no-print,
+  [data-sidebar],
+  .sidebar,
+  [role="dialog"]:not(:has(.printable-document)) {
+    display: none !important;
+  }
+
+  /* When a dialog contains a printable document, remove modal backdrop and position normally */
+  [role="dialog"]:has(.printable-document),
+  [role="dialog"]:has(#official-inventory-preview-document) {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    display: block !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  [role="dialog"]:has(.printable-document) > div:first-child,
+  [role="dialog"]:has(#official-inventory-preview-document) > div:first-child {
+    display: none !important;
+  }
+  [role="dialog"]:has(.printable-document) div,
+  [role="dialog"]:has(#official-inventory-preview-document) div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Reset body and container backgrounds for pristine paper printing */
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  main,
+  #root,
+  .printable-document,
+  .printable-document-container,
+  #official-inventory-document,
+  #official-inventory-preview-document {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
+  /* Clean up docx-preview elements for printing */
+  .docx-preview-root .docx-wrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .docx-preview-root .docx-wrapper > section.docx {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    background: white !important;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjAwIDEwMCI+CiAgPHRleHQgeD0iNTAiIHk9IjQyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDUwIDQyKSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjQiPkVTSDwvdGV4dD4KICA8dGV4dCB4PSIxNTAiIHk9IjkyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDE1MCA5MikiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSI0Ij5FU0g8L3RleHQ+Cjwvc3ZnPg==") !important;
+    background-size: 100px 50px !important;
+    background-repeat: repeat !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure the last page doesn't produce an empty trailing blank sheet */
+  .docx-preview-root .docx-wrapper > section.docx:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Remove all underlines, decorative horizontal rules and decorative lines */
+  .printable-document u,
+  .printable-document ins,
+  .printable-document a,
+  .printable-document .underline,
+  .printable-document [style*="text-decoration: underline"] {
+    text-decoration: none !important;
+  }
+
+  /* Multi-page split protection: prevent row split, repeat table headers */
+  table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  thead {
+    display: table-header-group !important;
+  }
+  tfoot {
+    display: table-footer-group !important;
+  }
+  .page-break-avoid,
+  .signature-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+/* Official Institutional Anti-Counterfeit Security Micro-Watermark */
+.esh-security-watermark {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjAwIDEwMCI+CiAgPHRleHQgeD0iNTAiIHk9IjQyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDUwIDQyKSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjQiPkVTSDwvdGV4dD4KICA8dGV4dCB4PSIxNTAiIHk9IjkyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDE1MCA5MikiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSI0Ij5FU0g8L3RleHQ+Cjwvc3ZnPg==") !important;
+  background-size: 100px 50px !important;
+  background-repeat: repeat !important;
+}
+
+/* Browser Autofill Styling - Prevent browser turning dark inputs white */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #151a26 inset !important;
+  box-shadow: 0 0 0px 1000px #151a26 inset !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  caret-color: #ffffff !important;
+}
+
+/* Prevent unwanted white outline/stroke on click/focus on buttons, carousels and cards */
+button:focus,
+button:focus-visible,
+button:active,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+[role="button"]:active,
+.carousel-no-stroke,
+.carousel-no-stroke *,
+.carousel-no-stroke:focus,
+.carousel-no-stroke:focus-visible,
+.carousel-no-stroke:active {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus:not(input):not(textarea):not(select) {
+  outline: none !important;
+}
+
+

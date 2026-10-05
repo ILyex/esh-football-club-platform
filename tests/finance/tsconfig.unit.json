@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": "../..",
+    "paths": {
+      "server-only": ["tests/finance/mocks/empty.ts"],
+      "@prisma/client": ["tests/finance/mocks/prisma-client.ts"],
+      "nanoid": ["tests/finance/mocks/nanoid.ts"],
+      "next/headers": ["tests/finance/mocks/next-headers.ts"],
+      "next/cache": ["tests/finance/mocks/next-cache.ts"],
+      "next/navigation": ["tests/finance/mocks/next-navigation.ts"],
+      "next/server": ["tests/finance/mocks/next-server.ts"],
+      "@/lib/utils": ["tests/finance/mocks/utils.ts"],
+      "@/lib/db": ["tests/finance/mocks/db.ts"],
+      "@/lib/auth": ["tests/finance/mocks/auth.ts"],
+      "@/lib/storage": ["tests/finance/mocks/storage.ts"],
+      "@/lib/documents/template-engine": ["tests/finance/mocks/template-engine.ts"],
+      "@/lib/ai/document-ai-service": ["tests/finance/mocks/ai.ts"],
+      "@/*": ["./src/*"]
+    }
+  }
+}

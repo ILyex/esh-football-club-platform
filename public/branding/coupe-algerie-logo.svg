@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="cupGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="shieldGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+  </defs>
+  <!-- Shield Background -->
+  <polygon points="100,10 180,35 170,145 100,185 30,145 20,35" fill="url(#shieldGreen)" stroke="#fbbf24" stroke-width="4"/>
+  <!-- Circular Inner -->
+  <circle cx="100" cy="95" r="55" fill="#ffffff" opacity="0.1"/>
+  <!-- Trophy Silhouette -->
+  <path d="M75,60 C75,85 88,100 100,100 C112,100 125,85 125,60 Z" fill="url(#cupGold)" stroke="#b45309" stroke-width="2"/>
+  <!-- Handles -->
+  <path d="M75,65 C60,65 60,82 75,85" fill="none" stroke="url(#cupGold)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M125,65 C140,65 140,82 125,85" fill="none" stroke="url(#cupGold)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Stem & Base -->
+  <rect x="94" y="100" width="12" height="22" fill="url(#cupGold)"/>
+  <rect x="80" y="122" width="40" height="10" rx="3" fill="url(#cupGold)"/>
+  <polygon points="76,132 124,132 120,140 80,140" fill="#b45309"/>
+  <!-- Star -->
+  <polygon points="100,35 103,43 111,43 105,48 107,56 100,51 93,56 95,48 89,43 97,43" fill="#fbbf24"/>
+  <!-- Text Label -->
+  <text x="100" y="165" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif" letter-spacing="1">COUPE D'ALGÉRIE</text>
+</svg>

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Player" ADD COLUMN IF NOT EXISTS "licenceNumber" TEXT;
+ALTER TABLE "Staff" ADD COLUMN IF NOT EXISTS "firstNameFr" TEXT,
+ADD COLUMN IF NOT EXISTS "lastNameFr" TEXT;

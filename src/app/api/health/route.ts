@@ -1,0 +1,77 @@
+import "server-only";
+
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+
+// ============================================================================
+// PHASE 13 — PRODUCTION HEALTH & READINESS PROBE
+// ----------------------------------------------------------------------------
+// Provides standardized health endpoints for orchestration platforms
+// (Kubernetes, AWS ECS, GCP Cloud Run, Docker Swarm, Fly.io, Railway, systemd).
+//
+// Endpoints:
+//   - GET /api/health                 -> Full health check (database + process)
+//   - GET /api/health?type=liveness   -> Lightweight process liveness probe
+//   - GET /api/health?type=readiness  -> Dependency readiness probe (PostgreSQL)
+//
+// Fail-safe boundary: Zero leakage of database credentials, connection strings,
+// internal file paths, or raw stack traces.
+// ============================================================================
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const probeType = searchParams.get("type") || "full";
+  const now = new Date().toISOString();
+
+  // 1. Lightweight Liveness Probe
+  if (probeType === "liveness") {
+    return NextResponse.json(
+      {
+        status: "healthy",
+        probe: "liveness",
+        timestamp: now,
+        uptimeSeconds: Math.floor(process.uptime())
+      },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+      }
+    );
+  }
+
+  // 2. Readiness / Full Health Probe
+  let dbStatus = "connected";
+  let isHealthy = true;
+
+  try {
+    // Quick ping to PostgreSQL with bounded timeout
+    await Promise.race([
+      db.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Database ping timeout")), 4000))
+    ]);
+  } catch {
+    dbStatus = "unavailable";
+    isHealthy = false;
+  }
+
+  const statusCode = isHealthy ? 200 : 503;
+
+  return NextResponse.json(
+    {
+      status: isHealthy ? "healthy" : "unhealthy",
+      probe: probeType,
+      timestamp: now,
+      version: "0.1.0",
+      services: {
+        process: "healthy",
+        database: dbStatus
+      }
+    },
+    {
+      status: statusCode,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+    }
+  );
+}

@@ -1,0 +1,1523 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Ajouter",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "loading": "Chargement...",
+    "noResults": "Aucun résultat",
+    "confirm": "Confirmer",
+    "confirmDeleteTitle": "Êtes-vous sûr ?",
+    "confirmDeleteBody": "Cette action est irréversible.",
+    "actions": "Actions",
+    "status": "Statut",
+    "date": "Date",
+    "download": "Télécharger",
+    "upload": "Téléverser un fichier",
+    "back": "Retour",
+    "close": "Fermer",
+    "images": "Images",
+    "view": "Voir",
+    "remove": "Retirer"
+  },
+  "nav": {
+    "home": "Accueil",
+    "club": "Club",
+    "team": "Équipe",
+    "players": "Joueurs",
+    "matches": "Matchs",
+    "calendar": "Calendrier",
+    "news": "Actualités",
+    "announcements": "Annonces",
+    "gallery": "Galerie",
+    "competitions": "Compétitions",
+    "contact": "Contact"
+  },
+  "auth": {
+    "login": "Connexion",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "rememberMe": "Mémoriser l’adresse e-mail",
+    "loginError": "Identifiants incorrects",
+    "invalidEmail": "Saisissez une adresse e-mail valide contenant @.",
+    "invalidPassword": "Vérifiez la longueur du mot de passe : au moins 8 caractères, sans dépasser la limite autorisée.",
+    "serviceUnavailable": "La connexion est temporairement indisponible. Réessayez dans quelques instants.",
+    "logout": "Déconnexion"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "nav": {
+      "dashboard": "Accueil",
+      "notifications": "Notifications",
+      "team": "Équipe",
+      "teams": "Catégories",
+      "players": "Joueurs",
+      "staff": "Staff",
+      "matches": "Matchs",
+      "calendar": "Calendrier",
+      "competitions": "Compétitions",
+      "training": "Entraînements",
+      "testing": "Tests des joueurs",
+      "inventory": "Inventaire & Équipement",
+      "news": "Actualités",
+      "website": "Gestion du Site Web",
+      "announcements": "Annonces",
+      "gallery": "Galerie",
+      "documents": "Archives des documents",
+      "contracts": "Contrats et conventions",
+      "insurance": "Assurance Sportive",
+      "correspondence": "Correspondances officielles",
+      "meetingMinutes": "Procès-verbaux",
+      "reports": "Rapports",
+      "dataQuality": "Qualité des données",
+      "users": "Utilisateurs",
+      "roles": "Rôles et permissions",
+      "auditLogs": "Journal d'audit",
+      "jobs": "Tâches d'arrière-plan",
+      "settings": "Paramètres",
+      "mail": "Messagerie",
+      "budgets": "Budget général",
+      "expenses": "Dépenses",
+      "treasury": "Trésorerie",
+      "bank": "Banque",
+      "cash": "Caisse",
+      "deposits": "Dépôts",
+      "withdrawals": "Retraits",
+      "overview": "Vue d'ensemble"
+    },
+    "navGroups": {
+      "navigation": "Navigation",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu",
+      "teams": "Catégories",
+      "club": "Club",
+      "documentEngine": "Moteur de documents",
+      "administration": "Administration",
+      "finance": "Finances",
+      "football": "Football & Sport",
+      "governance": "Secrétariat général et documents",
+      "media": "Médias & Communication",
+      "system": "Système & Contrôle"
+    },
+    "quickActions": {
+      "title": "Actions rapides",
+      "addMatch": "Programmer un match",
+      "addPlayer": "Ajouter un joueur",
+      "addExpense": "Enregistrer une dépense",
+      "createDocument": "Créer un document officiel",
+      "composeMail": "Rédiger un courriel officiel",
+      "visitPublicSite": "Site officiel du club"
+    },
+    "stats": {
+      "totalPlayers": "Total joueurs",
+      "activePlayers": "Joueurs actifs",
+      "staff": "Staff",
+      "nextMatch": "Prochain match",
+      "activeContracts": "Contrats actifs",
+      "expiringContracts": "Contrats bientôt expirés",
+      "totalDocuments": "Total documents",
+      "publishedNews": "Actualités publiées",
+      "noUpcomingMatch": "Aucun match à venir programmé",
+      "latestResult": "Dernier résultat",
+      "squadStatus": "État de l'effectif",
+      "training": "Entraînement",
+      "noUpcomingTraining": "Aucune séance d'entraînement à venir programmée",
+      "pendingDocuments": "Documents en attente de révision",
+      "attentionTitle": "Points d'attention prioritaires",
+      "seasonLabel": "Saison sportive",
+      "matchCenter": "Centre des matchs",
+      "clubOverview": "Vue d'ensemble du club"
+    }
+  },
+  "players": {
+    "title": "Joueurs",
+    "addPlayer": "Ajouter un joueur",
+    "fields": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "position": "Poste",
+      "nationality": "Nationalité",
+      "dateOfBirth": "Date de naissance",
+      "shirtNumber": "Numéro de maillot",
+      "height": "Taille",
+      "weight": "Poids",
+      "previousTeam": "Ancienne équipe",
+      "birthCertificateNumber": "Numéro de l'acte de naissance",
+      "preferredFoot": "Pied fort",
+      "joiningDate": "Date d'arrivée",
+      "status": "Statut",
+      "biography": "Biographie",
+      "internalNotes": "Notes internes",
+      "team": "Catégorie",
+      "photo": "Photo"
+    },
+    "positions": {
+      "GOALKEEPER": "Gardien",
+      "DEFENDER": "Défenseur",
+      "MIDFIELDER": "Milieu",
+      "FORWARD": "Attaquant"
+    },
+    "statuses": {
+      "ACTIVE": "Actif",
+      "INJURED": "Blessé",
+      "SUSPENDED": "Suspendu",
+      "ON_LOAN": "Prêté",
+      "ARCHIVED": "Archivé"
+    },
+    "feet": {
+      "RIGHT": "Droitier",
+      "LEFT": "Gaucher",
+      "BOTH": "Ambidextre"
+    }
+  },
+  "staff": {
+    "title": "Staff",
+    "addStaff": "Ajouter un membre du staff",
+    "fields": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "role": "Fonction",
+      "biography": "Biographie",
+      "internalContact": "Coordonnées internes",
+      "status": "Statut",
+      "photo": "Photo"
+    },
+    "roles": {
+      "HEAD_COACH": "Entraîneur principal",
+      "ASSISTANT_COACH": "Entraîneur adjoint",
+      "GOALKEEPING_COACH": "Entraîneur des gardiens",
+      "FITNESS_COACH": "Préparateur physique",
+      "MEDICAL_STAFF": "Staff médical",
+      "ADMINISTRATIVE_STAFF": "Staff administratif",
+      "OTHER": "Autre"
+    },
+    "statuses": {
+      "ACTIVE": "Actif",
+      "INACTIVE": "Inactif",
+      "ARCHIVED": "Archivé"
+    }
+  },
+  "contracts": {
+    "title": "Contrats",
+    "addContract": "Ajouter un contrat",
+    "fields": {
+      "type": "Type de contrat",
+      "subjectType": "Partie contractante",
+      "player": "Joueur",
+      "staff": "Membre du staff",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "status": "Statut",
+      "notes": "Notes"
+    },
+    "types": {
+      "PROFESSIONAL": "Contrat professionnel",
+      "AMATEUR": "Contrat amateur",
+      "LOAN": "Contrat de prêt",
+      "STAFF": "Contrat staff"
+    },
+    "subjectTypes": {
+      "PLAYER": "Joueur",
+      "STAFF": "Membre du staff"
+    },
+    "statuses": {
+      "ACTIVE": "Actif",
+      "EXPIRING_SOON": "Bientôt expiré",
+      "EXPIRED": "Expiré",
+      "PENDING": "En attente"
+    },
+    "errors": {
+      "subjectRequired": "Vous devez sélectionner un joueur OU un membre du staff",
+      "endBeforeStart": "La date de fin doit être postérieure à la date de début"
+    },
+    "none": "— Aucun —"
+  },
+  "teams": {
+    "title": "Catégories",
+    "allTeams": "Toutes les catégories",
+    "editTeam": "Modifier la catégorie",
+    "fields": {
+      "name": "Nom",
+      "shortName": "Nom court",
+      "birthYearFrom": "Année de naissance à partir de",
+      "birthYearTo": "Année de naissance jusqu'à",
+      "description": "Description",
+      "active": "Active"
+    },
+    "categories": {
+      "SENIOR": "Séniors",
+      "U20": "U20",
+      "U17": "U17",
+      "U15": "U15"
+    },
+    "birthYearWarning": "Attention : l'année de naissance du joueur ne correspond pas à la catégorie sélectionnée",
+    "errors": {
+      "birthYearRangeInvalid": "L'année de fin doit être postérieure à l'année de début"
+    }
+  },
+  "seasons": {
+    "title": "Saisons",
+    "addSeason": "Ajouter une saison",
+    "fields": {
+      "label": "Saison",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "isCurrent": "Saison en cours"
+    }
+  },
+  "competitions": {
+    "title": "Compétitions",
+    "addCompetition": "Ajouter une compétition",
+    "fields": {
+      "name": "Nom",
+      "organization": "Organisme",
+      "season": "Saison",
+      "status": "Statut"
+    },
+    "statuses": {
+      "UPCOMING": "À venir",
+      "ONGOING": "En cours",
+      "FINISHED": "Terminée"
+    }
+  },
+  "matches": {
+    "title": "Matchs",
+    "addMatch": "Ajouter un match",
+    "fields": {
+      "competition": "Compétition",
+      "opponent": "Adversaire",
+      "isHomeFixture": "À domicile",
+      "matchDate": "Date et heure",
+      "stadium": "Stade",
+      "refereeName": "Arbitre",
+      "status": "Statut",
+      "homeScore": "Buts équipe à domicile",
+      "awayScore": "Buts équipe visiteuse",
+      "matchReport": "Rapport de match"
+    },
+    "statuses": {
+      "SCHEDULED": "Programmé",
+      "LIVE": "En direct",
+      "FINISHED": "Terminé",
+      "POSTPONED": "Reporté",
+      "CANCELLED": "Annulé"
+    },
+    "events": {
+      "title": "Événements du match",
+      "addEvent": "Ajouter un événement",
+      "minute": "Minute",
+      "player": "Joueur",
+      "type": "Type",
+      "GOAL": "But",
+      "OWN_GOAL": "But contre son camp",
+      "ASSIST": "Passe décisive",
+      "YELLOW_CARD": "Carton jaune",
+      "RED_CARD": "Carton rouge",
+      "SUBSTITUTION_IN": "Entrée en jeu",
+      "SUBSTITUTION_OUT": "Sortie du joueur"
+    },
+    "lineup": {
+      "title": "Composition",
+      "addPlayer": "Ajouter un joueur à la composition",
+      "starting": "Titulaire",
+      "substitute": "Remplaçant",
+      "position": "Poste"
+    }
+  },
+  "calendar": {
+    "title": "Calendrier",
+    "addEvent": "Ajouter un rendez-vous",
+    "fields": {
+      "eventTitle": "Titre",
+      "type": "Type",
+      "startDateTime": "Début",
+      "endDateTime": "Fin",
+      "location": "Lieu",
+      "description": "Description"
+    },
+    "types": {
+      "MATCH": "Match",
+      "TRAINING": "Entraînement",
+      "MEETING": "Réunion",
+      "ADMINISTRATIVE": "Administratif",
+      "OTHER": "Autre"
+    },
+    "autoSyncedNotice": "Cet événement est lié automatiquement à un match ou un entraînement, et se modifie depuis sa page d'origine."
+  },
+  "training": {
+    "title": "Entraînements",
+    "addSession": "Ajouter une séance",
+    "fields": {
+      "date": "Date",
+      "startTime": "Heure de début",
+      "endTime": "Heure de fin",
+      "location": "Lieu",
+      "coach": "Entraîneur",
+      "notes": "Notes",
+      "status": "Statut"
+    },
+    "statuses": {
+      "SCHEDULED": "Programmée",
+      "COMPLETED": "Terminée",
+      "CANCELLED": "Annulée"
+    },
+    "attendance": {
+      "title": "Feuille de présence",
+      "PRESENT": "Présent",
+      "ABSENT": "Absent",
+      "INJURED": "Blessé",
+      "EXCUSED": "Excusé",
+      "save": "Enregistrer les présences",
+      "selectAllPresent": "Tout marquer présent",
+      "selectAllAbsent": "Tout marquer absent",
+      "savedSuccess": "Présences enregistrées avec succès"
+    }
+  },
+  "news": {
+    "title": "Actualités",
+    "addNews": "Ajouter un article",
+    "fields": {
+      "title": "Titre",
+      "content": "Contenu",
+      "category": "Catégorie",
+      "tags": "Tags",
+      "featuredImage": "Image principale",
+      "status": "Statut",
+      "publishedAt": "Date de publication",
+      "scheduledFor": "Programmé pour"
+    },
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "PUBLISHED": "Publié",
+      "SCHEDULED": "Programmé",
+      "ARCHIVED": "Archivé"
+    },
+    "publish": "Publier",
+    "unpublish": "Dépublier",
+    "archive": "Archiver"
+  },
+  "announcements": {
+    "title": "Annonces",
+    "addAnnouncement": "Ajouter une annonce",
+    "fields": {
+      "title": "Titre",
+      "content": "Contenu",
+      "priority": "Priorité",
+      "team": "Catégorie concernée",
+      "startDate": "Date de début",
+      "endDate": "Date de fin (optionnelle)",
+      "homepageVisibility": "Afficher sur la page d'accueil",
+      "status": "Statut"
+    },
+    "priorities": {
+      "LOW": "Basse",
+      "NORMAL": "Normale",
+      "HIGH": "Haute",
+      "URGENT": "Urgente"
+    },
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "PUBLISHED": "Publié",
+      "SCHEDULED": "Programmé",
+      "ARCHIVED": "Archivé"
+    },
+    "clubWide": "Tout le club"
+  },
+  "gallery": {
+    "title": "Galerie",
+    "addAlbum": "Ajouter un album",
+    "addImage": "Ajouter une image",
+    "fields": {
+      "albumTitle": "Titre de l'album",
+      "category": "Catégorie",
+      "team": "Catégorie concernée",
+      "caption": "Légende",
+      "image": "Image",
+      "published": "Publié"
+    },
+    "categories": {
+      "MATCHES": "Matchs",
+      "TRAINING": "Entraînements",
+      "TEAM": "Équipe",
+      "EVENTS": "Événements",
+      "CLUB": "Club"
+    }
+  },
+  "correspondence": {
+    "title": "Correspondance",
+    "addCorrespondence": "Ajouter une correspondance",
+    "incoming": "Entrante",
+    "outgoing": "Sortante",
+    "fields": {
+      "referenceNumber": "Numéro de référence",
+      "subject": "Objet",
+      "sender": "Expéditeur",
+      "recipient": "Destinataire",
+      "date": "Date",
+      "type": "Type",
+      "priority": "Priorité",
+      "status": "Statut",
+      "team": "Catégorie concernée",
+      "relatedPlayer": "Joueur concerné",
+      "relatedStaff": "Membre du staff concerné",
+      "relatedMatch": "Match concerné",
+      "notes": "Notes",
+      "attachments": "Pièces jointes"
+    },
+    "types": {
+      "INCOMING": "Entrante",
+      "OUTGOING": "Sortante"
+    },
+    "priorities": {
+      "LOW": "Basse",
+      "NORMAL": "Normale",
+      "HIGH": "Haute",
+      "URGENT": "Urgente"
+    },
+    "statuses": {
+      "NEW": "Nouvelle",
+      "IN_PROGRESS": "En cours",
+      "COMPLETED": "Terminée",
+      "ARCHIVED": "Archivée"
+    },
+    "none": "— Aucun —",
+    "attachExisting": "Joindre un document existant",
+    "noDocument": "Aucun document avec cet identifiant, ou hors de vos autorisations"
+  },
+  "meetings": {
+    "title": "Procès-verbaux",
+    "addMeeting": "Ajouter un procès-verbal",
+    "pendingMinutes": {
+      "title": "Réunions en attente de compte-rendu",
+      "description": "Ces réunions sont terminées et aucun compte-rendu n’a été enregistré. Créez le compte-rendu et associez-le au rendez-vous ici.",
+      "count": "{count} en attente",
+      "create": "Créer le compte-rendu"
+    },
+    "sections": {
+      "meetingInfo": "Informations de la réunion",
+      "minutesDetails": "Détails du procès-verbal",
+      "attachment": "Pièce jointe facultative"
+    },
+    "fields": {
+      "meetingTitle": "Titre de la réunion",
+      "date": "Date et heure",
+      "location": "Lieu",
+      "attendees": "Participants",
+      "team": "Catégorie concernée",
+      "agenda": "Ordre du jour",
+      "content": "Compte-rendu",
+      "decisions": "Décisions et actions",
+      "notes": "Notes",
+      "status": "Statut",
+      "attachments": "Pièces jointes"
+    },
+    "attendeesHint": "Saisissez un nom puis appuyez sur Entrée pour l’ajouter",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "APPROVED": "Approuvé",
+      "ARCHIVED": "Archivé"
+    }
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "addUser": "Ajouter un utilisateur",
+    "fields": {
+      "name": "Nom",
+      "email": "E-mail",
+      "role": "Rôle",
+      "password": "Mot de passe",
+      "isActive": "Actif",
+      "lastLoginAt": "Dernière connexion",
+      "sessionStatus": "État de session",
+      "online": "Actif maintenant",
+      "offline": "Inactif"
+    },
+    "resetPassword": "Réinitialiser le mot de passe",
+    "deactivate": "Désactiver",
+    "activate": "Activer",
+    "deleteUser": "Supprimer l’utilisateur",
+    "confirmDeleteUser": "L’utilisateur perdra l’accès et ses données personnelles seront masquées, tandis que l’historique sera conservé. Continuer ?",
+    "terminateSession": "Terminer la session",
+    "confirmTerminateSession": "Cet utilisateur sera déconnecté de tous ses appareils. Continuer ?",
+    "errors": {
+      "emailTaken": "Cet e-mail est déjà utilisé",
+      "lastSuperAdmin": "Impossible de désactiver ou changer le rôle du dernier super-administrateur actif",
+      "cannotDeleteOwnAccount": "Vous ne pouvez pas supprimer votre propre compte",
+      "userNotFound": "Utilisateur introuvable ou déjà supprimé"
+    }
+  },
+  "roles": {
+    "title": "Rôles & permissions",
+    "addRole": "Ajouter un rôle",
+    "fields": {
+      "key": "Identifiant",
+      "name": "Nom",
+      "description": "Description",
+      "permissions": "Permissions"
+    },
+    "systemRole": "Rôle système",
+    "usersCount": "Nombre d'utilisateurs",
+    "deleteRole": "Supprimer le rôle",
+    "savePermissions": "Enregistrer les permissions",
+    "errors": {
+      "keyTaken": "Cet identifiant est déjà utilisé",
+      "keyFormat": "Lettres minuscules, chiffres et underscore uniquement",
+      "cannotDeleteSystemRole": "Impossible de supprimer un rôle système",
+      "roleInUse": "Impossible de supprimer un rôle assigné à des utilisateurs"
+    }
+  },
+  "auditLogs": {
+    "title": "Journal d'audit",
+    "fields": {
+      "actor": "Utilisateur",
+      "action": "Action",
+      "entityType": "Type d'entité",
+      "entityId": "Identifiant de l'entité",
+      "timestamp": "Date et heure"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "sections": {
+      "identity": "Identité du club",
+      "branding": "Identité visuelle",
+      "contact": "Coordonnées",
+      "localization": "Langue"
+    },
+    "fields": {
+      "name": "Nom officiel",
+      "shortName": "Nom court",
+      "logo": "Logo officiel",
+      "primaryColor": "Couleur principale",
+      "secondaryColor": "Couleur secondaire",
+      "description": "Description",
+      "stadium": "Stade",
+      "contactEmail": "E-mail",
+      "contactPhone": "Téléphone",
+      "address": "Adresse",
+      "defaultLocale": "Langue par défaut"
+    },
+    "logoHint": "Logo officiel actuel — remplaçable uniquement par un nouvel envoi, jamais généré automatiquement"
+  },
+  "reports": {
+    "title": "Rapports",
+    "players": "Statistiques joueurs",
+    "matches": "Statistiques matchs",
+    "training": "Présence aux entraînements",
+    "contracts": "Statut des contrats",
+    "documents": "Statistiques documents",
+    "activity": "Activité administrative",
+    "content": "Actualités & annonces",
+    "filters": {
+      "team": "Catégorie",
+      "season": "Saison"
+    }
+  },
+  "search": {
+    "placeholder": "Recherche globale...",
+    "title": "Résultats de recherche",
+    "loading": "Recherche en cours...",
+    "noQuery": "Saisissez un terme de recherche",
+    "noResults": "Aucun résultat trouvé",
+    "allCategories": "Toutes les catégories",
+    "resultsCount": "{count} résultats",
+    "categories": {
+      "players": "Joueurs",
+      "staff": "Staff",
+      "teams": "Équipes & Catégories",
+      "matches": "Matchs",
+      "competitions": "Compétitions",
+      "training": "Entraînements",
+      "documents": "Documents",
+      "contracts": "Contrats",
+      "finance": "Finances & Dépenses",
+      "news": "Actualités",
+      "announcements": "Annonces",
+      "correspondence": "Correspondance",
+      "meetings": "Procès-verbaux",
+      "users": "Utilisateurs",
+      "roles": "Rôles & Permissions"
+    }
+  },
+  "command": {
+    "placeholder": "Rechercher ou taper une commande...",
+    "navigation": "Navigation",
+    "actions": "Actions rapides",
+    "attention": "Points d'attention",
+    "recent": "Récents",
+    "noCommands": "Aucune commande trouvée",
+    "shortcut": "Ctrl + K",
+    "open": "Centre de commande",
+    "close": "Fermer",
+    "records": "Enregistrements trouvés",
+    "searchAll": "Voir tous les résultats de recherche",
+    "attentionItems": {
+      "expiringContracts": "Contrats expirant prochainement ({count})",
+      "draftExpenses": "Dépenses en brouillon à valider ({count})",
+      "failedJobs": "Tâches d'arrière-plan en échec ({count})",
+      "unreadNotifications": "Notifications non lues ({count})"
+    }
+  },
+  "templates": {
+    "title": "Modèles de documents",
+    "addTemplate": "Téléverser un modèle officiel",
+    "addVersion": "Téléverser une nouvelle version",
+    "fields": {
+      "name": "Nom",
+      "type": "Type de document",
+      "language": "Langue du modèle",
+      "file": "Fichier modèle (.docx)"
+    },
+    "types": {
+      "MATCH_REPORT": "Rapport de match",
+      "MEETING_MINUTES": "Procès-verbal",
+      "CORRESPONDENCE": "Correspondance",
+      "ANNOUNCEMENT": "Annonce",
+      "PLAYER_REPORT": "Rapport joueur",
+      "TRAINING_REPORT": "Rapport d'entraînement",
+      "ADMINISTRATIVE_REPORT": "Rapport administratif",
+      "OTHER": "Autre",
+      "EXPENSE_STATEMENT": "État de dépense",
+      "DEPOSIT_RECEIPT": "Reçu de dépôt",
+      "WITHDRAWAL_RECEIPT": "Reçu de retrait"
+    },
+    "versionStatuses": {
+      "DRAFT": "Brouillon — mappage des champs en attente",
+      "ACTIVE": "Active",
+      "ARCHIVED": "Archivée"
+    },
+    "detectedFields": "Champs détectés",
+    "noFieldsDetected": "Aucun champ variable trouvé dans ce fichier",
+    "mapping": {
+      "title": "Mappage des champs",
+      "placeholder": "Champ",
+      "label": "Libellé affiché",
+      "sourceType": "Source",
+      "sourcePath": "Champ de la base de données",
+      "activate": "Activer cette version après l'enregistrement",
+      "activateHint": "Tous les champs détectés doivent être mappés avant l'activation",
+      "save": "Enregistrer le mappage"
+    },
+    "sourceTypes": {
+      "DATABASE_FIELD": "Depuis la base de données",
+      "MANUAL_INPUT": "Saisie manuelle",
+      "AI_ASSISTED": "Assisté par IA"
+    },
+    "errors": {
+      "templateFileRequired": "Un fichier est requis",
+      "templateMustBeDocx": "Le fichier doit être au format .docx",
+      "templateReadFailed": "Impossible de lire le fichier"
+    }
+  },
+  "generatedDocuments": {
+    "title": "Documents générés",
+    "generateNew": "Générer un nouveau document",
+    "selectType": "Type de document",
+    "selectVersion": "Modèle actif",
+    "selectEntity": "Élément concerné",
+    "noActiveVersion": "Aucune version active pour ce type de modèle pour l'instant",
+    "autoFilled": "Rempli automatiquement depuis la base de données",
+    "manualFields": "Champs nécessitant une saisie manuelle",
+    "aiAssist": "Améliorer la formulation avec l'IA",
+    "aiUnavailable": "L'assistant IA n'est pas activé actuellement (clé API non configurée) — vous pouvez continuer sans lui",
+    "preview": "Aperçu",
+    "generate": "Générer le document",
+    "download": "Télécharger",
+    "print": "Imprimer le document",
+    "downloadDocx": "Télécharger en DOCX",
+    "downloadPdf": "Télécharger en PDF",
+    "serverPdfUnavailable": "Conversion PDF sur le serveur non configurée",
+    "printInstruction": "Pour enregistrer le document au format PDF, cliquez sur 'Imprimer' et choisissez 'Enregistrer au format PDF' comme destination.",
+    "previewLoading": "Traitement et chargement de l'aperçu du document...",
+    "previewError": "Impossible d'afficher l'aperçu interactif du document.",
+    "zoomIn": "Agrandir",
+    "zoomOut": "Réduire",
+    "resetZoom": "Réinitialiser",
+    "a4Sheet": "Feuille A4",
+    "metadata": "Métadonnées du document",
+    "fields": {
+      "template": "Modèle",
+      "version": "Version",
+      "relatedEntity": "Élément lié",
+      "createdBy": "Créé par",
+      "createdAt": "Date de création",
+      "aiUsed": "IA utilisée"
+    },
+    "entityTypes": {
+      "Match": "Match",
+      "MeetingMinute": "Procès-verbal",
+      "Correspondence": "Correspondance",
+      "Expense": "Dépense",
+      "TreasuryTransaction": "Opération de trésorerie"
+    }
+  },
+  "notices": {
+    "calendarEventCreated": "Le rendez-vous a été ajouté au calendrier",
+    "mappingSaved": "Mappage des champs enregistré",
+    "activated": "Cette version du modèle a été activée",
+    "errors": {
+      "activationBlocked": "Enregistré, mais l'activation est impossible tant que tous les champs détectés ne sont pas correctement mappés"
+    }
+  },
+  "insights": {
+    "attentionCenter": "Centre d'attention",
+    "dataQualityCenter": "Qualité des données",
+    "noIssues": "Aucun élément ne nécessite d'attention pour le moment",
+    "severities": {
+      "info": "Info",
+      "warning": "Attention",
+      "critical": "Urgent"
+    },
+    "CONTRACT_EXPIRING": "Le contrat de {name} expire dans {days} jours",
+    "CONTRACT_EXPIRED": "Le contrat de {name} a expiré et n'a pas été mis à jour",
+    "PLAYER_MISSING_DOCUMENTS": "Aucun document téléversé pour {name}",
+    "PLAYER_NOT_INSURED": "Le joueur {name} n'est pas assuré pour la saison ou son attestation d'assurance est manquante",
+    "PLAYER_INSURANCE_EXPIRING": "L'assurance sportive de {name} expire dans {days} jours",
+    "PLAYER_INSURANCE_EXPIRED": "L'assurance sportive de {name} a expiré et nécessite un renouvellement immédiat",
+    "PLAYER_MISSING_TEAM": "{name} n'est assigné à aucune catégorie",
+    "PLAYER_BIRTH_YEAR_MISMATCH": "L'année de naissance de {name} ne correspond pas à la catégorie sélectionnée",
+    "MATCH_REPORT_MISSING": "Le rapport du match contre {opponent} n'est pas complété",
+    "MATCH_MISSING_INFO": "Informations manquantes pour le match à venir contre {opponent}",
+    "TRAINING_ATTENDANCE_MISSING": "La présence n'a pas été enregistrée pour l'entraînement du {date}",
+    "DOCUMENT_PENDING_REVIEW": "Le document « {name} » est en attente de révision",
+    "BUDGET_NEARING_EXHAUSTION": "Le budget {season} ({scopeKind, select, team {{scope}} other {niveau club}}) est consommé à {percent} %",
+    "BUDGET_EXCEEDED": "Le budget {season} ({scopeKind, select, team {{scope}} other {niveau club}}) est dépassé ({percent} % consommé)",
+    "EXPENSE_DRAFT_PENDING": "La dépense {reference} est en brouillon depuis {days} jour(s) et attend une décision",
+    "EXPENSE_BUDGET_MISMATCH": "La dépense {reference} ne correspond pas à la saison ou à la catégorie de son budget",
+    "EXPENSE_PAYMENT_INCONSISTENT": "Incohérence entre la dépense {reference} et son paiement : {issue, select, PAYMENT_ON_NON_POSTED {paiement lié à une dépense non validée} CANCELLED_WITH_LIVE_PAYMENT {dépense annulée avec un paiement non annulé} other {montant du paiement différent de celui de la dépense}}",
+    "TREASURY_NEGATIVE_BALANCE": "Le solde calculé du compte « {name} » est négatif",
+    "types": {
+      "CONTRACT_EXPIRING": "Le contrat de {name} expire dans {days} jours",
+      "CONTRACT_EXPIRED": "Le contrat de {name} a expiré et n'a pas été mis à jour",
+      "PLAYER_MISSING_DOCUMENTS": "Aucun document téléversé pour {name}",
+      "PLAYER_NOT_INSURED": "Le joueur {name} n'est pas assuré pour la saison ou son attestation d'assurance est manquante",
+      "PLAYER_INSURANCE_EXPIRING": "L'assurance sportive de {name} expire dans {days} jours",
+      "PLAYER_INSURANCE_EXPIRED": "L'assurance sportive de {name} a expiré et nécessite un renouvellement immédiat",
+      "PLAYER_MISSING_TEAM": "{name} n'est assigné à aucune catégorie",
+      "PLAYER_BIRTH_YEAR_MISMATCH": "L'année de naissance de {name} ne correspond pas à la catégorie sélectionnée",
+      "MATCH_REPORT_MISSING": "Le rapport du match contre {opponent} n'est pas complété",
+      "MATCH_MISSING_INFO": "Informations manquantes pour le match à venir contre {opponent}",
+      "TRAINING_ATTENDANCE_MISSING": "La présence n'a pas été enregistrée pour l'entraînement du {date}",
+      "DOCUMENT_PENDING_REVIEW": "Le document « {name} » est en attente de révision",
+      "BUDGET_NEARING_EXHAUSTION": "Le budget {season} ({scopeKind, select, team {{scope}} other {niveau club}}) est consommé à {percent} %",
+      "BUDGET_EXCEEDED": "Le budget {season} ({scopeKind, select, team {{scope}} other {niveau club}}) est dépassé ({percent} % consommé)",
+      "EXPENSE_DRAFT_PENDING": "La dépense {reference} est en brouillon depuis {days} jour(s) et attend une décision",
+      "EXPENSE_BUDGET_MISMATCH": "La dépense {reference} ne correspond pas à la saison ou à la catégorie de son budget",
+      "EXPENSE_PAYMENT_INCONSISTENT": "Incohérence entre la dépense {reference} et son paiement : {issue, select, PAYMENT_ON_NON_POSTED {paiement lié à une dépense non validée} CANCELLED_WITH_LIVE_PAYMENT {dépense annulée avec un paiement non annulé} other {montant du paiement différent de celui de la dépense}}",
+      "TREASURY_NEGATIVE_BALANCE": "Le solde calculé du compte « {name} » est négatif",
+      "FINANCE_DEBT_UNSETTLED": "Dettes en attente de règlement : {amount} DZD ({count} factures) — la plus ancienne date de {days} jours",
+      "FINANCE_DEBT_CRITICAL": "Dette critique : {amount} DZD — couverture de trésorerie {coverage} % — plus ancienne dette : {days} jours"
+    },
+    "typeLabels": {
+      "CONTRACT_EXPIRING": "Contrats bientôt expirés",
+      "CONTRACT_EXPIRED": "Contrats expirés non mis à jour",
+      "PLAYER_MISSING_DOCUMENTS": "Joueurs sans document",
+      "PLAYER_NOT_INSURED": "Joueurs non assurés",
+      "PLAYER_INSURANCE_EXPIRING": "Assurances sportives bientôt expirées",
+      "PLAYER_INSURANCE_EXPIRED": "Assurances sportives expirées",
+      "PLAYER_MISSING_TEAM": "Joueurs sans catégorie",
+      "PLAYER_BIRTH_YEAR_MISMATCH": "Incohérence année de naissance / catégorie",
+      "MATCH_REPORT_MISSING": "Rapports de match manquants",
+      "MATCH_MISSING_INFO": "Matchs avec informations manquantes",
+      "TRAINING_ATTENDANCE_MISSING": "Présences d'entraînement non enregistrées",
+      "DOCUMENT_PENDING_REVIEW": "Documents en attente de révision",
+      "BUDGET_NEARING_EXHAUSTION": "Budgets bientôt épuisés",
+      "BUDGET_EXCEEDED": "Budgets dépassés",
+      "EXPENSE_DRAFT_PENDING": "Dépenses en brouillon",
+      "EXPENSE_BUDGET_MISMATCH": "Dépenses incohérentes avec leur budget",
+      "EXPENSE_PAYMENT_INCONSISTENT": "Dépenses incohérentes avec leur paiement",
+      "TREASURY_NEGATIVE_BALANCE": "Comptes de trésorerie à solde négatif",
+      "FINANCE_DEBT_UNSETTLED": "Dettes en attente",
+      "FINANCE_DEBT_CRITICAL": "Dettes critiques"
+    },
+    "FINANCE_DEBT_UNSETTLED": "Dettes en attente de règlement : {amount} DZD ({count} factures) — la plus ancienne date de {days} jours",
+    "FINANCE_DEBT_CRITICAL": "Dette critique : {amount} DZD — couverture de trésorerie {coverage} % — plus ancienne dette : {days} jours"
+  },
+  "notifications": {
+    "title": "Centre de Notifications & Alertes",
+    "markRead": "Marquer comme lu",
+    "markAllRead": "Tout marquer comme lu",
+    "unread": "Non lues",
+    "all": "Toutes",
+    "empty": "Aucune notification enregistrée",
+    "emptyUnread": "Parfait ! Vous avez consulté toutes les alertes et notifications",
+    "categories": {
+      "all": "Toutes les notifications",
+      "matches": "Matchs & Rapports",
+      "contracts": "Contrats & Joueurs",
+      "finance": "Finances & Dépenses",
+      "training": "Entraînements & Matériel",
+      "system": "Documents & Système"
+    }
+  },
+  "finance": {
+    "title": "Finances",
+    "budgets": "Budget général",
+    "expenses": "Dépenses",
+    "treasury": "Trésorerie",
+    "deposits": "Dépôts",
+    "withdrawals": "Retraits",
+    "allMovements": "Toutes les opérations",
+    "generalBudget": "Budget général",
+    "operationHistory": "Historique des opérations financières",
+    "totalDeposits": "Total des dépôts",
+    "totalBalance": "Solde financier disponible",
+    "activeAccounts": "Comptes actifs",
+    "financialAccounts": "Comptes financiers (caisses et banques)",
+    "accountOrDestination": "Compte récepteur",
+    "balanceImpact": "Solde après opération",
+    "receipt": "Reçu officiel",
+    "noReceiptYet": "Aucun reçu",
+    "newDepositTitle": "Enregistrer un nouveau dépôt",
+    "filterByView": "Type d'opération",
+    "allAccounts": "Tous les comptes",
+    "account": "Compte",
+    "accountsOverview": "Soldes des comptes du club",
+    "addBudget": "Ajouter un budget",
+    "addExpense": "Ajouter une dépense",
+    "addAccount": "Ajouter un compte",
+    "deposit": "Dépôt",
+    "withdrawal": "Retrait",
+    "reverse": "Annuler l'opération",
+    "post": "Valider",
+    "cancel": "Annuler",
+    "balance": "Solde actuel",
+    "openingBalance": "Solde d'ouverture",
+    "clubWide": "Niveau club",
+    "ledger": "Registre des mouvements",
+    "categories": {
+      "FOOD": "Alimentation",
+      "TRANSPORT": "Transport",
+      "LODGING": "Hébergement",
+      "EQUIPMENT": "Équipement",
+      "MEDICAL": "Médical",
+      "ADMINISTRATION": "Administration",
+      "TRAINING": "Entraînement",
+      "MATCH": "Match",
+      "TRAVEL": "Déplacement",
+      "OTHER": "Autre"
+    },
+    "budgetStatuses": {
+      "ACTIVE": "Actif",
+      "CLOSED": "Clôturé"
+    },
+    "expenseStatuses": {
+      "DRAFT": "Brouillon",
+      "POSTED": "Validée",
+      "CANCELLED": "Annulée"
+    },
+    "paymentMethods": {
+      "CASH": "Espèces",
+      "BANK_TRANSFER": "Virement bancaire",
+      "CARD": "Carte",
+      "OTHER": "Autre"
+    },
+    "accountTypes": {
+      "CASH": "Caisse",
+      "BANK": "Compte bancaire",
+      "OTHER": "Autre"
+    },
+    "transactionTypes": {
+      "DEPOSIT": "Dépôt",
+      "WITHDRAWAL": "Retrait"
+    },
+    "fields": {
+      "season": "Saison",
+      "team": "Catégorie",
+      "category": "Catégorie financière",
+      "amount": "Montant (DA)",
+      "allocatedAmount": "Montant alloué (DA)",
+      "date": "Date",
+      "description": "Description",
+      "payeeName": "Bénéficiaire",
+      "paymentMethod": "Moyen de paiement",
+      "budget": "Budget",
+      "relatedMatch": "Match concerné",
+      "relatedTraining": "Entraînement concerné",
+      "notes": "Notes",
+      "status": "Statut",
+      "name": "Nom",
+      "accountType": "Type de compte",
+      "reference": "Référence",
+      "remaining": "Restant",
+      "spent": "Dépensé",
+      "account": "Compte",
+      "balanceAfter": "Solde après",
+      "balanceBefore": "Solde avant",
+      "createdBy": "Créé par",
+      "relatedExpense": "Dépense liée",
+      "reversal": "Annulation",
+      "transactionType": "Type d'opération",
+      "updatedBy": "Modifié par"
+    },
+    "errors": {
+      "INSUFFICIENT_FUNDS": "Solde insuffisant pour cette opération",
+      "INVALID_AMOUNT": "Montant invalide",
+      "INVALID_STATUS_TRANSITION": "Cette action est impossible dans l'état actuel",
+      "DUPLICATE_TRANSACTION": "Cette opération existe déjà",
+      "INVALID_TEAM_RELATION": "La catégorie ne correspond pas au budget sélectionné",
+      "INVALID_SEASON": "La saison ne correspond pas au budget sélectionné",
+      "VALIDATION": "Certaines données saisies sont invalides",
+      "NOT_FOUND": "Élément introuvable",
+      "BUDGET_CLOSED": "Ce budget est clôturé",
+      "BUDGET_HAS_EXPENSES": "La saison et la catégorie d'un budget ne peuvent plus être modifiées lorsque des dépenses y sont liées",
+      "ACCOUNT_INACTIVE": "Ce compte de trésorerie est inactif",
+      "EXPENSE_NOT_FOUND": "Dépense introuvable",
+      "EXPENSE_AMOUNT_MISMATCH": "Le paiement doit être égal au montant de la dépense",
+      "INVALID_EXPENSE_LINK": "Seul un retrait peut être lié à une dépense",
+      "REVERSAL_OF_REVERSAL": "Une opération d'annulation ne peut pas être annulée",
+      "CONCURRENT_UPDATE": "Une modification simultanée a été détectée ; veuillez réessayer",
+      "DOCUMENT_EXPENSE_NOT_POSTED": "Un document officiel ne peut être généré que pour une dépense validée",
+      "DOCUMENT_TRANSACTION_NOT_ELIGIBLE": "Aucun reçu ne peut être émis pour une opération d'annulation ou déjà annulée",
+      "DOCUMENT_WRONG_TRANSACTION_TYPE": "Ce modèle ne correspond pas au type d'opération sélectionné",
+      "IDEMPOTENCY_CONFLICT": "Cette soumission réutilise une clé déjà employée pour une opération différente ; rechargez la page et recommencez"
+    },
+    "accountActive": "Actif",
+    "accountInactive": "Inactif",
+    "accountInactiveNote": "Ce compte est inactif : aucun nouveau mouvement ne peut être enregistré.",
+    "allTypes": "Tous les types",
+    "alreadyReversedNote": "Cette opération a déjà été annulée ; elle reste visible et inchangée dans le registre.",
+    "backToAccount": "Retour au compte",
+    "cancelBlockedByPayment": "Un paiement de trésorerie est lié à cette dépense. Annulez d'abord ce paiement (écriture inverse) avant d'annuler la dépense.",
+    "cancelExpense": "Annuler la dépense",
+    "cancelledLocked": "Cette dépense est annulée et ne peut plus être modifiée.",
+    "confirmCancelTitle": "Annuler cette dépense ?",
+    "confirmCancelBody": "Une dépense annulée ne compte plus dans le budget. Cette action est définitive.",
+    "confirmPostTitle": "Valider cette dépense ?",
+    "confirmPostBody": "Une fois validée, la dépense compte dans le budget et ses données financières ne pourront plus être modifiées. La validation ne déplace aucun argent.",
+    "confirmReverseTitle": "Annuler cette opération ?",
+    "confirmReverseBody": "Une nouvelle opération de sens inverse sera enregistrée. L'opération d'origine reste inchangée dans le registre.",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "documentRestricted": "Document joint (accès restreint)",
+    "editExpense": "Modifier le brouillon",
+    "expenseRecord": "Dépense (enregistrement comptable)",
+    "expenseVsTreasuryNote": "Une dépense enregistre une obligation financière ; la valider ne déplace aucun argent. L'argent ne sort d'un compte de trésorerie que lorsqu'un retrait est enregistré dans le registre des mouvements.",
+    "generateDepositReceipt": "Générer un reçu de dépôt",
+    "generateStatement": "Générer un état de dépense",
+    "generateWithdrawalReceipt": "Générer un reçu de retrait",
+    "ledgerNote": "Le solde réel du compte est basé sur les opérations financières validées.",
+    "newDeposit": "Enregistrer un dépôt",
+    "newWithdrawal": "Enregistrer un retrait",
+    "nextPage": "Page suivante",
+    "previousPage": "Page précédente",
+    "pageOf": "Page {page} / {pages}",
+    "noActiveAccount": "Aucun compte financier actif disponible.",
+    "noActiveReceiptTemplate": "Aucun modèle actif pour ce type de reçu.",
+    "noActiveStatementTemplate": "Aucun modèle actif pour l'état de dépense.",
+    "noGeneratedDocuments": "Aucun document généré pour cette dépense.",
+    "noMovementCancelled": "Aucun mouvement financier n'est lié à cette dépense annulée.",
+    "noMovementYet": "Aucun mouvement financier n'est enregistré pour cette dépense : aucun argent n'est sorti d'un compte.",
+    "openingBalanceHelp": "Le solde d'ouverture est fixé à la création. Toute variation ultérieure est un mouvement du registre.",
+    "payFromAccount": "Payer depuis le compte",
+    "paymentHelp": "L'enregistrement du paiement crée un retrait dans le registre pour exactement ce montant. C'est la seule étape qui déplace de l'argent.",
+    "paymentReversedNote": "Le paiement a été annulé : l'argent est revenu sur le compte. La dépense peut être annulée mais ne peut pas être payée de nouveau. Opération d'annulation :",
+    "postFirst": "Validez la dépense avant d'enregistrer un paiement.",
+    "postedLocked": "Cette dépense est validée : ses données financières ne peuvent plus être modifiées.",
+    "receiptNotEligible": "Aucun reçu ne peut être émis pour une opération d'annulation ou déjà annulée.",
+    "recordPayment": "Enregistrer le paiement",
+    "relatedDocuments": "Documents officiels générés",
+    "reversalEntry": "Opération d'annulation",
+    "reversalNotReversible": "Une opération d'annulation ne peut pas être annulée à son tour ; enregistrez un nouveau mouvement si nécessaire.",
+    "reversalOf": "Annule l'opération",
+    "reversed": "Annulée",
+    "reversedBy": "Annulée par",
+    "selectAccount": "— choisir un compte —",
+    "snapshotNote": "Les soldes avant/après sont des instantanés historiques enregistrés au moment de l'opération ; ils ne changent jamais.",
+    "statementRequiresPosted": "Un état officiel ne peut être généré que pour une dépense validée.",
+    "supportingDocument": "Justificatif",
+    "treasuryMovement": "Règlement et décaissement",
+    "withdrawalExpenseHint": "Pour payer une dépense, utilisez « Enregistrer le paiement » depuis la fiche de la dépense.",
+    "paymentStates": {
+      "NONE": "Non payée",
+      "PAID": "Payée",
+      "REVERSED": "Paiement annulé"
+    },
+    "success": {
+      "expenseRecorded": "Dépense enregistrée avec succès",
+      "expenseUpdated": "Dépense mise à jour",
+      "expensePosted": "Dépense validée",
+      "expenseCancelled": "Dépense annulée",
+      "paymentRecorded": "Paiement enregistré",
+      "depositRecorded": "Dépôt enregistré",
+      "withdrawalRecorded": "Retrait enregistré",
+      "transactionReversed": "Opération annulée par une écriture inverse",
+      "accountCreated": "Compte de trésorerie créé",
+      "documentAttached": "Document joint avec succès"
+    },
+    "budgetExceededNote": "Budget dépassé : les dépenses validées dépassent l'enveloppe de {amount}. Le dépassement est autorisé mais signalé ; l'enveloppe peut être ajustée ci-dessous.",
+    "overview": {
+      "title": "Tableau de bord financier",
+      "description": "Vue d'ensemble en temps réel du budget général, des dépenses et des dépôts",
+      "treasuryBalance": "Solde financier disponible",
+      "activeAccountsCount": "comptes actifs",
+      "seasonBudget": "Budget général de la saison",
+      "postedExpenses": "Dépenses validées",
+      "draftExpenses": "Dépenses en attente",
+      "recentTransactions": "Dernières opérations financières",
+      "noRecentTransactions": "Aucune opération enregistrée pour le moment",
+      "pendingActions": "Actions financières nécessitant une attention",
+      "noPendingActions": "Aucune action en attente ou alerte",
+      "viewAll": "Voir tout",
+      "allocated": "Alloué",
+      "spent": "Consommé",
+      "remaining": "Restant",
+      "utilization": "Taux de consommation",
+      "quickLinks": "Accès rapides",
+      "treasuryScopeNote": "Les comptes financiers sont gérés au niveau du club, tandis que les budgets et dépenses peuvent être rattachés à des catégories."
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "uploadDocument": "Téléverser un document",
+    "classification": {
+      "PUBLIC": "Public",
+      "INTERNAL": "Interne",
+      "RESTRICTED": "Restreint"
+    },
+    "statuses": {
+      "PENDING_REVIEW": "En attente de révision",
+      "APPROVED": "Approuvé",
+      "ARCHIVED": "Archivé"
+    },
+    "approve": "Approuver",
+    "archive": "Archiver",
+    "fields": {
+      "name": "Nom",
+      "category": "Catégorie",
+      "description": "Description",
+      "documentDate": "Date du document",
+      "relatedPlayer": "Joueur lié",
+      "relatedStaff": "Membre du staff lié",
+      "relatedMatch": "Match lié",
+      "team": "Catégorie concernée",
+      "department": "Service",
+      "file": "Fichier",
+      "status": "Statut",
+      "originalName": "Nom du fichier original",
+      "size": "Taille"
+    },
+    "errors": {
+      "fileTooLarge": "La taille du fichier dépasse la limite autorisée",
+      "fileTypeNotAllowed": "Type de fichier non autorisé",
+      "forbidden": "Vous n'avez pas accès à ce document"
+    }
+  },
+  "errors": {
+    "notFound": "Page introuvable",
+    "forbidden": "Accès non autorisé à cette page",
+    "serverError": "Une erreur inattendue est survenue"
+  },
+  "teamAssignments": {
+    "title": "Équipes autorisées",
+    "staffTitle": "Équipes opérationnelles",
+    "userHint": "Ces équipes définissent les données auxquelles cet utilisateur peut accéder si son rôle est limité à une équipe.",
+    "staffHint": "Ces équipes indiquent avec quelles équipes ce membre du staff travaille au quotidien. Elles ne donnent aucun accès à la plateforme.",
+    "noAssignments": "Aucune équipe assignée.",
+    "addTeam": "Ajouter une équipe",
+    "assign": "Assigner",
+    "teamScopedWarning": "Le rôle de cet utilisateur est limité à ses équipes assignées. Il ne pourra accéder qu'aux données de ces équipes.",
+    "notTeamScopedNote": "Le rôle de cet utilisateur n'est pas limité à une équipe. Les assignations n'affecteront les droits qu'une fois le contrôle d'accès activé.",
+    "errors": {
+      "teamRequired": "Veuillez sélectionner une équipe",
+      "alreadyAssigned": "Cet utilisateur est déjà assigné à cette équipe"
+    }
+  },
+  "publicSite": {
+    "portal": "Espace Club",
+    "menu": "Menu",
+    "close": "Fermer",
+    "footer": {
+      "aboutTitle": "À propos du club",
+      "stadium": "Stade",
+      "contact": "Contact",
+      "quickLinks": "Liens rapides",
+      "rights": "Tous droits réservés",
+      "memberAffiliation": "Fédération Algérienne de Football (FAF)"
+    },
+    "home": {
+      "heroTag": "Club Historique",
+      "heroTitle": "Plus qu'un club",
+      "heroSubtitle": "Une histoire portée par les habitants de Sidi Hosni. La passion du football et des équipes tournées vers l'avenir.",
+      "upcomingMatches": "Matchs à venir",
+      "activePlayers": "Joueurs actifs inscrits",
+      "teamCategories": "Catégories du club",
+      "founded": "Année de fondation",
+      "aboutClub": "À propos du club",
+      "aboutCopy": "L'Espoir Sidi Hosni est un club sportif de la wilaya de Tiaret. Nous développons le football local et accompagnons les joueurs dans un cadre fondé sur la discipline et l'esprit d'équipe.",
+      "discoverTeam": "Découvrir les équipes",
+      "nextMatch": "Prochain Match",
+      "latestResult": "Dernier Résultat",
+      "noUpcomingMatches": "Aucun match programmé pour le moment",
+      "noRecentResults": "Aucun résultat récent disponible",
+      "latestNews": "Dernières Actualités",
+      "allNews": "Toutes les actualités",
+      "noNews": "Aucune actualité publiée pour le moment",
+      "ourTeams": "Nos Équipes",
+      "ourTeamsSubtitle": "Formation continue et encadrement technique pour toutes les catégories",
+      "gallery": "Galerie Photos",
+      "viewGallery": "Voir la galerie",
+      "announcements": "Annonces Officielles",
+      "viewMatchCenter": "Centre du match",
+      "viewTeam": "Voir l'effectif"
+    },
+    "matches": {
+      "title": "Matchs & Résultats",
+      "subtitle": "Suivi de toutes les rencontres des équipes de l'ESH",
+      "upcoming": "Matchs à venir",
+      "completed": "Résultats",
+      "all": "Tous",
+      "live": "En direct",
+      "noMatches": "Aucun match trouvé",
+      "matchCenter": "Détails du match",
+      "lineups": "Compositions officielles",
+      "startingLineup": "Titulaires",
+      "substitutes": "Remplaçants",
+      "events": "Événements du match",
+      "noLineups": "Compositions non disponibles",
+      "noEvents": "Aucun événement enregistré",
+      "stadium": "Stade",
+      "referee": "Arbitre",
+      "attendance": "Affluence",
+      "round": "Journée"
+    },
+    "teams": {
+      "title": "Équipes & Effectif",
+      "subtitle": "Découvrez les effectifs et joueurs de l'Espoir Sidi Hosni",
+      "selectCategory": "Choisir la catégorie",
+      "squad": "Effectif",
+      "goalkeepers": "Gardiens de but",
+      "defenders": "Défenseurs",
+      "midfielders": "Milieux de terrain",
+      "forwards": "Attaquants",
+      "noPlayers": "Aucun joueur enregistré dans cette catégorie",
+      "playerCount": "{count} joueurs"
+    },
+    "player": {
+      "profile": "Profil du joueur",
+      "number": "Numéro",
+      "position": "Poste",
+      "birthDate": "Date de naissance",
+      "nationality": "Nationalité",
+      "dominantFoot": "Pied fort",
+      "height": "Taille",
+      "weight": "Poids",
+      "appearances": "Apparitions officielles",
+      "goals": "Buts",
+      "bio": "Biographie",
+      "years": "ans"
+    },
+    "news": {
+      "title": "Actualités du Club",
+      "subtitle": "Toutes les actualités et communiqués officiels de l'ESH",
+      "readMore": "Lire la suite",
+      "publishedOn": "Publié le",
+      "category": "Catégorie",
+      "backToNews": "Retour aux actualités",
+      "noArticles": "Aucun article publié pour le moment",
+      "share": "Partager"
+    },
+    "competitions": {
+      "title": "Compétitions & Tournois",
+      "subtitle": "Compétitions officielles disputées par l'ESH",
+      "matchesPlayed": "Matchs joués",
+      "noCompetitions": "Aucune compétition enregistrée",
+      "season": "Saison",
+      "type": "Type"
+    },
+    "gallery": {
+      "title": "Galerie Photos",
+      "subtitle": "Moments forts et souvenirs de l'Espoir Sidi Hosni",
+      "photoCount": "{count} photos",
+      "noAlbums": "Aucun album publié pour le moment",
+      "backToGallery": "Retour à la galerie",
+      "emptyAlbum": "Cet album ne contient aucune photo"
+    },
+    "positions": {
+      "GOALKEEPER": "Gardien de but",
+      "DEFENDER": "Défenseur",
+      "MIDFIELDER": "Milieu de terrain",
+      "FORWARD": "Attaquant"
+    },
+    "foot": {
+      "RIGHT": "Droitier",
+      "LEFT": "Gaucher",
+      "BOTH": "Ambidextre"
+    },
+    "matchStatus": {
+      "SCHEDULED": "Programmé",
+      "IN_PROGRESS": "En cours",
+      "LIVE": "En direct",
+      "COMPLETED": "Terminé",
+      "FINISHED": "Terminé",
+      "POSTPONED": "Reporté",
+      "CANCELLED": "Annulé"
+    },
+    "eventTypes": {
+      "GOAL": "But",
+      "PENALTY": "Penalty",
+      "OWN_GOAL": "Contre son camp",
+      "YELLOW_CARD": "Carton jaune",
+      "RED_CARD": "Carton rouge",
+      "SUBSTITUTION": "Changement"
+    }
+  },
+  "mail": {
+    "title": "Messagerie Officielle du Club",
+    "subtitle": "Gestion et consultation de la boîte officielle de l'Espoir Sidi Hosni via Google Workspace",
+    "inbox": "Boîte de réception",
+    "sent": "Messages envoyés",
+    "drafts": "Brouillons",
+    "starred": "Favoris",
+    "spam": "Spam",
+    "trash": "Corbeille",
+    "compose": "Nouveau message",
+    "attachFiles": "Joindre des fichiers ou photos",
+    "removeAttachment": "Supprimer la pièce jointe",
+    "reply": "Répondre",
+    "replyAll": "Répondre à tous",
+    "forward": "Transférer",
+    "to": "À",
+    "cc": "Cc",
+    "bcc": "Cci",
+    "subject": "Objet",
+    "body": "Corps du message",
+    "send": "Envoyer",
+    "sending": "Envoi en cours...",
+    "sentSuccess": "Message envoyé avec succès",
+    "attachments": "Pièces jointes",
+    "optional": "Facultatif",
+    "dropFilesHint": "Déposez les fichiers ici ou cliquez pour les choisir",
+    "downloadAttachment": "Télécharger la pièce jointe",
+    "noMessages": "Aucun message dans ce dossier",
+    "noSelectedThread": "Sélectionnez une conversation pour afficher les détails",
+    "markAsRead": "Marquer comme lu",
+    "markAsUnread": "Marquer comme non lu",
+    "sync": "Synchroniser",
+    "syncing": "Synchronisation...",
+    "syncSuccess": "Synchronisation demandée; elle sera traitée en arrière-plan",
+    "mailLoadError": "Impossible de charger les messages Gmail. Réessayez dans quelques instants.",
+    "connectionNeedsReconnect": "L’autorisation a expiré ou les identifiants sont illisibles. Reconnectez le compte du club.",
+    "connected": "Connecté au compte officiel du club",
+    "disconnected": "Non connecté",
+    "connectGoogle": "Connecter le compte officiel Google",
+    "disconnectGoogle": "Déconnecter le compte",
+    "confirmDisconnect": "Êtes-vous sûr de vouloir déconnecter le compte de messagerie officiel ?",
+    "unconfiguredNotice": "La connexion aux services Google n’est pas configurée. La messagerie ne fonctionnera pas tant que cette configuration ne sera pas terminée.",
+    "searchPlaceholder": "Rechercher dans les e-mails (objet, expéditeur, mots-clés)...",
+    "lastSync": "Dernière synchronisation"
+  },
+  "inventory": {
+    "title": "Inventaire & Équipement",
+    "description": "Gestion et suivi des équipements sportifs, maillots, ballons et matériel d'entraînement",
+    "addItem": "Ajouter un équipement",
+    "addItemDescription": "Enregistrer un nouvel équipement ou matériel dans l'inventaire du club",
+    "editItemDescription": "Modifier les détails, la quantité, l'état ou l'emplacement de l'équipement",
+    "clubWide": "Général club",
+    "allCategories": "Toutes les catégories",
+    "allConditions": "Tous les états",
+    "searchPlaceholder": "Rechercher par nom ou emplacement...",
+    "noItemsFound": "Aucun équipement trouvé",
+    "noItemsHint": "Vous pouvez ajouter un équipement ou modifier les filtres ci-dessus.",
+    "stats": {
+      "totalEquipment": "Total équipements",
+      "uniqueEntries": "articles enregistrés",
+      "inStock": "ballons en stock",
+      "kitsAndJerseys": "maillots et tenues",
+      "maintenanceRequired": "Matériel dégradé ou usé",
+      "poorOrDamaged": "articles à remplacer"
+    },
+    "fields": {
+      "name": "Nom de l'équipement",
+      "category": "Catégorie",
+      "quantity": "Quantité",
+      "condition": "État matériel",
+      "team": "Équipe / Catégorie",
+      "location": "Lieu de stockage",
+      "notes": "Notes complémentaires"
+    },
+    "categories": {
+      "BALLS": "Ballons",
+      "KITS": "Équipements & Tenues",
+      "CONES_MARKERS": "Cônes & Coupelles",
+      "GOALKEEPING": "Équipement gardiens",
+      "MEDICAL": "Matériel médical",
+      "TRAINING_AIDS": "Accessoires d'entraînement",
+      "ELECTRONICS": "Électronique & Chronos",
+      "OTHER": "Autre"
+    },
+    "conditions": {
+      "NEW": "Neuf",
+      "GOOD": "Bon état",
+      "FAIR": "État moyen",
+      "POOR": "Usé",
+      "DAMAGED": "Endommagé"
+    }
+  },
+  "testing": {
+    "title": "Tests et Évaluation des Joueurs",
+    "subtitle": "Gestion des protocoles d'évaluation physique, saisie des mesures de terrain et suivi de progression",
+    "newSessionTitle": "Nouvelle session de tests physiques",
+    "newSessionSubtitle": "Sélection du protocole d'évaluation, de la catégorie cible et de la date d'exécution",
+    "availableProtocols": "Protocoles de test officiels",
+    "recentSessions": "Sessions d'évaluation récentes",
+    "confirmComplete": "Êtes-vous sûr de vouloir finaliser et clôturer cette session ? Les résultats seront verrouillés et classés.",
+    "isCorrected": "Corrigé",
+    "kpi": {
+      "totalSessions": "Total des sessions",
+      "completed": "Sessions clôturées",
+      "inProgress": "Sessions en cours / Brouillons",
+      "testedRecords": "Performances enregistrées"
+    },
+    "actions": {
+      "newSession": "Nouvelle session",
+      "saveDraft": "Enregistrer le brouillon",
+      "completeSession": "Calculer et clôturer",
+      "correctResult": "Corriger le résultat",
+      "recordScores": "Saisir les mesures",
+      "viewResults": "Voir les résultats et classement",
+      "proceedToEntry": "Procéder à la saisie",
+      "cancel": "Annuler",
+      "saveCorrection": "Enregistrer",
+      "viewSession": "Détails de la session",
+      "printResults": "Imprimer les résultats",
+      "deleteSession": "Supprimer la session",
+      "confirmDeleteSession": "Êtes-vous sûr de vouloir supprimer définitivement cette session de test ? Toutes les mesures associées seront supprimées."
+    },
+    "conductor": {
+      "title": "Conducteur de Test Yo-Yo en Direct",
+      "startTest": "Démarrer le test et activer les bips",
+      "pauseTest": "Pause",
+      "resumeTest": "Reprendre",
+      "stopTest": "Terminer le test",
+      "soundEnabled": "Son activé",
+      "soundMuted": "Son muet",
+      "testAudio": "Tester le son",
+      "runningPhase": "Course (40 m)",
+      "recoveryPhase": "Récupération active (10 s)",
+      "countdownPhase": "Compte à rebours de départ",
+      "nextBeep": "Prochain bip dans",
+      "currentSpeed": "Vitesse actuelle",
+      "level": "Niveau",
+      "shuttle": "Navette",
+      "totalDistance": "Distance totale",
+      "elapsedTime": "Temps écoulé",
+      "activeRunners": "Joueurs en course",
+      "stoppedRunners": "Joueurs arrêtés / classés",
+      "markStopped": "Enregistrer l'arrêt",
+      "stoppedAt": "Arrêté à",
+      "warning1": "Avertissement 1",
+      "warningActive": "Averti",
+      "modeConductor": "Conducteur sonore en direct",
+      "modeSheet": "Tableau de saisie manuelle",
+      "pauseWarning": "Attention : La mise en pause modifie les temps de récupération du protocole officiel. À n'utiliser qu'en cas d'urgence.",
+      "allRunnersFinished": "Tous les joueurs ont terminé le test ! Vous pouvez clôturer et enregistrer les résultats officiels.",
+      "saveDraft": "Enregistrer le brouillon",
+      "stopAllRemaining": "Arrêter tous les restants",
+      "saveAndComplete": "Enregistrer et clôturer"
+    },
+    "categories": {
+      "AEROBIC": "Aérobie & Endurance",
+      "ENDURANCE": "Endurance",
+      "SPEED": "Vitesse & Vivacité",
+      "AGILITY": "Agilité",
+      "POWER": "Puissance & Détente",
+      "STRENGTH": "Force musculaire",
+      "FLEXIBILITY": "Souplesse",
+      "OTHER": "Autre"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "completed": "Clôturée",
+      "cancelled": "Annulée",
+      "valid": "Valide",
+      "incomplete": "Incomplet / Abandon",
+      "disqualified": "Disqualifié",
+      "absent": "Absent"
+    },
+    "fields": {
+      "targetTeam": "Équipe / Catégorie",
+      "testProtocol": "Protocole de test",
+      "sessionTitle": "Titre de la session",
+      "date": "Date et heure",
+      "location": "Lieu / Terrain",
+      "notes": "Remarques",
+      "notesPlaceholder": "Conditions météorologiques, état du terrain, observations physiques...",
+      "level": "Niveau",
+      "shuttle": "Aller-retour",
+      "distance": "Distance totale (m)",
+      "score": "Résultat officiel",
+      "timeAttempt1": "Essai 1 (s)",
+      "timeAttempt2": "Essai 2 (s)",
+      "bestTime": "Meilleur temps (s)",
+      "heightAttempt1": "Essai 1 (cm)",
+      "heightAttempt2": "Essai 2 (cm)",
+      "bestHeight": "Meilleure détente (cm)"
+    },
+    "table": {
+      "session": "Session",
+      "protocol": "Protocole",
+      "team": "Catégorie",
+      "date": "Date",
+      "players": "Joueurs",
+      "status": "Statut",
+      "actions": "Actions",
+      "rank": "Rang",
+      "player": "Joueur",
+      "playerRoster": "Effectif convoqué"
+    },
+    "sheet": {
+      "liveDraftMode": "Mode saisie directe sur le terrain",
+      "officialResultsMode": "Résultats officiels homologués"
+    },
+    "protocols": {
+      "yoyoBannerDesc": "Test de récupération intermittent de Bangsbo (Yo-Yo IR1) — Navettes de 2x20m avec 10s de récupération active. Débute au niveau 5 avec accélération progressive.",
+      "sprintBannerDesc": "Test de vitesse linéaire et accélération maximale sur 30 mètres départ arrêté.",
+      "jumpBannerDesc": "Test de puissance explosive des membres inférieurs avec saut vertical à contre-mouvement (CMJ).",
+      "unitLabel": "Unité",
+      "definitions": {
+        "YOYO_IR1": { "name": "Test Yo-Yo de récupération intermittente — niveau 1", "description": "Évalue la capacité aérobie intermittente et l’endurance à haute intensité avec des navettes de 2 × 20 m et 10 secondes de récupération active, selon le protocole de Bangsbo." },
+        "SPRINT_30M": { "name": "Sprint sur 30 mètres", "description": "Évalue l’accélération linéaire maximale et la vitesse sur 30 mètres, départ arrêté." },
+        "VERTICAL_JUMP": { "name": "Saut vertical à contre-mouvement (CMJ)", "description": "Évalue la puissance explosive des membres inférieurs et la hauteur du saut vertical, mains sur les hanches." },
+        "FIFA_RSA": { "name": "Test FIFA de sprints répétés (6 × 40 m)", "description": "Enregistre les meilleurs et moyens temps sur six sprints de 40 mètres avec 60 secondes de récupération. L’indice de fatigue n’est calculé que si les six temps sont saisis." },
+        "YOYO_IR2": { "name": "Test Yo-Yo de récupération intermittente — niveau 2", "description": "Évalue la course intermittente à haute intensité avec le protocole Yo-Yo IR2, qui démarre plus vite et progresse rapidement. Le VO₂ est estimé, pas mesuré en laboratoire." },
+        "IFT_30_15": { "name": "Test intermittent 30–15 (IFT)", "description": "Test de terrain qui détermine la vitesse finale de course intermittente (VIFT), avec 30 secondes de course et 15 secondes de récupération en marchant." },
+        "ILLINOIS_AGILITY": { "name": "Test d’agilité d’Illinois", "description": "Mesure le temps nécessaire pour parcourir le circuit de cônes en accélérant et en changeant de direction." },
+        "COOPER_12MIN": { "name": "Test de Cooper — course de 12 minutes", "description": "Mesure la distance parcourue en 12 minutes de course continue pour estimer l’endurance aérobie et le VO₂ maximal." }
+      }
+    },
+    "correctionModal": {
+      "title": "Modifier le résultat du test",
+      "mandatoryReason": "Motif de correction",
+      "reasonPlaceholder": "Explication détaillée de l'erreur de saisie ou de chronométrage...",
+      "auditNotice": "Cette correction sera consignée dans le journal d’audit avec les valeurs précédente et nouvelle ainsi que le nom de l’utilisateur responsable."
+    },
+    "validation": {
+      "reasonTooShort": "Veuillez fournir un motif d'au moins 5 caractères."
+    },
+    "messages": {
+      "draftSaved": "Mesures enregistrées avec succès.",
+      "sessionCompleted": "Session clôturée et classement validé avec succès.",
+      "corrected": "Résultat corrigé et consigné dans le journal d’audit.",
+      "error": "Une erreur est survenue lors du traitement."
+    },
+    "playerCard": {
+      "sectionTitle": "Évaluation physique et tests de performance",
+      "sectionSubtitle": "Indicateurs athlétiques cumulés et historique de progression lors des tests officiels",
+      "noTests": "Aucun test physique enregistré pour ce joueur",
+      "noTestsDesc": "Les indicateurs de vitesse, d'endurance et de détente s'afficheront dès la participation aux sessions d'évaluation.",
+      "totalTests": "Tests effectués",
+      "latestResult": "Dernier résultat",
+      "bestScore": "Record personnel",
+      "changeFromPrev": "Évolution vs test précédent",
+      "pctChange": "Taux d'évolution"
+    },
+    "empty": {
+      "noSessions": "Aucune session de test enregistrée",
+      "noSessionsDesc": "Créez une première session pour évaluer les qualités physiques de vos joueurs."
+    }
+  }
+}

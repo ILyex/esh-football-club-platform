@@ -1,0 +1,179 @@
+"use client";
+
+import { useState, useTransition, useRef } from "react";
+import { Save,  Upload, Image as ImageIcon, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { uploadCompetitionLogoAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
+
+interface CompetitionLogoManagerProps {
+  competitionId: string;
+  currentLogoUrl?: string | null;
+  competitionName: string;
+  locale: string;
+  onSuccess?: (newUrl: string) => void;
+}
+
+export function CompetitionLogoManager({
+  competitionId,
+  currentLogoUrl,
+  competitionName,
+  locale,
+  onSuccess
+}: CompetitionLogoManagerProps) {
+  const isAr = locale === "ar";
+  const [isOpen, setIsOpen] = useState(false);
+  const [preview, setPreview] = useState<string | null>(currentLogoUrl || null);
+  const [urlInput, setUrlInput] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      if (selected.size > 5 * 1024 * 1024) {
+        setError(isAr ? "حجم الصورة يتجاوز الحد المسموح به (5MB)" : "Image trop grande (max 5MB)");
+        return;
+      }
+      setFile(selected);
+      setError(null);
+      const url = URL.createObjectURL(selected);
+      setPreview(url);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file && !urlInput.trim()) {
+      setError(isAr ? "يرجى اختيار ملف صورة أو كتابة الرابط" : "Veuillez choisir une image ou un lien");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        setError(null);
+        const formData = new FormData();
+        if (file) formData.set("logoFile", file);
+        if (urlInput.trim()) formData.set("logoUrl", urlInput.trim());
+
+        const res = await uploadCompetitionLogoAction(competitionId, formData);
+        if (res.logoUrl && onSuccess) {
+          onSuccess(res.logoUrl);
+        }
+        setIsOpen(false);
+      } catch (err: any) {
+        setError(err?.message || (isAr ? "فشل رفع شعار المسابقة" : "Échec du téléchargement"));
+      }
+    });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:border-club-primary hover:text-foreground transition-all shadow-2xs"
+        title={isAr ? "تغيير أو رفع شعار المسابقة" : "Changer le logo de la compétition"}
+      >
+        <Upload className="h-3 w-3 text-club-primary" />
+        <span>{isAr ? "شعار المسابقة" : "Logo"}</span>
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-foreground">
+                  {isAr ? "تحديد أو رفع شعار المسابقة" : "Logo de la compétition"}
+                </h3>
+                <p className="text-xs text-muted-foreground truncate max-w-[280px]">
+                  {competitionName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {error && (
+              <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Preview Box */}
+              <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-border bg-muted/20">
+                <div className="h-20 w-20 rounded-2xl border border-border bg-background p-2 flex items-center justify-center overflow-hidden shadow-2xs mb-2">
+                  {preview ? (
+                    <img src={preview} alt="Logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                >
+                  <Upload className="h-3.5 w-3.5 text-club-primary" />
+                  <span>{isAr ? "اختيار صورة من الجهاز" : "Choisir un fichier"}</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                />
+              </div>
+
+              {/* URL fallback */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  {isAr ? "أو أدخل رابط الشعار مباشرة (URL):" : "Ou lien direct (URL):"}
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/logo.png"
+                  value={urlInput}
+                  onChange={(e) => {
+                    setUrlInput(e.target.value);
+                    if (e.target.value.startsWith("http") || e.target.value.startsWith("/")) {
+                      setPreview(e.target.value);
+                    }
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:border-club-primary focus:outline-hidden"
+                />
+              </div>
+
+              {/* Submit / Cancel Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                >
+                  {isAr ? "إلغاء" : "Annuler"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-club-primary px-4 py-1.5 text-xs font-bold text-white hover:bg-club-primary/90 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  <> <Save className="h-3.5 w-3.5" /> <span>{isPending ? (isAr ? "جاري الحفظ..." : "Enregistrement...") : isAr ? "حفظ الشعار" : "Enregistrer"}</span> </>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

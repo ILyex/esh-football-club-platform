@@ -1,0 +1,1523 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إضافة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "loading": "جارٍ التحميل...",
+    "noResults": "لا توجد نتائج",
+    "confirm": "تأكيد",
+    "confirmDeleteTitle": "هل أنت متأكد؟",
+    "confirmDeleteBody": "لا يمكن التراجع عن هذا الإجراء.",
+    "actions": "إجراءات",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "download": "تحميل",
+    "upload": "رفع ملف",
+    "back": "رجوع",
+    "close": "إغلاق",
+    "images": "صور",
+    "view": "عرض",
+    "remove": "إزالة"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "club": "النادي",
+    "team": "الفريق",
+    "players": "اللاعبون",
+    "matches": "المباريات",
+    "calendar": "الرزنامة",
+    "news": "الأخبار",
+    "announcements": "الإعلانات",
+    "gallery": "المعرض",
+    "competitions": "المسابقات",
+    "contact": "اتصل بنا"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "rememberMe": "تذكّر البريد الإلكتروني",
+    "loginError": "بيانات الدخول غير صحيحة",
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صحيحًا يتضمن علامة @.",
+    "invalidPassword": "تحقق من طول كلمة المرور؛ يجب ألا تقل عن 8 أحرف وألا تتجاوز الحد المسموح.",
+    "serviceUnavailable": "تعذر إكمال تسجيل الدخول حاليًا. حاول مجددًا بعد قليل.",
+    "logout": "إنهاء الجلسة"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "nav": {
+      "dashboard": "الرئيسية",
+      "notifications": "الإشعارات",
+      "team": "الفريق",
+      "teams": "الفئات",
+      "players": "اللاعبون",
+      "staff": "الطاقم",
+      "matches": "المباريات",
+      "calendar": "الرزنامة",
+      "competitions": "المسابقات",
+      "training": "التدريبات",
+      "testing": "اختبارات اللاعبين",
+      "inventory": "العتاد والجرد",
+      "news": "الأخبار",
+      "website": "إدارة الموقع العام",
+      "announcements": "الإعلانات",
+      "gallery": "المعرض",
+      "documents": "أرشيف الوثائق",
+      "contracts": "العقود والاتفاقيات",
+      "insurance": "التأمين الرياضي",
+      "correspondence": "المراسلات الرسمية",
+      "meetingMinutes": "محاضر الاجتماعات",
+      "reports": "التقارير",
+      "dataQuality": "جودة البيانات",
+      "users": "المستخدمون",
+      "roles": "الأدوار والصلاحيات",
+      "auditLogs": "سجل العمليات",
+      "jobs": "المهام الخلفية",
+      "settings": "الإعدادات",
+      "mail": "البريد الإلكتروني",
+      "budgets": "الميزانية العامة",
+      "expenses": "المصاريف",
+      "treasury": "الخزينة",
+      "bank": "البنك",
+      "cash": "الصندوق",
+      "deposits": "الإيداعات",
+      "withdrawals": "السحوبات",
+      "overview": "نظرة عامة"
+    },
+    "navGroups": {
+      "navigation": "التنقل",
+      "openMenu": "فتح القائمة",
+      "closeMenu": "إغلاق القائمة",
+      "teams": "الفئات",
+      "club": "النادي",
+      "documentEngine": "محرك الوثائق",
+      "administration": "الإدارة",
+      "finance": "المالية",
+      "football": "قطاع كرة القدم",
+      "governance": "الأمانة العامة والوثائق",
+      "media": "الإعلام والتواصل",
+      "system": "إدارة النظام والرقابة"
+    },
+    "quickActions": {
+      "title": "إجراءات سريعة",
+      "addMatch": "برمجة مباراة",
+      "addPlayer": "تسجيل لاعب",
+      "addExpense": "تسجيل مصروف",
+      "createDocument": "إنشاء وثيقة رسمية",
+      "composeMail": "كتابة بريد رسمي",
+      "visitPublicSite": "زيارة موقع النادي"
+    },
+    "stats": {
+      "totalPlayers": "إجمالي اللاعبين",
+      "activePlayers": "اللاعبون النشطون",
+      "staff": "الطاقم",
+      "nextMatch": "المباراة القادمة",
+      "activeContracts": "العقود السارية",
+      "expiringContracts": "عقود قاربت على الانتهاء",
+      "totalDocuments": "إجمالي الوثائق",
+      "publishedNews": "أخبار منشورة",
+      "noUpcomingMatch": "لا توجد مباراة قادمة مبرمجة",
+      "latestResult": "آخر نتيجة",
+      "squadStatus": "جاهزية الفريق",
+      "training": "التدريب",
+      "noUpcomingTraining": "لا توجد حصة تدريبية قادمة مبرمجة",
+      "pendingDocuments": "وثائق بانتظار المراجعة",
+      "attentionTitle": "تنبيهات عاجلة تتطلب المتابعة",
+      "seasonLabel": "الموسم الرياضي",
+      "matchCenter": "مركز المباريات",
+      "clubOverview": "نظرة عامة على النادي"
+    }
+  },
+  "players": {
+    "title": "اللاعبون",
+    "addPlayer": "إضافة لاعب",
+    "fields": {
+      "firstName": "الاسم الأول",
+      "lastName": "اللقب",
+      "position": "المركز",
+      "nationality": "الجنسية",
+      "dateOfBirth": "تاريخ الميلاد",
+      "shirtNumber": "رقم القميص",
+      "height": "الطول",
+      "weight": "الوزن",
+      "previousTeam": "الفريق السابق",
+      "birthCertificateNumber": "رقم عقد الميلاد",
+      "preferredFoot": "القدم المفضلة",
+      "joiningDate": "تاريخ الانضمام",
+      "status": "الحالة",
+      "biography": "نبذة تعريفية",
+      "internalNotes": "ملاحظات داخلية",
+      "team": "الفئة",
+      "photo": "صورة اللاعب"
+    },
+    "positions": {
+      "GOALKEEPER": "حارس مرمى",
+      "DEFENDER": "مدافع",
+      "MIDFIELDER": "وسط",
+      "FORWARD": "مهاجم"
+    },
+    "statuses": {
+      "ACTIVE": "نشط",
+      "INJURED": "مصاب",
+      "SUSPENDED": "موقوف",
+      "ON_LOAN": "معار",
+      "ARCHIVED": "مؤرشف"
+    },
+    "feet": {
+      "RIGHT": "يمين",
+      "LEFT": "يسار",
+      "BOTH": "كلتا القدمين"
+    }
+  },
+  "staff": {
+    "title": "الطاقم",
+    "addStaff": "إضافة عضو طاقم",
+    "fields": {
+      "firstName": "الاسم الأول",
+      "lastName": "اللقب",
+      "role": "المهمة",
+      "biography": "نبذة تعريفية",
+      "internalContact": "معلومات الاتصال الداخلية",
+      "status": "الحالة",
+      "photo": "صورة العضو"
+    },
+    "roles": {
+      "HEAD_COACH": "المدرب الرئيسي",
+      "ASSISTANT_COACH": "المدرب المساعد",
+      "GOALKEEPING_COACH": "مدرب حراس المرمى",
+      "FITNESS_COACH": "مدرب اللياقة البدنية",
+      "MEDICAL_STAFF": "الطاقم الطبي",
+      "ADMINISTRATIVE_STAFF": "الطاقم الإداري",
+      "OTHER": "أخرى"
+    },
+    "statuses": {
+      "ACTIVE": "نشط",
+      "INACTIVE": "غير نشط",
+      "ARCHIVED": "مؤرشف"
+    }
+  },
+  "contracts": {
+    "title": "العقود",
+    "addContract": "إضافة عقد",
+    "fields": {
+      "type": "نوع العقد",
+      "subjectType": "نوع الطرف المتعاقد",
+      "player": "اللاعب",
+      "staff": "عضو الطاقم",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "status": "الحالة",
+      "notes": "ملاحظات"
+    },
+    "types": {
+      "PROFESSIONAL": "عقد احترافي",
+      "AMATEUR": "عقد هواة",
+      "LOAN": "عقد إعارة",
+      "STAFF": "عقد طاقم"
+    },
+    "subjectTypes": {
+      "PLAYER": "لاعب",
+      "STAFF": "عضو طاقم"
+    },
+    "statuses": {
+      "ACTIVE": "ساري",
+      "EXPIRING_SOON": "قارب على الانتهاء",
+      "EXPIRED": "منتهٍ",
+      "PENDING": "قيد الانتظار"
+    },
+    "errors": {
+      "subjectRequired": "يجب اختيار لاعب أو عضو طاقم واحد فقط",
+      "endBeforeStart": "تاريخ النهاية يجب أن يكون بعد تاريخ البداية"
+    },
+    "none": "— بدون —"
+  },
+  "teams": {
+    "title": "الفئات",
+    "allTeams": "كل الفئات",
+    "editTeam": "تعديل الفئة",
+    "fields": {
+      "name": "الاسم",
+      "shortName": "الاسم المختصر",
+      "birthYearFrom": "سنة الميلاد من",
+      "birthYearTo": "سنة الميلاد إلى",
+      "description": "الوصف",
+      "active": "نشطة"
+    },
+    "categories": {
+      "SENIOR": "الأكابر",
+      "U20": "أواسط (U20)",
+      "U17": "أشبال (U17)",
+      "U15": "أصاغر (U15)"
+    },
+    "birthYearWarning": "تحذير: سنة ميلاد اللاعب لا تطابق الفئة العمرية المختارة",
+    "errors": {
+      "birthYearRangeInvalid": "سنة النهاية يجب أن تكون بعد سنة البداية"
+    }
+  },
+  "seasons": {
+    "title": "المواسم",
+    "addSeason": "إضافة موسم",
+    "fields": {
+      "label": "الموسم",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "isCurrent": "الموسم الحالي"
+    }
+  },
+  "competitions": {
+    "title": "المسابقات",
+    "addCompetition": "إضافة مسابقة",
+    "fields": {
+      "name": "الاسم",
+      "organization": "الجهة المنظمة",
+      "season": "الموسم",
+      "status": "الحالة"
+    },
+    "statuses": {
+      "UPCOMING": "قادمة",
+      "ONGOING": "جارية",
+      "FINISHED": "منتهية"
+    }
+  },
+  "matches": {
+    "title": "المباريات",
+    "addMatch": "إضافة مباراة",
+    "fields": {
+      "competition": "المسابقة",
+      "opponent": "الخصم",
+      "isHomeFixture": "أرضًا",
+      "matchDate": "التاريخ والوقت",
+      "stadium": "الملعب",
+      "refereeName": "الحكم",
+      "status": "الحالة",
+      "homeScore": "أهداف الفريق المضيف",
+      "awayScore": "أهداف الفريق الضيف",
+      "matchReport": "تقرير المباراة"
+    },
+    "statuses": {
+      "SCHEDULED": "مبرمجة",
+      "LIVE": "مباشر",
+      "FINISHED": "انتهت",
+      "POSTPONED": "مؤجلة",
+      "CANCELLED": "ملغاة"
+    },
+    "events": {
+      "title": "أحداث المباراة",
+      "addEvent": "إضافة حدث",
+      "minute": "الدقيقة",
+      "player": "اللاعب",
+      "type": "النوع",
+      "GOAL": "هدف",
+      "OWN_GOAL": "هدف في المرمى الذاتي",
+      "ASSIST": "تمريرة حاسمة",
+      "YELLOW_CARD": "بطاقة صفراء",
+      "RED_CARD": "بطاقة حمراء",
+      "SUBSTITUTION_IN": "دخول بديل",
+      "SUBSTITUTION_OUT": "خروج لاعب"
+    },
+    "lineup": {
+      "title": "التشكيلة",
+      "addPlayer": "إضافة لاعب للتشكيلة",
+      "starting": "أساسي",
+      "substitute": "احتياطي",
+      "position": "المركز"
+    }
+  },
+  "calendar": {
+    "title": "الرزنامة",
+    "addEvent": "إضافة موعد",
+    "fields": {
+      "eventTitle": "العنوان",
+      "type": "النوع",
+      "startDateTime": "البداية",
+      "endDateTime": "النهاية",
+      "location": "المكان",
+      "description": "الوصف"
+    },
+    "types": {
+      "MATCH": "مباراة",
+      "TRAINING": "تدريب",
+      "MEETING": "اجتماع",
+      "ADMINISTRATIVE": "إداري",
+      "OTHER": "أخرى"
+    },
+    "autoSyncedNotice": "هذا الحدث مرتبط تلقائيًا بمباراة أو تدريب، ويُعدَّل من صفحته الأصلية."
+  },
+  "training": {
+    "title": "التدريبات",
+    "addSession": "إضافة حصة تدريبية",
+    "fields": {
+      "date": "التاريخ",
+      "startTime": "وقت البداية",
+      "endTime": "وقت النهاية",
+      "location": "المكان",
+      "coach": "المدرب",
+      "notes": "ملاحظات",
+      "status": "الحالة"
+    },
+    "statuses": {
+      "SCHEDULED": "مبرمجة",
+      "COMPLETED": "منتهية",
+      "CANCELLED": "ملغاة"
+    },
+    "attendance": {
+      "title": "قائمة الحضور",
+      "PRESENT": "حاضر",
+      "ABSENT": "غائب",
+      "INJURED": "مصاب",
+      "EXCUSED": "معذور",
+      "save": "حفظ الحضور",
+      "selectAllPresent": "تحديد الكل حاضر",
+      "selectAllAbsent": "تحديد الكل غائب",
+      "savedSuccess": "تم حفظ الحضور بنجاح"
+    }
+  },
+  "news": {
+    "title": "الأخبار",
+    "addNews": "إضافة خبر",
+    "fields": {
+      "title": "العنوان",
+      "content": "المحتوى",
+      "category": "الفئة",
+      "tags": "الوسوم",
+      "featuredImage": "الصورة الرئيسية",
+      "status": "الحالة",
+      "publishedAt": "تاريخ النشر",
+      "scheduledFor": "مجدول للنشر في"
+    },
+    "statuses": {
+      "DRAFT": "مسودة",
+      "PUBLISHED": "منشور",
+      "SCHEDULED": "مجدول",
+      "ARCHIVED": "مؤرشف"
+    },
+    "publish": "نشر",
+    "unpublish": "إلغاء النشر",
+    "archive": "أرشفة"
+  },
+  "announcements": {
+    "title": "الإعلانات",
+    "addAnnouncement": "إضافة إعلان",
+    "fields": {
+      "title": "العنوان",
+      "content": "المحتوى",
+      "priority": "الأولوية",
+      "team": "الفئة المعنية",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ الانتهاء (اختياري)",
+      "homepageVisibility": "إظهار في الصفحة الرئيسية",
+      "status": "الحالة"
+    },
+    "priorities": {
+      "LOW": "منخفضة",
+      "NORMAL": "عادية",
+      "HIGH": "مرتفعة",
+      "URGENT": "عاجلة"
+    },
+    "statuses": {
+      "DRAFT": "مسودة",
+      "PUBLISHED": "منشور",
+      "SCHEDULED": "مجدول",
+      "ARCHIVED": "مؤرشف"
+    },
+    "clubWide": "كل النادي"
+  },
+  "gallery": {
+    "title": "المعرض",
+    "addAlbum": "إضافة ألبوم",
+    "addImage": "إضافة صورة",
+    "fields": {
+      "albumTitle": "عنوان الألبوم",
+      "category": "الفئة",
+      "team": "الفريق المعني",
+      "caption": "وصف الصورة",
+      "image": "الصورة",
+      "published": "منشور"
+    },
+    "categories": {
+      "MATCHES": "المباريات",
+      "TRAINING": "التدريبات",
+      "TEAM": "الفريق",
+      "EVENTS": "المناسبات",
+      "CLUB": "النادي"
+    }
+  },
+  "correspondence": {
+    "title": "المراسلات",
+    "addCorrespondence": "إضافة مراسلة",
+    "incoming": "واردة",
+    "outgoing": "صادرة",
+    "fields": {
+      "referenceNumber": "الرقم المرجعي",
+      "subject": "الموضوع",
+      "sender": "المرسل",
+      "recipient": "المستلم",
+      "date": "التاريخ",
+      "type": "النوع",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "team": "الفئة المعنية",
+      "relatedPlayer": "لاعب معني",
+      "relatedStaff": "عضو طاقم معني",
+      "relatedMatch": "مباراة معنية",
+      "notes": "ملاحظات",
+      "attachments": "المرفقات"
+    },
+    "types": {
+      "INCOMING": "واردة",
+      "OUTGOING": "صادرة"
+    },
+    "priorities": {
+      "LOW": "منخفضة",
+      "NORMAL": "عادية",
+      "HIGH": "مرتفعة",
+      "URGENT": "عاجلة"
+    },
+    "statuses": {
+      "NEW": "جديدة",
+      "IN_PROGRESS": "قيد المعالجة",
+      "COMPLETED": "منتهية",
+      "ARCHIVED": "مؤرشفة"
+    },
+    "none": "— بدون —",
+    "attachExisting": "إرفاق وثيقة موجودة",
+    "noDocument": "لا توجد وثيقة بهذا المعرف أو ليست ضمن صلاحياتك"
+  },
+  "meetings": {
+    "title": "محاضر الاجتماعات",
+    "addMeeting": "إضافة محضر اجتماع",
+    "pendingMinutes": {
+      "title": "اجتماعات بانتظار المحضر",
+      "description": "انتهت هذه الاجتماعات ولم يُسجل لها محضر بعد. أنشئ محضرًا واربطه بالموعد من هنا.",
+      "count": "{count} بانتظار المحضر",
+      "create": "إنشاء المحضر"
+    },
+    "sections": {
+      "meetingInfo": "بيانات الاجتماع",
+      "minutesDetails": "تفاصيل المحضر",
+      "attachment": "مرفق اختياري"
+    },
+    "fields": {
+      "meetingTitle": "عنوان الاجتماع",
+      "date": "التاريخ والوقت",
+      "location": "المكان",
+      "attendees": "الحضور",
+      "team": "الفئة المعنية",
+      "agenda": "جدول الأعمال",
+      "content": "محضر النقاش",
+      "decisions": "القرارات والمهام",
+      "notes": "ملاحظات",
+      "status": "الحالة",
+      "attachments": "المرفقات"
+    },
+    "attendeesHint": "اكتب الاسم واضغط Enter لإضافته",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "APPROVED": "معتمد",
+      "ARCHIVED": "مؤرشف"
+    }
+  },
+  "users": {
+    "title": "المستخدمون",
+    "addUser": "إضافة مستخدم",
+    "fields": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "password": "كلمة المرور",
+      "isActive": "نشط",
+      "lastLoginAt": "آخر تسجيل دخول",
+      "sessionStatus": "حالة الجلسة",
+      "online": "نشط الآن",
+      "offline": "غير نشط"
+    },
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "deactivate": "تعطيل",
+    "activate": "تفعيل",
+    "deleteUser": "حذف المستخدم",
+    "confirmDeleteUser": "سيتم إلغاء دخول المستخدم وإخفاء بياناته الشخصية مع الاحتفاظ بالسجلات التاريخية. هل تريد المتابعة؟",
+    "terminateSession": "إنهاء الجلسة",
+    "confirmTerminateSession": "سيتم تسجيل خروج هذا المستخدم من جميع أجهزته. هل تريد المتابعة؟",
+    "errors": {
+      "emailTaken": "هذا البريد الإلكتروني مستخدم بالفعل",
+      "lastSuperAdmin": "لا يمكن تعطيل أو تغيير دور آخر مسؤول عام نشط",
+      "cannotDeleteOwnAccount": "لا يمكنك حذف حسابك الحالي",
+      "userNotFound": "المستخدم غير موجود أو سبق حذفه"
+    }
+  },
+  "roles": {
+    "title": "الأدوار والصلاحيات",
+    "addRole": "إضافة دور",
+    "fields": {
+      "key": "المعرف",
+      "name": "الاسم",
+      "description": "الوصف",
+      "permissions": "الصلاحيات"
+    },
+    "systemRole": "دور نظام",
+    "usersCount": "عدد المستخدمين",
+    "deleteRole": "حذف الدور",
+    "savePermissions": "حفظ الصلاحيات",
+    "errors": {
+      "keyTaken": "هذا المعرف مستخدم بالفعل",
+      "keyFormat": "أحرف لاتينية صغيرة وأرقام وشرطة سفلية فقط",
+      "cannotDeleteSystemRole": "لا يمكن حذف دور نظام",
+      "roleInUse": "لا يمكن حذف دور مرتبط بمستخدمين"
+    }
+  },
+  "auditLogs": {
+    "title": "سجل العمليات الإدارية",
+    "fields": {
+      "actor": "المستخدم المسؤول",
+      "action": "العملية الإدارية",
+      "entityType": "نوع السجل الإداري",
+      "entityId": "المعرّف الإداري",
+      "timestamp": "التاريخ والتوقيت"
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "sections": {
+      "identity": "هوية النادي",
+      "branding": "الهوية البصرية",
+      "contact": "معلومات الاتصال",
+      "localization": "اللغة"
+    },
+    "fields": {
+      "name": "الاسم الرسمي",
+      "shortName": "الاسم المختصر",
+      "logo": "الشعار الرسمي",
+      "primaryColor": "اللون الأساسي",
+      "secondaryColor": "اللون الثانوي",
+      "description": "الوصف",
+      "stadium": "الملعب",
+      "contactEmail": "البريد الإلكتروني",
+      "contactPhone": "الهاتف",
+      "address": "العنوان",
+      "defaultLocale": "اللغة الافتراضية"
+    },
+    "logoHint": "الشعار الرسمي الحالي — يمكن استبداله برفع ملف جديد فقط، ولن يُنشأ شعار بديل تلقائيًا"
+  },
+  "reports": {
+    "title": "التقارير",
+    "players": "إحصائيات اللاعبين",
+    "matches": "إحصائيات المباريات",
+    "training": "حضور التدريبات",
+    "contracts": "حالة العقود",
+    "documents": "إحصائيات الوثائق",
+    "activity": "النشاط الإداري",
+    "content": "الأخبار والإعلانات",
+    "filters": {
+      "team": "الفئة",
+      "season": "الموسم"
+    }
+  },
+  "search": {
+    "placeholder": "بحث شامل...",
+    "title": "نتائج البحث",
+    "loading": "جارٍ البحث...",
+    "noQuery": "أدخل كلمة للبحث",
+    "noResults": "لم يتم العثور على أي نتائج مطابقة",
+    "allCategories": "جميع الأقسام",
+    "resultsCount": "{count} نتيجة",
+    "categories": {
+      "players": "اللاعبون",
+      "staff": "الطاقم",
+      "teams": "الفئات والفرق",
+      "matches": "المباريات",
+      "competitions": "المسابقات",
+      "training": "التدريبات",
+      "documents": "الوثائق",
+      "contracts": "العقود",
+      "finance": "المالية والمصاريف",
+      "news": "الأخبار",
+      "announcements": "الإعلانات",
+      "correspondence": "المراسلات",
+      "meetings": "محاضر الاجتماعات",
+      "users": "المستخدمون",
+      "roles": "الأدوار والصلاحيات"
+    }
+  },
+  "command": {
+    "placeholder": "اكتب أمرًا أو ابحث في النادي...",
+    "navigation": "التنقل السريع",
+    "actions": "إجراءات سريعة",
+    "attention": "تنبيهات تشغيلية",
+    "recent": "عمليات البحث الأخيرة",
+    "noCommands": "لا توجد أوامر مطابقة",
+    "shortcut": "Ctrl + K",
+    "open": "مركز الأوامر",
+    "close": "إغلاق",
+    "records": "السجلات المطابقة",
+    "searchAll": "عرض كافة نتائج البحث",
+    "attentionItems": {
+      "expiringContracts": "عقود تنتهي قريباً ({count})",
+      "draftExpenses": "مصاريف قيد الانتظار لم تُرحّل ({count})",
+      "failedJobs": "مهام خلفية متوقفة بحاجة للمراجعة ({count})",
+      "unreadNotifications": "إشعارات غير مقروءة ({count})"
+    }
+  },
+  "templates": {
+    "title": "قوالب الوثائق",
+    "addTemplate": "رفع قالب رسمي",
+    "addVersion": "رفع نسخة جديدة",
+    "fields": {
+      "name": "الاسم",
+      "type": "نوع الوثيقة",
+      "language": "لغة القالب",
+      "file": "ملف القالب (.docx)"
+    },
+    "types": {
+      "MATCH_REPORT": "تقرير مباراة",
+      "MEETING_MINUTES": "محضر اجتماع",
+      "CORRESPONDENCE": "مراسلة",
+      "ANNOUNCEMENT": "إعلان",
+      "PLAYER_REPORT": "تقرير لاعب",
+      "TRAINING_REPORT": "تقرير تدريب",
+      "ADMINISTRATIVE_REPORT": "تقرير إداري",
+      "OTHER": "أخرى",
+      "EXPENSE_STATEMENT": "كشف مصروف",
+      "DEPOSIT_RECEIPT": "وصل إيداع",
+      "WITHDRAWAL_RECEIPT": "وصل سحب"
+    },
+    "versionStatuses": {
+      "DRAFT": "مسودة — بانتظار ربط الحقول",
+      "ACTIVE": "نشطة",
+      "ARCHIVED": "مؤرشفة"
+    },
+    "detectedFields": "الحقول المكتشفة",
+    "noFieldsDetected": "لم يتم العثور على أي حقل نائب داخل هذا الملف",
+    "mapping": {
+      "title": "ربط الحقول",
+      "placeholder": "الحقل",
+      "label": "التسمية المعروضة",
+      "sourceType": "المصدر",
+      "sourcePath": "الحقل في قاعدة البيانات",
+      "activate": "تفعيل هذه النسخة بعد الحفظ",
+      "activateHint": "يجب ربط جميع الحقول المكتشفة قبل التفعيل",
+      "save": "حفظ الربط"
+    },
+    "sourceTypes": {
+      "DATABASE_FIELD": "من قاعدة البيانات",
+      "MANUAL_INPUT": "إدخال يدوي",
+      "AI_ASSISTED": "بمساعدة الذكاء الاصطناعي"
+    },
+    "errors": {
+      "templateFileRequired": "يجب اختيار ملف",
+      "templateMustBeDocx": "يجب أن يكون الملف بصيغة .docx",
+      "templateReadFailed": "تعذّرت قراءة الملف"
+    }
+  },
+  "generatedDocuments": {
+    "title": "الوثائق المُنشأة",
+    "generateNew": "توليد وثيقة جديدة",
+    "selectType": "نوع الوثيقة",
+    "selectVersion": "القالب النشط",
+    "selectEntity": "العنصر المعني",
+    "noActiveVersion": "لا توجد نسخة نشطة لهذا النوع من القوالب بعد",
+    "autoFilled": "تعبئة تلقائية من قاعدة البيانات",
+    "manualFields": "حقول تتطلب إدخالًا يدويًا",
+    "aiAssist": "تحسين الصياغة بالذكاء الاصطناعي",
+    "aiUnavailable": "ميزة الذكاء الاصطناعي غير مفعّلة حاليًا (لم يتم إعداد مفتاح API) — يمكنك المتابعة بدونها",
+    "preview": "معاينة",
+    "generate": "توليد المستند",
+    "download": "تحميل",
+    "print": "طباعة",
+    "downloadDocx": "تحميل بصيغة DOCX",
+    "downloadPdf": "تحميل بصيغة PDF",
+    "serverPdfUnavailable": "تحويل PDF على الخادم غير مهيأ",
+    "printInstruction": "لحفظ المستند كملف PDF، اضغط على 'طباعة' واختر 'حفظ بتنسيق PDF' كوجهة في نافذة الطباعة.",
+    "previewLoading": "جارٍ معالجة وتجهيز معاينة المستند...",
+    "previewError": "تعذر عرض المعاينة التفاعلية للمستند.",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "resetZoom": "إعادة الضبط",
+    "a4Sheet": "ورقة A4",
+    "metadata": "بيانات المستند",
+    "fields": {
+      "template": "القالب",
+      "version": "النسخة",
+      "relatedEntity": "العنصر المرتبط",
+      "createdBy": "أنشئ بواسطة",
+      "createdAt": "تاريخ الإنشاء",
+      "aiUsed": "استُخدم الذكاء الاصطناعي"
+    },
+    "entityTypes": {
+      "Match": "مباراة",
+      "MeetingMinute": "محضر اجتماع",
+      "Correspondence": "مراسلة",
+      "Expense": "مصروف",
+      "TreasuryTransaction": "عملية خزينة"
+    }
+  },
+  "notices": {
+    "calendarEventCreated": "تمت إضافة الموعد إلى الرزنامة بنجاح",
+    "mappingSaved": "تم حفظ ربط الحقول",
+    "activated": "تم تفعيل هذه النسخة من القالب",
+    "errors": {
+      "activationBlocked": "تم الحفظ، لكن لا يمكن التفعيل قبل ربط جميع الحقول المكتشفة بشكل صحيح"
+    }
+  },
+  "insights": {
+    "attentionCenter": "مركز المتابعة",
+    "dataQualityCenter": "جودة البيانات",
+    "noIssues": "لا توجد عناصر تتطلب المتابعة حاليًا",
+    "severities": {
+      "info": "معلومة",
+      "warning": "تنبيه",
+      "critical": "عاجل"
+    },
+    "CONTRACT_EXPIRING": "عقد {name} ينتهي خلال {days} يومًا",
+    "CONTRACT_EXPIRED": "عقد {name} منتهي الصلاحية ولم يُحدَّث",
+    "PLAYER_MISSING_DOCUMENTS": "لا توجد وثائق مرفوعة للاعب {name}",
+    "PLAYER_NOT_INSURED": "اللاعب {name} غير مؤمّن للموسم الحالي أو تنقصه وثيقة التأمين",
+    "PLAYER_INSURANCE_EXPIRING": "تأمين اللاعب {name} ينتهي خلال {days} يومًا",
+    "PLAYER_INSURANCE_EXPIRED": "تأمين اللاعب {name} منتهي الصلاحية ويحتاج لتجديد فوري",
+    "PLAYER_MISSING_TEAM": "اللاعب {name} غير مسند إلى أي فئة",
+    "PLAYER_BIRTH_YEAR_MISMATCH": "سنة ميلاد اللاعب {name} لا تطابق الفئة العمرية المختارة",
+    "MATCH_REPORT_MISSING": "تقرير المباراة ضد {opponent} غير مكتمل",
+    "MATCH_MISSING_INFO": "معلومات ناقصة للمباراة القادمة ضد {opponent}",
+    "TRAINING_ATTENDANCE_MISSING": "لم يتم تسجيل الحضور لتدريب {date}",
+    "DOCUMENT_PENDING_REVIEW": "الوثيقة \"{name}\" بانتظار المراجعة",
+    "BUDGET_NEARING_EXHAUSTION": "ميزانية موسم {season} ({scopeKind, select, team {{scope}} other {على مستوى النادي}}) استُهلكت بنسبة {percent}%",
+    "BUDGET_EXCEEDED": "ميزانية موسم {season} ({scopeKind, select, team {{scope}} other {على مستوى النادي}}) تم تجاوزها (نسبة الاستهلاك {percent}%)",
+    "EXPENSE_DRAFT_PENDING": "المصروف {reference} في حالة مسودة منذ {days} يومًا وينتظر قرارًا",
+    "EXPENSE_BUDGET_MISMATCH": "المصروف {reference} لا يطابق موسم ميزانيته أو فئتها",
+    "EXPENSE_PAYMENT_INCONSISTENT": "عدم اتساق بين المصروف {reference} ودفعته: {issue, select, PAYMENT_ON_NON_POSTED {دفعة مرتبطة بمصروف غير مرحّل} CANCELLED_WITH_LIVE_PAYMENT {مصروف ملغى مع دفعة غير ملغاة} other {مبلغ الدفعة يختلف عن مبلغ المصروف}}",
+    "TREASURY_NEGATIVE_BALANCE": "الرصيد المحسوب لحساب «{name}» سالب",
+    "types": {
+      "CONTRACT_EXPIRING": "عقد {name} ينتهي خلال {days} يومًا",
+      "CONTRACT_EXPIRED": "عقد {name} منتهي الصلاحية ولم يُحدَّث",
+      "PLAYER_MISSING_DOCUMENTS": "لا توجد وثائق مرفوعة للاعب {name}",
+      "PLAYER_NOT_INSURED": "اللاعب {name} غير مؤمّن للموسم الحالي أو تنقصه وثيقة التأمين",
+      "PLAYER_INSURANCE_EXPIRING": "تأمين اللاعب {name} ينتهي خلال {days} يومًا",
+      "PLAYER_INSURANCE_EXPIRED": "تأمين اللاعب {name} منتهي الصلاحية ويحتاج لتجديد فوري",
+      "PLAYER_MISSING_TEAM": "اللاعب {name} غير مسند إلى أي فئة",
+      "PLAYER_BIRTH_YEAR_MISMATCH": "سنة ميلاد اللاعب {name} لا تطابق الفئة العمرية المختارة",
+      "MATCH_REPORT_MISSING": "تقرير المباراة ضد {opponent} غير مكتمل",
+      "MATCH_MISSING_INFO": "معلومات ناقصة للمباراة القادمة ضد {opponent}",
+      "TRAINING_ATTENDANCE_MISSING": "لم يتم تسجيل الحضور لتدريب {date}",
+      "DOCUMENT_PENDING_REVIEW": "الوثيقة \"{name}\" بانتظار المراجعة",
+      "BUDGET_NEARING_EXHAUSTION": "ميزانية موسم {season} ({scopeKind, select, team {{scope}} other {على مستوى النادي}}) استُهلكت بنسبة {percent}%",
+      "BUDGET_EXCEEDED": "ميزانية موسم {season} ({scopeKind, select, team {{scope}} other {على مستوى النادي}}) تم تجاوزها (نسبة الاستهلاك {percent}%)",
+      "EXPENSE_DRAFT_PENDING": "المصروف {reference} في حالة مسودة منذ {days} يومًا وينتظر قرارًا",
+      "EXPENSE_BUDGET_MISMATCH": "المصروف {reference} لا يطابق موسم ميزانيته أو فئتها",
+      "EXPENSE_PAYMENT_INCONSISTENT": "عدم اتساق بين المصروف {reference} ودفعته: {issue, select, PAYMENT_ON_NON_POSTED {دفعة مرتبطة بمصروف غير مرحّل} CANCELLED_WITH_LIVE_PAYMENT {مصروف ملغى مع دفعة غير ملغاة} other {مبلغ الدفعة يختلف عن مبلغ المصروف}}",
+      "TREASURY_NEGATIVE_BALANCE": "الرصيد المحسوب لحساب «{name}» سالب",
+      "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} دج ({count} فاتورة) — أقدمها منذ {days} يومًا",
+      "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} دج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
+    },
+    "typeLabels": {
+      "CONTRACT_EXPIRING": "عقود قاربت على الانتهاء",
+      "CONTRACT_EXPIRED": "عقود منتهية غير محدَّثة",
+      "PLAYER_MISSING_DOCUMENTS": "لاعبون بدون وثائق",
+      "PLAYER_NOT_INSURED": "لاعبون بدون تأمين رياضي",
+      "PLAYER_INSURANCE_EXPIRING": "تأمينات رياضية قاربت على الانتهاء",
+      "PLAYER_INSURANCE_EXPIRED": "تأمينات رياضية منتهية الصلاحية",
+      "PLAYER_MISSING_TEAM": "لاعبون بدون فئة",
+      "PLAYER_BIRTH_YEAR_MISMATCH": "تعارض سنة الميلاد مع الفئة",
+      "MATCH_REPORT_MISSING": "تقارير مباريات ناقصة",
+      "MATCH_MISSING_INFO": "مباريات بمعلومات ناقصة",
+      "TRAINING_ATTENDANCE_MISSING": "حضور تدريبات غير مسجَّل",
+      "DOCUMENT_PENDING_REVIEW": "وثائق بانتظار المراجعة",
+      "BUDGET_NEARING_EXHAUSTION": "ميزانيات قاربت على النفاد",
+      "BUDGET_EXCEEDED": "ميزانيات متجاوزة",
+      "EXPENSE_DRAFT_PENDING": "مصاريف في حالة مسودة",
+      "EXPENSE_BUDGET_MISMATCH": "مصاريف غير متسقة مع ميزانيتها",
+      "EXPENSE_PAYMENT_INCONSISTENT": "مصاريف غير متسقة مع دفعتها",
+      "TREASURY_NEGATIVE_BALANCE": "حسابات خزينة برصيد سالب",
+      "FINANCE_DEBT_UNSETTLED": "ديون معلقة",
+      "FINANCE_DEBT_CRITICAL": "ديون حرجة"
+    },
+    "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} دج ({count} فاتورة) — أقدمها منذ {days} يومًا",
+    "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} دج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
+  },
+  "notifications": {
+    "title": "مركز الإشعارات والتنبيهات",
+    "markRead": "تمييز كمقروء",
+    "markAllRead": "تمييز الكل كمقروء",
+    "unread": "غير مقروءة",
+    "all": "الكل",
+    "empty": "لا توجد أي إشعارات مسجلة",
+    "emptyUnread": "رائع! لقد اطلعت على جميع الإشعارات والتنبيهات",
+    "categories": {
+      "all": "كافة الإشعارات",
+      "matches": "المباريات والتقارير",
+      "contracts": "العقود واللاعبين",
+      "finance": "المالية والمصاريف",
+      "training": "التدريبات والجرد",
+      "system": "وثائق وإدارة النظام"
+    }
+  },
+  "finance": {
+    "title": "المالية",
+    "budgets": "الميزانية العامة",
+    "expenses": "المصاريف",
+    "treasury": "الخزينة",
+    "deposits": "الإيداعات",
+    "withdrawals": "السحوبات",
+    "allMovements": "جميع الحركات",
+    "generalBudget": "الميزانية العامة",
+    "operationHistory": "سجل العمليات المالية",
+    "totalDeposits": "إجمالي الإيداعات",
+    "totalBalance": "الرصيد المالي المتاح",
+    "activeAccounts": "الحسابات النشطة",
+    "financialAccounts": "الحسابات المالية (صناديق وبنوك)",
+    "accountOrDestination": "الحساب المستلم",
+    "balanceImpact": "الرصيد بعد العملية",
+    "receipt": "الوصل الرسمي",
+    "noReceiptYet": "لا يوجد وصل",
+    "newDepositTitle": "تسجيل إيداع جديد",
+    "filterByView": "نوع الحركة",
+    "allAccounts": "كل الحسابات",
+    "account": "الحساب",
+    "accountsOverview": "أرصدة حسابات النادي",
+    "addBudget": "إضافة ميزانية",
+    "addExpense": "تسجيل صرف",
+    "addAccount": "إضافة حساب",
+    "deposit": "إيداع",
+    "withdrawal": "سحب",
+    "reverse": "إلغاء العملية",
+    "post": "ترحيل",
+    "cancel": "إلغاء",
+    "balance": "الرصيد الحالي",
+    "openingBalance": "الرصيد الافتتاحي",
+    "clubWide": "على مستوى النادي",
+    "ledger": "سجل الحركات",
+    "categories": {
+      "FOOD": "طعام",
+      "TRANSPORT": "نقل",
+      "LODGING": "إقامة",
+      "EQUIPMENT": "معدات",
+      "MEDICAL": "طبي",
+      "ADMINISTRATION": "إداري",
+      "TRAINING": "تدريب",
+      "MATCH": "مباراة",
+      "TRAVEL": "سفر",
+      "OTHER": "أخرى"
+    },
+    "budgetStatuses": {
+      "ACTIVE": "نشطة",
+      "CLOSED": "مغلقة"
+    },
+    "expenseStatuses": {
+      "DRAFT": "مسودة",
+      "POSTED": "مرحّلة",
+      "CANCELLED": "ملغاة"
+    },
+    "paymentMethods": {
+      "CASH": "نقدًا",
+      "BANK_TRANSFER": "تحويل بنكي",
+      "CARD": "بطاقة",
+      "OTHER": "أخرى"
+    },
+    "accountTypes": {
+      "CASH": "صندوق نقدي",
+      "BANK": "حساب بنكي",
+      "OTHER": "أخرى"
+    },
+    "transactionTypes": {
+      "DEPOSIT": "إيداع",
+      "WITHDRAWAL": "سحب"
+    },
+    "fields": {
+      "season": "الموسم",
+      "team": "الفئة",
+      "category": "الفئة المالية",
+      "amount": "المبلغ (دج)",
+      "allocatedAmount": "المبلغ المخصص (دج)",
+      "date": "التاريخ",
+      "description": "الوصف",
+      "payeeName": "المستفيد",
+      "paymentMethod": "طريقة الدفع",
+      "budget": "الميزانية",
+      "relatedMatch": "مباراة معنية",
+      "relatedTraining": "تدريب معني",
+      "notes": "ملاحظات",
+      "status": "الحالة",
+      "name": "الاسم",
+      "accountType": "نوع الحساب",
+      "reference": "المرجع",
+      "remaining": "المتبقي",
+      "spent": "المصروف",
+      "account": "الحساب",
+      "balanceAfter": "الرصيد بعد",
+      "balanceBefore": "الرصيد قبل",
+      "createdBy": "أنشئ بواسطة",
+      "relatedExpense": "المصروف المرتبط",
+      "reversal": "الإلغاء",
+      "transactionType": "نوع العملية",
+      "updatedBy": "عُدّل بواسطة"
+    },
+    "errors": {
+      "INSUFFICIENT_FUNDS": "الرصيد غير كافٍ لإتمام هذه العملية",
+      "INVALID_AMOUNT": "المبلغ غير صالح",
+      "INVALID_STATUS_TRANSITION": "لا يمكن تنفيذ هذا الإجراء في الحالة الحالية",
+      "DUPLICATE_TRANSACTION": "هذه العملية موجودة بالفعل",
+      "INVALID_TEAM_RELATION": "الفئة لا تطابق الميزانية المختارة",
+      "INVALID_SEASON": "الموسم لا يطابق الميزانية المختارة",
+      "VALIDATION": "بعض البيانات المدخلة غير صالحة",
+      "NOT_FOUND": "العنصر غير موجود",
+      "BUDGET_CLOSED": "هذه الميزانية مغلقة",
+      "BUDGET_HAS_EXPENSES": "لا يمكن تغيير الموسم أو الفئة لميزانية مرتبطة بمصاريف",
+      "ACCOUNT_INACTIVE": "حساب الخزينة هذا غير نشط",
+      "EXPENSE_NOT_FOUND": "المصروف غير موجود",
+      "EXPENSE_AMOUNT_MISMATCH": "يجب أن تساوي الدفعة مبلغ المصروف",
+      "INVALID_EXPENSE_LINK": "لا يمكن ربط مصروف إلا بعملية سحب",
+      "REVERSAL_OF_REVERSAL": "لا يمكن إلغاء قيد عكسي",
+      "CONCURRENT_UPDATE": "تم اكتشاف تعديل متزامن؛ يرجى المحاولة مرة أخرى",
+      "DOCUMENT_EXPENSE_NOT_POSTED": "لا يمكن توليد وثيقة رسمية إلا لمصروف مرحّل",
+      "DOCUMENT_TRANSACTION_NOT_ELIGIBLE": "لا يمكن إصدار وصل لعملية عكسية أو أُلغيت سابقًا",
+      "DOCUMENT_WRONG_TRANSACTION_TYPE": "هذا القالب لا يطابق نوع العملية المختارة",
+      "IDEMPOTENCY_CONFLICT": "أُعيد استخدام مفتاح الإرسال في عملية مختلفة؛ أعد تحميل الصفحة وحاول مجددًا"
+    },
+    "accountActive": "نشط",
+    "accountInactive": "غير نشط",
+    "accountInactiveNote": "هذا الحساب غير نشط: لا يمكن تسجيل حركات جديدة عليه.",
+    "allTypes": "كل الأنواع",
+    "alreadyReversedNote": "تم إلغاء هذه العملية سابقًا؛ وتبقى ظاهرة ودون تغيير في السجل.",
+    "backToAccount": "العودة إلى الحساب",
+    "cancelBlockedByPayment": "توجد حركة خزينة مرتبطة بهذا المصروف. ألغِ هذه الدفعة أولًا (بقيد عكسي) قبل إلغاء المصروف.",
+    "cancelExpense": "إلغاء المصروف",
+    "cancelledLocked": "هذا المصروف ملغى ولا يمكن تعديله.",
+    "confirmCancelTitle": "إلغاء هذا المصروف؟",
+    "confirmCancelBody": "المصروف الملغى لا يُحتسب ضمن الميزانية. هذا الإجراء نهائي.",
+    "confirmPostTitle": "ترحيل هذا المصروف؟",
+    "confirmPostBody": "بعد الترحيل يُحتسب المصروف ضمن الميزانية ولا يمكن تعديل بياناته المالية. الترحيل لا يحرّك أي أموال.",
+    "confirmReverseTitle": "إلغاء هذه العملية؟",
+    "confirmReverseBody": "سيتم تسجيل عملية جديدة بالاتجاه المعاكس. تبقى العملية الأصلية دون تغيير في السجل.",
+    "dateFrom": "من",
+    "dateTo": "إلى",
+    "documentRestricted": "وثيقة مرفقة (الوصول مقيّد)",
+    "editExpense": "تعديل المسودة",
+    "expenseRecord": "المصروف (قيد محاسبي)",
+    "expenseVsTreasuryNote": "المصروف يسجّل التزامًا ماليًا، وترحيله لا يحرّك أي أموال. لا تخرج الأموال من حساب الخزينة إلا عند تسجيل عملية سحب في سجل الحركات.",
+    "generateDepositReceipt": "توليد وصل إيداع",
+    "generateStatement": "توليد كشف مصروف",
+    "generateWithdrawalReceipt": "توليد وصل سحب",
+    "ledgerNote": "الرصيد الفعلي للحساب مبني على الحركات المالية المعتمدة.",
+    "newDeposit": "تسجيل إيداع",
+    "newWithdrawal": "تسجيل سحب",
+    "nextPage": "الصفحة التالية",
+    "previousPage": "الصفحة السابقة",
+    "pageOf": "الصفحة {page} / {pages}",
+    "noActiveAccount": "لا يوجد حساب مالي نشط.",
+    "noActiveReceiptTemplate": "لا يوجد قالب نشط لهذا النوع من الوصولات.",
+    "noActiveStatementTemplate": "لا يوجد قالب نشط لكشف المصروف.",
+    "noGeneratedDocuments": "لا توجد وثائق مولّدة لهذا المصروف.",
+    "noMovementCancelled": "لا توجد حركة مالية مرتبطة بهذا المصروف الملغى.",
+    "noMovementYet": "لا توجد حركة مالية مسجّلة لهذا المصروف: لم تخرج أي أموال من أي حساب.",
+    "openingBalanceHelp": "يُحدَّد الرصيد الافتتاحي عند الإنشاء. أي تغيير لاحق يكون حركة في السجل.",
+    "payFromAccount": "الدفع من الحساب",
+    "paymentHelp": "تسجيل الدفعة ينشئ عملية سحب في السجل بالمبلغ نفسه تمامًا. هذه هي الخطوة الوحيدة التي تحرّك الأموال.",
+    "paymentReversedNote": "أُلغيت الدفعة: عادت الأموال إلى الحساب. يمكن إلغاء المصروف لكن لا يمكن دفعه مرة أخرى. العملية العكسية:",
+    "postFirst": "رحِّل المصروف قبل تسجيل دفعة.",
+    "postedLocked": "هذا المصروف مرحّل: لا يمكن تعديل بياناته المالية.",
+    "receiptNotEligible": "لا يمكن إصدار وصل لعملية عكسية أو لعملية أُلغيت سابقًا.",
+    "recordPayment": "تسجيل الدفعة",
+    "relatedDocuments": "الوثائق الرسمية المولّدة",
+    "reversalEntry": "قيد عكسي",
+    "reversalNotReversible": "لا يمكن إلغاء القيد العكسي؛ سجّل حركة جديدة عند الحاجة.",
+    "reversalOf": "يعكس العملية",
+    "reversed": "ملغاة",
+    "reversedBy": "أُلغيت بواسطة",
+    "selectAccount": "— اختر حسابًا —",
+    "snapshotNote": "الرصيد قبل/بعد لقطتان تاريخيتان تُسجَّلان وقت العملية ولا تتغيران أبدًا.",
+    "statementRequiresPosted": "لا يمكن توليد كشف رسمي إلا لمصروف مرحّل.",
+    "supportingDocument": "وثيقة الإثبات",
+    "treasuryMovement": "حالة السداد والدفع",
+    "withdrawalExpenseHint": "لدفع مصروف، استخدم «تسجيل الدفعة» من صفحة المصروف.",
+    "paymentStates": {
+      "NONE": "غير مدفوع",
+      "PAID": "مدفوع",
+      "REVERSED": "الدفعة ملغاة"
+    },
+    "success": {
+      "expenseRecorded": "تم تسجيل الصرف بنجاح",
+      "expenseUpdated": "تم تحديث المصروف",
+      "expensePosted": "تم ترحيل المصروف",
+      "expenseCancelled": "تم إلغاء المصروف",
+      "paymentRecorded": "تم تسجيل الدفعة",
+      "depositRecorded": "تم تسجيل الإيداع",
+      "withdrawalRecorded": "تم تسجيل السحب",
+      "transactionReversed": "تم إلغاء العملية بقيد عكسي",
+      "accountCreated": "تم إنشاء حساب الخزينة",
+      "documentAttached": "تم إرفاق الوثيقة بنجاح"
+    },
+    "budgetExceededNote": "الميزانية متجاوزة: المصاريف المرحّلة تفوق المخصَّص بمقدار {amount}. التجاوز مسموح لكنه مُبلَّغ عنه؛ يمكن تعديل المخصَّص أدناه.",
+    "overview": {
+      "title": "لوحة التحكم المالية",
+      "description": "نظرة شاملة ومحدثة على الميزانية العامة، المصاريف، والإيداعات",
+      "treasuryBalance": "الرصيد المالي المتاح",
+      "activeAccountsCount": "حسابات نشطة",
+      "seasonBudget": "الميزانية العامة للموسم",
+      "postedExpenses": "المصاريف المعتمدة",
+      "draftExpenses": "مصاريف قيد المراجعة",
+      "recentTransactions": "أحدث العمليات المالية",
+      "noRecentTransactions": "لا توجد حركات مالية مسجلة بعد",
+      "pendingActions": "إجراءات مالية تتطلب الانتباه",
+      "noPendingActions": "لا توجد إجراءات معلقة أو تنبيهات حالية",
+      "viewAll": "عرض الكل",
+      "allocated": "المخصص",
+      "spent": "المصروف",
+      "remaining": "المتبقي",
+      "utilization": "نسبة الاستهلاك",
+      "quickLinks": "روابط سريعة",
+      "treasuryScopeNote": "أرصدة الحسابات تُدار مركزياً على مستوى النادي، بينما يمكن تخصيص الميزانيات والمصاريف لفئات معينة."
+    }
+  },
+  "documents": {
+    "title": "الوثائق",
+    "uploadDocument": "رفع وثيقة",
+    "classification": {
+      "PUBLIC": "عام",
+      "INTERNAL": "داخلي",
+      "RESTRICTED": "مقيّد"
+    },
+    "statuses": {
+      "PENDING_REVIEW": "بانتظار المراجعة",
+      "APPROVED": "معتمدة",
+      "ARCHIVED": "مؤرشفة"
+    },
+    "approve": "اعتماد",
+    "archive": "أرشفة",
+    "fields": {
+      "name": "الاسم",
+      "category": "التصنيف",
+      "description": "الوصف",
+      "documentDate": "تاريخ الوثيقة",
+      "relatedPlayer": "اللاعب المرتبط",
+      "relatedStaff": "عضو الطاقم المرتبط",
+      "relatedMatch": "المباراة المرتبطة",
+      "team": "الفئة المعنية",
+      "department": "المصلحة",
+      "file": "الملف",
+      "status": "الحالة",
+      "originalName": "اسم الملف الأصلي",
+      "size": "الحجم"
+    },
+    "errors": {
+      "fileTooLarge": "حجم الملف يتجاوز الحد المسموح به",
+      "fileTypeNotAllowed": "نوع الملف غير مسموح به",
+      "forbidden": "لا تملك صلاحية الوصول إلى هذه الوثيقة"
+    }
+  },
+  "errors": {
+    "notFound": "الصفحة غير موجودة",
+    "forbidden": "غير مصرح لك بالوصول إلى هذه الصفحة",
+    "serverError": "حدث خطأ غير متوقع"
+  },
+  "teamAssignments": {
+    "title": "تعيينات الفريق (التفويض)",
+    "staffTitle": "تعيينات الفريق (تشغيلية)",
+    "userHint": "تحدد هذه التعيينات الفرق التي يمكن لهذا المستخدم الوصول إليها عندما يكون دوره محدوداً بالفريق.",
+    "staffHint": "تحدد هذه التعيينات الفرق التي يعمل معها هذا العضو يومياً. لا تمنح صلاحيات تسجيل الدخول.",
+    "noAssignments": "لم يتم تعيين أي فريق بعد.",
+    "addTeam": "إضافة فريق",
+    "assign": "تعيين",
+    "teamScopedWarning": "دور هذا المستخدم محدود بالفريق. سيتمكن فقط من الوصول إلى بيانات الفرق المعيّنة له.",
+    "notTeamScopedNote": "دور هذا المستخدم غير محدود بالفريق، لذا لن تؤثر هذه التعيينات على صلاحياته حتى يتم تفعيل التحكم بالوصول.",
+    "errors": {
+      "teamRequired": "الرجاء اختيار فريق",
+      "alreadyAssigned": "هذا المستخدم معيّن لهذا الفريق مسبقاً"
+    }
+  },
+  "publicSite": {
+    "portal": "بوابة الإدارة",
+    "menu": "القائمة",
+    "close": "إغلاق",
+    "footer": {
+      "aboutTitle": "عن النادي",
+      "stadium": "الملعب",
+      "contact": "اتصل بنا",
+      "quickLinks": "روابط سريعة",
+      "rights": "جميع الحقوق محفوظة",
+      "memberAffiliation": "الاتحاد الجزائري لكرة القدم"
+    },
+    "home": {
+      "heroTag": "النادي الرياضي العريق",
+      "heroTitle": "أكثر من مجرد نادٍ",
+      "heroSubtitle": "تاريخ يصنعه أبناء سيدي حسني. شغف بكرة القدم، وفئات تتطلع إلى المستقبل.",
+      "upcomingMatches": "المباريات القادمة",
+      "activePlayers": "لاعب مسجل ونشط",
+      "teamCategories": "فئات للنادي",
+      "founded": "سنة التأسيس",
+      "aboutClub": "عن النادي",
+      "aboutCopy": "نادي أمل سيدي حسني الرياضي، من ولاية تيارت. نعمل على تطوير كرة القدم المحلية وتكوين اللاعبين ضمن بيئة تقوم على الانضباط والعمل الجماعي.",
+      "discoverTeam": "تعرّف على فرق النادي",
+      "nextMatch": "المباراة القادمة",
+      "latestResult": "آخر نتيجة",
+      "noUpcomingMatches": "لا توجد مباريات مبرمجة حالياً",
+      "noRecentResults": "لا توجد نتائج مسجلة مؤخراً",
+      "latestNews": "آخر الأخبار",
+      "allNews": "كل الأخبار",
+      "noNews": "لا توجد أخبار منشورة حالياً",
+      "ourTeams": "فئات النادي",
+      "ourTeamsSubtitle": "تكوين مستمر وتأطير فني لمختلف الفئات العمرية",
+      "gallery": "معرض الصور",
+      "viewGallery": "عرض المعرض",
+      "announcements": "إعلانات هامة",
+      "viewMatchCenter": "مركز المباراة",
+      "viewTeam": "قائمة اللاعبين"
+    },
+    "matches": {
+      "title": "المباريات والنتائج",
+      "subtitle": "متابعة جميع مواجهات فئات أمل سيدي حسني في مختلف المنافسات",
+      "upcoming": "المباريات القادمة",
+      "completed": "النتائج السابقة",
+      "all": "الكل",
+      "live": "مباشر",
+      "noMatches": "لا توجد مباريات مسجلة",
+      "matchCenter": "تفاصيل المباراة",
+      "lineups": "التشكيلة الرسمية",
+      "startingLineup": "التشكيل الأساسي",
+      "substitutes": "دكة البدلاء",
+      "events": "أحداث المباراة",
+      "noLineups": "لم تعلن التشكيلة الرسمية بعد",
+      "noEvents": "لا توجد أحداث مسجلة في هذه المباراة",
+      "stadium": "الملعب",
+      "referee": "الحكم",
+      "attendance": "الحضور الجماهيري",
+      "round": "الجولة"
+    },
+    "teams": {
+      "title": "فئات النادي واللاعبون",
+      "subtitle": "تعرف على فرق النادي ولاعبي مختلف الفئات العمرية",
+      "selectCategory": "اختر الفئة",
+      "squad": "تعداد الفريق",
+      "goalkeepers": "حراس المرمى",
+      "defenders": "المدافعون",
+      "midfielders": "لاعبو الوسط",
+      "forwards": "المهاجمون",
+      "noPlayers": "لا يوجد لاعبون مسجلون في هذه الفئة حالياً",
+      "playerCount": "{count} لاعب"
+    },
+    "player": {
+      "profile": "الملف الشخصي",
+      "number": "الرقم",
+      "position": "المركز",
+      "birthDate": "تاريخ الميلاد",
+      "nationality": "الجنسية",
+      "dominantFoot": "القدم المفضلة",
+      "height": "القامة",
+      "weight": "الوزن",
+      "appearances": "المشاركات الرسمية",
+      "goals": "الأهداف",
+      "bio": "نبذة عن اللاعب",
+      "years": "سنة"
+    },
+    "news": {
+      "title": "الأخبار والمستجدات",
+      "subtitle": "كل أخبار وبلاغات نادي أمل سيدي حسني",
+      "readMore": "اقرأ المزيد",
+      "publishedOn": "نُشر بتاريخ",
+      "category": "التصنيف",
+      "backToNews": "العودة إلى الأخبار",
+      "noArticles": "لا توجد مقالات منشورة حالياً",
+      "share": "مشاركة"
+    },
+    "competitions": {
+      "title": "المسابقات والبطولات",
+      "subtitle": "المنافسات الرسمية التي يشارك فيها نادي أمل سيدي حسني",
+      "matchesPlayed": "مباريات ملعوبة",
+      "noCompetitions": "لا توجد مسابقات مسجلة حالياً",
+      "season": "الموسم",
+      "type": "النوع"
+    },
+    "gallery": {
+      "title": "معرض الصور",
+      "subtitle": "ألبوم ذكريات ولحظات أمل سيدي حسني",
+      "photoCount": "{count} صورة",
+      "noAlbums": "لا توجد ألبومات صور منشورة حالياً",
+      "backToGallery": "العودة إلى المعرض",
+      "emptyAlbum": "لا توجد صور في هذا الألبوم"
+    },
+    "positions": {
+      "GOALKEEPER": "حارس مرمى",
+      "DEFENDER": "مدافع",
+      "MIDFIELDER": "وسط ميدان",
+      "FORWARD": "مهاجم"
+    },
+    "foot": {
+      "RIGHT": "يمين",
+      "LEFT": "يسار",
+      "BOTH": "كلتا القدمين"
+    },
+    "matchStatus": {
+      "SCHEDULED": "مبرمجة",
+      "IN_PROGRESS": "جارية الآن",
+      "LIVE": "جارية الآن",
+      "COMPLETED": "انتهت",
+      "FINISHED": "انتهت",
+      "POSTPONED": "مؤجلة",
+      "CANCELLED": "ملغاة"
+    },
+    "eventTypes": {
+      "GOAL": "هدف",
+      "PENALTY": "ضربة جزاء",
+      "OWN_GOAL": "هدف عكسي",
+      "YELLOW_CARD": "بطاقة صفراء",
+      "RED_CARD": "بطاقة حمراء",
+      "SUBSTITUTION": "تبديل"
+    }
+  },
+  "mail": {
+    "title": "بريد النادي الرسمي",
+    "subtitle": "إدارة وتصفح بريد نادي سيدي حسني",
+    "inbox": "صندوق الوارد",
+    "sent": "البريد المرسل",
+    "drafts": "المسودات",
+    "starred": "المميزة بنجمة",
+    "spam": "الرسائل غير المرغوب فيها (سبام)",
+    "trash": "سلة المهملات",
+    "compose": "رسالة جديدة",
+    "attachFiles": "إرفاق ملفات أو صور",
+    "removeAttachment": "إزالة المرفق",
+    "reply": "رد",
+    "replyAll": "رد على الجميع",
+    "forward": "إعادة توجيه",
+    "to": "إلى",
+    "cc": "نسخة إلى (CC)",
+    "bcc": "نسخة مخفية (BCC)",
+    "subject": "الموضوع",
+    "body": "نص الرسالة",
+    "send": "إرسال",
+    "sending": "جارٍ الإرسال...",
+    "sentSuccess": "تم إرسال الرسالة بنجاح",
+    "attachments": "المرفقات",
+    "optional": "اختياري",
+    "dropFilesHint": "اسحب الملفات إلى هنا أو اضغط للاختيار",
+    "downloadAttachment": "تحميل المرفق",
+    "noMessages": "لا توجد رسائل في هذا المجلد",
+    "noSelectedThread": "اختر محادثة لعرض تفاصيلها",
+    "markAsRead": "تحديد كمقروء",
+    "markAsUnread": "تحديد كغير مقروء",
+    "sync": "مزامنة البريد",
+    "syncing": "جارٍ المزامنة...",
+    "syncSuccess": "تم طلب المزامنة وستتم معالجتها في الخلفية",
+    "mailLoadError": "تعذر تحميل الرسائل من Gmail. أعد المحاولة بعد قليل.",
+    "connectionNeedsReconnect": "انتهت صلاحية الربط أو تعذر فك بياناته. أعد ربط حساب النادي للمتابعة.",
+    "connected": "متصل بحساب النادي الرسمي",
+    "disconnected": "غير متصل",
+    "connectGoogle": "ربط حساب Google الرسمي",
+    "disconnectGoogle": "فصل الحساب",
+    "confirmDisconnect": "هل أنت متأكد من رغبتك في فصل حساب البريد الرسمي للنادي؟",
+    "unconfiguredNotice": "لم تُضبط إعدادات الربط بخدمات Google، لذلك لن يعمل البريد الإلكتروني حتى تُستكمل الإعدادات.",
+    "searchPlaceholder": "البحث في البريد (الموضوع، المرسل، الكلمات المفتاحية)...",
+    "lastSync": "آخر مزامنة"
+  },
+  "inventory": {
+    "title": "العتاد والجرد",
+    "description": "إدارة ومتابعة المعدات الرياضية، الأطقم، الكرات، ولوازم التدريب",
+    "addItem": "إضافة مادة جديدة",
+    "addItemDescription": "تسجيل مادة أو عتاد رياضي جديد في سجل النادي",
+    "editItemDescription": "تعديل بيانات المادة، الكمية، الحالة أو الموقع",
+    "clubWide": "ملكية عامة للنادي",
+    "allCategories": "جميع الأصناف",
+    "allConditions": "جميع الحالات",
+    "searchPlaceholder": "البحث بالاسم أو الموقع...",
+    "noItemsFound": "لم يتم العثور على أي معدات",
+    "noItemsHint": "يمكنك إضافة عتاد جديد أو تعديل معايير التصفية والبحث أعلاه.",
+    "stats": {
+      "totalEquipment": "إجمالي القطع",
+      "uniqueEntries": "مادة مسجلة",
+      "inStock": "كرة في المخزن",
+      "kitsAndJerseys": "قميص وطقم رياضي",
+      "maintenanceRequired": "معدات تحتاج صيانة أو تالفة",
+      "poorOrDamaged": "قطعة بحالة متدهورة"
+    },
+    "fields": {
+      "name": "اسم المادة / العتاد",
+      "category": "الصنف",
+      "quantity": "الكمية",
+      "condition": "الحالة التشغيلية",
+      "team": "الفئة / الفريق",
+      "location": "مكان التخزين / الموقع",
+      "notes": "ملاحظات إضافية"
+    },
+    "categories": {
+      "BALLS": "كرات",
+      "KITS": "أطقم وألبسة",
+      "CONES_MARKERS": "أقماع وعلامات",
+      "GOALKEEPING": "معدات حراسة المرمى",
+      "MEDICAL": "حقائب ومستلزمات طبية",
+      "TRAINING_AIDS": "موانع ووسائل تدريبية",
+      "ELECTRONICS": "أجهزة إلكترونية وصافرات",
+      "OTHER": "أخرى"
+    },
+    "conditions": {
+      "NEW": "جديد",
+      "GOOD": "جيد",
+      "FAIR": "متوسط",
+      "POOR": "متهالك",
+      "DAMAGED": "تالف"
+    }
+  },
+  "testing": {
+    "title": "اختبارات وتقييم أداء اللاعبين",
+    "subtitle": "إدارة الاختبارات البدنية الدورية والقياسات الميدانية وتقييم مؤشرات اللياقة والتطور الفردي",
+    "newSessionTitle": "جلسة اختبار بدني جديدة",
+    "newSessionSubtitle": "تحديد بروتوكول الاختبار والفئة المستهدفة وموعد إجرائه الميداني",
+    "availableProtocols": "بروتوكولات الاختبار المعتمدة",
+    "recentSessions": "سجل جلسات الاختبار الميدانية",
+    "confirmComplete": "هل أنت متأكد من احتساب النتائج واعتماد الجلسة رسمياً؟ سيتم ترتيب اللاعبين وتوثيق السجل التاريخي.",
+    "isCorrected": "مصحح",
+    "kpi": {
+      "totalSessions": "إجمالي الجلسات",
+      "completed": "جلسات معتمدة",
+      "inProgress": "جلسات جارية / مسودة",
+      "testedRecords": "سجلات أداء مسجلة"
+    },
+    "actions": {
+      "newSession": "جلسة اختبار جديدة",
+      "saveDraft": "حفظ كمسودة",
+      "completeSession": "احتساب وإنهاء الجلسة",
+      "correctResult": "تعديل النتيجة",
+      "recordScores": "تسجيل القياسات",
+      "viewResults": "عرض النتائج والترتيب",
+      "proceedToEntry": "متابعة لتسجيل القياسات",
+      "cancel": "إلغاء",
+      "saveCorrection": "حفظ",
+      "viewSession": "تفاصيل الجلسة",
+      "printResults": "طباعة",
+      "deleteSession": "حذف الجلسة",
+      "confirmDeleteSession": "هل أنت متأكد من رغبتك في حذف جلسة الاختبار نهائياً؟ سيتم مسح جميع القياسات والنتائج المسجلة لهذه الجلسة."
+    },
+    "conductor": {
+      "title": "جهاز قياس وإدارة اختبار اليويو الميداني",
+      "startTest": "بدء الاختبار وتشغيل الإشارات الصوتية",
+      "pauseTest": "إيقاف مؤقت",
+      "resumeTest": "استئناف الاختبار",
+      "stopTest": "إنهاء الاختبار الميداني",
+      "soundEnabled": "الصوت مفعّل",
+      "soundMuted": "الصوت مكتوم",
+      "testAudio": "تجربة الصوت",
+      "runningPhase": "جري (40 متر)",
+      "recoveryPhase": "استرجاع نشط (10 ثوانٍ)",
+      "countdownPhase": "العد التنازلي للانطلاق",
+      "nextBeep": "الإشارة القادمة خلال",
+      "currentSpeed": "السرعة الحالية",
+      "level": "المستوى",
+      "shuttle": "تكرار ذهاب وإياب",
+      "totalDistance": "المسافة المقطوعة",
+      "elapsedTime": "الوقت المنقضي",
+      "activeRunners": "اللاعبون المستمرون في الجري",
+      "stoppedRunners": "اللاعبون الذين أنهوا الاختبار",
+      "markStopped": "تسجيل التوقف",
+      "stoppedAt": "توقف عند",
+      "warning1": "إنذار 1",
+      "warningActive": "منذر",
+      "modeConductor": "المؤقت الصوتي الحي",
+      "modeSheet": "الجدول اليدوي",
+      "pauseWarning": "تنبيه: إيقاف المؤقت مؤقتاً قد يؤثر على دقة نتائج الاختبار من الناحية الفسيولوجية. يُفضل عدم الإيقاف إلا للضرورة القصوى.",
+      "allRunnersFinished": "أنهى جميع اللاعبين الاختبار! يمكنك الآن اعتماد النتائج وحفظها رسمياً.",
+      "saveDraft": "حفظ كمسودة",
+      "stopAllRemaining": "إيقاف جميع المتبقين",
+      "saveAndComplete": "حفظ واعتماد النتائج"
+    },
+    "categories": {
+      "AEROBIC": "هوائي وتحمل",
+      "ENDURANCE": "التحمل",
+      "SPEED": "سرعة وانطلاق",
+      "AGILITY": "الرشاقة",
+      "POWER": "قوة وانفجارية",
+      "STRENGTH": "القوة العضلية",
+      "FLEXIBILITY": "المرونة",
+      "OTHER": "أخرى"
+    },
+    "status": {
+      "draft": "مسودة",
+      "completed": "معتمدة ومكتملة",
+      "cancelled": "ملغاة",
+      "valid": "مكتمل وسليم",
+      "incomplete": "غير مكتمل / انسحاب",
+      "disqualified": "مستبعد / أخطاء متكررة",
+      "absent": "غائب"
+    },
+    "fields": {
+      "targetTeam": "الفئة / الفريق المستهدف",
+      "testProtocol": "بروتوكول الاختبار",
+      "sessionTitle": "عنوان الجلسة",
+      "date": "تاريخ وتوقيت الاختبار",
+      "location": "الميدان / الموقع",
+      "notes": "ملاحظات إضافية",
+      "notesPlaceholder": "ملاحظات حول الظروف الجوية، جاهزية اللاعبين، أرضية الميدان...",
+      "level": "المستوى",
+      "shuttle": "تكرار ذهاب وإياب",
+      "distance": "المسافة الكلية (متر)",
+      "score": "النتيجة الرسمية",
+      "timeAttempt1": "المحاولة 1 (ثا)",
+      "timeAttempt2": "المحاولة 2 (ثا)",
+      "bestTime": "أفضل توقيت (ثا)",
+      "heightAttempt1": "المحاولة 1 (سم)",
+      "heightAttempt2": "المحاولة 2 (سم)",
+      "bestHeight": "أفضل ارتفاع (سم)"
+    },
+    "table": {
+      "session": "الجلسة",
+      "protocol": "البروتوكول",
+      "team": "الفئة",
+      "date": "التاريخ",
+      "players": "اللاعبون",
+      "status": "الحالة",
+      "actions": "الإجراءات",
+      "rank": "الترتيب",
+      "player": "اللاعب",
+      "playerRoster": "قائمة لاعبي الفريق المسجلين"
+    },
+    "sheet": {
+      "liveDraftMode": "وضع الإدخال الميداني المباشر",
+      "officialResultsMode": "سجل النتائج الرسمية المعتمدة"
+    },
+    "protocols": {
+      "yoyoBannerDesc": "اختبار التحمل الهوائي المتقطع (Bangsbo) — مسافة 2×20 م مع 10 ثوان استرجاع. يبدأ من المستوى 5 مع تصاعد تدريجي للسرعة حتى الإنهاك.",
+      "sprintBannerDesc": "اختبار السرعة الخطية والتسارع الأقصى من الثبات لمسافة 30 متراً.",
+      "jumpBannerDesc": "اختبار القوة الانفجارية للطرفين السفليين والقفز العمودي من وضعية الثبات (CMJ).",
+      "unitLabel": "الوحدة",
+      "definitions": {
+        "YOYO_IR1": { "name": "اختبار يويو للتعافي المتقطع — المستوى الأول", "description": "يقيس التحمل الهوائي المتقطع والقدرة على الجري عالي الشدة عبر جولات ذهاب وإياب لمسافة 2×20 متراً مع استرجاع نشط لمدة 10 ثوانٍ، وفق بروتوكول بانغسبو." },
+        "SPRINT_30M": { "name": "عدو 30 متراً", "description": "يقيس التسارع الخطي والسرعة القصوى خلال عدو لمسافة 30 متراً من وضع الثبات." },
+        "VERTICAL_JUMP": { "name": "القفز العمودي بالحركة المعاكسة (CMJ)", "description": "يقيس القدرة الانفجارية للطرفين السفليين وارتفاع القفز العمودي مع وضع اليدين على الوركين." },
+        "FIFA_RSA": { "name": "اختبار FIFA للعدو المتكرر (6 × 40 م)", "description": "يسجل أفضل ومتوسط زمن لستة انطلاقات لمسافة 40 متراً مع استراحة 60 ثانية. لا يُحسب مؤشر الإجهاد إلا بعد تسجيل الأزمنة الستة." },
+        "YOYO_IR2": { "name": "اختبار يويو للتعافي المتقطع — المستوى الثاني", "description": "يقيس أداء الجري المتقطع عالي الشدة ببروتوكول Yo-Yo IR2 الذي يبدأ بسرعة أعلى وتتدرج سرعته سريعاً. قيمة VO₂ تقديرية وليست قياساً مخبرياً." },
+        "IFT_30_15": { "name": "اختبار اللياقة المتقطع 30–15 (IFT)", "description": "اختبار ميداني لتحديد السرعة النهائية للجري المتقطع (VIFT)، بجولات جري لمدة 30 ثانية تتخللها استراحة مشي لمدة 15 ثانية." },
+        "ILLINOIS_AGILITY": { "name": "اختبار إلينوي للرشاقة", "description": "يقيس زمن إكمال مسار الأقماع مع التسارع وتغيير الاتجاهات وفق المسار المحدد." },
+        "COOPER_12MIN": { "name": "اختبار كوبر للجري لمدة 12 دقيقة", "description": "يقيس مسافة الجري المستمرة خلال 12 دقيقة لتقدير القدرة على التحمل الهوائي وقيمة VO₂ القصوى." }
+      }
+    },
+    "correctionModal": {
+      "title": "تعديل نتيجة الاختبار",
+      "mandatoryReason": "سبب التعديل والتصحيح",
+      "reasonPlaceholder": "توضيح الخطأ الحسابي أو الميداني بدقة لأغراض الرقابة والتدقيق الرياضي...",
+      "auditNotice": "يُسجّل هذا التعديل تلقائيًا في سجل العمليات، مع حفظ القيمتين السابقة والجديدة واسم المستخدم المسؤول."
+    },
+    "validation": {
+      "reasonTooShort": "يرجى كتابة سبب توضيحي لا يقل عن 5 أحرف."
+    },
+    "messages": {
+      "draftSaved": "تم حفظ قياسات المسودة بنجاح.",
+      "sessionCompleted": "تم احتساب نتائج الجلسة وترتيب اللاعبين بنجاح.",
+      "corrected": "تم تصحيح النتيجة وتوثيق السجل الرقابي بنجاح.",
+      "error": "حدث خطأ أثناء معالجة العملية."
+    },
+    "playerCard": {
+      "sectionTitle": "سجل التقييم البدني والاختبارات الميدانية",
+      "sectionSubtitle": "المؤشرات البدنية التراكمية وسجل التطور الفردي عبر جلسات الاختبار الرسمية",
+      "noTests": "لا توجد اختبارات بدنية مسجلة لهذا اللاعب حتى الآن",
+      "noTestsDesc": "ستظهر هنا مؤشرات اللياقة البدنية والسرعة والتحمل فور مشاركة اللاعب في جلسات التقييم الميدانية.",
+      "totalTests": "عدد الاختبارات",
+      "latestResult": "آخر نتيجة مسجلة",
+      "bestScore": "أفضل رقم قياسي",
+      "changeFromPrev": "التغير عن الاختبار السابق",
+      "pctChange": "نسبة التطور"
+    },
+    "empty": {
+      "noSessions": "لا توجد جلسات اختبار بدني مسجلة",
+      "noSessionsDesc": "ابدأ بإنشاء أول جلسة اختبار ميداني لتسجيل أداء اللاعبين ومتابعة لياقتهم."
+    }
+  }
+}

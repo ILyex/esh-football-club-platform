@@ -1,0 +1,530 @@
+"use server";
+
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
+import { playerSchema } from "@/lib/validations/player";
+import { writeAuditLog } from "@/lib/audit";
+import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
+import { slugify } from "@/lib/utils";
+import {
+  validateUploadedImage,
+  generatePublicStorageKey,
+  uploadPublicFile,
+  deletePublicFile,
+  deletePrivateFile,
+  validateUploadedFile,
+  generateStorageKey,
+  uploadPrivateFile
+} from "@/lib/storage";
+import { revalidatePath } from "next/cache";
+import { isConfirmedPositiveDrugTest, verifyDocument } from "@/lib/ai/document-verifier";
+
+async function extractPlayerPhoto(formData: FormData): Promise<string | undefined> {
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return undefined;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { mime, ext } = await validateUploadedImage(buffer);
+  const key = generatePublicStorageKey("players", ext);
+  return uploadPublicFile({ key, buffer, mimeType: mime });
+}
+
+async function savePlayerAttachedDocument(params: {
+  playerId: string;
+  teamId: string | null;
+  file: File;
+  type: "CNI" | "CONTRACT" | "BIRTH_CERTIFICATE" | "DRUG_TEST";
+  playerName: string;
+  userId: string;
+}): Promise<boolean> {
+  if (!(params.file instanceof File) || params.file.size === 0) return false;
+  const buffer = Buffer.from(await params.file.arrayBuffer());
+  const { mime, ext } = await validateUploadedFile(buffer);
+  let verificationStatus: "APPROVED" | "PENDING_REVIEW" = "PENDING_REVIEW";
+  let positiveDrugTest = false;
+
+  // ── Document Verification (AI + Rules) ──────────────────────────────────
+  {
+    const otherPlayers = params.teamId
+      ? await db.player.findMany({
+          where: { teamId: params.teamId, id: { not: params.playerId } },
+          select: { firstName: true, lastName: true, firstNameFr: true, lastNameFr: true }
+        })
+      : [];
+
+    const targetPlayer = await db.player.findUniqueOrThrow({
+      where: { id: params.playerId },
+      select: { firstName: true, lastName: true, firstNameFr: true, lastNameFr: true }
+    });
+    const docKindByType: Record<typeof params.type, "IDENTITY" | "CONTRACT" | "BIRTH_CERTIFICATE" | "DRUG_TEST"> = {
+      CNI: "IDENTITY",
+      CONTRACT: "CONTRACT",
+      BIRTH_CERTIFICATE: "BIRTH_CERTIFICATE",
+      DRUG_TEST: "DRUG_TEST"
+    };
+
+    const verification = await verifyDocument(buffer, mime, {
+      kind: docKindByType[params.type],
+      player: targetPlayer,
+      otherPlayers
+    });
+
+    if (verification.verdict === "REJECT") {
+      const errorCodes = verification.findings
+        .filter((f) => f.severity === "error")
+        .map((f) => f.code)
+        .join(", ");
+      positiveDrugTest = params.type === "DRUG_TEST" && isConfirmedPositiveDrugTest(verification);
+      const docLabel: Record<string, string> = {
+        CNI: "بطاقة التعريف الوطنية",
+        CONTRACT: "عقد اللاعب",
+        BIRTH_CERTIFICATE: "شهادة الميلاد",
+        DRUG_TEST: "وثيقة فحص المخدرات"
+      };
+      if (!positiveDrugTest) throw new Error(
+        `VERIFY_REJECT|${errorCodes}|تعذّر قبول ${docLabel[params.type] || "الوثيقة"} — ${
+          errorCodes.includes("WRONG_DOCUMENT_TYPE")
+            ? "نوع الملف لا يطابق الوثيقة المطلوبة؛ تحقق من الملف المرفوع واختر الوثيقة الصحيحة"
+            : errorCodes.includes("OTHER_PLAYER")
+              ? "الوثيقة غير مطابقة لمعلومات اللاعب؛ الاسم الظاهر يعود إلى لاعب آخر"
+              : errorCodes.includes("NAME_MISSING")
+                ? "الوثيقة غير مطابقة لمعلومات اللاعب؛ لم يظهر اسم اللاعب المسجل فيها"
+                : errorCodes.includes("DRUG_TEST_POSITIVE")
+                  ? "نتيجة فحص المخدرات إيجابية؛ لم تُرفق لأن هوية صاحب الوثيقة لم تتطابق مع اللاعب"
+                  : "يرجى التحقق من محتوى الملف"
+        }`
+      );
+    }
+    verificationStatus = verification.verdict === "ACCEPT" && !positiveDrugTest ? "APPROVED" : "PENDING_REVIEW";
+  }
+  // ── End verification ─────────────────────────────────────────────────────
+
+  const categoryMap: Record<string, string> = {
+    CNI: "registration",
+    CONTRACT: "contract",
+    BIRTH_CERTIFICATE: "certificate",
+    DRUG_TEST: "certificate"
+  };
+  const categoryKey = categoryMap[params.type] || "administrative";
+  let category = await db.documentCategory.findFirst({
+    where: { OR: [{ key: categoryKey }, { key: "administrative" }, { key: "other" }] }
+  });
+  if (!category) {
+    category = await db.documentCategory.create({
+      data: { key: categoryKey, name: categoryKey }
+    });
+  }
+
+  const namePrefixMap: Record<string, string> = {
+    CNI: "بطاقة التعريف الوطنية",
+    CONTRACT: "عقد اللاعب",
+    BIRTH_CERTIFICATE: "شهادة الميلاد",
+    DRUG_TEST: "وثيقة فحص المخدرات"
+  };
+  const docPrefix = namePrefixMap[params.type];
+  const docName = `${docPrefix} - ${params.playerName}`;
+  const storageKey = generateStorageKey(`players/${params.type.toLowerCase()}`, ext);
+  await uploadPrivateFile({ key: storageKey, buffer, mimeType: mime });
+
+  // Replace previous document of the same type for this player
+  const existing = await db.document.findFirst({
+    where: {
+      relatedPlayerId: params.playerId,
+      name: { startsWith: docPrefix }
+    }
+  });
+
+  if (existing) {
+    const updated = await db.document.update({
+      where: { id: existing.id },
+      data: {
+        name: docName,
+        documentDate: new Date(),
+        ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
+        storageKey,
+        mimeType: mime,
+        sizeBytes: buffer.byteLength,
+        originalName: params.file.name,
+        uploadedById: params.userId,
+        status: verificationStatus
+      }
+    });
+    if (positiveDrugTest) await writeAuditLog({
+      userId: params.userId,
+      action: "document.drug_test_positive_detected",
+      entityType: "Document",
+      entityId: updated.id,
+      changes: { status: "PENDING_REVIEW", relatedPlayerId: params.playerId }
+    });
+    return positiveDrugTest;
+  }
+
+  const created = await db.document.create({
+    data: {
+      name: docName,
+      categoryId: category.id,
+      documentDate: new Date(),
+      ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
+      storageKey,
+      mimeType: mime,
+      sizeBytes: buffer.byteLength,
+      originalName: params.file.name,
+      ownerId: params.userId,
+      uploadedById: params.userId,
+      relatedPlayerId: params.playerId,
+      teamId: params.teamId,
+      classification: "RESTRICTED",
+      status: verificationStatus
+    }
+  });
+  if (positiveDrugTest) await writeAuditLog({
+    userId: params.userId,
+    action: "document.drug_test_positive_detected",
+    entityType: "Document",
+    entityId: created.id,
+    changes: { status: "PENDING_REVIEW", relatedPlayerId: params.playerId }
+  });
+  return positiveDrugTest;
+}
+
+export async function createPlayerAction(formData: FormData) {
+  const user = await requirePermission("players.create");
+  const scopeContext = await getMutationScopeContext();
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = playerSchema.parse(raw);
+  assertTeamScope(scopeContext, parsed.teamId, "Player");
+
+  if (parsed.teamId) {
+    const assignedTeam = await db.team.findUnique({ where: { id: parsed.teamId } });
+    if (assignedTeam && assignedTeam.birthYearFrom != null) {
+      const birthYear = parsed.dateOfBirth.getUTCFullYear();
+      if (birthYear < assignedTeam.birthYearFrom) {
+        throw new Error(
+          `لا يمكن تسجيل اللاعب في هذه الفئة: سنة ميلاد اللاعب (${birthYear}) أكبر من الفئة العمرية المسموح بها (${assignedTeam.category}) التي تبدأ من سنة ${assignedTeam.birthYearFrom}.`
+        );
+      }
+    }
+  }
+
+  const photoUrl = await extractPlayerPhoto(formData);
+
+  const baseSlug = slugify(`${parsed.firstName}-${parsed.lastName}`);
+  let slug = baseSlug;
+  let suffix = 1;
+  while (await db.player.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${++suffix}`;
+  }
+
+  const player = await db.player.create({
+    data: {
+      slug,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
+      firstNameFr: parsed.firstNameFr,
+      lastNameFr: parsed.lastNameFr,
+      position: parsed.position,
+      nationality: parsed.nationality,
+      dateOfBirth: parsed.dateOfBirth,
+      teamId: parsed.teamId,
+      shirtNumber: parsed.shirtNumber,
+      height: parsed.height,
+      weight: parsed.weight,
+      previousTeam: parsed.previousTeam,
+      birthCertificateNumber: parsed.birthCertificateNumber,
+      licenceNumber: parsed.licenceNumber,
+      preferredFoot: parsed.preferredFoot,
+      joiningDate: parsed.joiningDate,
+      status: parsed.status,
+      internalNotes: parsed.internalNotes,
+      photoUrl,
+      translations: {
+        create: [
+          ...(parsed.biographyAr ? [{ locale: "ar", biography: parsed.biographyAr }] : []),
+          ...(parsed.biographyFr ? [{ locale: "fr", biography: parsed.biographyFr }] : [])
+        ]
+      }
+    },
+    include: { team: true }
+  });
+
+  let positiveDrugTestDetected = false;
+  try {
+  const cniFile = formData.get("cniFile");
+  if (cniFile instanceof File && cniFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: cniFile,
+      type: "CNI",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const contractFile = formData.get("contractFile");
+  if (contractFile instanceof File && contractFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: contractFile,
+      type: "CONTRACT",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const birthCertificateFile = formData.get("birthCertificateFile");
+  if (birthCertificateFile instanceof File && birthCertificateFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: birthCertificateFile,
+      type: "BIRTH_CERTIFICATE",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const drugTestFile = formData.get("drugTestFile");
+  if (drugTestFile instanceof File && drugTestFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: drugTestFile,
+      type: "DRUG_TEST",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+  } catch (error) {
+    // A rejected attachment must not leave a newly created player profile or
+    // orphan private files behind.
+    const attachedDocuments = await db.document.findMany({
+      where: { relatedPlayerId: player.id },
+      select: { id: true, storageKey: true }
+    });
+    await Promise.allSettled(attachedDocuments.map((document) => deletePrivateFile(document.storageKey)));
+    await db.document.deleteMany({ where: { relatedPlayerId: player.id } });
+    await db.player.delete({ where: { id: player.id } });
+    if (photoUrl) await deletePublicFile(photoUrl).catch(() => {});
+    throw error;
+  }
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "player.create",
+    entityType: "Player",
+    entityId: player.id,
+    changes: { after: parsed }
+  });
+
+  const categorySlug = player.team?.category?.toLowerCase();
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath("/[locale]/dashboard/documents", "page");
+  revalidatePath("/[locale]/team", "page");
+  if (categorySlug) {
+    revalidatePath(`/[locale]/team/${categorySlug}`, "page");
+    revalidatePath(`/[locale]/team/${categorySlug}/players/${player.slug}`, "page");
+  }
+  return { id: player.id, positiveDrugTestDetected };
+}
+
+export async function updatePlayerAction(playerId: string, formData: FormData) {
+  const user = await requirePermission("players.update");
+  const scopeContext = await getMutationScopeContext();
+  const before = await db.player.findUniqueOrThrow({ where: { id: playerId } });
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = playerSchema.parse(raw);
+  assertDualTeamScope(scopeContext, before.teamId, parsed.teamId, "Player");
+
+  if (parsed.teamId) {
+    const assignedTeam = await db.team.findUnique({ where: { id: parsed.teamId } });
+    if (assignedTeam && assignedTeam.birthYearFrom != null) {
+      const birthYear = parsed.dateOfBirth.getUTCFullYear();
+      if (birthYear < assignedTeam.birthYearFrom) {
+        throw new Error(
+          `لا يمكن تسجيل اللاعب في هذه الفئة: سنة ميلاد اللاعب (${birthYear}) أكبر من الفئة العمرية المسموح بها (${assignedTeam.category}) التي تبدأ من سنة ${assignedTeam.birthYearFrom}.`
+        );
+      }
+    }
+  }
+
+  const removePhoto = formData.get("removePhoto") === "true";
+  const newPhotoUrl = await extractPlayerPhoto(formData);
+
+  const player = await db.player.update({
+    where: { id: playerId },
+    data: {
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
+      firstNameFr: parsed.firstNameFr,
+      lastNameFr: parsed.lastNameFr,
+      position: parsed.position,
+      nationality: parsed.nationality,
+      dateOfBirth: parsed.dateOfBirth,
+      teamId: parsed.teamId,
+      shirtNumber: parsed.shirtNumber,
+      height: parsed.height,
+      weight: parsed.weight,
+      previousTeam: parsed.previousTeam,
+      birthCertificateNumber: parsed.birthCertificateNumber,
+      licenceNumber: parsed.licenceNumber,
+      preferredFoot: parsed.preferredFoot,
+      joiningDate: parsed.joiningDate,
+      status: parsed.status,
+      internalNotes: parsed.internalNotes,
+      ...(newPhotoUrl ? { photoUrl: newPhotoUrl } : removePhoto ? { photoUrl: null } : {})
+    },
+    include: { team: true }
+  });
+
+  let positiveDrugTestDetected = false;
+  const cniFile = formData.get("cniFile");
+  if (cniFile instanceof File && cniFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: cniFile,
+      type: "CNI",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const contractFile = formData.get("contractFile");
+  if (contractFile instanceof File && contractFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: contractFile,
+      type: "CONTRACT",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const birthCertificateFile = formData.get("birthCertificateFile");
+  if (birthCertificateFile instanceof File && birthCertificateFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: birthCertificateFile,
+      type: "BIRTH_CERTIFICATE",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  const drugTestFile = formData.get("drugTestFile");
+  if (drugTestFile instanceof File && drugTestFile.size > 0) {
+    positiveDrugTestDetected = (await savePlayerAttachedDocument({
+      playerId: player.id,
+      teamId: player.teamId,
+      file: drugTestFile,
+      type: "DRUG_TEST",
+      playerName: `${player.firstName} ${player.lastName}`,
+      userId: user.id
+    })) || positiveDrugTestDetected;
+  }
+
+  if (newPhotoUrl && before.photoUrl) {
+    await deletePublicFile(before.photoUrl).catch(() => {});
+  }
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "player.update",
+    entityType: "Player",
+    entityId: player.id,
+    changes: { before, after: parsed }
+  });
+
+  const categorySlug = player.team?.category?.toLowerCase();
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath(`/[locale]/dashboard/players/${playerId}`, "page");
+  revalidatePath("/[locale]/dashboard/documents", "page");
+  revalidatePath("/[locale]/team", "page");
+  if (categorySlug) {
+    revalidatePath(`/[locale]/team/${categorySlug}`, "page");
+    revalidatePath(`/[locale]/team/${categorySlug}/players/${player.slug}`, "page");
+  }
+  return { id: player.id, positiveDrugTestDetected };
+}
+
+// Spec section 20 asks for Delete AND Archive. We implement "delete" from the
+// UI as an archive (soft delete) by default — real hard-delete is reserved
+// for Super Admin only and is a separate, explicitly-named action so it is
+// never triggered accidentally.
+export async function archivePlayerAction(playerId: string) {
+  const user = await requirePermission("players.archive");
+  const scopeContext = await getMutationScopeContext();
+  const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
+  assertTeamScope(scopeContext, player.teamId, "Player");
+
+  const updated = await db.player.update({ where: { id: playerId }, data: { status: "ARCHIVED" } });
+
+  await writeAuditLog({ userId: user.id, action: "player.archive", entityType: "Player", entityId: updated.id });
+  const categorySlug = player.team?.category?.toLowerCase();
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath("/[locale]/team", "page");
+  if (categorySlug) {
+    revalidatePath(`/[locale]/team/${categorySlug}`, "page");
+  }
+}
+
+export async function hardDeletePlayerAction(playerId: string) {
+  const user = await requirePermission("players.delete"); // granted to Super Admin only in seed data
+  const scopeContext = await getMutationScopeContext();
+  const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
+  assertTeamScope(scopeContext, player.teamId, "Player");
+
+  if (player.photoUrl) {
+    await deletePublicFile(player.photoUrl).catch(() => {});
+  }
+
+  await db.player.delete({ where: { id: playerId } });
+
+  await writeAuditLog({ userId: user.id, action: "player.delete", entityType: "Player", entityId: playerId });
+  const categorySlug = player.team?.category?.toLowerCase();
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath("/[locale]/team", "page");
+  if (categorySlug) {
+    revalidatePath(`/[locale]/team/${categorySlug}`, "page");
+  }
+}
+
+export async function removePlayerPhotoAction(playerId: string) {
+  const user = await requirePermission("players.update");
+  const scopeContext = await getMutationScopeContext();
+  const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
+  assertTeamScope(scopeContext, player.teamId, "Player");
+
+  if (player.photoUrl) {
+    await deletePublicFile(player.photoUrl).catch(() => {});
+  }
+
+  await db.player.update({
+    where: { id: playerId },
+    data: { photoUrl: null }
+  });
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "player.photo.delete",
+    entityType: "Player",
+    entityId: playerId,
+    changes: { before: { photoUrl: player.photoUrl }, after: { photoUrl: null } }
+  });
+
+  const categorySlug = player.team?.category?.toLowerCase();
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath(`/[locale]/dashboard/players/${playerId}`, "page");
+  revalidatePath("/[locale]/team", "page");
+  if (categorySlug) {
+    revalidatePath(`/[locale]/team/${categorySlug}`, "page");
+    revalidatePath(`/[locale]/team/${categorySlug}/players/${player.slug}`, "page");
+  }
+
+  return { success: true };
+}

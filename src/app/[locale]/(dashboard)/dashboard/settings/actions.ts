@@ -1,0 +1,66 @@
+"use server";
+
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
+import { clubSettingsSchema } from "@/lib/validations/settings";
+import { writeAuditLog } from "@/lib/audit";
+import { validateUploadedImage, generatePublicStorageKey, uploadPublicFile } from "@/lib/storage";
+import { revalidatePath } from "next/cache";
+
+export async function updateClubSettingsAction(formData: FormData) {
+  const user = await requirePermission("settings.manage");
+  const before = await db.clubSettings.findUniqueOrThrow({ where: { id: "singleton" } });
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = clubSettingsSchema.parse(raw);
+
+  // The official logo is an uploaded asset, never generated — this branch
+  // only ever runs when the admin actually selects a new file. If none is
+  // selected, logoUrl is left exactly as it was (see spec: "do NOT invent
+  // or generate a replacement logo").
+  let logoUrl: string | undefined;
+  const logoFile = formData.get("logo");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const buffer = Buffer.from(await logoFile.arrayBuffer());
+    const { mime, ext } = await validateUploadedImage(buffer);
+    const key = generatePublicStorageKey("branding", ext);
+    logoUrl = await uploadPublicFile({ key, buffer, mimeType: mime });
+  }
+
+  const socialLinks = {
+    facebook: parsed.facebookUrl || undefined,
+    instagram: parsed.instagramUrl || undefined,
+    website: parsed.websiteUrl || undefined
+  };
+
+  const settings = await db.clubSettings.update({
+    where: { id: "singleton" },
+    data: {
+      name: parsed.name,
+      shortName: parsed.shortName,
+      description: parsed.description,
+      stadium: parsed.stadium,
+      contactEmail: parsed.contactEmail || null,
+      contactPhone: parsed.contactPhone,
+      address: parsed.address,
+      primaryColor: parsed.primaryColor,
+      secondaryColor: parsed.secondaryColor,
+      defaultLocale: parsed.defaultLocale,
+      socialLinks,
+      ...(logoUrl ? { logoUrl } : {})
+    }
+  });
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "settings.update",
+    entityType: "ClubSettings",
+    entityId: settings.id,
+    changes: { before, after: { ...parsed, logoChanged: Boolean(logoUrl) } }
+  });
+
+  // Branding touches nearly every page (public site header/footer, dashboard
+  // sidebar, generated documents later) — revalidate broadly.
+  revalidatePath("/[locale]", "layout");
+  return { id: settings.id };
+}
