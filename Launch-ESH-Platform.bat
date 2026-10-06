@@ -14,7 +14,7 @@ set "DEPLOY_TARGET=node"
 REM Always stop the dedicated app process before starting. This prevents a
 REM server from using old JavaScript chunks after the project was rebuilt.
 REM Only node processes launched with this project's app.js are touched.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=[regex]::Escape('%ROOT%'); $ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match ($root + 'app\\.js') }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 300"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '\bapp\.js\b' }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 500"
 
 if not exist "node_modules\.bin\next.cmd" (
   echo Installing platform dependencies for the first run...
