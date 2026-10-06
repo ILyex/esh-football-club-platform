@@ -24,7 +24,8 @@ import {
   UploadCloud,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -78,6 +79,7 @@ export function MailClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedThread, setSelectedThread] = useState<GmailThreadDetail | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<{ url: string; filename: string } | null>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +92,18 @@ export function MailClient({
 
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
+
+  const isPreviewableAttachment = (mimeType: string) =>
+    ["application/pdf", "text/plain", "text/csv", "image/jpeg", "image/png", "image/gif", "image/webp"].includes(mimeType.toLowerCase());
+
+  const attachmentUrl = (messageId: string, attachmentId: string, filename: string, mimeType: string, preview = false) => {
+    const params = new URLSearchParams({ messageId, attachmentId, filename });
+    if (preview) {
+      params.set("preview", "1");
+      params.set("mimeType", mimeType);
+    }
+    return `/api/mail/attachment?${params.toString()}`;
+  };
 
   // Folders list
   const folders = [
@@ -798,17 +812,32 @@ export function MailClient({
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {msg.attachments.map((att) => (
-                          <a
-                            key={att.id}
-                            href={`/api/mail/attachment?messageId=${msg.id}&attachmentId=${att.id}&filename=${encodeURIComponent(att.filename)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs hover:bg-muted text-foreground transition-colors"
-                          >
-                            <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="truncate max-w-[150px]">{att.filename}</span>
-                            <span className="text-[10px] text-muted-foreground">({Math.round(att.size / 1024)} KB)</span>
-                          </a>
+                          <div key={att.id} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground">
+                            {isPreviewableAttachment(att.mimeType) && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAttachment({
+                                  url: attachmentUrl(msg.id, att.id, att.filename, att.mimeType, true),
+                                  filename: att.filename
+                                })}
+                                title={locale === "ar" ? "معاينة المرفق" : "Prévisualiser la pièce jointe"}
+                                aria-label={locale === "ar" ? "معاينة المرفق" : "Prévisualiser la pièce jointe"}
+                                className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-club-primary transition-colors"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <a
+                              href={attachmentUrl(msg.id, att.id, att.filename, att.mimeType)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 hover:text-club-primary transition-colors"
+                            >
+                              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="truncate max-w-[150px]">{att.filename}</span>
+                              <span className="text-[10px] text-muted-foreground">({Math.round(att.size / 1024)} KB)</span>
+                            </a>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -1063,6 +1092,31 @@ export function MailClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {previewAttachment && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={previewAttachment.filename}>
+          <div className="flex h-[min(88vh,800px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <span className="truncate text-sm font-semibold text-foreground">{previewAttachment.filename}</span>
+              <button
+                type="button"
+                onClick={() => setPreviewAttachment(null)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={locale === "ar" ? "إغلاق المعاينة" : "Fermer l’aperçu"}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 bg-muted/30 p-2">
+              <iframe
+                src={previewAttachment.url}
+                title={previewAttachment.filename}
+                className="h-full w-full rounded-lg border border-border bg-background"
+              />
+            </div>
           </div>
         </div>
       )}

@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
     const messageId = searchParams.get("messageId");
     const attachmentId = searchParams.get("attachmentId");
     const filename = searchParams.get("filename");
+    const preview = searchParams.get("preview") === "1";
+    const requestedMimeType = searchParams.get("mimeType") || "";
 
     if (!messageId || !attachmentId || !filename) {
       return new Response("Missing required attachment parameters", { status: 400 });
@@ -25,11 +27,25 @@ export async function GET(req: NextRequest) {
     const asciiFilename = safeFilename.replace(/[^\x20-\x7E]/g, "_");
     const encodedFilename = encodeURIComponent(safeFilename).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 
+    const previewMimeTypes = new Set([
+      "application/pdf",
+      "text/plain",
+      "text/csv",
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp"
+    ]);
+    const mimeType = preview && previewMimeTypes.has(requestedMimeType)
+      ? requestedMimeType
+      : "application/octet-stream";
+    const disposition = preview && mimeType !== "application/octet-stream" ? "inline" : "attachment";
+
     return new Response(data as any, {
       status: 200,
       headers: {
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
+        "Content-Type": mimeType,
+        "Content-Disposition": `${disposition}; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, no-cache, no-store"
       }
