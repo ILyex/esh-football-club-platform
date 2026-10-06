@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Professional Football Club Website & Management Platform (Next.js, Prisma, PostgreSQL, next-intl AR/FR RTL-LTR)",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "next dev --turbo",

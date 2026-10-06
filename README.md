@@ -15,7 +15,7 @@ management dashboard.
 
 ## Start locally
 
-Requirements: Node.js 20.9 or newer, npm, and PostgreSQL. If `.env` does not
+Requirements: Node.js 22.12 or newer, npm, and PostgreSQL. If `.env` does not
 exist, copy `.env.example` to `.env`; set at least `DATABASE_URL` and
 `AUTH_SECRET` before starting the application.
 
