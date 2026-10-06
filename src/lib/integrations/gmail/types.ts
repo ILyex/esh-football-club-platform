@@ -43,6 +43,8 @@ export interface GmailMessageSummary {
   isUnread: boolean;
   hasAttachments: boolean;
   receivedAt: Date;
+  /** RFC 8058/RFC 2369 unsubscribe endpoint advertised by the sender. */
+  unsubscribe?: { url: string; oneClick: boolean };
 }
 
 export interface GmailMessageDetail extends GmailMessageSummary {

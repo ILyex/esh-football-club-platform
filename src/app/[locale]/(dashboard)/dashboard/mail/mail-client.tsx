@@ -265,6 +265,19 @@ export function MailClient({
     });
   };
 
+  const handleUnsubscribe = (url: string) => {
+    const confirmed = window.confirm(
+      locale === "ar"
+        ? "فتح صفحة إلغاء الاشتراك لهذه القائمة البريدية؟"
+        : "Ouvrir la page de désabonnement de cette liste ?"
+    );
+    if (!confirmed) return;
+    // The server only exposes https/mailto List-Unsubscribe endpoints. Open
+    // them in a separate tab so the mailbox remains available and the sender's
+    // confirmation page can complete the unsubscribe safely.
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   // Trigger Sync
   const handleSync = () => {
     startTransition(async () => {
@@ -741,6 +754,17 @@ export function MailClient({
                       <span className="text-[11px] text-muted-foreground">
                         {new Date(msg.receivedAt).toLocaleString(locale)}
                       </span>
+                      {msg.unsubscribe && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnsubscribe(msg.unsubscribe!.url)}
+                          title={locale === "ar" ? "إلغاء الاشتراك من هذه القائمة" : "Se désabonner de cette liste"}
+                          aria-label={locale === "ar" ? "إلغاء الاشتراك" : "Se désabonner"}
+                          className="rounded p-1 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600 transition-colors"
+                        >
+                          <Unlink className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       {canManage && <button
                         type="button"
                         onClick={() => handleDeleteMessage(msg.id, msg.threadId)}

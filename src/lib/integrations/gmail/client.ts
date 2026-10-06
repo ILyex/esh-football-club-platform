@@ -133,6 +133,27 @@ function extractHeader(headers: Array<{ name: string; value: string }> | undefin
   return found?.value?.trim() || "";
 }
 
+/**
+ * Read the sender's standards-based unsubscribe header. We deliberately only
+ * expose https/mailto endpoints; arbitrary schemes must never become clickable
+ * UI actions. The first https endpoint is preferred because RFC 8058 supports
+ * a one-click POST there.
+ */
+function extractUnsubscribe(headers: Array<{ name: string; value: string }> | undefined):
+  { url: string; oneClick: boolean } | undefined {
+  const raw = extractHeader(headers, "List-Unsubscribe");
+  if (!raw) return undefined;
+  const urls = Array.from(raw.matchAll(/<([^>]+)>/g))
+    .map((match) => match[1]?.trim())
+    .filter((url): url is string => Boolean(url));
+  const candidate = urls.find((url) => /^https:\/\//i.test(url)) || urls.find((url) => /^mailto:/i.test(url));
+  if (!candidate) return undefined;
+  const oneClick = /^https:\/\//i.test(candidate) && /list-unsubscribe\s*=\s*one-click/i.test(
+    extractHeader(headers, "List-Unsubscribe-Post")
+  );
+  return { url: candidate, oneClick };
+}
+
 function parseEmailAddress(raw: string): { name?: string; email: string } {
   if (!raw) return { email: "" };
   const match = raw.match(/^(.*?)\s*<(.+?)>$/);
@@ -316,7 +337,7 @@ export class GoogleGmailApiClient implements IGmailClient {
         slice.map(async (item: { id: string }) => {
           try {
             const detail = await this.request<any>(
-              `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(item.id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+              `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(item.id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=List-Unsubscribe&metadataHeaders=List-Unsubscribe-Post`,
               { headers: { Authorization: `Bearer ${accessToken}` } }
             );
 
@@ -338,7 +359,8 @@ export class GoogleGmailApiClient implements IGmailClient {
               labels,
               isUnread: labels.includes("UNREAD"),
               hasAttachments: Boolean(detail.payload?.body?.size > 0 || (detail.payload?.parts && detail.payload.parts.some((p: any) => p.filename))),
-              receivedAt: new Date(parseInt(detail.internalDate, 10))
+              receivedAt: new Date(parseInt(detail.internalDate, 10)),
+              unsubscribe: extractUnsubscribe(headers)
             } as GmailMessageSummary;
           } catch {
             return null;
@@ -370,6 +392,7 @@ export class GoogleGmailApiClient implements IGmailClient {
     const bccHeader = extractHeader(headers, "Bcc");
     const subjectHeader = extractHeader(headers, "Subject") || "(No Subject)";
     const replyToHeader = extractHeader(headers, "Reply-To");
+    const unsubscribe = extractUnsubscribe(headers);
     const labels = detail.labelIds || [];
 
     const parsedParts = parseMessagePart(detail.payload);
@@ -394,6 +417,7 @@ export class GoogleGmailApiClient implements IGmailClient {
       isUnread: labels.includes("UNREAD"),
       hasAttachments: parsedParts.attachments.length > 0,
       receivedAt: new Date(parseInt(detail.internalDate, 10)),
+      unsubscribe,
       bodyText: parsedParts.bodyText,
       bodyHtml: sanitizeEmailHtml(parsedParts.bodyHtml),
       attachments: parsedParts.attachments
@@ -418,6 +442,7 @@ export class GoogleGmailApiClient implements IGmailClient {
       const bccHeader = extractHeader(headers, "Bcc");
       const subjectHeader = extractHeader(headers, "Subject") || "(No Subject)";
       const replyToHeader = extractHeader(headers, "Reply-To");
+      const unsubscribe = extractUnsubscribe(headers);
       const labels = rawMsg.labelIds || [];
 
       const parsedParts = parseMessagePart(rawMsg.payload);
@@ -445,6 +470,7 @@ export class GoogleGmailApiClient implements IGmailClient {
         isUnread: labels.includes("UNREAD"),
         hasAttachments: parsedParts.attachments.length > 0,
         receivedAt: new Date(parseInt(rawMsg.internalDate, 10)),
+        unsubscribe,
         bodyText: parsedParts.bodyText,
         bodyHtml: sanitizeEmailHtml(parsedParts.bodyHtml),
         attachments: parsedParts.attachments
