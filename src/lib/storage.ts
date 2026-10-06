@@ -34,12 +34,17 @@ export function isStorageConfigured(): boolean {
   return Boolean(process.env.STORAGE_PRIVATE_BUCKET?.trim());
 }
 
-/** In non-production environments (or when STORAGE_DRIVER=local), allows fallback to isolated local private storage. */
+/**
+ * Allows isolated local storage when explicitly selected or when no S3 bucket
+ * is configured. This is required for the self-hosted club package: a
+ * missing optional S3 setting must not make profile/media uploads crash the
+ * production Server Component.
+ */
 export function isLocalStorageMode(): boolean {
   const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
   if (driver === "local") return true;
   if (driver === "s3") return false;
-  return !isStorageConfigured() && process.env.NODE_ENV !== "production";
+  return !isStorageConfigured();
 }
 
 let cachedS3Client: S3Client | null = null;
