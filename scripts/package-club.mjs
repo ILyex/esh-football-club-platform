@@ -46,6 +46,20 @@ for (const name of [".env", ".env.local"]) {
   if (fs.existsSync(source)) fs.copyFileSync(source, path.join(internal, name));
 }
 
+// The club package is a single-server, self-hosted deployment. When no S3
+// provider was explicitly configured, force the production bundle to use its
+// private local storage directory instead of failing on profile/photo uploads.
+// Keep an explicitly configured S3 driver untouched for installations that
+// provide one.
+for (const name of [".env", ".env.local"]) {
+  const packagedEnv = path.join(internal, name);
+  if (!fs.existsSync(packagedEnv)) continue;
+  const contents = fs.readFileSync(packagedEnv, "utf8");
+  if (!/^\s*STORAGE_DRIVER\s*=/m.test(contents)) {
+    fs.writeFileSync(packagedEnv, `${contents.replace(/\s*$/, "")}\nSTORAGE_DRIVER=local\n`, "utf8");
+  }
+}
+
 // Next's standalone server resolves env files from its own directory rather
 // than the package root. Put the same prepared club configuration there too;
 // otherwise Auth.js starts without AUTH_SECRET in the installed package.
