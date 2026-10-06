@@ -133,7 +133,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
           <input
             name="photo"
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/avif"
+            accept="image/png,image/jpeg,image/webp"
             className="w-full text-xs file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer rounded-md border border-border bg-background p-1.5"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
