@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { User, Users, Calendar, Briefcase, FileText, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { User, Users, Briefcase, Save, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
+import { FormSelect } from "@/components/ui/form-select";
 
 interface OptionItem {
   id: string;
@@ -135,46 +136,44 @@ export function ContractForm({
 
         {/* Subject Select Dropdown */}
         {subjectType === "PLAYER" ? (
-          <div>
+          <div className="mx-auto w-full max-w-2xl">
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {t.playerLabel} <span className="text-red-500">*</span>
             </label>
-            <select
+            <FormSelect
               name="playerId"
               required
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium focus:border-club-primary focus:ring-1 focus:ring-club-primary"
-            >
-              <option value="">{isAr ? "— اختر اللاعب المعني بالعقد —" : "— Sélectionner le joueur —"}</option>
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} {p.categoryName ? `(${p.categoryName})` : ""}
-                </option>
-              ))}
-            </select>
+              locale={locale}
+              ariaLabel={t.playerLabel}
+              placeholder={isAr ? "— اختر اللاعب المعني بالعقد —" : "— Sélectionner le joueur —"}
+              defaultValue={selectedPlayerId}
+              onValueChange={setSelectedPlayerId}
+              options={players.map((p) => ({
+                value: p.id,
+                label: `${p.name} ${p.categoryName ? `(${p.categoryName})` : ""}`
+              }))}
+            />
             {/* hidden empty staff input */}
             <input type="hidden" name="staffId" value="" />
           </div>
         ) : (
-          <div>
+          <div className="mx-auto w-full max-w-2xl">
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {t.staffLabel} <span className="text-red-500">*</span>
             </label>
-            <select
+            <FormSelect
               name="staffId"
               required
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium focus:border-club-primary focus:ring-1 focus:ring-club-primary"
-            >
-              <option value="">{isAr ? "— اختر عضو الطاقم المعني بالعقد —" : "— Sélectionner le membre du staff —"}</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} {s.subtitle ? `(${s.subtitle})` : ""}
-                </option>
-              ))}
-            </select>
+              locale={locale}
+              ariaLabel={t.staffLabel}
+              placeholder={isAr ? "— اختر عضو الطاقم المعني بالعقد —" : "— Sélectionner le membre du staff —"}
+              defaultValue={selectedStaffId}
+              onValueChange={setSelectedStaffId}
+              options={staff.map((s) => ({
+                value: s.id,
+                label: `${s.name} ${s.subtitle ? `(${s.subtitle})` : ""}`
+              }))}
+            />
             {/* hidden empty player input */}
             <input type="hidden" name="playerId" value="" />
           </div>
@@ -195,46 +194,38 @@ export function ContractForm({
           <Briefcase className="h-4 w-4 text-muted-foreground" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {t.typeLabel} <span className="text-red-500">*</span>
             </label>
-            <select
+            <FormSelect
               name="type"
               required
-              value={contractType}
-              onChange={(e) => setContractType(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium focus:border-club-primary focus:ring-1 focus:ring-club-primary"
-            >
-              {types.map((ty) => (
-                <option key={ty} value={ty}>
-                  {t.typesMap[ty] || ty}
-                </option>
-              ))}
-            </select>
+              locale={locale}
+              ariaLabel={t.typeLabel}
+              defaultValue={contractType}
+              onValueChange={setContractType}
+              options={types.map((ty) => ({ value: ty, label: t.typesMap[ty] || ty }))}
+            />
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {t.statusLabel} <span className="text-red-500">*</span>
             </label>
-            <select
+            <FormSelect
               name="status"
               required
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium focus:border-club-primary focus:ring-1 focus:ring-club-primary"
-            >
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {t.statusesMap[s] || s}
-                </option>
-              ))}
-            </select>
+              locale={locale}
+              ariaLabel={t.statusLabel}
+              defaultValue={status}
+              onValueChange={setStatus}
+              options={statuses.map((s) => ({ value: s, label: t.statusesMap[s] || s }))}
+            />
           </div>
 
-          <div>
+          <div className="mx-auto w-full max-w-4xl">
             <DateInput
               label={t.startDateLabel}
               name="startDate"
@@ -282,7 +273,7 @@ export function ContractForm({
           disabled={submitting}
           className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-6 shadow-xs"
         >
-          <CheckCircle2 className="h-4 w-4" />
+          <Save className="h-4 w-4" />
           <span>{submitting ? (isAr ? "جارٍ الحفظ..." : "Enregistrement...") : t.save}</span>
         </Button>
       </div>

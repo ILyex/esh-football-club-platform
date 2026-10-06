@@ -1,0 +1,37 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "esh-football-platform",
+	"main": "cloudflare/worker.mjs",
+	"compatibility_date": "2026-10-06",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"rules": [
+		{
+			"type": "CompiledWasm",
+			"globs": ["**/*.wasm"],
+			"fallthrough": true
+		}
+	],
+	"vars": {
+		"DEPLOY_TARGET": "cloudflare",
+		"STORAGE_DRIVER": "s3",
+		"STORAGE_ENDPOINT": "https://br-weathered-voice-b4xw8lji.storage.c-6.us-east-2.aws.neon.tech",
+		"STORAGE_REGION": "us-east-2",
+		"STORAGE_FORCE_PATH_STYLE": "true",
+		"STORAGE_PRIVATE_BUCKET": "esh-private",
+		"STORAGE_PUBLIC_BUCKET": "esh-public"
+	},
+	"triggers": {
+		"crons": [
+			"*/15 * * * *"
+		]
+	},
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+}

@@ -13,6 +13,7 @@ import {
   Bell
 } from "lucide-react";
 import { MatchCountdown } from "@/components/public/match-countdown";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export interface PublicMatchItemData {
   id: string;
@@ -202,7 +203,7 @@ export function UpcomingMatchesCarousel({
                 {/* Meta Line: Competition & Stadium */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-club-primary">
-                    <span>{m.competitionName}</span>
+                    <span>{locale === "ar" ? m.competitionName : frenchPublicText(m.competitionName, "Compétition officielle")}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-muted-foreground bg-zinc-100 dark:bg-muted/60 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-border">
@@ -239,7 +240,7 @@ export function UpcomingMatchesCarousel({
                     </div>
                     <div className="space-y-1">
                       <h3 className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-foreground">
-                        {m.homeTeamName}
+                        {locale === "ar" ? m.homeTeamName : frenchPublicText(m.homeTeamName, m.isHomeFixture ? "ESH Sidi Hosni" : "Adversaire")}
                       </h3>
                       <span className="inline-block rounded-md bg-zinc-100 text-zinc-700 dark:bg-muted dark:text-muted-foreground px-2 py-0.5 text-[11px] font-bold">
                         {locale === "ar" ? "المضيف" : "Domicile"}
@@ -314,7 +315,7 @@ export function UpcomingMatchesCarousel({
                     </div>
                     <div className="space-y-1">
                       <h3 className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-foreground">
-                        {m.awayTeamName}
+                        {locale === "ar" ? m.awayTeamName : frenchPublicText(m.awayTeamName, m.isHomeFixture ? "Adversaire" : "ESH Sidi Hosni")}
                       </h3>
                       <span className="inline-block rounded-md bg-zinc-100 text-zinc-700 dark:bg-muted dark:text-muted-foreground px-2 py-0.5 text-[11px] font-bold">
                         {locale === "ar" ? "الضيف" : "Extérieur"}
@@ -464,7 +465,7 @@ export function UpcomingTrainingsCarousel({
                     <Activity className="h-4 w-4" />
                     <span>{tCatDisplay}</span>
                     <span className="text-muted-foreground">•</span>
-                    <span className="text-foreground">{t.teamName}</span>
+                    <span className="text-foreground">{locale === "ar" ? t.teamName : frenchPublicText(t.teamName, "ESH Sidi Hosni")}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-muted-foreground bg-zinc-100 dark:bg-muted/60 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-border">
@@ -496,10 +497,9 @@ export function UpcomingTrainingsCarousel({
                         {tCatDisplay}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        {t.notes ||
-                          (locale === "ar"
-                            ? "حصة تدريبية تكتيكية وبدنية مبرمجة في إطار البرنامج الأسبوعي للفريق"
-                            : "Séance d'entraînement technico-tactique et physique programmée dans le cadre de la semaine sportive")}
+                        {locale === "ar"
+                          ? (t.notes || "حصة تدريبية تكتيكية وبدنية مبرمجة في إطار البرنامج الأسبوعي للفريق")
+                          : frenchPublicText(t.notes, "Séance d'entraînement technico-tactique et physique programmée dans le cadre de la semaine sportive")}
                       </p>
                     </div>
 
@@ -508,7 +508,7 @@ export function UpcomingTrainingsCarousel({
                         {locale === "ar" ? "الفريق" : "Équipe"}
                       </span>
                       <span className="font-bold text-foreground">
-                        {t.teamName}
+                        {locale === "ar" ? t.teamName : frenchPublicText(t.teamName, "ESH Sidi Hosni")}
                       </span>
                     </div>
                   </div>
@@ -542,10 +542,9 @@ export function UpcomingTrainingsCarousel({
                         {locale === "ar" ? "مكان إجراء الحصة" : "Lieu de la séance"}
                       </span>
                       <h4 className="text-sm font-bold text-foreground">
-                        {t.location ||
-                          (locale === "ar"
-                            ? "الملعب البلدي بسيدي حسني"
-                            : "Stade Municipal Sidi Hosni")}
+                        {locale === "ar"
+                          ? (t.location || "الملعب البلدي بسيدي حسني")
+                          : frenchPublicText(t.location, "Stade Municipal Sidi Hosni")}
                       </h4>
                     </div>
                   </div>

@@ -74,12 +74,21 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   // 4. Object Storage Invariant (Private vs Public Bucket Separation)
   const privateBucket = env.STORAGE_PRIVATE_BUCKET?.trim();
   const publicBucket = env.STORAGE_PUBLIC_BUCKET?.trim();
+  const storageAccessKey = env.STORAGE_ACCESS_KEY_ID?.trim();
+  const storageSecretKey = env.STORAGE_SECRET_ACCESS_KEY?.trim();
+  const storageEndpoint = env.STORAGE_ENDPOINT?.trim();
   if (privateBucket && publicBucket && privateBucket === publicBucket) {
     issues.push("STORAGE_PRIVATE_BUCKET and STORAGE_PUBLIC_BUCKET must NOT be the same bucket (isolation violation).");
   }
   if (isProduction) {
     if (!privateBucket) {
       issues.push("STORAGE_PRIVATE_BUCKET is strictly required in production for secure private document storage.");
+    }
+    if (!publicBucket) {
+      issues.push("STORAGE_PUBLIC_BUCKET is strictly required in production for public media storage.");
+    }
+    if ((privateBucket || publicBucket) && (!storageAccessKey || !storageSecretKey || !storageEndpoint)) {
+      issues.push("STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, and STORAGE_ENDPOINT are required when production object storage is configured.");
     }
   } else {
     if (!privateBucket) {
@@ -155,4 +164,3 @@ export function getStorageConfigurationSummary(): {
     s3SecretKey: process.env.STORAGE_SECRET_ACCESS_KEY?.trim() ? "configured" : "missing"
   };
 }
-

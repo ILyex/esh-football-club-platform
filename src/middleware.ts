@@ -1,7 +1,7 @@
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { routing } from "@/i18n/routing";
-import { auth } from "@/lib/auth";
+import { edgeAuth } from "@/lib/auth-edge";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -11,7 +11,7 @@ const intlMiddleware = createMiddleware(routing);
 // document, etc.) happen server-side in the Server Action / Route Handler
 // itself via requirePermission() — see src/lib/permissions.ts and spec
 // section 41. Never rely on middleware alone for authorization.
-export default auth((req: NextRequest & { auth?: unknown }) => {
+export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   const { pathname } = req.nextUrl;
   const isDashboardPath = /^\/(ar|fr)\/dashboard(?:\/|$)/.test(pathname);
   const session = (req as NextRequest & {

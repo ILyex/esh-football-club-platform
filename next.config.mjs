@@ -1,4 +1,9 @@
 import createNextIntlPlugin from "next-intl/plugin";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Allow next dev to expose local Cloudflare bindings while keeping the regular
+// Node.js development/runtime workflow unchanged.
+initOpenNextCloudflareForDev();
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -26,7 +31,17 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep the production runtime small for cPanel shared hosting. The build
+  // helper copies public/static assets into this standalone runtime folder.
+  output: "standalone",
+  // OpenNext packages the regular `.next` output in its worker bundle.
   reactStrictMode: true,
+  webpack(config) {
+    // Prisma's workerd client imports its query compiler as WebAssembly.
+    // Next's webpack build must treat that import as an async WASM module.
+    config.experiments = { ...config.experiments, asyncWebAssembly: true };
+    return config;
+  },
   // unpdf uses import.meta — treat it as external on the server to avoid webpack warning
   serverExternalPackages: ["unpdf"],
   images: {

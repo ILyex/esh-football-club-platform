@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Users, ArrowRight, ArrowLeft } from "lucide-react";
 import { getPublicTeams } from "@/lib/public/teams";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function TeamsOverviewPage({
   params
@@ -74,12 +75,12 @@ export default async function TeamsOverviewPage({
                   </div>
 
                   <h2 className="mt-4 text-xl font-bold text-foreground transition-colors group-hover:text-club-primary">
-                    {team.name}
+                    {locale === "ar" ? team.name : frenchPublicText(team.name, tTeams(`categories.${team.category}` as any))}
                   </h2>
 
-              {team.description && (
+              {(locale === "ar" ? team.description : frenchPublicText(team.description, "")) && (
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {team.description}
+                  {locale === "ar" ? team.description : frenchPublicText(team.description, "")}
                 </p>
               )}
 

@@ -39,7 +39,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               </div>
               <div>
                 <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  {locale === "ar" ? "أمل سيدي حسني" : (club.shortName || club.name)}
+                  {locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}
                 </h3>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
                   <span dir={locale === "ar" ? "rtl" : "ltr"} className="tabular-nums font-mono font-bold">
@@ -141,7 +141,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
         {/* Bottom Bar: Copyright, Attribution & Theme Controls */}
         <div className="mt-12 border-t border-border/80 pt-6 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>
-            © {currentYear} {locale === "ar" ? "أمل سيدي حسني" : (club.name || "Espoir Sidi Hosni")}. {labels.allRightsReserved}.
+            © {currentYear} {locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}. {labels.allRightsReserved}.
           </p>
           <div className="flex items-center gap-4">
             <span className="font-medium text-foreground">{labels.memberAffiliation}</span>

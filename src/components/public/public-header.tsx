@@ -116,7 +116,7 @@ export function PublicHeader({
             title={labels.switchLocale}
           >
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>{otherLocale === "ar" ? "العربية" : "Français"}</span>
+            <span>{otherLocale === "ar" ? "AR" : "Français"}</span>
           </Link>
         </div>
 
@@ -128,7 +128,7 @@ export function PublicHeader({
             onClick={rememberLocale}
             className="rounded-md border border-border px-2 py-1 text-xs font-medium"
           >
-            {otherLocale === "ar" ? "العربية" : "FR"}
+            {otherLocale === "ar" ? "AR" : "FR"}
           </Link>
           <button
             type="button"

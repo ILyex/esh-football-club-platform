@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { hasArabicScript } from "./locale-text";
 
 // ============================================================================
 // PUBLIC NEWS & ARTICLES DATA ACCESS
@@ -75,20 +76,18 @@ export async function getPublicNewsList(
     db.news.count({ where })
   ]);
 
-  const items: PublicNewsItem[] = articles.map((article) => {
-    // Pick requested locale translation or fallback to first available
-    const translation =
-      article.translations.find((t) => t.locale === locale) ||
-      article.translations.find((t) => t.locale === "ar") ||
-      article.translations[0];
+  const items: PublicNewsItem[] = articles.flatMap((article) => {
+    // Do not silently show Arabic content on the French public site.
+    const translation = article.translations.find((t) => t.locale === locale);
+    if (!translation || hasArabicScript(translation.title) || hasArabicScript(translation.content)) return [];
 
-    const title = translation?.title || "خبر بدون عنوان";
-    const slug = translation?.slug || article.id;
+    const title = translation.title;
+    const slug = translation.slug || article.id;
     // Extract first 160 characters as excerpt
-    const plainText = (translation?.content || "").replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
+    const plainText = (translation.content || "").replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
     const excerpt = plainText.length > 160 ? `${plainText.slice(0, 160)}...` : plainText;
 
-    return {
+    return [{
       id: article.id,
       slug,
       title,
@@ -96,8 +95,8 @@ export async function getPublicNewsList(
       featuredImageUrl: article.featuredImageUrl,
       category: article.category,
       publishedAt: article.publishedAt || now,
-      locale: translation?.locale || locale
-    };
+      locale: translation.locale
+    }];
   });
 
   return {

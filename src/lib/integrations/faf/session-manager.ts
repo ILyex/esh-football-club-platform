@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { getFAFConfig } from "./config";
+import { db } from "@/lib/db";
 import type { FAFSessionRecord, FAFSessionDTO, FAFSessionStatus } from "./types";
 
 // ============================================================================
@@ -98,9 +99,54 @@ export class FAFSessionManagerImpl {
   /**
    * Loads the encrypted session from disk or bootstraps from environment.
    */
-  private loadSessionRecord(): FAFSessionRecord | null {
-    if (this.isLoaded && this.inMemoryRecord) {
+  private async usesDatabasePersistence(): Promise<boolean> {
+    if (this.customFilePath) return false;
+    try {
+      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+      const context = await getCloudflareContext({ async: true });
+      return Boolean((context.env as { HYPERDRIVE?: unknown }).HYPERDRIVE);
+    } catch (error) {
+      if (process.env.DEPLOY_TARGET === "cloudflare") {
+        throw new Error("Cloudflare context is unavailable for FAF session persistence.", { cause: error });
+      }
+      return false;
+    }
+  }
+
+  private async loadSessionRecord(): Promise<FAFSessionRecord | null> {
+    if (this.isLoaded) {
       return this.inMemoryRecord;
+    }
+
+    if (await this.usesDatabasePersistence()) {
+      const stored = await db.integrationState.findUnique({ where: { key: "faf-session" }, select: { value: true } });
+      if (stored?.value) {
+        try {
+          const parsed = JSON.parse(decryptData(stored.value)) as FAFSessionRecord;
+          if (parsed && parsed.sessionCookie) {
+            this.inMemoryRecord = parsed;
+            this.isLoaded = true;
+            return parsed;
+          }
+        } catch {
+          // Corrupt or invalidated ciphertext fails closed as no session.
+        }
+      }
+      this.isLoaded = true;
+      const config = getFAFConfig();
+      if (config.sessionCookie) {
+        const now = new Date().toISOString();
+        const bootstrapped: FAFSessionRecord = {
+          sessionCookie: config.sessionCookie,
+          authenticatedAt: now,
+          lastVerifiedAt: now,
+          lastActiveAt: now,
+          clubCode: config.clubCode
+        };
+        await this.saveSessionRecord(bootstrapped);
+        return bootstrapped;
+      }
+      return null;
     }
 
     const filePath = this.getFilePath();
@@ -137,7 +183,7 @@ export class FAFSessionManagerImpl {
         };
         this.inMemoryRecord = bootstrapped;
         this.isLoaded = true;
-        this.saveSessionRecord(bootstrapped);
+        void this.saveSessionRecord(bootstrapped);
         return bootstrapped;
       }
     }
@@ -149,8 +195,24 @@ export class FAFSessionManagerImpl {
   /**
    * Persists the session record encrypted on disk atomically.
    */
-  private saveSessionRecord(record: FAFSessionRecord | null): void {
+  private async saveSessionRecord(record: FAFSessionRecord | null): Promise<void> {
     this.inMemoryRecord = record;
+    this.isLoaded = true;
+
+    if (await this.usesDatabasePersistence()) {
+      if (!record) {
+        await db.integrationState.deleteMany({ where: { key: "faf-session" } });
+        return;
+      }
+      const value = encryptData(JSON.stringify(record));
+      await db.integrationState.upsert({
+        where: { key: "faf-session" },
+        create: { key: "faf-session", value },
+        update: { value }
+      });
+      return;
+    }
+
     const filePath = this.getFilePath();
 
     if (!record) {
@@ -177,7 +239,7 @@ export class FAFSessionManagerImpl {
    * Returns the current session cookie string for internal HTTP transport.
    */
   public async getSession(): Promise<string | null> {
-    const record = this.loadSessionRecord();
+    const record = await this.loadSessionRecord();
     return record?.sessionCookie ?? null;
   }
 
@@ -200,7 +262,7 @@ export class FAFSessionManagerImpl {
       clubCode: clubCode || config.clubCode
     };
 
-    this.saveSessionRecord(record);
+    await this.saveSessionRecord(record);
 
     // Validate immediately
     const validation = await this.validateSession();
@@ -216,7 +278,7 @@ export class FAFSessionManagerImpl {
     message: string;
     statusCode: number;
   }> {
-    const record = this.loadSessionRecord();
+    const record = await this.loadSessionRecord();
     if (!record?.sessionCookie) {
       return {
         valid: false,
@@ -248,7 +310,7 @@ export class FAFSessionManagerImpl {
         const match = setCookies.match(/PHPSESSID=([^;]+)/i);
         if (match && match[1] && match[1] !== record.sessionCookie) {
           record.sessionCookie = match[1];
-          this.saveSessionRecord(record);
+          await this.saveSessionRecord(record);
         }
       }
 
@@ -266,7 +328,7 @@ export class FAFSessionManagerImpl {
       if ((res.status === 302 && location.includes("clubs/index.php")) || res.status === 200) {
         record.lastVerifiedAt = new Date().toISOString();
         record.lastActiveAt = new Date().toISOString();
-        this.saveSessionRecord(record);
+        await this.saveSessionRecord(record);
 
         return {
           valid: true,
@@ -297,7 +359,7 @@ export class FAFSessionManagerImpl {
    * In PHP sessions, touching an authenticated page resets the idle timeout.
    */
   public async keepAlive(): Promise<{ success: boolean; message: string }> {
-    const record = this.loadSessionRecord();
+    const record = await this.loadSessionRecord();
     if (!record?.sessionCookie) {
       return { success: false, message: "No active session to keep alive" };
     }
@@ -316,7 +378,7 @@ export class FAFSessionManagerImpl {
 
       if (res.ok || res.status === 200) {
         record.lastActiveAt = new Date().toISOString();
-        this.saveSessionRecord(record);
+        await this.saveSessionRecord(record);
         return { success: true, message: "FAF session heartbeat successful" };
       }
 
@@ -361,14 +423,14 @@ export class FAFSessionManagerImpl {
    * Invalidates and wipes the active session.
    */
   public async invalidateSession(): Promise<void> {
-    this.saveSessionRecord(null);
+    await this.saveSessionRecord(null);
   }
 
   /**
    * Returns a safe DTO without secret cookies for telemetry, UI, and diagnostics.
    */
   public async getStatus(overrideStatus?: FAFSessionStatus, overrideMessage?: string): Promise<FAFSessionDTO> {
-    const record = this.loadSessionRecord();
+    const record = await this.loadSessionRecord();
     const config = getFAFConfig();
 
     if (!record?.sessionCookie) {

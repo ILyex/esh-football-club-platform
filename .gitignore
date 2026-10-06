@@ -1,5 +1,13 @@
 node_modules/
+src/generated/prisma-worker/
 .next/
+.open-next/
+.cloudflare-build/
+.cloudflare-deploy/
+.worker-next/
+static/wasm/
+.wrangler/
+.scratch-*/
 .turbo/
 out/
 build/
@@ -9,6 +17,7 @@ next-env.d.ts
 
 # Environment files: keep only the safe template in source control.
 .env*
+.dev.vars
 !.env.example
 
 # Local databases, uploaded files and credentials.

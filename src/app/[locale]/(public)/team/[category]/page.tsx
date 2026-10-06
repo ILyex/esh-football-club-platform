@@ -5,6 +5,7 @@ import { TeamCategory } from "@prisma/client";
 import { Users, Shield, User } from "lucide-react";
 import { getPublicTeams, getPublicTeamByCategory } from "@/lib/public/teams";
 import { PlayerCard } from "@/components/public/player-card";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function TeamCategoryPage({
   params
@@ -91,7 +92,7 @@ export default async function TeamCategoryPage({
                   : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               }`}
             >
-              {t.name}
+              {locale === "ar" ? t.name : frenchPublicText(t.name, tTeams(`categories.${t.category}` as any))}
             </Link>
           );
         })}
@@ -117,11 +118,11 @@ export default async function TeamCategoryPage({
             {tTeams(`categories.${teamDetail.category}` as any) || teamDetail.category}
           </span>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-            {teamDetail.name}
+            {locale === "ar" ? teamDetail.name : frenchPublicText(teamDetail.name, tTeams(`categories.${teamDetail.category}` as any))}
           </h1>
-          {teamDetail.description && (
+          {(locale === "ar" ? teamDetail.description : frenchPublicText(teamDetail.description, "")) && (
             <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-              {teamDetail.description}
+              {locale === "ar" ? teamDetail.description : frenchPublicText(teamDetail.description, "")}
             </p>
           )}
         </div>

@@ -40,5 +40,5 @@ jobs:
         run: npm run test:all
       - name: Audit all dependencies
         run: npm audit --audit-level=moderate
-      - name: Build production application
-        run: npm run build
+      - name: Build and prepare cPanel production bundle
+        run: npm run build:cpanel

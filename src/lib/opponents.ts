@@ -19,6 +19,9 @@ export function normalizeOpponentName(name: string): string {
 
 /** Move logos from older local JSON installs to the shared database once. */
 async function importLegacyOpponentCache(): Promise<void> {
+  // Cloudflare Workers have no durable project filesystem; on that runtime the
+  // shared database is the source of truth and legacy files are intentionally skipped.
+  if (process.env.DEPLOY_TARGET === "cloudflare") return;
   if (!legacyImport) {
     legacyImport = (async () => {
       let raw: string;

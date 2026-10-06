@@ -20,6 +20,7 @@ import {
   UpcomingTrainingsCarousel
 } from "@/components/public/upcoming-events-carousel";
 import { ClubPhotosCarousel } from "@/components/public/club-photos-carousel";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function HomePage({
   params
@@ -80,7 +81,9 @@ export default async function HomePage({
   const trainingsForCarousel = scheduledTrainings.map((session) => ({
     id: session.id,
     teamCategory: session.team?.category ?? "SENIOR",
-    teamName: session.team?.name ?? (locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"),
+    teamName: locale === "ar"
+      ? (session.team?.name ?? "أمل سيدي حسني")
+      : frenchPublicText(session.team?.name, "ESH Sidi Hosni"),
     date: session.date,
     startTime: new Intl.DateTimeFormat(locale, {
       hour: "2-digit",
@@ -96,7 +99,9 @@ export default async function HomePage({
           timeZone: "Africa/Algiers"
         }).format(session.endTime)
       : null,
-    location: session.location || (locale === "ar" ? "الملعب البلدي سيدي حسني" : "Stade Municipal Sidi Hosni"),
+    location: locale === "ar"
+      ? (session.location || "الملعب البلدي سيدي حسني")
+      : frenchPublicText(session.location, "Stade Municipal Sidi Hosni"),
     notes: session.notes
   }));
 
@@ -141,16 +146,6 @@ export default async function HomePage({
 
         <div className="relative mx-auto max-w-7xl w-full px-4 py-16 sm:px-6 sm:py-24">
           <div className="max-w-2xl text-start space-y-4">
-            {/* Eyebrow Label */}
-            <div className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-club-primary animate-pulse" />
-              <span className="text-xs sm:text-sm font-bold tracking-widest text-club-primary uppercase inline-flex items-center gap-1.5">
-                <span dir={locale === "ar" ? "rtl" : "ltr"} className="inline-block tabular-nums font-mono">
-                  {tPublic("home.heroTag")}
-                </span>
-              </span>
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.15] font-display">
               {tPublic("home.heroTitle")}

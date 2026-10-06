@@ -8,6 +8,7 @@ import {
   getCompetitionDisplayData
 } from "@/lib/competitions";
 import { db } from "@/lib/db";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicCompetitionsPage({
   params
@@ -20,9 +21,7 @@ export default async function PublicCompetitionsPage({
   const seasons = await db.season.findMany({ orderBy: { startDate: "desc" } });
   const currentSeason = seasons.find((s) => s.isCurrent) || seasons[0] || null;
 
-  // Club details
-  const clubSettings = await db.clubSettings.findUnique({ where: { id: "singleton" } });
-  const clubName = isAr ? "أمل سيدي حسني" : (clubSettings?.name || "Espoir Sidi Hosni");
+  const clubName = isAr ? "أمل سيدي حسني" : "ESH Sidi Hosni";
 
   // Load competitions
   const dbCompetitions = await db.competition.findMany({
@@ -51,12 +50,12 @@ export default async function PublicCompetitionsPage({
     const displayData = getCompetitionDisplayData(c.standingsData, c.bracketData);
     return {
       id: c.id,
-      name: c.name,
+      name: isAr ? c.name : frenchPublicText(c.name, "Compétition officielle"),
       type: c.type,
       logoUrl: c.logoUrl,
-      organization: c.organization,
+      organization: isAr ? c.organization : frenchPublicText(c.organization, "Compétition officielle"),
       seasonId: c.seasonId,
-      seasonLabel: c.season.label,
+      seasonLabel: isAr ? c.season.label : frenchPublicText(c.season.label, "Saison"),
       category: cat,
       categoryLabelAr: OFFICIAL_CATEGORY_NAMES[cat]?.ar || cat,
       categoryLabelFr: OFFICIAL_CATEGORY_NAMES[cat]?.fr || cat,

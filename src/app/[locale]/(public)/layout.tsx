@@ -26,7 +26,7 @@ export default async function PublicLayout({
     news: tNav("news"),
     gallery: tNav("gallery"),
     dashboard: tPublic("portal"),
-    switchLocale: locale === "ar" ? "Passer en Français" : "التبديل إلى العربية",
+    switchLocale: locale === "ar" ? "Passer en Français" : "Basculer en arabe",
     menu: tPublic("menu"),
     close: tPublic("close")
   };
@@ -49,8 +49,8 @@ export default async function PublicLayout({
       <PublicAnalyticsTracker />
       <PublicHeader
         locale={locale}
-        clubName={locale === "ar" ? "أمل سيدي حسني" : club.name}
-        clubShortName={locale === "ar" ? "أمل سيدي حسني" : club.shortName}
+        clubName={locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}
+        clubShortName={locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}
         logoUrl={club.logoUrl}
         labels={headerLabels}
       />

@@ -10,7 +10,7 @@ management dashboard.
 - PostgreSQL with Prisma
 - Auth.js credentials authentication and database-driven RBAC
 - Arabic and French localization with RTL/LTR layouts
-- Private S3-compatible storage for documents; separate public media storage
+- Private document storage and public media, using separate S3 buckets or explicitly configured persistent local storage on a single server
 - Background jobs, club mail integration, finance and treasury workflows
 
 ## Start locally
@@ -76,6 +76,7 @@ npm run test:all             # All configured unit suites
 See [development setup](docs/development.md), [architecture](docs/architecture.md),
 [security](docs/security.md), [operations](OPERATIONS.md), and the
 [Arabic/French glossary](docs/localization.md).
+For cPanel deployment constraints and setup, see [the cPanel deployment guide](docs/cpanel-deployment-ar.md).
 Before purchasing hosting or publishing, follow the [Arabic production-readiness guide](docs/production-readiness-ar.md).
 See [AI and FAF integration status](docs/integrations.md) before configuring
 local inference or attempting federation synchronization.
@@ -118,7 +119,7 @@ before deploying.
 
 ## Current limits
 
-- Local development uses filesystem media storage when S3 is not configured.
+- Local development uses filesystem media storage when S3 is not configured; production can explicitly use a persistent local path on a single server, with that path included in backups.
 - Server-side DOCX-to-PDF conversion requires a configured converter service.
 - External OAuth, mail, FAF and AI features need their own credentials and
   infrastructure; unset optional integrations remain unavailable.

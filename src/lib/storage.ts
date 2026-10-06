@@ -30,12 +30,15 @@ export class StorageConfigurationError extends Error {
 
 /** Returns true if external S3-compatible private storage is configured in environment. */
 export function isStorageConfigured(): boolean {
+  if (process.env.STORAGE_DRIVER?.trim().toLowerCase() === "local") return false;
   return Boolean(process.env.STORAGE_PRIVATE_BUCKET?.trim());
 }
 
 /** In non-production environments (or when STORAGE_DRIVER=local), allows fallback to isolated local private storage. */
 export function isLocalStorageMode(): boolean {
-  if (process.env.STORAGE_DRIVER === "local") return true;
+  const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  if (driver === "local") return true;
+  if (driver === "s3") return false;
   return !isStorageConfigured() && process.env.NODE_ENV !== "production";
 }
 
@@ -51,7 +54,9 @@ function getS3Client(): S3Client {
   cachedS3Client = new S3Client({
     region: process.env.STORAGE_REGION?.trim() || "auto",
     endpoint: process.env.STORAGE_ENDPOINT?.trim(),
-    forcePathStyle: process.env.STORAGE_FORCE_PATH_STYLE === "true",
+    // Neon Object Storage and Cloudflare R2 both use path-style S3 addressing.
+    // Keep an explicit opt-out for providers that require virtual-host style.
+    forcePathStyle: process.env.STORAGE_FORCE_PATH_STYLE?.trim().toLowerCase() !== "false",
     credentials: {
       accessKeyId,
       secretAccessKey
@@ -60,15 +65,30 @@ function getS3Client(): S3Client {
   return cachedS3Client;
 }
 
-const LOCAL_STORAGE_DIR = path.resolve(process.cwd(), ".storage", "private");
+function getLocalStorageRoot(): string {
+  const configuredRoot = process.env.STORAGE_LOCAL_ROOT?.trim();
+  // Resolve the configurable root once per call so environment values are
+  // respected by cPanel's application manager and by test processes.
+  return path.resolve(configuredRoot || path.join(process.cwd(), ".storage"));
+}
 
-function getLocalFilePath(key: string): string {
-  const normalized = path.normalize(key).replace(/^(\.\.[\/\\])+/, "");
-  const resolved = path.resolve(LOCAL_STORAGE_DIR, normalized);
-  if (!resolved.startsWith(LOCAL_STORAGE_DIR)) {
+function resolveStoragePath(directory: "private" | "public", key: string): string {
+  const root = path.resolve(getLocalStorageRoot(), directory);
+  const normalizedKey = path.normalize(key);
+  if (!key || path.isAbsolute(key) || normalizedKey === "." || normalizedKey === ".." || normalizedKey.startsWith(`..${path.sep}`)) {
+    throw new Error("Invalid storage key: directory traversal attempt.");
+  }
+
+  const resolved = path.resolve(root, normalizedKey);
+  const relative = path.relative(root, resolved);
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new Error("Invalid storage key: directory traversal attempt.");
   }
   return resolved;
+}
+
+function getLocalFilePath(key: string): string {
+  return resolveStoragePath("private", key);
 }
 
 // ============================================================================
@@ -83,25 +103,16 @@ function getLocalFilePath(key: string): string {
 const PUBLIC_BUCKET = process.env.STORAGE_PUBLIC_BUCKET;
 const PUBLIC_BASE_URL = process.env.STORAGE_PUBLIC_BASE_URL;
 
-const LOCAL_PUBLIC_STORAGE_DIR = path.resolve(process.cwd(), ".storage", "public");
-
 export function getLocalPublicFilePath(key: string): string {
   if (!key.startsWith("public/") || key.includes("..")) {
     throw new Error("Invalid storage key: access restricted to public assets.");
   }
-  const normalized = path.normalize(key);
-  const resolved = path.resolve(LOCAL_PUBLIC_STORAGE_DIR, normalized);
-  const basePrefix = LOCAL_PUBLIC_STORAGE_DIR.endsWith(path.sep)
-    ? LOCAL_PUBLIC_STORAGE_DIR
-    : LOCAL_PUBLIC_STORAGE_DIR + path.sep;
-  if (!resolved.startsWith(basePrefix)) {
-    throw new Error("Invalid storage key: directory traversal attempt.");
-  }
-  return resolved;
+  return resolveStoragePath("public", key);
 }
 
 export function isPublicStorageConfigured(): boolean {
-  return Boolean(process.env.STORAGE_PUBLIC_BUCKET?.trim() && process.env.STORAGE_PUBLIC_BASE_URL?.trim());
+  return process.env.STORAGE_DRIVER?.trim().toLowerCase() !== "local"
+    && Boolean(process.env.STORAGE_PUBLIC_BUCKET?.trim());
 }
 
 export const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -212,11 +223,18 @@ export async function uploadPublicFile(params: { key: string; buffer: Buffer; mi
         Bucket: PUBLIC_BUCKET,
         Key: params.key,
         Body: params.buffer,
-        ContentType: params.mimeType,
-        ACL: "public-read"
+        ContentType: params.mimeType
       })
     );
-    return `${PUBLIC_BASE_URL!.replace(/\/$/, "")}/${params.key}`;
+    // If no public CDN URL is configured (for example, Neon private buckets),
+    // serve the object through the app's authenticated S3 proxy route.
+    return PUBLIC_BASE_URL?.trim()
+      ? `${PUBLIC_BASE_URL.replace(/\/$/, "")}/${params.key}`
+      : `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
+  }
+
+  if (!isLocalStorageMode()) {
+    throw new StorageConfigurationError("Public storage bucket is not configured.");
   }
 
   // Local storage mode for public media (works out of the box in development and self-hosted environments)
@@ -236,6 +254,10 @@ export async function deletePublicFile(urlOrKey: string): Promise<void> {
     return;
   }
 
+  if (!isLocalStorageMode()) {
+    throw new StorageConfigurationError("Public storage bucket is not configured.");
+  }
+
   try {
     const localPath = getLocalPublicFilePath(key);
     if (fs.existsSync(localPath)) {
@@ -244,6 +266,32 @@ export async function deletePublicFile(urlOrKey: string): Promise<void> {
   } catch {
     // safe no-op on delete error
   }
+}
+
+/** Read a public object from the configured bucket, optionally using an HTTP byte range. */
+export async function getPublicFileObject(key: string, range?: string | null): Promise<{
+  body: Buffer;
+  contentRange?: string;
+  contentLength?: number;
+}> {
+  if (!isPublicStorageConfigured()) {
+    throw new StorageConfigurationError("Public storage bucket is not configured.");
+  }
+  if (!key.startsWith("public/") || key.includes("..")) {
+    throw new Error("Invalid storage key: access restricted to public assets.");
+  }
+  const response = await getS3Client().send(new GetObjectCommand({
+    Bucket: PUBLIC_BUCKET,
+    Key: key,
+    Range: range || undefined
+  }));
+  const byteArray = await response.Body?.transformToByteArray();
+  if (!byteArray) throw new Error("Public object was not found.");
+  return {
+    body: Buffer.from(byteArray),
+    contentRange: response.ContentRange,
+    contentLength: response.ContentLength
+  };
 }
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = [

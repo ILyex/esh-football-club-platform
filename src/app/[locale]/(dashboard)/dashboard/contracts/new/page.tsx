@@ -62,7 +62,7 @@ export default async function NewContractPage({ params }: { params: Promise<{ lo
   });
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

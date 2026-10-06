@@ -27,6 +27,14 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "client"
+}
+
+generator clientWorker {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma-worker"
+  engineType = "client"
+  runtime    = "workerd"
 }
 
 datasource db {
@@ -1382,6 +1390,14 @@ model GmailConnection {
   connectedById         String?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
+}
+
+// Small encrypted integration state that must persist across stateless Worker
+// instances (for example, the authenticated FAF session cookie).
+model IntegrationState {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================

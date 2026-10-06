@@ -45,7 +45,11 @@ export async function POST(req: NextRequest) {
     await runSchedulerTick();
 
     // 2. Process batch of pending jobs
-    const batchResult = await processJobBatch({ maxJobs: 15 });
+    const configuredMaxJobs = Number.parseInt(process.env.CRON_MAX_JOBS ?? "5", 10);
+    const maxJobs = Number.isInteger(configuredMaxJobs) && configuredMaxJobs >= 1
+      ? Math.min(configuredMaxJobs, 15)
+      : 5;
+    const batchResult = await processJobBatch({ maxJobs });
 
     return Response.json({
       success: true,

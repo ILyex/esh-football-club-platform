@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { getLocalPublicFilePath } from "@/lib/storage";
+import { getLocalPublicFilePath, getPublicFileObject, isLocalStorageMode, isPublicStorageConfigured } from "@/lib/storage";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,6 +12,41 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const ext = path.extname(key).toLowerCase();
+    const ALLOWED_EXTS: Record<string, string> = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".mp4": "video/mp4",
+      ".webm": "video/webm",
+      ".mov": "video/quicktime"
+    };
+    const mimeType = ALLOWED_EXTS[ext];
+    if (!mimeType) {
+      return NextResponse.json({ error: "Access denied: unapproved public file type" }, { status: 403 });
+    }
+
+    if (isPublicStorageConfigured()) {
+      const rangeHeader = req.headers.get("range");
+      const object = await getPublicFileObject(key, mimeType.startsWith("video/") ? rangeHeader : null);
+      const partial = Boolean(object.contentRange);
+      return new Response(new Uint8Array(object.body), {
+        status: partial ? 206 : 200,
+        headers: {
+          "Content-Type": mimeType,
+          "Accept-Ranges": "bytes",
+          ...(object.contentRange ? { "Content-Range": object.contentRange } : {}),
+          "Content-Length": String(object.contentLength ?? object.body.byteLength),
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "Content-Disposition": "inline"
+        }
+      });
+    }
+    if (!isLocalStorageMode()) {
+      return NextResponse.json({ error: "Public storage is not configured" }, { status: 503 });
+    }
+
     const filePath = getLocalPublicFilePath(key);
     if (!fs.existsSync(filePath)) {
       const fallbackPath = path.resolve(process.cwd(), "public", "branding", "esh-logo-256.png");
@@ -26,21 +61,6 @@ export async function GET(req: NextRequest) {
         });
       }
       return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-
-    const ext = path.extname(key).toLowerCase();
-    const ALLOWED_EXTS: Record<string, string> = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".webp": "image/webp",
-      ".mp4": "video/mp4",
-      ".webm": "video/webm",
-      ".mov": "video/quicktime"
-    };
-    const mimeType = ALLOWED_EXTS[ext];
-    if (!mimeType) {
-      return NextResponse.json({ error: "Access denied: unapproved public file type" }, { status: 403 });
     }
 
     const stat = await fs.promises.stat(filePath);

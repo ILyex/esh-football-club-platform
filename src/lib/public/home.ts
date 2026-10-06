@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getPublicClubSettings, PublicClubSettings } from "./club";
 import { getPublicNextMatch, getPublicMatches, getPublicUpcomingMatches, PublicMatchItem } from "./matches";
 import { getPublicNewsList, PublicNewsItem } from "./news";
+import { hasArabicScript } from "./locale-text";
 
 // ============================================================================
 // PUBLIC HOMEPAGE DATA AGGREGATOR
@@ -73,7 +74,7 @@ export async function getPublicHomeData(locale: string): Promise<PublicHomeData>
 
   for (const a of rawAnnouncements) {
     const trans = a.translations[0];
-    if (trans && !isInternalAdministrative(trans.title) && !isInternalAdministrative(trans.content)) {
+    if (trans && !hasArabicScript(trans.title) && !hasArabicScript(trans.content) && !isInternalAdministrative(trans.title) && !isInternalAdministrative(trans.content)) {
       announcements.push({
         id: a.id,
         title: trans.title,
