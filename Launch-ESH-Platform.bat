@@ -17,6 +17,15 @@ if not exist "node_modules\.bin\next.cmd" (
 )
 
 if not exist ".next\standalone\server.js" (
+  echo The local production bundle is missing. Preparing it now.
+  call npm run build:cpanel
+  if errorlevel 1 goto :failed
+)
+
+REM A server without these copied assets opens as unstyled HTML. Repair that
+REM state automatically (it can happen after a Cloudflare build).
+if not exist ".next\standalone\.next\static\css\*.css" (
+  echo Refreshing local static assets...
   echo Preparing the local production build. This happens only once or after an update.
   call npm run build:cpanel
   if errorlevel 1 goto :failed
