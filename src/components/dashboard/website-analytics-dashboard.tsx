@@ -54,6 +54,7 @@ export function WebsiteAnalyticsDashboard({
   nextMatch
 }: WebsiteAnalyticsDashboardProps) {
   const isRtl = locale === "ar";
+  const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
   const [mounted, setMounted] = useState(false);
   const [trafficMetric, setTrafficMetric] = useState<"visitors" | "pageViews" | "clicks">("visitors");
   const [aiSummary, setAiSummary] = useState("");
@@ -115,7 +116,7 @@ export function WebsiteAnalyticsDashboard({
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      {aiEnabled && <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-bold">{isRtl ? "مراجعة ذكية للبيانات المسجلة" : "Analyse locale des données enregistrées"}</h2>
@@ -139,7 +140,7 @@ export function WebsiteAnalyticsDashboard({
         </div>
         {aiSummary && <p className="mt-4 whitespace-pre-line rounded-xl bg-muted/40 p-4 text-sm leading-7">{aiSummary}</p>}
         {aiError && <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">{aiError}</p>}
-      </section>
+      </section>}
 
       {/* 2. Top Stats Grid (Real-time and Cumulative) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -37,8 +37,9 @@ function sanitizeBaseUrl(rawUrl?: string): string {
 }
 
 export function getAIConfig(): AIConfig {
-  const isExplicitlyDisabled = process.env.AI_ENABLED === "false" || process.env.AI_ENABLED === "0";
-  const enabled = !isExplicitlyDisabled;
+  // AI is opt-in. This prevents accidental Ollama calls on cPanel or another
+  // host where the local endpoint is unavailable.
+  const enabled = process.env.AI_ENABLED === "true" || process.env.AI_ENABLED === "1";
 
   const baseUrl = sanitizeBaseUrl(process.env.OLLAMA_BASE_URL);
   const model = process.env.OLLAMA_MODEL?.trim() || "qwen2.5:7b";

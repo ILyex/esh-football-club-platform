@@ -4,8 +4,8 @@
 
 The application calls Ollama from server-side code. Keep Ollama bound to the
 local interface or a private trusted network; do not expose its port to the
-public internet. `AI_ENABLED=false` disables inference while deterministic
-validation and fallback paths remain available. The model can assist with
+public internet. AI is opt-in: `AI_ENABLED=false` (or an omitted flag) disables
+inference while deterministic validation and fallback paths remain available. The model can assist with
 wording, OCR, and extraction; it is not an authoritative source for identities,
 financial records, match results, or document approval.
 
@@ -15,6 +15,11 @@ manual review. Install the configured Ollama models before expecting image OCR
 to work. Health checks are bounded and never include prompts or document
 contents. Identity images and relevant document text are sent to the configured
 Ollama endpoint, so keep that endpoint private and trusted.
+
+The browser assistant controls are opt-in as well. Keep
+`NEXT_PUBLIC_AI_ENABLED=false` for cPanel production. To re-enable the
+subsystem later, set both flags to `true`, provide a private Ollama endpoint,
+and rebuild the application.
 
 ## FAF Connect
 

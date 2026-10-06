@@ -97,6 +97,7 @@ export function TestingSessionSheet({
   date?: Date | string;
   conductorName?: string;
 }) {
+  const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
   const t = useTranslations("testing");
   const tCommon = useTranslations("common");
   const isYoYoIR1 = protocolCode === "YOYO_IR1";
@@ -625,7 +626,7 @@ export function TestingSessionSheet({
             <span>{locale === "ar" ? "معاينة وطباعة" : "Aperçu et impression"}</span>
           </Button>
 
-          <Button
+          {aiEnabled && <Button
             type="button"
             variant="outline"
             size="sm"
@@ -634,7 +635,7 @@ export function TestingSessionSheet({
           >
             <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             <span>{locale === "ar" ? "المساعد الذكي للمدرب (AI)" : "Assistant IA Coach"}</span>
-          </Button>
+          </Button>}
 
           {sessionStatus === "DRAFT" && canManage && (
             <>

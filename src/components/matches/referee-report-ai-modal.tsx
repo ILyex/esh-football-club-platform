@@ -18,6 +18,7 @@ export function RefereeReportAiModal({
   locale = "ar",
   hasAttachedReport = false
 }: RefereeReportAiModalProps) {
+  const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
   const [isOpen, setIsOpen] = useState(false);
   const [reportText, setReportText] = useState(defaultText);
   const [isPending, startTransition] = useTransition();
@@ -57,7 +58,7 @@ export function RefereeReportAiModal({
 
   return (
     <>
-      <Button
+      {aiEnabled && <Button
         type="button"
         size="sm"
         variant="outline"
@@ -66,7 +67,7 @@ export function RefereeReportAiModal({
       >
         <Sparkles className="h-3.5 w-3.5 text-purple-500 animate-pulse" />
         <span>{isAr ? "تحليل بالذكاء الاصطناعي" : "Analyser avec l’IA"}</span>
-      </Button>
+      </Button>}
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

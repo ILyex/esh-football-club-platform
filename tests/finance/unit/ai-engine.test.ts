@@ -22,7 +22,7 @@ const ROOT = join(__dirname, "..", "..", "..");
 // PHASE 8 — LOCAL OLLAMA AI SUBSYSTEM UNIT & SECURITY TEST SUITE
 // ============================================================================
 
-test("AI Configuration: defaults to enabled with safe local Ollama endpoints and bounded timeouts", () => {
+test("AI Configuration: defaults to disabled with safe Ollama defaults and bounded timeouts", () => {
   const origEnabled = process.env.AI_ENABLED;
   const origUrl = process.env.OLLAMA_BASE_URL;
   const origModel = process.env.OLLAMA_MODEL;
@@ -35,7 +35,7 @@ test("AI Configuration: defaults to enabled with safe local Ollama endpoints and
     delete process.env.OLLAMA_TIMEOUT_MS;
 
     const config = getAIConfig();
-    assert.equal(config.enabled, true);
+    assert.equal(config.enabled, false);
     assert.equal(config.provider, "ollama");
     assert.equal(config.ollama.baseUrl, "http://127.0.0.1:11434");
     assert.equal(config.ollama.model, "qwen2.5:7b");
@@ -78,6 +78,9 @@ test("AI Configuration: explicit AI_ENABLED=false disables AI across provider an
     else delete process.env.AI_ENABLED;
   }
 });
+
+// The remaining provider tests exercise the opt-in engine itself.
+process.env.AI_ENABLED = "true";
 
 test("Ollama Provider: checkAvailability returns safe status when service is unreachable (no crash)", async () => {
   const origUrl = process.env.OLLAMA_BASE_URL;

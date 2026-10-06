@@ -162,7 +162,8 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   }
 
   // 7. AI Subsystem Invariant
-  const aiEnabled = env.AI_ENABLED !== "false" && env.AI_ENABLED !== "0";
+  // AI is opt-in. A missing flag must never activate Ollama implicitly.
+  const aiEnabled = env.AI_ENABLED === "true" || env.AI_ENABLED === "1";
   if (aiEnabled && env.OLLAMA_BASE_URL) {
     const rawUrl = env.OLLAMA_BASE_URL.trim();
     if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
