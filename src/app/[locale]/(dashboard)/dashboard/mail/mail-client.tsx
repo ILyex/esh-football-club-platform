@@ -288,7 +288,9 @@ export function MailClient({
       try {
         const { url, error } = await getGoogleConnectUrlAction(locale);
         if (url) {
-          window.location.href = url;
+          // Use an explicit navigation so popup blockers cannot silently
+          // swallow the OAuth transition from a server-action callback.
+          window.location.assign(url);
         } else {
           toast.error(error || "Failed to initiate Google OAuth");
         }
@@ -432,7 +434,8 @@ export function MailClient({
                 <button
                   type="button"
                   onClick={handleConnectGoogle}
-                  disabled={isPending || !connectionStatus.isGoogleConfigured}
+                  disabled={isPending}
+                  title={!connectionStatus.isGoogleConfigured ? "Google OAuth غير مهيأ على الخادم" : undefined}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-club-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-club-primary/90 disabled:opacity-50"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
