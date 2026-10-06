@@ -161,8 +161,11 @@ export function OfficialVoucherModal({
             <div
               id={voucherElementId}
               className="printable-document esh-security-watermark relative flex-1 overflow-y-auto p-4 sm:p-6 bg-white text-black print:p-0 print:m-0 print:bg-white print:text-black w-full"
+              dir={locale === "ar" ? "rtl" : "ltr"}
               style={{
                 fontFamily: ESH_DOCUMENT_FONT_FAMILY,
+                direction: locale === "ar" ? "rtl" : "ltr",
+                unicodeBidi: "plaintext",
                 pageBreakInside: "avoid",
                 breakInside: "avoid"
               }}

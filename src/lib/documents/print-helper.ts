@@ -38,7 +38,9 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
   iframe.id = "esh-official-print-frame";
   iframe.setAttribute(
     "style",
-    "position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none; z-index: -9999;"
+    // Keep a real A4 layout viewport. A zero-sized iframe makes Chromium
+    // wrap Arabic content into a narrow column before printing.
+    "position: fixed; left: -10000px; top: 0; width: 210mm; height: 297mm; border: 0; opacity: 0; pointer-events: none; z-index: -9999;"
   );
   document.body.appendChild(iframe);
 
@@ -136,6 +138,19 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
             font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
             -webkit-font-smoothing: antialiased;
             overflow: visible !important;
+            direction: ${isRtl ? "rtl" : "ltr"} !important;
+            unicode-bidi: plaintext !important;
+          }
+
+          /* A4 content width after the 12mm page margins. This prevents the
+             hidden print frame from collapsing the document into a mobile
+             sized column while preserving normal browser print scaling. */
+          .print-sheet {
+            width: 186mm !important;
+            max-width: 186mm !important;
+            margin: 0 auto !important;
+            direction: ${isRtl ? "rtl" : "ltr"} !important;
+            unicode-bidi: plaintext !important;
           }
 
           /* Ensure all text nodes inside printable documents use the official fonts */
@@ -223,6 +238,8 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
             border: none !important;
             min-height: auto !important;
             overflow: visible !important;
+            direction: ${isRtl ? "rtl" : "ltr"} !important;
+            unicode-bidi: plaintext !important;
           }
 
           /* Clean Administrative Table Formatting */
