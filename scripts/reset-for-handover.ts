@@ -3,11 +3,22 @@ import { db } from "../src/lib/db";
 /**
  * Prepare the shared database for club handover.
  *
- * Structural/auth tables are intentionally retained so the administrator can
- * log in immediately. Every operational/content/integration table is truncated
- * with PostgreSQL's dependency-aware CASCADE inside one transaction.
+ * Structural/auth tables and the configured email connection are intentionally
+ * retained so the administrator can log in and keep the mailbox integration.
+ * Every other operational/content/integration table is truncated with
+ * PostgreSQL's dependency-aware CASCADE inside one transaction.
  */
-const keepTables = ["_prisma_migrations", "User", "Role", "Permission", "RolePermission", "Team", "ClubSettings"];
+const keepTables = [
+  "_prisma_migrations",
+  "User",
+  "Role",
+  "Permission",
+  "RolePermission",
+  "Team",
+  "ClubSettings",
+  "GmailConnection",
+  "IntegrationState",
+];
 
 async function main() {
   const keepSql = keepTables.map((name) => `'${name.replaceAll("'", "''")}'`).join(", ");
@@ -32,7 +43,7 @@ async function main() {
       WHERE "roleId" NOT IN (SELECT id FROM "Role" WHERE key = 'super_admin');
     `);
   });
-  console.log("Handover reset completed. Structural and administrator data were retained; operational data is empty.");
+  console.log("Handover reset completed. Structural, administrator, and email connection data were retained; other operational data is empty.");
 }
 
 main().catch((error) => {
