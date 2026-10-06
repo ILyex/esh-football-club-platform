@@ -1,7 +1,7 @@
 Option Explicit
 
 ' Hidden one-click launcher: the administrator sees only the browser.
-Dim shell, fso, root, batPath, serverPath, envPath, nodeCheck
+Dim shell, fso, root, batPath, serverPath, envPath, nodePath, nodeCheck
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 root = fso.GetParentFolderName(WScript.ScriptFullName)
@@ -9,6 +9,7 @@ batPath = fso.BuildPath(root, "Launch-ESH-Platform.bat")
 serverPath = fso.BuildPath(root, ".next\standalone\server.js")
 envPath = fso.BuildPath(root, ".env.local")
 If Not fso.FileExists(envPath) Then envPath = fso.BuildPath(root, ".env")
+nodePath = fso.BuildPath(root, "runtime\node.exe")
 
 If Not fso.FileExists(batPath) Then
   shell.Popup "ملف تشغيل المنصة غير موجود.", 5, "منصة النادي الرياضي", 16
@@ -27,7 +28,8 @@ If Not fso.FileExists(envPath) Then
   WScript.Quit 1
 End If
 
-nodeCheck = shell.Run("cmd.exe /c where node >nul 2>&1", 0, True)
+nodeCheck = 0
+If Not fso.FileExists(nodePath) Then nodeCheck = shell.Run("cmd.exe /c where node >nul 2>&1", 0, True)
 If nodeCheck <> 0 Then
   shell.Popup "Node.js غير مثبت على هذا الجهاز. يرجى تجهيز الجهاز مرة واحدة بواسطة مسؤول التقنية.", 8, "منصة النادي الرياضي", 48
   WScript.Quit 1

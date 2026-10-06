@@ -10,6 +10,8 @@ REM Force the standalone launcher to use the Node/Prisma adapter. A previous
 REM Cloudflare preview can leave OpenNext context files in the build folder;
 REM this flag prevents the local server from looking for Worker-only secrets.
 set "DEPLOY_TARGET=node"
+set "NODE_BIN=node.exe"
+if exist "%ROOT%runtime\node.exe" set "NODE_BIN=%ROOT%runtime\node.exe"
 set "BUILD_ID_FILE=%ROOT%.next\BUILD_ID"
 set "SERVER_BUILD_FILE=%ROOT%.local-admin-build-id"
 
@@ -66,7 +68,7 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 REM Start detached from this launcher so closing the launcher does not stop the app.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath 'node.exe' -ArgumentList 'app.js' -WorkingDirectory '%ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\.local-admin.log' -RedirectStandardError '%ROOT%\.local-admin-error.log' -PassThru; if(-not $p){exit 1}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%NODE_BIN%' -ArgumentList 'app.js' -WorkingDirectory '%ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\.local-admin.log' -RedirectStandardError '%ROOT%\.local-admin-error.log' -PassThru; if(-not $p){exit 1}"
 if errorlevel 1 goto :failed
 
 REM Open the browser immediately after the server becomes reachable. The
