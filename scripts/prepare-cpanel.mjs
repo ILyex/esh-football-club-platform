@@ -22,4 +22,13 @@ if (fs.existsSync(publicSource)) {
   fs.cpSync(publicSource, publicTarget, { recursive: true, force: true });
 }
 
+// Next's standalone file tracing does not always include Prisma's WASM query
+// compiler. Copy the generated runtime artefacts explicitly so credentials,
+// health checks, and every database query work from the cPanel bundle.
+const prismaRuntimeSource = path.join(projectRoot, "node_modules", ".prisma", "client");
+const prismaRuntimeTarget = path.join(standaloneRoot, "node_modules", ".prisma", "client");
+if (fs.existsSync(prismaRuntimeSource)) {
+  fs.cpSync(prismaRuntimeSource, prismaRuntimeTarget, { recursive: true, force: true });
+}
+
 console.log("Prepared .next/standalone for cPanel (server, static assets, and public files).");
