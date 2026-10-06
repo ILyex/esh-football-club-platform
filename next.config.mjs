@@ -55,6 +55,14 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Revalidate HTML and RSC responses after a local rebuild. This avoids
+      // stale pages retaining references to chunks from a previous build.
+      {
+        source: "/((?!_next/static|_next/image|favicon.ico).*)",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" }
+        ]
+      },
       {
         source: "/:path*",
         headers: [

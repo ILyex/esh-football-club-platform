@@ -11,9 +11,10 @@ REM Cloudflare preview can leave OpenNext context files in the build folder;
 REM this flag prevents the local server from looking for Worker-only secrets.
 set "DEPLOY_TARGET=node"
 
-REM If the app is already running, reuse it and open the login page.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if($c){Start-Process 'http://localhost:3000/ar/login'; exit 0}; exit 1"
-if %ERRORLEVEL% EQU 0 goto :done
+REM Always stop the dedicated app process before starting. This prevents a
+REM server from using old JavaScript chunks after the project was rebuilt.
+REM Only node processes launched with this project's app.js are touched.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=[regex]::Escape('%ROOT%'); $ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match ($root + 'app\\.js') }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 300"
 
 if not exist "node_modules\.bin\next.cmd" (
   echo Installing platform dependencies for the first run...
@@ -55,7 +56,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePa
 if errorlevel 1 goto :failed
 
 echo Starting the platform...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 30;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 1;if($r.StatusCode -eq 200){Start-Process 'http://localhost:3000/ar/login';exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 90;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 2;if($r.StatusCode -eq 200){Start-Process 'http://localhost:3000/ar/login';exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
 if errorlevel 1 goto :failed
 
 :done
