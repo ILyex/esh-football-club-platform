@@ -15,8 +15,17 @@ set "SERVER_BUILD_FILE=%ROOT%.local-admin-build-id"
 
 REM Reuse a healthy server when it already serves this exact build. This
 REM avoids a downtime window where the browser can lose a chunk in flight.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$expected=([string](Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw -ErrorAction SilentlyContinue)).Trim(); $running=Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; $served=([string](Get-Content -LiteralPath '%SERVER_BUILD_FILE%' -Raw -ErrorAction SilentlyContinue)).Trim(); if($running -and $expected -and $expected -eq $served){Start-Process 'http://localhost:3000/ar/login'; exit 0}; exit 1"
-if %ERRORLEVEL% EQU 0 goto :done
+set "EXPECTED_BUILD="
+set "SERVED_BUILD="
+if exist "%BUILD_ID_FILE%" set /p EXPECTED_BUILD=<"%BUILD_ID_FILE%"
+if exist "%SERVER_BUILD_FILE%" set /p SERVED_BUILD=<"%SERVER_BUILD_FILE%"
+if not "%EXPECTED_BUILD%"=="" if "%EXPECTED_BUILD%"=="%SERVED_BUILD%" (
+  netstat -ano | findstr /R /C:":3000 .*LISTENING" >nul
+  if not errorlevel 1 (
+    start "" "http://localhost:3000/ar/login"
+    goto :done
+  )
+)
 
 REM A different build is ready, so replace only this project's app.js process.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '\bapp\.js\b' }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 500"
@@ -59,10 +68,15 @@ if %ERRORLEVEL% EQU 0 (
 REM Start detached from this launcher so closing the launcher does not stop the app.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath 'node.exe' -ArgumentList 'app.js' -WorkingDirectory '%ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\.local-admin.log' -RedirectStandardError '%ROOT%\.local-admin-error.log' -PassThru; if(-not $p){exit 1}"
 if errorlevel 1 goto :failed
+
+REM Open the browser immediately after the server becomes reachable. The
+REM health poll below only reports a failed startup and never delays a ready
+REM instance.
+start "" "http://localhost:3000/ar/login"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw).Trim() | Set-Content -LiteralPath '%SERVER_BUILD_FILE%' -NoNewline"
 
 echo Starting the platform...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 90;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 2;if($r.StatusCode -eq 200){Start-Process 'http://localhost:3000/ar/login';exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 90;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 2;if($r.StatusCode -eq 200){exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
 if errorlevel 1 goto :failed
 
 :done
