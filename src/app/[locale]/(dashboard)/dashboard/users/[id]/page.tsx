@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { KeyRound, Save, Trash2 } from "lucide-react";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
+import { userIdPrefixFromRoute } from "@/lib/user-route";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -21,9 +22,16 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
   const tTeam = await getTranslations("teamAssignments");
   const tCommon = await getTranslations("common");
 
+  const prefix = userIdPrefixFromRoute(id);
   const [user, roles, allTeams] = await Promise.all([
     db.user.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        deletedAt: null,
+        OR: [
+          { id },
+          ...(prefix ? [{ id: { startsWith: prefix } }] : [])
+        ]
+      },
       include: {
         role: true,
         teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { UserListActions } from "@/components/users/user-list-actions";
 import { UsersPresenceRefresh } from "@/components/users/users-presence-refresh";
+import { userDetailsHref } from "@/lib/user-route";
 
 export default async function UsersListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -79,6 +80,7 @@ export default async function UsersListPage({ params }: { params: Promise<{ loca
                 <td className="px-4 py-3 text-center">
                   <UserListActions
                     userId={u.id}
+                    userName={u.name}
                     locale={locale}
                     deleteLabel={t("deleteUser")}
                     editLabel={tCommon("edit")}

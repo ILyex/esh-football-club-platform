@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSessionOrThrow, hasPermission, type SessionUser } from "@/lib/permissions";
 import { resolveUserTeamContext, type UserTeamContext } from "@/lib/team-context";
 import { teamIdWhere, resolveTeamScope, type TeamScope } from "@/lib/authz/policy";
+import { userDetailsHref } from "@/lib/user-route";
 
 // ============================================================================
 // PHASE 9A — AUTHORITATIVE GLOBAL SEARCH SERVICE
@@ -715,7 +716,7 @@ export async function executeGlobalSearch(
         type: "user",
         title: u.name,
         subtitle: `${u.email} • ${u.role.name}`,
-        href: `/${locale}/dashboard/users/${u.id}`,
+        href: userDetailsHref(locale, u.name, u.id),
         category: "users",
         badge: u.role.name,
         score: Math.max(

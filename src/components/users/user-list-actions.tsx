@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Check, Loader2, LogOut, Pencil, Trash2, X } from "lucide-react";
 import { deleteUserAction, terminateSessionAction } from "@/app/[locale]/(dashboard)/dashboard/users/actions";
+import { userDetailsHref } from "@/lib/user-route";
 
 export function UserListActions({
   userId,
+  userName,
   locale,
   deleteLabel,
   editLabel,
@@ -18,6 +20,7 @@ export function UserListActions({
   cancelLabel
 }: {
   userId: string;
+  userName: string;
   locale: string;
   deleteLabel: string;
   editLabel: string;
@@ -78,7 +81,7 @@ export function UserListActions({
     <>
       <div className="mx-auto flex w-fit flex-nowrap items-center justify-center gap-2">
         <Link
-          href={`/${locale}/dashboard/users/${userId}`}
+          href={userDetailsHref(locale, userName, userId)}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-club-primary/40 hover:bg-muted"
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
