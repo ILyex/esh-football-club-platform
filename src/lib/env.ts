@@ -40,7 +40,7 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   } else if (!dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("postgres://")) {
     issues.push("DATABASE_URL must be a valid PostgreSQL connection URI starting with postgresql:// or postgres://.");
   } else if (isProduction && !dbUrl.includes("sslmode=") && !dbUrl.includes("ssl=")) {
-    warnings.push("DATABASE_URL does not specify an explicit sslmode in production.");
+    issues.push("DATABASE_URL must specify SSL explicitly in production (for example sslmode=require).");
   }
 
   // 2. Authentication Secret Invariant
@@ -73,14 +73,21 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   const cronSecret = env.CRON_SECRET?.trim();
   if (isProduction && !cronSecret) {
     issues.push("CRON_SECRET is strictly required in production to protect the background jobs cron endpoint.");
-  } else if (cronSecret && cronSecret.length < 16) {
-    warnings.push("CRON_SECRET has less than 16 characters; consider using a longer random secret.");
+  } else if (cronSecret && cronSecret.length < 32) {
+    if (isProduction) {
+      issues.push("CRON_SECRET must be at least 32 characters in production.");
+    } else {
+      warnings.push("CRON_SECRET has less than 32 characters; use a longer random secret for production.");
+    }
   }
 
   // Auth.js and middleware need a public origin for redirects and callbacks.
   // Reject localhost in production so cPanel/Passenger cannot redirect visitors
   // back to an operator's private machine or an internal app port.
   const publicAuthUrl = (env.AUTH_URL || env.NEXTAUTH_URL)?.trim();
+  if (isProduction && env.AUTH_URL?.trim() && env.NEXTAUTH_URL?.trim() && env.AUTH_URL.trim() !== env.NEXTAUTH_URL.trim()) {
+    issues.push("AUTH_URL and NEXTAUTH_URL must match exactly in production.");
+  }
   if (isProduction && !publicAuthUrl) {
     issues.push("AUTH_URL (or NEXTAUTH_URL) must contain the public HTTPS origin in production.");
   } else if (isProduction && publicAuthUrl) {
