@@ -29,6 +29,7 @@ async function getLocalClient(): Promise<PrismaClient> {
 }
 
 async function getClient(): Promise<PrismaClient> {
+  const isDevelopment = process.env.NODE_ENV !== "production";
   let context: { env: CloudflareEnv; ctx: object } | undefined;
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
@@ -37,7 +38,7 @@ async function getClient(): Promise<PrismaClient> {
   } catch (error) {
     // Normal Node.js hosting (local, cPanel, and other Node hosts) has no
     // Cloudflare request context and continues to use DATABASE_URL.
-    if (process.env.DEPLOY_TARGET === "cloudflare") {
+    if (process.env.DEPLOY_TARGET === "cloudflare" && !isDevelopment) {
       throw new Error("Cloudflare request context is unavailable; refusing to use the Node.js database fallback.", { cause: error });
     }
   }
@@ -62,7 +63,12 @@ async function getClient(): Promise<PrismaClient> {
     return clientPromise;
   }
 
-  if (context?.env.DEPLOY_TARGET === "cloudflare" || process.env.DEPLOY_TARGET === "cloudflare") {
+  // `initOpenNextCloudflareForDev()` loads Wrangler vars into the local Next.js
+  // dev process. That makes DEPLOY_TARGET look like a Worker even though this
+  // request is running in Node and its database URL comes from .env. Use the
+  // Node adapter in development; keep the strict missing-secret guard in the
+  // actual production Worker runtime.
+  if (!isDevelopment && (context?.env.DEPLOY_TARGET === "cloudflare" || process.env.DEPLOY_TARGET === "cloudflare")) {
     throw new Error("Cloudflare deployment is missing the DATABASE_URL Neon secret.");
   }
 
