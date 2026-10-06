@@ -16,6 +16,12 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(internal, { recursive: true });
 
 fs.cpSync(standalone, path.join(internal, ".next", "standalone"), { recursive: true });
+// Next may trace the developer's .env into the standalone folder. Remove
+// those nested copies so the launcher reads the package root .env/.env.local,
+// which are the club-specific settings delivered with this package.
+for (const nestedEnv of [".env", ".env.local", ".dev.vars"]) {
+  fs.rmSync(path.join(internal, ".next", "standalone", nestedEnv), { force: true });
+}
 const buildId = path.join(root, ".next", "BUILD_ID");
 if (fs.existsSync(buildId)) {
   fs.copyFileSync(buildId, path.join(internal, ".next", "BUILD_ID"));
