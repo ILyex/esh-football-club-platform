@@ -19,17 +19,13 @@ export function ChunkRecovery() {
       try {
         const current = window.location.pathname;
         const previous = sessionStorage.getItem(key);
-        if (previous === current) {
-          // A reload can briefly reuse a stale document from an open tab.
-          // Add a one-time query marker so the next document request cannot
-          // be satisfied by that tab's cache.
-          sessionStorage.setItem(key, `${current}:cache-busted`);
-          const separator = window.location.search ? "&" : "?";
-          window.location.assign(`${window.location.href}${separator}esh_reload=${Date.now()}`);
-          return;
-        }
-        if (previous === `${current}:cache-busted`) return;
+        if (previous === current) return;
+        // Navigate to a fresh document immediately. A normal reload can reuse
+        // the old RSC payload in an open tab and request the same stale chunk.
         sessionStorage.setItem(key, current);
+        const separator = window.location.search ? "&" : "?";
+        window.location.assign(`${window.location.href}${separator}esh_reload=${Date.now()}`);
+        return;
       } catch {
         // Continue with a normal reload when storage is unavailable.
       }
