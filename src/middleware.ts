@@ -13,6 +13,28 @@ const intlMiddleware = createMiddleware(routing);
 // section 41. Never rely on middleware alone for authorization.
 export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   const { pathname } = req.nextUrl;
+  const publicSiteOnly = process.env.PUBLIC_SITE_ONLY === "true" || process.env.PUBLIC_SITE_ONLY === "1";
+
+  // The public deployment can share the same build while exposing only the
+  // read-only website surface. The local administration build leaves this
+  // flag false and keeps the normal authenticated dashboard available.
+  if (publicSiteOnly) {
+    const isAdminPage = /^\/(ar|fr)\/(?:dashboard|login)(?:\/|$)/.test(pathname);
+    if (isAdminPage) return new NextResponse(null, { status: 404 });
+
+    if (pathname.startsWith("/api/")) {
+      const isPublicApi = /^\/api\/(?:health|public-analytics|storage\/public-file)(?:\/|$)/.test(pathname);
+      if (!isPublicApi) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.next();
+    }
+  }
+
+  // API handlers perform their own authentication and permission checks. Do
+  // not send API requests through next-intl, which is page-route middleware.
+  if (pathname.startsWith("/api/")) return NextResponse.next();
+
   const isDashboardPath = /^\/(ar|fr)\/dashboard(?:\/|$)/.test(pathname);
   const session = (req as NextRequest & {
     auth?: { user?: { id?: unknown } | null; invalid?: unknown } | null;
@@ -43,5 +65,5 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
 }) as any;
 
 export const config = {
-  matcher: ["/((?!api|trpc|_next|_vercel|.*\\..*).*)"]
+  matcher: ["/api/:path*", "/((?!trpc|_next|_vercel|.*\\..*).*)"]
 };
