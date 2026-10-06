@@ -9,10 +9,10 @@ inference while deterministic validation and fallback paths remain available. Th
 wording, OCR, and extraction; it is not an authoritative source for identities,
 financial records, match results, or document approval.
 
-Configure the local endpoint, text model and vision model in `.env`. Scanned
-PDFs are rendered locally with a 3-page OCR limit; PDFs over 20 pages require
-manual review. Install the configured Ollama models before expecting image OCR
-to work. Health checks are bounded and never include prompts or document
+Configure the local endpoint, text model, vision model, and optional keep-alive
+period in `.env`. For the full local document workflow, install both
+`qwen2.5:7b` and `llava:7b` with Ollama. Scanned PDFs are rendered locally
+with a 3-page OCR limit; PDFs over 20 pages require manual review. Health checks are bounded and never include prompts or document
 contents. Identity images and relevant document text are sent to the configured
 Ollama endpoint, so keep that endpoint private and trusted.
 

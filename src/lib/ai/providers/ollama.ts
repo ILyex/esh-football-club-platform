@@ -97,6 +97,7 @@ export class OllamaProvider implements AIProvider {
       system: params.system,
       prompt: params.prompt,
       stream: false,
+      keep_alive: config.ollama.keepAlive,
       options: {
         temperature,
         num_predict: maxTokens
@@ -191,6 +192,7 @@ export class OllamaProvider implements AIProvider {
       prompt: params.prompt,
       format: "json",
       stream: false,
+      keep_alive: config.ollama.keepAlive,
       options: {
         temperature: Math.max(0, Math.min(params.temperature ?? 0.1, 1)),
         num_predict: config.ollama.maxOutputTokens

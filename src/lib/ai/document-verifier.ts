@@ -16,6 +16,7 @@ import "server-only";
 // ============================================================================
 
 import { runAICompletion, isAIConfigured } from "./provider";
+import { getAIConfig } from "./config";
 import {
   checkPlayerDocument,
   checkExpenseReceipt,
@@ -153,8 +154,7 @@ async function extractTextFromImage(buffer: Buffer): Promise<string | null> {
 async function extractTextFromImages(images: Buffer[]): Promise<string | null> {
   if (!isAIConfigured() || images.length === 0) return null;
   try {
-    const visionModel =
-      process.env.OLLAMA_VISION_MODEL?.trim() || "llava:7b";
+    const visionModel = getAIConfig().ollama.visionModel;
     const base64Images = images.map((image) => image.toString("base64"));
     const text = await runAICompletion({
       system:
