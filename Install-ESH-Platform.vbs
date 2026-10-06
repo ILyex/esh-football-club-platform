@@ -24,7 +24,10 @@ Set shortcut = shell.CreateShortcut(fso.BuildPath(desktopPath, "منصة الن�
 shortcut.TargetPath = shell.ExpandEnvironmentStrings("%WINDIR%\System32\wscript.exe")
 shortcut.Arguments = """" & targetVbs & """"
 shortcut.WorkingDirectory = installRoot
-shortcut.IconLocation = fso.BuildPath(installRoot, "public\branding\esh-logo.ico")
+Dim iconPath
+iconPath = fso.BuildPath(installRoot, ".next\standalone\public\branding\esh-logo.ico")
+If Not fso.FileExists(iconPath) Then iconPath = fso.BuildPath(installRoot, "public\branding\esh-logo.ico")
+If fso.FileExists(iconPath) Then shortcut.IconLocation = iconPath
 shortcut.Description = "تشغيل منصة إدارة النادي"
 shortcut.Save
 

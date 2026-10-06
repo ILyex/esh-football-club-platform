@@ -1,5 +1,9 @@
 $ErrorActionPreference = "Stop"
 
+# A 4GB club computer must never load both large models at once.
+[Environment]::SetEnvironmentVariable("OLLAMA_NUM_PARALLEL", "1", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_MAX_LOADED_MODELS", "1", "User")
+
 # One-time technician setup for the private, local AI subsystem.
 # The daily administrator launcher never downloads models or opens a terminal.
 $ollama = (Get-Command ollama -ErrorAction SilentlyContinue).Source

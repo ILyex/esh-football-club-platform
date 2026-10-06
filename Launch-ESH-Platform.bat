@@ -14,6 +14,9 @@ set "NODE_BIN=node.exe"
 if exist "%ROOT%runtime\node.exe" set "NODE_BIN=%ROOT%runtime\node.exe"
 set "BUILD_ID_FILE=%ROOT%.next\BUILD_ID"
 set "SERVER_BUILD_FILE=%ROOT%.local-admin-build-id"
+set "NODE_OPTIONS=--max-old-space-size=768"
+set "OLLAMA_NUM_PARALLEL=1"
+set "OLLAMA_MAX_LOADED_MODELS=1"
 
 REM Reuse a healthy server when it already serves this exact build. This
 REM avoids a downtime window where the browser can lose a chunk in flight.
@@ -24,7 +27,7 @@ if exist "%SERVER_BUILD_FILE%" set /p SERVED_BUILD=<"%SERVER_BUILD_FILE%"
 if not "%EXPECTED_BUILD%"=="" if "%EXPECTED_BUILD%"=="%SERVED_BUILD%" (
   netstat -ano | findstr /R /C:":3000 .*LISTENING" >nul
   if not errorlevel 1 (
-    start "" "http://localhost:3000/ar/login"
+    start "" "http://localhost:3000/ar/login?build=%EXPECTED_BUILD%"
     goto :done
   )
 )
@@ -73,7 +76,7 @@ if errorlevel 1 goto :failed
 REM Open the browser immediately after the server becomes reachable. The
 REM health poll below only reports a failed startup and never delays a ready
 REM instance.
-start "" "http://localhost:3000/ar/login"
+start "" "http://localhost:3000/ar/login?build=%EXPECTED_BUILD%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw).Trim() | Set-Content -LiteralPath '%SERVER_BUILD_FILE%' -NoNewline"
 
 REM Start the durable background worker silently when the full source package

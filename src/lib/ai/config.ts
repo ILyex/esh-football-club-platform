@@ -46,7 +46,8 @@ export function getAIConfig(): AIConfig {
   const baseUrl = sanitizeBaseUrl(process.env.OLLAMA_BASE_URL);
   const model = process.env.OLLAMA_MODEL?.trim() || "qwen2.5:7b";
   const visionModel = process.env.OLLAMA_VISION_MODEL?.trim() || "llava:7b";
-  const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || "10m";
+  // Keep the model warm briefly without occupying most of a 4GB machine all day.
+  const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || "2m";
 
   const rawTimeout = parseInt(process.env.OLLAMA_TIMEOUT_MS || "30000", 10);
   const timeoutMs = isNaN(rawTimeout) || rawTimeout < 1000 ? 30000 : Math.min(rawTimeout, 120000);

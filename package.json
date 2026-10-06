@@ -13,6 +13,7 @@
     "preview:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare preview",
     "build:cpanel": "npm run build && node scripts/prepare-cpanel.mjs",
     "package:cpanel": "node scripts/package-cpanel.mjs",
+    "package:club": "node scripts/package-club.mjs",
     "start": "next start",
     "start:cpanel": "node app.js",
     "lint": "eslint src tests scripts",
