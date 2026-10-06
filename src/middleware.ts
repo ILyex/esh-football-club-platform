@@ -28,7 +28,13 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   // whether `req.auth` is truthy is not a sufficient route gate.
   if (isDashboardPath && !hasValidSession) {
     const locale = pathname.split("/")[1] || routing.defaultLocale;
-    const loginUrl = new URL(`/${locale}/login`, req.url);
+    // OpenNext can expose an internal localhost URL as `req.url` in the Worker
+    // adapter. Redirect to the configured public origin in production so a
+    // protected request never sends visitors to the operator's local machine.
+    const publicAuthUrl = process.env.NODE_ENV === "production"
+      ? process.env.AUTH_URL || process.env.NEXTAUTH_URL
+      : undefined;
+    const loginUrl = new URL(`/${locale}/login`, publicAuthUrl || req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
