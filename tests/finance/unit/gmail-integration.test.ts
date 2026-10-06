@@ -127,6 +127,26 @@ test("Sanitizer: Enforces target='_blank' and rel='noopener' on legitimate links
   assert.ok(sanitized.includes('rel="noopener noreferrer nofollow"'), "Must add safe rel attributes");
 });
 
+test("Service boundary: outgoing HTML is sanitized before the mail client receives it", async () => {
+  await connectOfficialGmail("oauth-code-123", "http://localhost/callback", superAdmin);
+
+  await sendOfficialEmail(
+    {
+      to: ["security@example.com"],
+      subject: "Sanitization boundary",
+      bodyText: "Safe fallback",
+      bodyHtml: `<p>Safe</p><script>alert(1)</script><a href="javascript:alert(2)">bad</a>`
+    },
+    secretaryUser
+  );
+
+  const sent = mockClient.sentEmails.at(-1);
+  assert.ok(sent);
+  assert.ok(sent.bodyHtml?.includes("<p>Safe</p>"));
+  assert.ok(!sent.bodyHtml?.includes("<script"));
+  assert.ok(!sent.bodyHtml?.includes("javascript:"));
+});
+
 // ----------------------------------------------------------------------------
 // 3. HEADER INJECTION & ATTACHMENT VALIDATION SCHEMAS
 // ----------------------------------------------------------------------------
