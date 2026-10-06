@@ -72,9 +72,15 @@ function getS3Client(): S3Client {
 
 function getLocalStorageRoot(): string {
   const configuredRoot = process.env.STORAGE_LOCAL_ROOT?.trim();
-  // Resolve the configurable root once per call so environment values are
-  // respected by cPanel's application manager and by test processes.
-  return path.resolve(configuredRoot || path.join(process.cwd(), ".storage"));
+  // Keep self-hosted uploads outside the extracted release/OneDrive folder.
+  // This path survives package updates and is writable for a normal Windows
+  // club account. An explicit root remains authoritative for cPanel/S3-free
+  // deployments and tests.
+  if (configuredRoot) return path.resolve(configuredRoot);
+  if (process.env.NODE_ENV === "production" && process.env.LOCALAPPDATA) {
+    return path.resolve(path.join(process.env.LOCALAPPDATA, "ESH Football Platform", ".storage"));
+  }
+  return path.resolve(path.join(process.cwd(), ".storage"));
 }
 
 function resolveStoragePath(directory: "private" | "public", key: string): string {
