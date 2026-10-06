@@ -48,5 +48,9 @@ shortcut.Description = "Launch ESH Football Platform"
 shortcut.Save
 
 'Installation succeeds silently and opens the platform immediately. The
-'desktop shortcut is used for every later launch.
+'desktop shortcut is used for every later launch. Clear the previous build
+'marker so the launcher restarts a running server after an in-place update.
+Dim servedBuildMarker
+servedBuildMarker = fso.BuildPath(installRoot, ".local-admin-build-id")
+If fso.FileExists(servedBuildMarker) Then fso.DeleteFile servedBuildMarker, True
 shell.Run shortcut.TargetPath & " " & shortcut.Arguments, 0, False
