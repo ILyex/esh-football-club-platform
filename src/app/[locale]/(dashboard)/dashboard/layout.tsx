@@ -21,6 +21,7 @@ import { NOTIFIABLE_TYPE_KEYS } from "@/lib/insights/notifications";
 import { redirect } from "next/navigation";
 import { DASHBOARD_NAV_GROUPS } from "@/lib/dashboard-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
+import { getPublicSiteUrl } from "@/lib/public-site-url";
 
 export default async function DashboardLayout({
   children,
@@ -71,6 +72,7 @@ export default async function DashboardLayout({
 
   const altLocale = locale === "ar" ? "fr" : "ar";
   const altLocaleLabel = locale === "ar" ? "FR" : "عربي";
+  const publicSiteUrl = getPublicSiteUrl(locale);
 
   // Compute localized date string
   const today = new Date();
@@ -123,7 +125,7 @@ export default async function DashboardLayout({
           <div className="flex items-center justify-between gap-2">
             <ThemeToggle locale={locale} className="flex-1 justify-around" />
             <Link
-              href={`/${locale}`}
+              href={publicSiteUrl}
               target="_blank"
               title={locale === "ar" ? "زيارة الموقع العام للنادي" : "Visiter le site public du club"}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/80 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:border-club-primary hover:text-foreground transition-all shadow-2xs shrink-0"
@@ -166,7 +168,7 @@ export default async function DashboardLayout({
 
             {/* Quick Public Site Link */}
             <Link
-              href={`/${locale}`}
+              href={publicSiteUrl}
               target="_blank"
               className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-club-primary hover:text-foreground shadow-2xs transition-colors"
             >

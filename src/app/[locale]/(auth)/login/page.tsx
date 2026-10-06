@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { loginAction } from "./actions";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { getPublicSiteUrl } from "@/lib/public-site-url";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -41,6 +42,7 @@ export default function LoginPage() {
 
   const isRtl = locale === "ar";
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
+  const publicSiteUrl = getPublicSiteUrl(locale);
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-between overflow-x-hidden bg-background text-foreground selection:bg-club-primary selection:text-white">
@@ -50,7 +52,7 @@ export default function LoginPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           {/* Link back to public site */}
           <Link
-            href={`/${locale}`}
+            href={publicSiteUrl}
             className="group inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card/70 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground shadow-2xs transition-all hover:border-club-primary/40 hover:bg-card hover:text-foreground"
           >
             <ArrowIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5" />
