@@ -259,18 +259,26 @@ async function main() {
     }
   }
 
-  console.log("→ Club settings — Espoir Sidi Hosni (ESH)");
+  console.log("→ Club settings — الجمعية الرياضية أمل سيدي حسني لكرة القدم (ESH)");
   await db.clubSettings.upsert({
     where: { id: "singleton" },
-    update: {},
+    update: {
+      name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
+      shortName: "ESH",
+      description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
+      stadium: "الملعب البلدي لبلدية سيدي حسني",
+      address: "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر"
+    },
     create: {
       id: "singleton",
-      name: "Espoir Sidi Hosni",
+      name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
       shortName: "ESH",
       logoUrl: "/branding/esh-logo.jpg",
       primaryColor: "#B31B1B",
       secondaryColor: "#111111",
-      description: "Espoir Sidi Hosni — Regional 3, first senior season.",
+      description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
+      stadium: "الملعب البلدي لبلدية سيدي حسني",
+      address: "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر",
       defaultLocale: "ar"
     }
   });

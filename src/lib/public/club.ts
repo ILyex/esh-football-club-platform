@@ -45,17 +45,17 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
 
   if (!settings) {
     return {
-      name: "أمل سيدي حسني",
-      shortName: "أمل سيدي حسني",
+      name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
+      shortName: "ESH",
       logoUrl: "/branding/esh-logo.jpg",
       homepageHeroImageUrl: null,
       primaryColor: "#B31B1B",
       secondaryColor: "#111111",
-      description: "ESH SIDI HOSNI — Club de football fondé à Sidi Hosni, Tiaret.",
-      stadium: "Stade Communal de Sidi Hosni",
+      description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
+      stadium: "الملعب البلدي لبلدية سيدي حسني",
       contactEmail: null,
       contactPhone: null,
-      address: "Sidi Hosni, W. Tiaret, Algérie",
+      address: "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر",
       socialLinks: null,
       defaultLocale: "ar"
     };

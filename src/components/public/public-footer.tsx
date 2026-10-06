@@ -39,11 +39,11 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               </div>
               <div>
                 <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  {locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}
+                  {locale === "ar" ? club.name : "Association Sportive Amal Sidi Hosni de Football"}
                 </h3>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
                   <span dir={locale === "ar" ? "rtl" : "ltr"} className="tabular-nums font-mono font-bold">
-                    {locale === "ar" ? "أمل سيدي حسني • 2018 — ∞" : "ESH SIDI HOSNI • 2018 — ∞"}
+                    {locale === "ar" ? `${club.name} • 2018 — ∞` : "ESH SIDI HOSNI • 2018 — ∞"}
                   </span>
                 </p>
               </div>
@@ -51,8 +51,8 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
 
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
               {locale === "ar"
-                ? (club.description || "النادي الرياضي الهاوي أمل سيدي حسني — بلدية سيدي حسني، ولاية تيارت. التميز الرياضي وتكوين المواهب الشابة.")
-                : "Club Sportif Amateur Espoir Sidi Hosni — Commune de Sidi Hosni, Wilaya de Tiaret. Excellence sportive et développement des talents."}
+                ? (club.description || "الجمعية الرياضية أمل سيدي حسني لكرة القدم — بلدية سيدي حسني، ولاية تيارت.")
+                : "Association Sportive Amal Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
             </p>
 
             <div className="flex flex-col space-y-2 pt-2 text-xs text-muted-foreground">
@@ -60,8 +60,8 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
                 <MapPin className="h-4 w-4 shrink-0 text-club-primary" />
                 <span>
                   {locale === "ar"
-                    ? (club.stadium || "الملعب البلدي بسيدي حسني، ولاية تيارت، الجزائر")
-                    : "Stade Municipal de Sidi Hosni, Wilaya de Tiaret, Algérie"}
+                ? (club.stadium || "الملعب البلدي لبلدية سيدي حسني")
+                : "Stade communal de la commune de Sidi Hosni, wilaya de Tiaret, Algérie"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -70,8 +70,8 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
                 </span>
                 <span>
                   {locale === "ar"
-                    ? (club.address || "بلدية سيدي حسني، دائرة مدروسة، ولاية تيارت")
-                    : "Commune de Sidi Hosni, Daïra de Medroussa, W. Tiaret"}
+                    ? (club.address || "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر")
+                    : "Stade communal de Sidi Hosni, commune de Sidi Hosni, wilaya de Tiaret, Algérie"}
                 </span>
               </div>
             </div>
@@ -141,7 +141,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
         {/* Bottom Bar: Copyright, Attribution & Theme Controls */}
         <div className="mt-12 border-t border-border/80 pt-6 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>
-            © {currentYear} {locale === "ar" ? "أمل سيدي حسني" : "ESH Sidi Hosni"}. {labels.allRightsReserved}.
+            © {currentYear} {locale === "ar" ? club.name : "Association Sportive Amal Sidi Hosni de Football"}. {labels.allRightsReserved}.
           </p>
           <div className="flex items-center gap-4">
             <span className="font-medium text-foreground">{labels.memberAffiliation}</span>
