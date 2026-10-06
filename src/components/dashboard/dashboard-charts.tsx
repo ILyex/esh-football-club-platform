@@ -251,32 +251,38 @@ export function FinancialHealthChart({
 
       {/* Control Toolbar: Period & Chart View Toggle */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
-        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl">
+        <div
+          role="group"
+          aria-label={isAr ? "طريقة عرض الرسم البياني" : "Mode d’affichage du graphique"}
+          className="inline-flex items-center gap-0.5 rounded-xl border border-border/70 bg-muted/60 p-1 shadow-sm"
+        >
           <button
             type="button"
             onClick={() => setChartView("area")}
             title={isAr ? "منحنى انسيابي" : "Courbes"}
             aria-label={isAr ? "منحنى انسيابي" : "Courbes"}
-            className={`rounded-lg p-1.5 transition-all cursor-pointer ${
+            aria-pressed={chartView === "area"}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-[background-color,color,border-color,box-shadow,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 cursor-pointer ${
               chartView === "area"
-                ? "bg-card text-foreground shadow-2xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
+                ? "border-club-primary/25 bg-club-primary text-white shadow-sm"
+                : "border-transparent text-muted-foreground hover:border-border hover:bg-card hover:text-foreground"
             }`}
           >
-            <LineChart className="h-4 w-4" />
+            <LineChart className="h-[18px] w-[18px]" />
           </button>
           <button
             type="button"
             onClick={() => setChartView("bar")}
             title={isAr ? "أعمدة مقارنة" : "Barres"}
             aria-label={isAr ? "أعمدة مقارنة" : "Barres"}
-            className={`rounded-lg p-1.5 transition-all cursor-pointer ${
+            aria-pressed={chartView === "bar"}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-[background-color,color,border-color,box-shadow,transform] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 cursor-pointer ${
               chartView === "bar"
-                ? "bg-card text-foreground shadow-2xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
+                ? "border-club-primary/25 bg-club-primary text-white shadow-sm"
+                : "border-transparent text-muted-foreground hover:border-border hover:bg-card hover:text-foreground"
             }`}
           >
-            <BarChart3 className="h-4 w-4" />
+            <BarChart3 className="h-[18px] w-[18px]" />
           </button>
         </div>
 
@@ -306,8 +312,8 @@ export function FinancialHealthChart({
       </div>
 
       {/* Main Chart Canvas */}
-      <div dir="ltr" className="h-64 min-h-[256px] w-full">
-        <ResponsiveContainer key={chartView} width="100%" height="100%">
+      <div key={chartView} dir="ltr" className="chart-view-transition h-64 min-h-[256px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
           {chartView === "area" ? (
             <AreaChart data={slicedData} margin={{ top: 15, right: 20, left: 10, bottom: 20 }}>
               <defs>

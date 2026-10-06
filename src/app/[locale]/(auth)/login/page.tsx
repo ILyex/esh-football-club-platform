@@ -164,7 +164,7 @@ export default function LoginPage() {
                   {t("email")}
                 </label>
                 <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                  <div className={`pointer-events-none absolute inset-y-0 ${isRtl ? "right-0 pr-3.5" : "left-0 pl-3.5"} flex items-center text-muted-foreground`}>
                     <Mail className="h-4 w-4" />
                   </div>
                   <input
@@ -182,7 +182,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@esh-club.dz"
-                    className={`login-input w-full rounded-xl border border-border/90 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 ${isRtl ? "ps-4 pe-10 text-right" : "ps-10 pe-4 text-left"}`}
+                    className={`login-input w-full rounded-xl border border-border/90 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 ${isRtl ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"}`}
                   />
                 </div>
               </div>
