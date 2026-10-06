@@ -9,7 +9,7 @@ import { useEffect } from "react";
  */
 export function ChunkRecovery() {
   useEffect(() => {
-    const key = "esh-chunk-recovery";
+    const key = "esh-chunk-recovery-v2";
     const isChunkError = (value: unknown) => {
       const text = value instanceof Error ? `${value.name} ${value.message}` : String(value ?? "");
       return /ChunkLoadError|Loading chunk|Loading CSS chunk|_next\/static\/chunks/.test(text);
@@ -17,8 +17,19 @@ export function ChunkRecovery() {
     const recover = (value: unknown) => {
       if (!isChunkError(value)) return;
       try {
-        if (sessionStorage.getItem(key) === window.location.pathname) return;
-        sessionStorage.setItem(key, window.location.pathname);
+        const current = window.location.pathname;
+        const previous = sessionStorage.getItem(key);
+        if (previous === current) {
+          // A reload can briefly reuse a stale document from an open tab.
+          // Add a one-time query marker so the next document request cannot
+          // be satisfied by that tab's cache.
+          sessionStorage.setItem(key, `${current}:cache-busted`);
+          const separator = window.location.search ? "&" : "?";
+          window.location.assign(`${window.location.href}${separator}esh_reload=${Date.now()}`);
+          return;
+        }
+        if (previous === `${current}:cache-busted`) return;
+        sessionStorage.setItem(key, current);
       } catch {
         // Continue with a normal reload when storage is unavailable.
       }
@@ -26,14 +37,14 @@ export function ChunkRecovery() {
     };
     const onError = (event: ErrorEvent) => recover(event.error ?? event.message);
     const onRejection = (event: PromiseRejectionEvent) => recover(event.reason);
-    window.addEventListener("error", onError);
+    window.addEventListener("error", onError, true);
     window.addEventListener("unhandledrejection", onRejection);
     const timer = window.setTimeout(() => {
       try { sessionStorage.removeItem(key); } catch { /* private browsing */ }
     }, 10_000);
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("error", onError);
+      window.removeEventListener("error", onError, true);
       window.removeEventListener("unhandledrejection", onRejection);
     };
   }, []);
