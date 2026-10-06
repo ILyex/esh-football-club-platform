@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Shield, Globe } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { SafeImage } from "@/components/shared/safe-image";
 
 interface PublicHeaderProps {
   locale: string;
@@ -67,7 +68,7 @@ export function PublicHeader({
           <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/80 bg-card p-0.5 shadow-sm transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={clubName} className="h-full w-full rounded-full object-contain" />
+              <SafeImage src={logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubName} className="h-full w-full rounded-full object-contain" />
             ) : (
               <Shield className="h-5 w-5 text-club-primary" />
             )}

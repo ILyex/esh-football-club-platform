@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
+import { SafeImage } from "@/components/shared/safe-image";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
 import { computeInsights, filterInsightsForUser, type Insight } from "@/lib/insights/rules";
@@ -418,8 +419,9 @@ export default async function DashboardHomePage({
         >
           {/* The browser decodes only this visible banner; GIF animation uses native image playback. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SafeImage
             src={dashboardBranding?.dashboardWelcomeBannerUrl || "/branding/esh-header-crest.png"}
+            fallbackSrc="/branding/esh-header-crest.png"
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -442,7 +444,7 @@ export default async function DashboardHomePage({
             {/* Club Crest in Banner */}
             <div className="h-12 w-12 shrink-0 rounded-xl bg-black/40 border border-white/10 p-2 backdrop-blur-xs flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/branding/esh-logo-64.png" alt="ESH" className="h-9 w-9 object-contain" />
+              <SafeImage src="/branding/esh-logo-64.png" fallbackSrc="/branding/esh-logo-64.png" alt="ESH" className="h-9 w-9 object-contain" />
             </div>
           </div>
 

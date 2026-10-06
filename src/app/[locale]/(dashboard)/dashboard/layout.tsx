@@ -22,6 +22,7 @@ import { redirect } from "next/navigation";
 import { DASHBOARD_NAV_GROUPS } from "@/lib/dashboard-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
+import { SafeImage } from "@/components/shared/safe-image";
 
 export default async function DashboardLayout({
   children,
@@ -95,7 +96,7 @@ export default async function DashboardLayout({
           <Link href={`/${locale}/dashboard`} className="flex items-center gap-3 group min-w-0">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} alt={clubSettings?.name || "Espoir Sidi Hosni"} className="h-8 w-8 object-contain" />
+              <SafeImage src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubSettings?.name || "Espoir Sidi Hosni"} className="h-8 w-8 object-contain" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold tracking-tight text-foreground group-hover:text-club-primary transition-colors">

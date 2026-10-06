@@ -29,6 +29,9 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   const isRtl = locale === "ar";
+  // Always pass a canonical BCP-47 locale to Intl. This also keeps a malformed
+  // URL segment from crashing the public page while the route guard resolves.
+  const intlLocale = isRtl ? "ar-DZ" : "fr-FR";
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
   const Chevron = isRtl ? ChevronLeft : ChevronRight;
 
@@ -85,14 +88,14 @@ export default async function HomePage({
       ? (session.team?.name ?? "أمل سيدي حسني")
       : frenchPublicText(session.team?.name, "ESH Sidi Hosni"),
     date: session.date,
-    startTime: new Intl.DateTimeFormat(locale, {
+    startTime: new Intl.DateTimeFormat(intlLocale, {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
       timeZone: "Africa/Algiers"
     }).format(session.startTime),
     endTime: session.endTime
-      ? new Intl.DateTimeFormat(locale, {
+      ? new Intl.DateTimeFormat(intlLocale, {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
@@ -287,7 +290,7 @@ export default async function HomePage({
                             {item.category || (locale === "ar" ? "النادي" : "Club")}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(
+                            {new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" }).format(
                               item.publishedAt
                             )}
                           </span>
@@ -467,7 +470,7 @@ export default async function HomePage({
                                 : frenchPublicText(res.isHomeFixture ? res.awayTeamName : res.homeTeamName, "Adversaire")}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(
+                              {new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" }).format(
                                 res.matchDate
                               )}
                             </p>
