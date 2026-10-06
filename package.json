@@ -92,6 +92,7 @@
   "overrides": {
     "postcss": "$postcss",
     "braces": "file:vendor/braces",
+    "deepmerge-ts": "8.0.2",
     "next-intl": {
       "@swc/core": "1.16.0"
     }

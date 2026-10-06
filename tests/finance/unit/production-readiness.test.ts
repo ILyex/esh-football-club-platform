@@ -91,9 +91,13 @@ test("Production Readiness: validateEnvironment passes with fully configured val
     NODE_ENV: "production",
     DATABASE_URL: "postgresql://user:pass@host:5432/db?sslmode=require",
     AUTH_SECRET: "a-very-long-production-auth-secret-key-32-chars-plus",
+    AUTH_URL: "https://club.example.dz",
     CRON_SECRET: "valid-production-cron-secret-123456789",
     STORAGE_PRIVATE_BUCKET: "esh-private-docs",
-    STORAGE_PUBLIC_BUCKET: "esh-public-media"
+    STORAGE_PUBLIC_BUCKET: "esh-public-media",
+    STORAGE_ENDPOINT: "https://storage.example.test",
+    STORAGE_ACCESS_KEY_ID: "ci-test-access-key",
+    STORAGE_SECRET_ACCESS_KEY: "ci-test-secret-key"
   });
   assert.equal(validProduction.ok, true);
   assert.equal(validProduction.issues.length, 0);

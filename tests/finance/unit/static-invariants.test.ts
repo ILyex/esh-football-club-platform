@@ -10,6 +10,7 @@ const ROOT = join(__dirname, "..", "..", "..");
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name === ".next") continue;
+    if (dir === join(ROOT, "src") && name === "generated") continue;
     const p = join(dir, name);
     statSync(p).isDirectory() ? walk(p, out) : /\.(ts|tsx)$/.test(name) && out.push(p);
   }
