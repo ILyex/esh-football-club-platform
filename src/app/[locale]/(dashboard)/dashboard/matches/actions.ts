@@ -205,14 +205,31 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = matchEventSchema.parse(raw);
+  const playerId = parsed.entityType === "PLAYER" ? parsed.playerId || null : null;
+  const staffId = parsed.entityType === "STAFF" ? parsed.staffId || null : null;
 
-  if (parsed.playerId) {
-    const player = await db.player.findUniqueOrThrow({ where: { id: parsed.playerId } });
+  if (playerId) {
+    const player = await db.player.findUniqueOrThrow({ where: { id: playerId } });
     assertTeamScope(scopeContext, player.teamId, "Player");
   }
+  if (staffId) {
+    const staff = await db.staff.findUniqueOrThrow({ where: { id: staffId } });
+    assertTeamScope(scopeContext, staff.teamId, "Staff");
+  }
 
-  const event = await db.matchEvent.create({
-    data: { matchId, playerId: parsed.playerId || null, type: parsed.type, minute: parsed.minute, notes: parsed.notes }
+  const event = await db.$transaction(async (tx) => {
+    const created = await tx.matchEvent.create({
+      data: { matchId, playerId, staffId, type: parsed.type, side: parsed.side, minute: parsed.minute, notes: parsed.notes }
+    });
+    if (parsed.type === "GOAL" || parsed.type === "OWN_GOAL") {
+      await tx.match.update({
+        where: { id: matchId },
+        data: parsed.side === "HOME"
+          ? { homeScore: { increment: 1 } }
+          : { awayScore: { increment: 1 } }
+      });
+    }
+    return created;
   });
 
   await writeAuditLog({
@@ -235,7 +252,17 @@ export async function deleteMatchEventAction(matchId: string, eventId: string) {
   }
   assertTeamScope(scopeContext, event.match.teamId, "Match");
 
-  await db.matchEvent.delete({ where: { id: eventId } });
+  await db.$transaction(async (tx) => {
+    await tx.matchEvent.delete({ where: { id: eventId } });
+    if (event.type === "GOAL" || event.type === "OWN_GOAL") {
+      await tx.match.update({
+        where: { id: matchId },
+        data: event.side === "HOME"
+          ? { homeScore: Math.max(0, (event.match.homeScore ?? 0) - 1) }
+          : { awayScore: Math.max(0, (event.match.awayScore ?? 0) - 1) }
+      });
+    }
+  });
 
   await writeAuditLog({ userId: user.id, action: "match.event.delete", entityType: "MatchEvent", entityId: eventId });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");

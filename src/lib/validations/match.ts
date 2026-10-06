@@ -24,9 +24,17 @@ export type MatchInput = z.infer<typeof matchSchema>;
 
 export const matchEventSchema = z.object({
   playerId: z.string().optional().or(z.literal("")),
+  staffId: z.string().optional().or(z.literal("")),
+  entityType: z.enum(["PLAYER", "STAFF"]).default("PLAYER"),
+  side: z.enum(["HOME", "AWAY"]).default("HOME"),
   type: z.enum(["GOAL", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"]),
   minute: z.coerce.number().int().min(0).max(130),
   notes: z.string().max(500).optional()
+}).superRefine((value, ctx) => {
+  if (value.type === "YELLOW_CARD" || value.type === "RED_CARD") {
+    if (value.entityType === "STAFF" && !value.staffId) ctx.addIssue({ code: "custom", path: ["staffId"], message: "Staff member is required" });
+    if (value.entityType === "PLAYER" && !value.playerId) ctx.addIssue({ code: "custom", path: ["playerId"], message: "Player is required" });
+  }
 });
 export type MatchEventInput = z.infer<typeof matchEventSchema>;
 

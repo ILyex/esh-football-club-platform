@@ -18,7 +18,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 import { RefereeReportAiModal } from "@/components/matches/referee-report-ai-modal";
 import { DateTimeInput } from "@/components/ui/datetime-input";
-import { Save,  FileCheck, FileText, Download, Upload, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Save, FileCheck, FileText, Download, Upload, ExternalLink, Image as ImageIcon, Target, Square } from "lucide-react";
 import { getOpponentLogo } from "@/lib/opponents";
 
 const EVENT_TYPES = ["GOAL", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
@@ -33,19 +33,20 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   const canReport = hasPermission(user, "matches.report");
   const canDelete = hasPermission(user, "matches.delete");
 
-  const [match, competitions, players, teams] = await Promise.all([
+  const [match, competitions, players, teams, staff] = await Promise.all([
     db.match.findUnique({
       where: { id },
       include: {
         competition: true,
-        events: { include: { player: true }, orderBy: { minute: "asc" } },
+        events: { include: { player: true, staff: true }, orderBy: { minute: "asc" } },
         lineups: { include: { player: true } },
         documents: { orderBy: { createdAt: "desc" } }
       }
     }),
     db.competition.findMany({ orderBy: { name: "asc" } }),
     db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: { lastName: "asc" } }),
-    db.team.findMany({ orderBy: { category: "asc" } })
+    db.team.findMany({ orderBy: { category: "asc" } }),
+    db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
   ]);
   if (!match) notFound();
 
@@ -476,7 +477,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             return (
               <li key={e.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
-                  {e.minute}&apos; — {t(`events.${e.type}` as any)} {e.player ? `(${e.player.firstName} ${e.player.lastName})` : ""}
+                  <span className="inline-flex items-center gap-1.5">
+                    {e.type === "GOAL" || e.type === "OWN_GOAL" ? <Target className="h-3.5 w-3.5 text-emerald-500" /> : null}
+                    {e.type === "YELLOW_CARD" ? <Square className="h-3.5 w-3.5 fill-yellow-400 text-yellow-500" /> : null}
+                    {e.type === "RED_CARD" ? <Square className="h-3.5 w-3.5 fill-red-500 text-red-600" /> : null}
+                    {e.minute}&apos; — {t(`events.${e.type}` as any)} {e.player ? `(${e.player.firstName} ${e.player.lastName})` : e.staff ? `(${e.staff.firstName} ${e.staff.lastName})` : ""}
+                  </span>
                 </span>
                 {canReport && (
                   <ConfirmDialog onConfirm={removeEvent}>
@@ -490,10 +496,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
         </ul>
 
         {canReport && (
-          <form action={addEvent} className="flex flex-wrap items-end gap-2">
+          <form action={addEvent} className="grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-background/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs font-medium">{t("events.minute")}</label>
-              <input name="minute" type="number" min={0} max={130} required className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm" />
+              <input name="minute" type="number" min={0} max={130} placeholder="34" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium">{t("events.type")}</label>
@@ -506,14 +512,35 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </select>
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium">{locale === "ar" ? "الفريق المسجل" : "Équipe qui marque"}</label>
+              <select name="side" defaultValue="HOME" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="HOME">{match.homeTeamName}</option>
+                <option value="AWAY">{match.awayTeamName}</option>
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium">{t("events.player")}</label>
-              <select name="playerId" defaultValue="" className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+              <select name="playerId" defaultValue="" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
                 <option value="">—</option>
                 {players.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.firstName} {p.lastName}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">{locale === "ar" ? "نوع صاحب الحدث" : "Participant"}</label>
+              <select name="entityType" defaultValue="PLAYER" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="PLAYER">{locale === "ar" ? "لاعب" : "Joueur"}</option>
+                <option value="STAFF">{locale === "ar" ? "طاقم" : "Staff"}</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">{locale === "ar" ? "عضو الطاقم (للبطاقات)" : "Membre du staff (cartons)"}</label>
+              <select name="staffId" defaultValue="" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="">—</option>
+                {staff.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
               </select>
             </div>
             <Button type="submit" variant="outline">

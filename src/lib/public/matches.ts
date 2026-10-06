@@ -30,9 +30,12 @@ export interface PublicMatchEventItem {
   id: string;
   minute: number;
   type: string;
+  side: "HOME" | "AWAY";
   notes: string | null;
   playerName: string;
   playerId: string | null;
+  staffName?: string | null;
+  staffId?: string | null;
 }
 
 export interface PublicLineupItem {
@@ -267,8 +270,10 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
           id: true,
           minute: true,
           type: true,
+          side: true,
           notes: true,
           playerId: true,
+          staffId: true,
           player: {
             select: {
               id: true,
@@ -276,6 +281,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
               lastName: true
             }
           }
+          ,staff: { select: { firstName: true, lastName: true } }
         },
         orderBy: { minute: "asc" }
       },
@@ -327,9 +333,12 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
     id: e.id,
     minute: e.minute,
     type: e.type,
+    side: e.side,
     notes: e.notes,
     playerName: e.player ? `${e.player.firstName} ${e.player.lastName}` : "—",
-    playerId: e.playerId
+    playerId: e.playerId,
+    staffName: e.staff ? `${e.staff.firstName} ${e.staff.lastName}` : null,
+    staffId: e.staffId
   }));
 
   return {

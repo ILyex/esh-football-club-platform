@@ -197,7 +197,7 @@ export default async function PublicMatchDetailPage({
                   {event.minute}&apos;
                 </span>
                 <div className="flex-1">
-                  <span className="font-bold text-foreground">{locale === "ar" ? event.playerName : frenchPublicText(event.playerName, "Joueur")}</span>
+                  <span className="font-bold text-foreground">{locale === "ar" ? (event.playerName !== "—" ? event.playerName : event.staffName || "—") : frenchPublicText(event.playerName !== "—" ? event.playerName : event.staffName || "—", "Joueur")}</span>
                   <span className="ms-2 text-xs font-semibold text-muted-foreground">
                     ({eventTypeLabel(event.type)})
                   </span>

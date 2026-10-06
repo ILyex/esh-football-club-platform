@@ -382,6 +382,7 @@ model Staff {
   documents        Document[]
   trainingSessions TrainingSession[]
   correspondences  Correspondence[]
+  matchEvents      MatchEvent[]
   firstNameFr      String?
   lastNameFr       String?
   // Single-team FK — RETAINED for P1 (approved staged migration, Group 2).
@@ -728,13 +729,21 @@ enum MatchEventType {
   SUBSTITUTION_OUT
 }
 
+enum MatchEventSide {
+  HOME
+  AWAY
+}
+
 model MatchEvent {
   id       String         @id @default(cuid())
   matchId  String
   match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
   playerId String?
   player   Player?        @relation(fields: [playerId], references: [id])
+  staffId  String?
+  staff    Staff?         @relation(fields: [staffId], references: [id])
   type     MatchEventType
+  side     MatchEventSide @default(HOME)
   minute   Int
   notes    String?
 }
