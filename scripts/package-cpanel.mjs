@@ -12,6 +12,9 @@ const privateArtifactDirectories = new Set([".storage", ".git", ".wrangler", "sc
 if (!fs.existsSync(standaloneServer)) {
   throw new Error("Missing .next/standalone/server.js. Run `npm run build:cpanel` first.");
 }
+if (!fs.existsSync(path.join(standaloneRoot, "node_modules", ".prisma", "client", "query_compiler_bg.wasm"))) {
+  throw new Error("Missing Prisma WASM runtime. Run `npm run build:cpanel` before packaging.");
+}
 
 // The standalone server has its own traced node_modules and Next.js runtime.
 // Include only that runtime plus the tiny Passenger entry point: never ship

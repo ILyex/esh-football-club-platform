@@ -36,6 +36,14 @@ if not exist ".next\standalone\.next\static\css\*.css" (
   if errorlevel 1 goto :failed
 )
 
+REM Prisma's query compiler is required for every database operation. Rebuild
+REM automatically if an older standalone bundle does not contain its WASM file.
+if not exist ".next\standalone\node_modules\.prisma\client\query_compiler_bg.wasm" (
+  echo Refreshing the database runtime files...
+  call npm run build:cpanel
+  if errorlevel 1 goto :failed
+)
+
 REM Keep AI and FAF local. Ollama is optional; the platform still starts safely if it is offline.
 where ollama >nul 2>&1
 if %ERRORLEVEL% EQU 0 (

@@ -31,4 +31,9 @@ if (fs.existsSync(prismaRuntimeSource)) {
   fs.cpSync(prismaRuntimeSource, prismaRuntimeTarget, { recursive: true, force: true });
 }
 
+const prismaWasm = path.join(prismaRuntimeTarget, "query_compiler_bg.wasm");
+if (!fs.existsSync(prismaWasm)) {
+  throw new Error("Prisma WASM query compiler is missing from the cPanel runtime bundle.");
+}
+
 console.log("Prepared .next/standalone for cPanel (server, static assets, and public files).");
