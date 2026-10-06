@@ -75,6 +75,8 @@ REM instance.
 start "" "http://localhost:3000/ar/login"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw).Trim() | Set-Content -LiteralPath '%SERVER_BUILD_FILE%' -NoNewline"
 
+REM Start the durable background worker silently when the full source package
+REM is present. Reuse an existing worker so repeated clicks stay lightweight.
 echo Starting the platform...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 90;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 2;if($r.StatusCode -eq 200){exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
 if errorlevel 1 goto :failed
