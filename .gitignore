@@ -11,6 +11,7 @@ static/wasm/
 .turbo/
 out/
 build/
+/release/
 coverage/
 next-env.d.ts
 *.tsbuildinfo

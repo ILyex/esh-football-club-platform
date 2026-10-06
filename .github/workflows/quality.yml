@@ -42,3 +42,14 @@ jobs:
         run: npm audit --audit-level=moderate
       - name: Build and prepare cPanel production bundle
         run: npm run build:cpanel
+      - name: Package cPanel runtime
+        if: github.event_name != 'pull_request'
+        run: npm run package:cpanel
+      - name: Upload cPanel runtime artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: esh-cpanel-${{ github.sha }}
+          path: release/cpanel
+          if-no-files-found: error
+          retention-days: 30

@@ -1,4 +1,5 @@
 import "server-only";
+import path from "node:path";
 
 // ============================================================================
 // PHASE 13 — PRODUCTION ENVIRONMENT VALIDATOR & FAIL-FAST AUDIT
@@ -63,6 +64,11 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
     }
   }
 
+  const poolMax = env.DATABASE_POOL_MAX?.trim();
+  if (poolMax && (!/^\d+$/.test(poolMax) || Number(poolMax) < 1 || Number(poolMax) > 20)) {
+    issues.push("DATABASE_POOL_MAX must be an integer between 1 and 20 per application process.");
+  }
+
   // 3. Background Jobs / Cron Secret Invariant
   const cronSecret = env.CRON_SECRET?.trim();
   if (isProduction && !cronSecret) {
@@ -71,24 +77,59 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
     warnings.push("CRON_SECRET has less than 16 characters; consider using a longer random secret.");
   }
 
+  // Auth.js and middleware need a public origin for redirects and callbacks.
+  // Reject localhost in production so cPanel/Passenger cannot redirect visitors
+  // back to an operator's private machine or an internal app port.
+  const publicAuthUrl = (env.AUTH_URL || env.NEXTAUTH_URL)?.trim();
+  if (isProduction && !publicAuthUrl) {
+    issues.push("AUTH_URL (or NEXTAUTH_URL) must contain the public HTTPS origin in production.");
+  } else if (isProduction && publicAuthUrl) {
+    try {
+      const parsed = new URL(publicAuthUrl);
+      const localHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1" || parsed.hostname.endsWith(".localhost");
+      if (parsed.protocol !== "https:" || localHost || parsed.username || parsed.password) {
+        issues.push("AUTH_URL (or NEXTAUTH_URL) must be a public HTTPS origin without credentials.");
+      }
+    } catch {
+      issues.push("AUTH_URL (or NEXTAUTH_URL) must be a valid public HTTPS URL.");
+    }
+  }
+
   // 4. Object Storage Invariant (Private vs Public Bucket Separation)
   const privateBucket = env.STORAGE_PRIVATE_BUCKET?.trim();
   const publicBucket = env.STORAGE_PUBLIC_BUCKET?.trim();
   const storageAccessKey = env.STORAGE_ACCESS_KEY_ID?.trim();
   const storageSecretKey = env.STORAGE_SECRET_ACCESS_KEY?.trim();
   const storageEndpoint = env.STORAGE_ENDPOINT?.trim();
+  const storageDriver = env.STORAGE_DRIVER?.trim().toLowerCase() || "s3";
+  const localStorageRoot = env.STORAGE_LOCAL_ROOT?.trim();
+  if (storageDriver !== "s3" && storageDriver !== "local") {
+    issues.push("STORAGE_DRIVER must be either 's3' or 'local'.");
+  }
   if (privateBucket && publicBucket && privateBucket === publicBucket) {
     issues.push("STORAGE_PRIVATE_BUCKET and STORAGE_PUBLIC_BUCKET must NOT be the same bucket (isolation violation).");
   }
   if (isProduction) {
-    if (!privateBucket) {
-      issues.push("STORAGE_PRIVATE_BUCKET is strictly required in production for secure private document storage.");
-    }
-    if (!publicBucket) {
-      issues.push("STORAGE_PUBLIC_BUCKET is strictly required in production for public media storage.");
-    }
-    if ((privateBucket || publicBucket) && (!storageAccessKey || !storageSecretKey || !storageEndpoint)) {
-      issues.push("STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, and STORAGE_ENDPOINT are required when production object storage is configured.");
+    if (storageDriver === "local") {
+      if (!localStorageRoot || !path.isAbsolute(localStorageRoot)) {
+        issues.push("STORAGE_LOCAL_ROOT must be an absolute persistent directory when local storage is used in production.");
+      } else {
+        const normalizedRoot = path.resolve(localStorageRoot).replace(/\\/g, "/").toLowerCase();
+        if (/(^|\/)public_html(\/|$)/.test(normalizedRoot)) {
+          issues.push("STORAGE_LOCAL_ROOT must be outside public_html to prevent direct access to private documents.");
+        }
+        warnings.push("Local file storage is tied to one server and must be included in off-server backups.");
+      }
+    } else {
+      if (!privateBucket) {
+        issues.push("STORAGE_PRIVATE_BUCKET is required in production for secure private document storage.");
+      }
+      if (!publicBucket) {
+        issues.push("STORAGE_PUBLIC_BUCKET is required in production for public media storage.");
+      }
+      if ((privateBucket || publicBucket) && (!storageAccessKey || !storageSecretKey || !storageEndpoint)) {
+        issues.push("STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, and STORAGE_ENDPOINT are required when S3 storage is configured.");
+      }
     }
   } else {
     if (!privateBucket) {

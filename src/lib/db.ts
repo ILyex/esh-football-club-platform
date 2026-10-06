@@ -11,6 +11,26 @@ function prismaLogLevels(): ("warn" | "error")[] {
   return process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"];
 }
 
+function nodePoolOptions() {
+  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "5", 10);
+  // Keep each Node process conservative by default. On shared cPanel hosting,
+  // Passenger may run more than one process, so total connections are
+  // DATABASE_POOL_MAX × process count. Cap the setting to avoid accidental
+  // exhaustion of a small managed PostgreSQL plan.
+  const max = Number.isInteger(configuredMax) && configuredMax >= 1
+    ? Math.min(configuredMax, 20)
+    : 5;
+
+  return {
+    connectionString: process.env.DATABASE_URL,
+    max,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000
+  };
+}
+
 async function getLocalClient(): Promise<PrismaClient> {
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
   localClient ??= Promise.all([
@@ -20,7 +40,7 @@ async function getLocalClient(): Promise<PrismaClient> {
   ]).then(([{ PrismaClient: Client }, { PrismaPg }, { default: pg }]) => {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL is required for the PostgreSQL adapter.");
-    const pool = new pg.Pool({ connectionString, max: 5 });
+    const pool = new pg.Pool({ ...nodePoolOptions(), connectionString });
     const client = new Client({ adapter: new PrismaPg(pool), log: prismaLogLevels() });
     if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;
     return client;
