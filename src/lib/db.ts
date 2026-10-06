@@ -50,6 +50,15 @@ async function getLocalClient(): Promise<PrismaClient> {
 
 async function getClient(): Promise<PrismaClient> {
   const isDevelopment = process.env.NODE_ENV !== "production";
+
+  // A standalone Node/cPanel process can contain OpenNext preview artefacts
+  // from a previous Cloudflare build. Never ask for a Worker request context
+  // in that runtime; use the regular PostgreSQL adapter instead.
+  const isNodeRuntime = process.release?.name === "node";
+  if (isNodeRuntime && process.env.DEPLOY_TARGET !== "cloudflare") {
+    return getLocalClient();
+  }
+
   let context: { env: CloudflareEnv; ctx: object } | undefined;
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");

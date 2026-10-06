@@ -6,6 +6,11 @@ set "ROOT=%~dp0"
 cd /d "%ROOT%"
 title ESH Football Platform - Local Administration
 
+REM Force the standalone launcher to use the Node/Prisma adapter. A previous
+REM Cloudflare preview can leave OpenNext context files in the build folder;
+REM this flag prevents the local server from looking for Worker-only secrets.
+set "DEPLOY_TARGET=node"
+
 REM If the app is already running, reuse it and open the login page.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if($c){Start-Process 'http://localhost:3000/ar/login'; exit 0}; exit 1"
 if %ERRORLEVEL% EQU 0 goto :done
