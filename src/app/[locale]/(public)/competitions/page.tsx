@@ -48,6 +48,22 @@ export default async function PublicCompetitionsPage({
   const formattedCompetitions: CompetitionHubData[] = dbCompetitions.map((c) => {
     const cat = c.team?.category || "SENIOR";
     const displayData = getCompetitionDisplayData(c.standingsData, c.bracketData);
+    const localizedStandings = isAr ? displayData.standings : displayData.standings.map((row) => ({
+      ...row,
+      teamName: frenchPublicText(row.teamName, "Adversaire")
+    }));
+    const localizedBracket = isAr ? displayData.bracket : {
+      rounds: displayData.bracket.rounds.map((round) => ({
+        ...round,
+        labelFr: frenchPublicText(round.labelFr, "Tour"),
+        matches: round.matches.map((match) => ({
+          ...match,
+          homeTeam: { ...match.homeTeam, name: frenchPublicText(match.homeTeam.name, match.homeTeam.isOurClub ? "ESH Sidi Hosni" : "Adversaire") },
+          awayTeam: { ...match.awayTeam, name: frenchPublicText(match.awayTeam.name, match.awayTeam.isOurClub ? "ESH Sidi Hosni" : "Adversaire") },
+          notes: frenchPublicText(match.notes, "")
+        }))
+      }))
+    };
     return {
       id: c.id,
       name: isAr ? c.name : frenchPublicText(c.name, "Compétition officielle"),
@@ -61,7 +77,13 @@ export default async function PublicCompetitionsPage({
       categoryLabelFr: OFFICIAL_CATEGORY_NAMES[cat]?.fr || cat,
       status: c.status,
       ...displayData,
-      matches: c.matches
+      standings: localizedStandings,
+      bracket: localizedBracket,
+      matches: c.matches.map((match) => isAr ? match : ({
+        ...match,
+        homeTeamName: frenchPublicText(match.homeTeamName, "Adversaire"),
+        awayTeamName: frenchPublicText(match.awayTeamName, "Adversaire")
+      }))
     };
   });
 
@@ -86,7 +108,11 @@ export default async function PublicCompetitionsPage({
       {/* Main Public Competitions Hub (Tabs for League Standings & Algerian Cup Knockout Bracket) */}
       <CompetitionsHub
         competitions={formattedCompetitions}
-        seasons={seasons.map((s) => ({ id: s.id, label: s.label, isCurrent: s.isCurrent }))}
+        seasons={seasons.map((s) => ({
+          id: s.id,
+          label: isAr ? s.label : frenchPublicText(s.label, "Saison"),
+          isCurrent: s.isCurrent
+        }))}
         currentSeasonId={currentSeason?.id ?? ""}
         locale={locale}
         canManage={false}

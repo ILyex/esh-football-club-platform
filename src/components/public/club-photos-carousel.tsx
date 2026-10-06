@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowLeft
 } from "lucide-react";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export interface ClubPhotoItem {
   id: string;
@@ -44,6 +45,8 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
   }
 
   const currentPhoto = orderedPhotos[currentIndex]!;
+  const photoCaption = isAr ? currentPhoto.caption : frenchPublicText(currentPhoto.caption, "Photo du club");
+  const albumName = isAr ? currentPhoto.albumName : frenchPublicText(currentPhoto.albumName, "");
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs flex flex-col justify-between group">
@@ -71,7 +74,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
         <img
           key={currentPhoto.id}
           src={currentPhoto.url}
-          alt={currentPhoto.caption || (isAr ? "صورة من النادي" : "Photo du club")}
+          alt={photoCaption || (isAr ? "صورة من النادي" : "Photo du club")}
           loading="lazy"
           decoding="async"
           className="h-full w-full object-cover object-center transition-all duration-700 ease-out scale-100 group-hover:scale-105 animate-in fade-in zoom-in-95"
@@ -82,13 +85,13 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
 
         {/* Caption & Album Title Overlay */}
         <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 text-white z-10 flex flex-col justify-end">
-          {currentPhoto.albumName && (
+          {albumName && (
             <span className="inline-block rounded-md bg-club-primary/80 backdrop-blur-xs px-2 py-0.5 text-[10px] font-black uppercase tracking-wider mb-1.5 w-fit">
-              {currentPhoto.albumName}
+              {albumName}
             </span>
           )}
           <p className="text-xs sm:text-sm font-bold text-white drop-shadow-md line-clamp-2 leading-relaxed">
-            {currentPhoto.caption || (isAr ? "نادي أمل سيدي حسني" : "Espoir Sidi Hosni")}
+            {photoCaption || (isAr ? "نادي أمل سيدي حسني" : "Espoir Sidi Hosni")}
           </p>
         </div>
 

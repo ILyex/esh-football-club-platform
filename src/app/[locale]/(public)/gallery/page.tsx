@@ -4,6 +4,7 @@ import { Image as ImageIcon, Calendar, Play, Video } from "lucide-react";
 import { getPublicAlbums } from "@/lib/public/gallery";
 import { isVideoUrl } from "@/lib/media-utils";
 import { GalleryImage } from "@/components/public/gallery-image";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicGalleryPage({
   params
@@ -37,6 +38,8 @@ export default async function PublicGalleryPage({
         {albums.length > 0 ? (
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {albums.map((album) => {
+              const albumName = locale === "ar" ? album.name : frenchPublicText(album.name, "Album photo");
+              const albumDescription = locale === "ar" ? album.description : frenchPublicText(album.description, "");
               const formattedDate = new Intl.DateTimeFormat(locale, {
                 day: "numeric",
                 month: "short",
@@ -63,7 +66,7 @@ export default async function PublicGalleryPage({
                       ) : (
                         <GalleryImage
                           src={album.coverImageUrl}
-                          alt={album.name}
+                          alt={albumName}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       )
@@ -91,12 +94,12 @@ export default async function PublicGalleryPage({
                       </div>
 
                       <h2 className="mt-2 text-lg font-bold text-foreground transition-colors group-hover:text-club-primary">
-                        {album.name}
+                        {albumName}
                       </h2>
 
-                      {album.description && (
+                      {albumDescription && (
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          {album.description}
+                          {albumDescription}
                         </p>
                       )}
                     </div>

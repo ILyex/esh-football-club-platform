@@ -2,6 +2,7 @@ import Link from "next/link";
 import { User } from "lucide-react";
 import { PublicPlayerItem } from "@/lib/public/teams";
 import { getPlayerDisplayName } from "@/lib/utils";
+import { frenchPublicPersonName, frenchPublicText } from "@/lib/public/locale-text";
 
 interface PlayerCardProps {
   player: PublicPlayerItem;
@@ -70,10 +71,10 @@ export function PlayerCard({
       <div className="flex flex-1 flex-col justify-between p-4">
         <div>
           <h3 className="text-base font-bold text-foreground group-hover:text-club-primary transition-colors">
-            {getPlayerDisplayName(player, locale)}
+            {locale === "ar" ? getPlayerDisplayName(player, locale) : frenchPublicPersonName(player)}
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {player.nationality}
+            {locale === "ar" ? player.nationality : frenchPublicText(player.nationality, "Algérie")}
           </p>
         </div>
 

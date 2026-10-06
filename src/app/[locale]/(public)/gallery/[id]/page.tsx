@@ -6,6 +6,7 @@ import { getPublicAlbumDetail } from "@/lib/public/gallery";
 import { ClubVideoPlayer } from "@/components/shared/club-video-player";
 import { isVideoUrl } from "@/lib/media-utils";
 import { GalleryImage } from "@/components/public/gallery-image";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicAlbumDetailPage({
   params
@@ -25,6 +26,8 @@ export default async function PublicAlbumDetailPage({
   if (!album) {
     notFound();
   }
+  const albumName = locale === "ar" ? album.name : frenchPublicText(album.name, "Album photo");
+  const albumDescription = locale === "ar" ? album.description : frenchPublicText(album.description, "");
 
   const formattedDate = new Intl.DateTimeFormat(locale, {
     day: "numeric",
@@ -41,7 +44,7 @@ export default async function PublicAlbumDetailPage({
         </Link>
         <BreadcrumbChevron className="h-3.5 w-3.5" />
         <span className="font-semibold text-foreground truncate max-w-xs">
-          {album.name}
+          {albumName}
         </span>
       </nav>
 
@@ -57,12 +60,12 @@ export default async function PublicAlbumDetailPage({
         </div>
 
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {album.name}
+          {albumName}
         </h1>
 
-        {album.description && (
+        {albumDescription && (
           <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-3xl">
-            {album.description}
+            {albumDescription}
           </p>
         )}
       </div>
@@ -82,21 +85,21 @@ export default async function PublicAlbumDetailPage({
                     {isVideo ? (
                       <ClubVideoPlayer
                         src={photo.url}
-                        title={photo.caption || album.name}
+                        title={locale === "ar" ? (photo.caption || albumName) : frenchPublicText(photo.caption, albumName)}
                         aspectRatio="4/3"
                       />
                     ) : (
                       <GalleryImage
                         src={photo.url}
-                        alt={photo.caption || album.name}
+                        alt={locale === "ar" ? (photo.caption || albumName) : frenchPublicText(photo.caption, albumName)}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     )}
                   </div>
-                  {photo.caption && (
+                  {(locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")) && (
                     <div className="p-3 bg-card border-t border-border/60">
                       <p className="text-xs text-muted-foreground line-clamp-2">
-                        {photo.caption}
+                        {locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")}
                       </p>
                     </div>
                   )}

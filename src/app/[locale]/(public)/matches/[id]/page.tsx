@@ -5,6 +5,7 @@ import { Trophy, Calendar, MapPin, User, ChevronRight, ChevronLeft, Shield } fro
 import { getPublicMatchDetail } from "@/lib/public/matches";
 import { TacticalPitch } from "@/components/football/tactical-pitch";
 import { cn } from "@/lib/utils";
+import { frenchPublicCategory, frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicMatchDetailPage({
   params
@@ -37,6 +38,8 @@ export default async function PublicMatchDetailPage({
   }).format(match.matchDate);
 
   const statusLabel = tPublic(`matchStatus.${match.status}`);
+  const homeTeamName = locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "ESH Sidi Hosni" : "Adversaire");
+  const awayTeamName = locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "ESH Sidi Hosni");
 
   const statusTone =
     match.status === "LIVE"
@@ -60,7 +63,7 @@ export default async function PublicMatchDetailPage({
         </Link>
         <BreadcrumbChevron className="h-3.5 w-3.5" />
         <span className="font-semibold text-foreground">
-          {match.homeTeamName} vs {match.awayTeamName}
+          {homeTeamName} vs {awayTeamName}
         </span>
       </nav>
 
@@ -70,10 +73,10 @@ export default async function PublicMatchDetailPage({
         <div className="flex flex-wrap items-center justify-between border-b border-border/80 bg-muted/40 px-6 py-3 text-xs">
           <div className="flex items-center gap-2 font-semibold text-foreground">
             <Trophy className="h-4 w-4 text-club-primary" />
-            <span>{match.competitionName}</span>
+            <span>{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
             {match.teamCategory && (
               <span className="rounded-md bg-club-primary/10 px-2 py-0.5 font-mono text-[11px] text-club-primary">
-                {match.teamCategory}
+                {locale === "ar" ? match.teamCategory : frenchPublicCategory(match.teamCategory)}
               </span>
             )}
           </div>
@@ -91,7 +94,7 @@ export default async function PublicMatchDetailPage({
                 <Shield className="h-8 w-8 text-club-primary sm:h-10 sm:w-10" />
               </div>
               <h2 className="mt-3 text-lg font-extrabold text-foreground sm:text-2xl">
-                {match.homeTeamName}
+                {homeTeamName}
               </h2>
               {match.isHomeFixture && (
                 <span className="mt-1 rounded-md bg-club-primary/10 px-2 py-0.5 text-[11px] font-semibold text-club-primary">
@@ -131,7 +134,7 @@ export default async function PublicMatchDetailPage({
                 <Shield className="h-8 w-8 text-muted-foreground/60 sm:h-10 sm:w-10" />
               </div>
               <h2 className="mt-3 text-lg font-extrabold text-foreground sm:text-2xl">
-                {match.awayTeamName}
+                {awayTeamName}
               </h2>
               {!match.isHomeFixture && (
                 <span className="mt-1 rounded-md bg-club-primary/10 px-2 py-0.5 text-[11px] font-semibold text-club-primary">
@@ -151,14 +154,14 @@ export default async function PublicMatchDetailPage({
           {match.stadium && (
             <div className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-club-primary" />
-              <span>{match.stadium}</span>
+              <span>{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade Municipal Sidi Hosni")}</span>
             </div>
           )}
           {match.refereeName && (
             <div className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-club-primary" />
               <span>
-                {tPublic("matches.referee")}: {match.refereeName}
+                {tPublic("matches.referee")}: {locale === "ar" ? match.refereeName : frenchPublicText(match.refereeName, "Non communiqué")}
               </span>
             </div>
           )}
@@ -166,13 +169,13 @@ export default async function PublicMatchDetailPage({
       </div>
 
       {/* Match Report Summary */}
-      {match.matchReport && (
+      {(locale === "ar" ? match.matchReport : frenchPublicText(match.matchReport, "")) && (
         <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-xs">
           <h3 className="text-lg font-bold text-foreground mb-3">
             {locale === "ar" ? "تقرير المباراة" : "Résumé du match"}
           </h3>
           <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-            {match.matchReport}
+            {locale === "ar" ? match.matchReport : frenchPublicText(match.matchReport, "")}
           </p>
         </div>
       )}
@@ -194,12 +197,12 @@ export default async function PublicMatchDetailPage({
                   {event.minute}&apos;
                 </span>
                 <div className="flex-1">
-                  <span className="font-bold text-foreground">{event.playerName}</span>
+                  <span className="font-bold text-foreground">{locale === "ar" ? event.playerName : frenchPublicText(event.playerName, "Joueur")}</span>
                   <span className="ms-2 text-xs font-semibold text-muted-foreground">
                     ({eventTypeLabel(event.type)})
                   </span>
-                  {event.notes && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{event.notes}</p>
+                  {(locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{locale === "ar" ? event.notes : frenchPublicText(event.notes, "")}</p>
                   )}
                 </div>
               </div>
@@ -223,7 +226,7 @@ export default async function PublicMatchDetailPage({
               <div className="lg:col-span-5 rounded-2xl border border-border bg-card p-4 shadow-xs">
                 <TacticalPitch
                   startingLineup={match.startingLineup}
-                  teamName={match.isHomeFixture ? match.homeTeamName : match.awayTeamName}
+                  teamName={match.isHomeFixture ? homeTeamName : awayTeamName}
                   formation="4-3-3"
                   isClubTeam={true}
                   locale={locale}
@@ -251,15 +254,15 @@ export default async function PublicMatchDetailPage({
                               href={`/${locale}/team/${(match.teamCategory || "senior").toLowerCase()}/players/${player.playerSlug}`}
                               className="font-medium text-foreground hover:text-club-primary transition-colors"
                             >
-                              {player.playerName}
+                              {locale === "ar" ? player.playerName : frenchPublicText(player.playerName, "Joueur")}
                             </Link>
                           ) : (
-                            <span className="font-medium text-foreground">{player.playerName}</span>
+                            <span className="font-medium text-foreground">{locale === "ar" ? player.playerName : frenchPublicText(player.playerName, "Joueur")}</span>
                           )}
                         </div>
                         {player.position && (
                           <span className="text-xs font-semibold text-muted-foreground">
-                            {player.position}
+                          {locale === "ar" ? player.position : frenchPublicText(player.position, "Poste non communiqué")}
                           </span>
                         )}
                       </li>
@@ -290,15 +293,15 @@ export default async function PublicMatchDetailPage({
                           href={`/${locale}/team/${(match.teamCategory || "senior").toLowerCase()}/players/${player.playerSlug}`}
                           className="font-medium text-foreground hover:text-club-primary transition-colors"
                         >
-                          {player.playerName}
+                          {locale === "ar" ? player.playerName : frenchPublicText(player.playerName, "Joueur")}
                         </Link>
                       ) : (
-                        <span className="font-medium text-foreground">{player.playerName}</span>
+                        <span className="font-medium text-foreground">{locale === "ar" ? player.playerName : frenchPublicText(player.playerName, "Joueur")}</span>
                       )}
                     </div>
                     {player.position && (
                       <span className="text-xs font-semibold text-muted-foreground">
-                        {player.position}
+                      {locale === "ar" ? player.position : frenchPublicText(player.position, "Poste non communiqué")}
                       </span>
                     )}
                   </li>

@@ -5,6 +5,7 @@ import { Calendar, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Globe } fro
 import { getPublicNewsArticle } from "@/lib/public/news";
 import { ClubVideoPlayer } from "@/components/shared/club-video-player";
 import { isVideoUrl } from "@/lib/media-utils";
+import { frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicNewsDetailPage({
   params
@@ -52,7 +53,7 @@ export default async function PublicNewsDetailPage({
           <div className="flex items-center gap-2">
             {article.category && (
               <span className="rounded-md bg-club-primary/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-club-primary">
-                {article.category}
+                {locale === "ar" ? article.category : frenchPublicText(article.category, "Club")}
               </span>
             )}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

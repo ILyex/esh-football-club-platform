@@ -407,8 +407,8 @@ export default async function HomePage({
               photos={clubMedia.map((m) => ({
                 id: m.id,
                 url: m.url,
-                caption: m.caption,
-                albumName: m.album?.name
+                caption: locale === "ar" ? m.caption : frenchPublicText(m.caption, "Photo du club"),
+                albumName: locale === "ar" ? m.album?.name : frenchPublicText(m.album?.name, "")
               }))}
               locale={locale}
             />
@@ -462,7 +462,9 @@ export default async function HomePage({
                           <img src="/branding/esh-logo-32.png" alt="" loading="lazy" decoding="async" className="h-6 w-6 object-contain shrink-0" />
                           <div className="min-w-0">
                             <p className="text-xs font-bold text-foreground group-hover:text-club-primary transition-colors truncate">
-                              {res.isHomeFixture ? res.awayTeamName : res.homeTeamName}
+                              {locale === "ar"
+                                ? (res.isHomeFixture ? res.awayTeamName : res.homeTeamName)
+                                : frenchPublicText(res.isHomeFixture ? res.awayTeamName : res.homeTeamName, "Adversaire")}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
                               {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(

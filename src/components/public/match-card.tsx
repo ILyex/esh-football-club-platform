@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, Trophy, Shield } from "lucide-react";
 import { PublicMatchItem } from "@/lib/public/matches";
+import { frenchPublicCategory, frenchPublicText } from "@/lib/public/locale-text";
 
 interface MatchCardProps {
   match: PublicMatchItem;
@@ -59,10 +60,10 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
       <div className="flex items-center justify-between border-b border-border/60 pb-3 text-xs">
         <div className="flex items-center gap-1.5 font-medium text-muted-foreground truncate">
           <Trophy className="h-3.5 w-3.5 shrink-0 text-club-secondary" />
-          <span className="truncate">{match.competitionName}</span>
+          <span className="truncate">{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
           {match.teamCategory && (
             <span className="ms-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
-              {match.teamCategory}
+              {locale === "ar" ? match.teamCategory : frenchPublicCategory(match.teamCategory)}
             </span>
           )}
         </div>
@@ -79,7 +80,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Shield className="h-6 w-6 text-club-primary" />
           </div>
           <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {match.homeTeamName}
+            {locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "ESH Sidi Hosni" : "Adversaire")}
           </span>
         </div>
 
@@ -110,7 +111,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Shield className="h-6 w-6 text-muted-foreground" />
           </div>
           <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {match.awayTeamName}
+            {locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "ESH Sidi Hosni")}
           </span>
         </div>
       </div>
@@ -125,7 +126,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
           {match.stadium && (
             <div className="hidden items-center gap-1 sm:flex truncate">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{match.stadium}</span>
+              <span className="truncate">{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade Municipal Sidi Hosni")}</span>
             </div>
           )}
         </div>

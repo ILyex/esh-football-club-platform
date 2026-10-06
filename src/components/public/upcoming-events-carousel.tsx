@@ -209,8 +209,9 @@ export function UpcomingMatchesCarousel({
                   <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-muted-foreground bg-zinc-100 dark:bg-muted/60 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-border">
                     <MapPin className="h-3.5 w-3.5 text-club-primary" />
                     <span>
-                      {m.stadium ||
-                        (locale === "ar" ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni")}
+                      {locale === "ar"
+                        ? (m.stadium || "الملعب البلدي بسيدي حسني")
+                        : frenchPublicText(m.stadium, "Stade Municipal Sidi Hosni")}
                     </span>
                   </div>
                 </div>

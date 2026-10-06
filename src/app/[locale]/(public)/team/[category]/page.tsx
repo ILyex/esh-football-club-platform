@@ -162,10 +162,12 @@ export default async function TeamCategoryPage({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-foreground">
-                    {member.firstName} {member.lastName}
+                    {locale === "ar"
+                      ? `${member.firstName} ${member.lastName}`
+                      : frenchPublicText(`${member.firstName} ${member.lastName}`, "Membre du staff")}
                   </h3>
                   <p className="text-xs font-semibold text-club-primary">
-                    {tStaff(`roles.${member.role}` as any) || member.role}
+                    {tStaff(`roles.${member.role}` as any) || (locale === "ar" ? member.role : frenchPublicText(member.role, "Staff technique"))}
                   </p>
                 </div>
               </div>

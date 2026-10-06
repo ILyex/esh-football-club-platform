@@ -5,6 +5,7 @@ import { TeamCategory } from "@prisma/client";
 import { getPublicMatches } from "@/lib/public/matches";
 import { getPublicTeams } from "@/lib/public/teams";
 import { MatchCard } from "@/components/public/match-card";
+import { frenchPublicCategory } from "@/lib/public/locale-text";
 
 export default async function PublicMatchesPage({
   params,
@@ -119,7 +120,7 @@ export default async function PublicMatchesPage({
                       : "bg-card border border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {t.name}
+                  {locale === "ar" ? t.name : frenchPublicCategory(t.category)}
                 </Link>
               );
             })}

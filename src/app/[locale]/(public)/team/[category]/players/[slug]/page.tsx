@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { User, ChevronRight, ChevronLeft, Trophy, Calendar, Flag, Activity } from "lucide-react";
 import { getPublicPlayerBySlug } from "@/lib/public/teams";
 import { getPlayerDisplayName } from "@/lib/utils";
+import { frenchPublicPersonName, frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicPlayerProfilePage({
   params
@@ -30,6 +31,7 @@ export default async function PublicPlayerProfilePage({
   }).format(player.dateOfBirth);
 
   const positionLabel = tPublic(`positions.${player.position}`);
+  const playerName = locale === "ar" ? getPlayerDisplayName(player, locale) : frenchPublicPersonName(player);
   const footLabel = player.preferredFoot
     ? tPublic(`foot.${player.preferredFoot}`) || player.preferredFoot
     : null;
@@ -50,7 +52,7 @@ export default async function PublicPlayerProfilePage({
         </Link>
         <BreadcrumbChevron className="h-3.5 w-3.5" />
         <span className="font-semibold text-foreground">
-          {getPlayerDisplayName(player, locale)}
+          {playerName}
         </span>
       </nav>
 
@@ -63,7 +65,7 @@ export default async function PublicPlayerProfilePage({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={player.photoUrl}
-                alt={getPlayerDisplayName(player, locale)}
+                alt={playerName}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -80,7 +82,7 @@ export default async function PublicPlayerProfilePage({
           </div>
 
           <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-foreground">
-            {getPlayerDisplayName(player, locale)}
+            {playerName}
           </h1>
 
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-club-primary/10 px-3 py-1 text-xs font-bold text-club-primary">
@@ -119,7 +121,7 @@ export default async function PublicPlayerProfilePage({
                 </dt>
                 <dd className="mt-1 text-sm font-bold text-foreground flex items-center gap-1.5">
                   <Flag className="h-3.5 w-3.5 text-club-primary" />
-                  <span>{player.nationality}</span>
+                  <span>{locale === "ar" ? player.nationality : frenchPublicText(player.nationality, "Algérie")}</span>
                 </dd>
               </div>
 
@@ -163,7 +165,9 @@ export default async function PublicPlayerProfilePage({
                     {locale === "ar" ? "الفئة الحالية" : "Équipe actuelle"}
                   </dt>
                   <dd className="mt-1 text-sm font-bold text-foreground">
-                    {player.team.name} ({player.team.category})
+                    {locale === "ar"
+                      ? `${player.team.name} (${player.team.category})`
+                      : `${frenchPublicText(player.team.name, tPublic(`teams.categories.${player.team.category}`))} (${tPublic(`teams.categories.${player.team.category}`)})`}
                   </dd>
                 </div>
               )}
@@ -171,13 +175,13 @@ export default async function PublicPlayerProfilePage({
           </div>
 
           {/* Player Biography / Description */}
-          {player.biography && (
+          {(locale === "ar" ? player.biography : frenchPublicText(player.biography, "")) && (
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
               <h2 className="text-lg font-bold text-foreground mb-3">
                 {tPublic("player.bio")}
               </h2>
               <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                {player.biography}
+                {locale === "ar" ? player.biography : frenchPublicText(player.biography, "")}
               </p>
             </div>
           )}

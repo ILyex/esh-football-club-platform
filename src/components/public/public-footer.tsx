@@ -32,7 +32,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm">
                 {club.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={club.logoUrl} alt={club.name} className="h-full w-full object-cover" />
+                  <img src={club.logoUrl} alt={locale === "ar" ? club.name : "ESH Sidi Hosni"} className="h-full w-full object-cover" />
                 ) : (
                   <Shield className="h-6 w-6 text-club-primary" />
                 )}

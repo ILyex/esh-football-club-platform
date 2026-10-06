@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { hasArabicScript } from "./locale-text";
+import { frenchPublicText, hasArabicScript } from "./locale-text";
 
 // ============================================================================
 // PUBLIC NEWS & ARTICLES DATA ACCESS
@@ -93,7 +93,7 @@ export async function getPublicNewsList(
       title,
       excerpt,
       featuredImageUrl: article.featuredImageUrl,
-      category: article.category,
+      category: locale === "ar" ? article.category : frenchPublicText(article.category, "Club"),
       publishedAt: article.publishedAt || now,
       locale: translation.locale
     }];
@@ -114,6 +114,7 @@ export async function getPublicNewsArticle(slug: string, locale: string): Promis
   const translation = await db.newsTranslation.findFirst({
     where: {
       slug,
+      locale,
       news: {
         status: "PUBLISHED",
         publishedAt: { lte: now }
@@ -134,6 +135,7 @@ export async function getPublicNewsArticle(slug: string, locale: string): Promis
   });
 
   if (!translation) return null;
+  if (locale === "fr" && (hasArabicScript(translation.title) || hasArabicScript(translation.content))) return null;
 
   const otherLocale = locale === "ar" ? "fr" : "ar";
   const alternateTrans = translation.news.translations.find((t) => t.locale === otherLocale);
@@ -145,7 +147,7 @@ export async function getPublicNewsArticle(slug: string, locale: string): Promis
     content: translation.content,
     featuredImageUrl: translation.news.featuredImageUrl,
     imageUrls: translation.news.imageUrls || [],
-    category: translation.news.category,
+    category: locale === "ar" ? translation.news.category : frenchPublicText(translation.news.category, "Club"),
     publishedAt: translation.news.publishedAt || now,
     locale: translation.locale,
     alternateLocaleSlug: alternateTrans?.slug ?? null
