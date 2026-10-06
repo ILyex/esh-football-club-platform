@@ -20,7 +20,9 @@ const buildId = path.join(root, ".next", "BUILD_ID");
 if (fs.existsSync(buildId)) {
   fs.copyFileSync(buildId, path.join(internal, ".next", "BUILD_ID"));
 }
-const runtimeSource = fs.existsSync(path.join(root, "runtime")) ? path.join(root, "runtime") : path.join(previous, "runtime");
+const runtimeSource = fs.existsSync(path.join(root, "runtime", "node.exe"))
+  ? path.join(root, "runtime")
+  : path.join(previous, "runtime");
 if (fs.existsSync(runtimeSource)) fs.cpSync(runtimeSource, path.join(internal, "runtime"), { recursive: true });
 
 for (const name of [
