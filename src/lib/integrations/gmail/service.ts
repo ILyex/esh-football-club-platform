@@ -21,6 +21,7 @@ import type {
 import { writeAuditLog } from "@/lib/audit";
 import { dispatchNotification } from "@/lib/notifications/service";
 import { hasPermission, ForbiddenError, type SessionUser } from "@/lib/permissions";
+import { sanitizeEmailHtml } from "./sanitizer";
 
 // ============================================================================
 // PHASE 11 — ESH GMAIL SERVICE: DOMAIN BUSINESS LOGIC & RBAC ENFORCEMENT
@@ -349,7 +350,11 @@ export async function sendOfficialEmail(
   const { accessToken } = await getAuthorizedAccessToken();
   const client = getGmailClient();
 
-  const result = await client.sendEmail(accessToken, validated);
+  // Sanitize author-controlled HTML at the service boundary as well as when
+  // rendering received messages. This prevents unsafe markup from being sent
+  // to providers or retained by mock/test adapters.
+  const safeEmail = { ...validated, bodyHtml: sanitizeEmailHtml(validated.bodyHtml) };
+  const result = await client.sendEmail(accessToken, safeEmail);
 
   await writeAuditLog({
     userId: user.id,
@@ -382,7 +387,8 @@ export async function replyToOfficialEmail(
   const { accessToken } = await getAuthorizedAccessToken();
   const client = getGmailClient();
 
-  const result = await client.sendEmail(accessToken, validated);
+  const safeReply = { ...validated, bodyHtml: sanitizeEmailHtml(validated.bodyHtml) };
+  const result = await client.sendEmail(accessToken, safeReply);
 
   await writeAuditLog({
     userId: user.id,
