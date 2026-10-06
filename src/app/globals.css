@@ -41,6 +41,48 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sonner's rich-colour defaults follow the OS colour scheme, while the
+ * platform theme is user-controlled through the `dark` class. Keep every
+ * notification aligned with the active platform surface instead of showing
+ * a pale success card over the dark dashboard (or vice versa). */
+html.dark [data-sonner-toaster],
+html.dark [data-sonner-toaster][data-theme="light"] {
+  --normal-bg: hsl(var(--card));
+  --normal-border: hsl(var(--border));
+  --normal-text: hsl(var(--foreground));
+  --success-bg: hsl(145 35% 16%);
+  --success-border: hsl(145 45% 28%);
+  --success-text: hsl(145 70% 78%);
+  --info-bg: hsl(210 35% 16%);
+  --info-border: hsl(210 45% 28%);
+  --info-text: hsl(210 85% 78%);
+  --warning-bg: hsl(38 38% 16%);
+  --warning-border: hsl(38 48% 30%);
+  --warning-text: hsl(42 90% 78%);
+  --error-bg: hsl(0 35% 17%);
+  --error-border: hsl(0 48% 30%);
+  --error-text: hsl(0 90% 80%);
+}
+
+html:not(.dark) [data-sonner-toaster],
+html:not(.dark) [data-sonner-toaster][data-theme="dark"] {
+  --normal-bg: hsl(var(--card));
+  --normal-border: hsl(var(--border));
+  --normal-text: hsl(var(--foreground));
+  --success-bg: hsl(143 60% 95%);
+  --success-border: hsl(145 55% 82%);
+  --success-text: hsl(140 75% 25%);
+  --info-bg: hsl(208 70% 95%);
+  --info-border: hsl(210 60% 82%);
+  --info-text: hsl(210 75% 32%);
+  --warning-bg: hsl(49 80% 95%);
+  --warning-border: hsl(49 65% 80%);
+  --warning-text: hsl(31 80% 32%);
+  --error-bg: hsl(359 75% 96%);
+  --error-border: hsl(359 65% 84%);
+  --error-text: hsl(0 75% 36%);
+}
+
 /* Keep the viewport width constant while navigating between short and long dashboard pages. */
 html {
   scrollbar-gutter: stable;
