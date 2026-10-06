@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
@@ -41,7 +41,8 @@ import {
   X,
   Package,
   Timer,
-  Globe
+  Globe,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isDashboardNavHrefActive } from "@/lib/dashboard-navigation";
@@ -107,6 +108,15 @@ export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: str
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Clear the visual pending state as soon as the App Router commits the new
+  // route. This gives slower server-rendered sections immediate feedback
+  // without blocking or duplicating Next.js navigation.
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const isActive = (href: string) => isDashboardNavHrefActive(href, pathname, searchParams);
 
@@ -139,7 +149,11 @@ export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: str
                       key={item.href}
                       href={`/${locale}${item.href}`}
                       aria-current={active ? "page" : undefined}
-                      onClick={() => setMobileOpen(false)}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        startTransition(() => setPendingHref(item.href));
+                      }}
+                      aria-busy={isPending && pendingHref === item.href}
                       className={cn(
                         "group flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-start transition-all",
                         active
@@ -147,14 +161,16 @@ export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: str
                           : "text-foreground/80 hover:bg-muted hover:text-foreground dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
                       )}
                     >
-                      {Icon && (
+                      {isPending && pendingHref === item.href ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-current" aria-hidden="true" />
+                      ) : Icon ? (
                         <Icon
                           className={cn(
                             "h-4 w-4 shrink-0 transition-colors",
                             active ? "text-white" : "text-muted-foreground group-hover:text-foreground dark:text-zinc-400 dark:group-hover:text-white"
                           )}
                         />
-                      )}
+                      ) : null}
                       <span className="truncate">{t(item.labelKey as any)}</span>
                     </Link>
                   );
