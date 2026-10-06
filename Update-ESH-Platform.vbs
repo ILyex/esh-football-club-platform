@@ -7,7 +7,7 @@ root = fso.GetParentFolderName(WScript.ScriptFullName)
 scriptPath = fso.BuildPath(root, "Update-ESH-Platform.ps1")
 
 If Not fso.FileExists(scriptPath) Then
-  shell.Popup "ملف التحديث غير موجود داخل الحزمة.", 8, "منصة النادي الرياضي", 16
+  shell.Popup "The update file is missing from this package.", 8, "ESH Football Platform", 16
   WScript.Quit 1
 End If
 

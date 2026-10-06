@@ -21,23 +21,22 @@ If LCase(fso.GetAbsolutePathName(sourceRoot)) <> LCase(fso.GetAbsolutePathName(i
   Next
   For Each entry In sourceFolder.SubFolders
     destination = fso.BuildPath(installRoot, entry.Name)
-    If fso.FolderExists(destination) Then fso.DeleteFolder destination, True
-    fso.CreateFolder destination
-    copyExit = shell.Run("robocopy.exe """ & entry.Path & """ """ & destination & """ /E /IS /IT /R:2 /W:1 /NFL /NDL /NJH /NJS", 0, True)
+    If Not fso.FolderExists(destination) Then fso.CreateFolder destination
+    copyExit = shell.Run("robocopy.exe """ & entry.Path & """ """ & destination & """ /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS", 0, True)
     If copyExit > 7 Then
-      shell.Popup "تعذر نسخ ملفات المنصة. أعد فك الضغط في مجلد محلي ثم أعد المحاولة.", 8, "منصة النادي الرياضي", 16
+      shell.Popup "Platform files could not be copied. Extract the package to a local folder and try again.", 8, "ESH Football Platform", 16
       WScript.Quit 1
     End If
   Next
 End If
 
 If Not fso.FileExists(targetVbs) Then
-  shell.Popup "تعذر تثبيت ملفات المنصة. تأكد من فك الضغط كاملًا ثم أعد المحاولة.", 8, "منصة النادي الرياضي", 16
+  shell.Popup "Installation files are incomplete. Extract the full package and try again.", 8, "ESH Football Platform", 16
   WScript.Quit 1
 End If
 
 desktopPath = shell.SpecialFolders("Desktop")
-Set shortcut = shell.CreateShortcut(fso.BuildPath(desktopPath, "منصة النادي الرياضي.lnk"))
+Set shortcut = shell.CreateShortcut(fso.BuildPath(desktopPath, "ESH Football Platform.lnk"))
 shortcut.TargetPath = shell.ExpandEnvironmentStrings("%WINDIR%\System32\wscript.exe")
 shortcut.Arguments = """" & targetVbs & """"
 shortcut.WorkingDirectory = installRoot
@@ -45,8 +44,8 @@ Dim iconPath
 iconPath = fso.BuildPath(installRoot, ".next\standalone\public\branding\esh-logo.ico")
 If Not fso.FileExists(iconPath) Then iconPath = fso.BuildPath(installRoot, "public\branding\esh-logo.ico")
 If fso.FileExists(iconPath) Then shortcut.IconLocation = iconPath
-shortcut.Description = "تشغيل منصة إدارة النادي"
+shortcut.Description = "Launch ESH Football Platform"
 shortcut.Save
 
-shell.Popup "تم تثبيت المنصة بنجاح. استخدم اختصار «منصة النادي الرياضي» من سطح المكتب.", 6, "منصة النادي الرياضي", 64
+shell.Popup "Installation completed. Use the ESH Football Platform shortcut on the desktop.", 6, "ESH Football Platform", 64
 shell.Run shortcut.TargetPath & " " & shortcut.Arguments, 0, False

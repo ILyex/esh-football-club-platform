@@ -7,10 +7,10 @@ root = fso.GetParentFolderName(WScript.ScriptFullName)
 scriptPath = fso.BuildPath(root, "Setup-ESH-Local-AI.ps1")
 
 If Not fso.FileExists(scriptPath) Then
-  shell.Popup "ملف تجهيز الذكاء المحلي غير موجود.", 8, "منصة النادي الرياضي", 16
+  shell.Popup "The local AI setup file is missing.", 8, "ESH Football Platform", 16
   WScript.Quit 1
 End If
 
 command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ & scriptPath & """"
 shell.Run command, 1, True
-If Err.Number = 0 Then shell.Popup "اكتمل تجهيز الذكاء المحلي. يمكنك الآن تشغيل المنصة من الأيقونة.", 6, "منصة النادي الرياضي", 64
+If Err.Number = 0 Then shell.Popup "Local AI setup completed. You can now launch the platform.", 6, "ESH Football Platform", 64
