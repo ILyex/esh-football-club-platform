@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { KeyRound, Save, Trash2 } from "lucide-react";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
+import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -130,15 +131,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
           <label className="mb-1.5 block text-sm font-medium">
             {locale === "ar" ? "تعديل / تحديث الصورة الشخصية" : "Mettre à jour la photo"}
           </label>
-          <input
-            name="photo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="w-full text-xs file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer rounded-md border border-border bg-background p-1.5"
-          />
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {locale === "ar" ? "الصيغ المدعومة: PNG, JPG, WebP. الحجم الأقصى: 5 ميغابايت" : "Formats acceptés : PNG, JPG, WebP (max 5 Mo)"}
-          </p>
+          <AvatarUploadField locale={locale} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

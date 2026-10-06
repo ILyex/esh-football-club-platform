@@ -10,7 +10,8 @@ import {
   validateUploadedImage,
   generatePublicStorageKey,
   uploadPublicFile,
-  deletePublicFile
+  deletePublicFile,
+  isPublicStorageConfigured
 } from "@/lib/storage";
 
 async function extractUserPhoto(formData: FormData): Promise<string | undefined> {
@@ -18,6 +19,13 @@ async function extractUserPhoto(formData: FormData): Promise<string | undefined>
   if (!(file instanceof File) || file.size === 0) return undefined;
   const buffer = Buffer.from(await file.arrayBuffer());
   const { mime, ext } = await validateUploadedImage(buffer);
+  // Avatars remain online even before an S3 provider is configured: the
+  // browser compresses them first, then Neon stores the small data URL.
+  // When S3 is configured, keep using the scalable object-storage path.
+  if (!isPublicStorageConfigured()) {
+    if (buffer.byteLength > 700 * 1024) throw new Error("avatar_too_large");
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  }
   const key = generatePublicStorageKey("users", ext);
   return uploadPublicFile({ key, buffer, mimeType: mime });
 }
