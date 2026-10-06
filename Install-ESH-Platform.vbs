@@ -47,5 +47,6 @@ If fso.FileExists(iconPath) Then shortcut.IconLocation = iconPath
 shortcut.Description = "Launch ESH Football Platform"
 shortcut.Save
 
-shell.Popup "Installation completed. Use the ESH Football Platform shortcut on the desktop.", 6, "ESH Football Platform", 64
+'Installation succeeds silently and opens the platform immediately. The
+'desktop shortcut is used for every later launch.
 shell.Run shortcut.TargetPath & " " & shortcut.Arguments, 0, False
