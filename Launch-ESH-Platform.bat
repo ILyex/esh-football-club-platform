@@ -32,13 +32,12 @@ if not "%EXPECTED_BUILD%"=="" if "%EXPECTED_BUILD%"=="%SERVED_BUILD%" (
 REM A different build is ready, so replace only this project's app.js process.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '\bapp\.js\b' }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 500"
 
-if not exist "node_modules\.bin\next.cmd" (
-  echo Installing platform dependencies for the first run...
-  call npm ci
-  if errorlevel 1 goto :failed
-)
-
 if not exist ".next\standalone\server.js" (
+  if not exist "node_modules\.bin\next.cmd" (
+    echo Installing platform dependencies for the first run...
+    call npm ci
+    if errorlevel 1 goto :failed
+  )
   echo The local production bundle is missing. Preparing it now.
   call npm run build:cpanel
   if errorlevel 1 goto :failed
