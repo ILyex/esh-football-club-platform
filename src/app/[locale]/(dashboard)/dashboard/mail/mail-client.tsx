@@ -304,7 +304,7 @@ export function MailClient({
         setHasLoadError(false);
       } catch (err: any) {
         setHasLoadError(true);
-        toast.error(err.message || "Sync failed");
+        toast.error(err.message || t("syncFailed"));
       }
     });
   };

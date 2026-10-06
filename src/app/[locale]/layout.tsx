@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing, directionForLocale, type AppLocale } from "@/i18n/routing";
-import { Toaster } from "sonner";
+import { PlatformToaster } from "@/components/shared/platform-toaster";
 import "@/app/globals.css";
 
 export function generateStaticParams() {
@@ -52,7 +52,7 @@ export default async function LocaleLayout({
       <body>
         <NextIntlClientProvider messages={messages}>
           {children}
-          <Toaster position={dir === "rtl" ? "top-left" : "top-right"} richColors />
+          <PlatformToaster position={dir === "rtl" ? "top-left" : "top-right"} />
         </NextIntlClientProvider>
       </body>
     </html>
