@@ -24,6 +24,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset:handover": "tsx scripts/reset-for-handover.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "worker": "tsx scripts/worker.ts",
