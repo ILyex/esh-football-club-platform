@@ -46,6 +46,17 @@ for (const name of [".env", ".env.local"]) {
   if (fs.existsSync(source)) fs.copyFileSync(source, path.join(internal, name));
 }
 
+// Next's standalone server resolves env files from its own directory rather
+// than the package root. Put the same prepared club configuration there too;
+// otherwise Auth.js starts without AUTH_SECRET in the installed package.
+const standalonePackage = path.join(internal, ".next", "standalone");
+for (const name of [".env", ".env.local"]) {
+  const packagedEnv = path.join(internal, name);
+  if (fs.existsSync(packagedEnv)) {
+    fs.copyFileSync(packagedEnv, path.join(standalonePackage, name));
+  }
+}
+
 const logo = path.join(internal, ".next", "standalone", "public", "branding", "esh-logo.ico");
 if (fs.existsSync(logo)) fs.copyFileSync(logo, path.join(output, ".esh-logo.ico"));
 
