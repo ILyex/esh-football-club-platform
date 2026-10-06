@@ -213,8 +213,12 @@ export default async function DashboardLayout({
             <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-1.5 shadow-2xs hover:border-border/80 transition-colors">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden bg-club-primary/10 text-club-primary font-bold text-xs ring-1 ring-club-primary/20 shrink-0">
                 {userPhoto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={userPhoto} alt={user.name} className="h-full w-full object-cover" />
+                  <SafeImage
+                    src={userPhoto}
+                    fallbackSrc="/branding/esh-logo-64.png"
+                    alt={user.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <span>{userInitial}</span>
                 )}
