@@ -11,7 +11,24 @@ targetVbs = fso.BuildPath(installRoot, "Launch-ESH-Platform.vbs")
 
 If LCase(fso.GetAbsolutePathName(sourceRoot)) <> LCase(fso.GetAbsolutePathName(installRoot)) Then
   If Not fso.FolderExists(installRoot) Then fso.CreateFolder installRoot
-  fso.CopyFolder sourceRoot, installRoot, True
+  ' Copy the package contents into the destination. CopyFolder(sourceRoot,
+  ' installRoot) would create installRoot\.platform and break the launcher.
+  Dim sourceFolder, entry, destination, copyExit
+  Set sourceFolder = fso.GetFolder(sourceRoot)
+  For Each entry In sourceFolder.Files
+    destination = fso.BuildPath(installRoot, entry.Name)
+    fso.CopyFile entry.Path, destination, True
+  Next
+  For Each entry In sourceFolder.SubFolders
+    destination = fso.BuildPath(installRoot, entry.Name)
+    If fso.FolderExists(destination) Then fso.DeleteFolder destination, True
+    fso.CreateFolder destination
+    copyExit = shell.Run("robocopy.exe """ & entry.Path & """ """ & destination & """ /E /IS /IT /R:2 /W:1 /NFL /NDL /NJH /NJS", 0, True)
+    If copyExit > 7 Then
+      shell.Popup "تعذر نسخ ملفات المنصة. أعد فك الضغط في مجلد محلي ثم أعد المحاولة.", 8, "منصة النادي الرياضي", 16
+      WScript.Quit 1
+    End If
+  Next
 End If
 
 If Not fso.FileExists(targetVbs) Then
