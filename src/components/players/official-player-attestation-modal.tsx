@@ -165,9 +165,9 @@ export function OfficialPlayerAttestationModal({
                   {/* Main Attestation Body - Clean, direct, no underlines or decorative boxes */}
                   <div
                     className="mt-5 space-y-5 text-justify text-black"
-                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "18px", lineHeight: "1.75" }}
+                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "20px", lineHeight: "1.75" }}
                   >
-                    <p className="mb-4 text-center text-[18px] font-bold leading-relaxed">
+                    <p className="mb-4 text-center text-[20px] font-bold leading-relaxed">
                       {isAr
                         ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم"
                         : "Le Président de l'Association Sportive Espoir Sidi Hosni de Football"}
@@ -177,11 +177,11 @@ export function OfficialPlayerAttestationModal({
                       {isAr ? (
                         <>
                           يشهد رئيس <strong>الجمعية الرياضية أمل سيدي حسني لكرة القدم</strong> أن اللاعب:{" "}
-                          <strong className="font-black text-[19px]">
+                          <strong className="font-black text-[20px]">
                             {getPlayerDisplayName(player, "ar")}
                           </strong>
                           {player.firstNameFr && player.lastNameFr && (player.firstName || player.lastName) && (
-                            <span className="font-mono text-[19px] text-zinc-800">
+                            <span className="font-mono text-[20px] text-zinc-800">
                               {" "}({player.firstNameFr} {player.lastNameFr})
                             </span>
                           )}
@@ -193,7 +193,7 @@ export function OfficialPlayerAttestationModal({
                       ) : (
                         <>
                           Le Président de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> atteste que le joueur :{" "}
-                          <strong className="font-black text-[19px]">
+                          <strong className="font-black text-[20px]">
                             {getPlayerDisplayName(player, "fr")}
                           </strong>
                           , né le : <strong className="font-mono">{birthDateFormatted}</strong> à{" "}
@@ -206,7 +206,7 @@ export function OfficialPlayerAttestationModal({
                       {isAr ? (
                         <>
                           والحامل للرخصة الرياضية رقم:{" "}
-                          <strong className="font-mono text-[24px] font-black tracking-wider">
+                          <strong className="font-mono text-[20px] font-black tracking-wider">
                             {licenceNo}
                           </strong>
                           ، هو لاعب مسجل رسمياً وبصفة قانونية ضمن صفوف النادي الرياضي الهاوي{" "}
@@ -228,7 +228,7 @@ export function OfficialPlayerAttestationModal({
                       ) : (
                         <>
                           Titulaire de la licence sportive n° :{" "}
-                          <strong className="font-mono text-[19px] font-black">
+                          <strong className="font-mono text-[20px] font-black">
                             {licenceNo}
                           </strong>
                           , est qualifié et enregistré au sein de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> dans la catégorie :{" "}
