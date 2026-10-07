@@ -17,7 +17,7 @@ set "SERVER_BUILD_FILE=%ROOT%.local-admin-build-id"
 REM Allow recovery from stale/duplicated Auth.js cookies. Node's default
 REM header limit is small enough to turn a recoverable session into HTTP 431;
 REM middleware still validates the session and the login page can replace it.
-set "NODE_OPTIONS=--max-old-space-size=768 --max-http-header-size=32768"
+set "NODE_OPTIONS=--max-old-space-size=768 --max-http-header-size=65536"
 set "OLLAMA_NUM_PARALLEL=1"
 set "OLLAMA_MAX_LOADED_MODELS=1"
 
