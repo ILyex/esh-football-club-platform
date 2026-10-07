@@ -11,7 +11,7 @@ import {
   ClipboardList,
   FileText,
   BarChart3,
-  SlidersHorizontal
+  Filter
 } from "lucide-react";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
@@ -84,9 +84,9 @@ export function ReportsClientHub({
               locale={locale}
               label={isAr ? "نطاق الفئة:" : "Catégorie :"}
             />
-            <button type="submit" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:border-club-primary/50 hover:bg-muted">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              {isAr ? "تطبيق" : "Appliquer"}
+            <button type="submit" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:border-club-primary/50 hover:bg-muted">
+              <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+              {isAr ? "تصفية" : "Filtrer"}
             </button>
           </form>
           <div className="flex min-w-0 items-center gap-3 lg:col-span-2">
