@@ -247,11 +247,12 @@ export function PlayerOverviewModal({
                     locale={locale}
                     triggerVariant="outline"
                     triggerLabel={isAr ? "وثيقة اللاعب" : "Attestation"}
+                    triggerClassName="h-9 min-w-[8.5rem] rounded-lg border-white/25 bg-white/10 px-3 text-white shadow-sm hover:border-white/40 hover:bg-white/20"
                   />
                   <Link
                     href={`/${locale}/dashboard/players/${player.id}`}
                     onClick={() => setIsOpen(false)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+                    className="inline-flex h-9 min-w-[8.5rem] items-center justify-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:border-white/40 hover:bg-white/20"
                   >
                     <span>{isAr ? "الملف الكامل والتعديل" : "Modifier"}</span>
                     <ExternalLink className="h-3 w-3" />

@@ -29,6 +29,7 @@ export interface OfficialPlayerAttestationModalProps {
   locale?: string;
   triggerVariant?: "button" | "icon" | "outline";
   triggerLabel?: string;
+  triggerClassName?: string;
 }
 
 function formatDateDMY(d: Date | string | null | undefined): string {
@@ -45,7 +46,8 @@ export function OfficialPlayerAttestationModal({
   player,
   locale = "ar",
   triggerVariant = "button",
-  triggerLabel
+  triggerLabel,
+  triggerClassName
 }: OfficialPlayerAttestationModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isAr = locale === "ar";
@@ -85,9 +87,9 @@ export function OfficialPlayerAttestationModal({
           size="sm"
           variant="outline"
           onClick={() => setIsOpen(true)}
-          className="gap-1.5 text-xs font-semibold hover:border-club-primary/50 text-foreground"
+          className={`gap-1.5 text-xs font-semibold hover:border-club-primary/50 text-foreground ${triggerClassName || ""}`}
         >
-          <FileBadge className="h-3.5 w-3.5 text-club-primary" />
+          <FileBadge className={`h-3.5 w-3.5 ${triggerClassName ? "text-white/90" : "text-club-primary"}`} />
           <span>{triggerLabel || (isAr ? "شهادة إنتساب" : "Attestation")}</span>
         </Button>
       )}
