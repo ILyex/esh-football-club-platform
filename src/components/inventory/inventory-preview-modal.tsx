@@ -136,7 +136,7 @@ export function InventoryPreviewModal({
               >
                 {/* Dedicated Visible Anti-Counterfeit Watermark Pattern Layer */}
                 <div
-                  className="pointer-events-none absolute inset-0 z-0 select-none print:hidden opacity-100"
+                  className="pointer-events-none absolute inset-0 z-0 esh-document-watermark select-none print:hidden opacity-100"
                   style={{
                     backgroundImage: ESH_WATERMARK_CSS_URL,
                     backgroundSize: "100px 50px",

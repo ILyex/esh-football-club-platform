@@ -147,7 +147,7 @@ export function OfficialPlayerAttestationModal({
               >
                 {/* Security watermark */}
                 <div
-                  className="pointer-events-none absolute inset-0 z-0 select-none print:hidden"
+                  className="pointer-events-none absolute inset-0 z-0 esh-document-watermark select-none print:hidden"
                   style={{ backgroundImage: ESH_WATERMARK_CSS_URL, backgroundSize: "100px 50px", backgroundRepeat: "repeat" }}
                   aria-hidden="true"
                 />

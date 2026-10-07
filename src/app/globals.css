@@ -449,6 +449,20 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   margin: 0 !important;
 }
 
+/* Keep the footer relative to the A4 sheet even when document content uses a
+   positioned layer for the watermark. */
+.printable-document.esh-security-watermark {
+  isolation: isolate;
+}
+
+.printable-document.esh-security-watermark > .esh-document-watermark {
+  z-index: -1 !important;
+}
+
+.printable-document.esh-security-watermark > .relative.z-10 {
+  position: static !important;
+}
+
 
 /* Visual canvas view for docx-preview in browser */
 .docx-preview-root .docx-wrapper {
