@@ -238,15 +238,21 @@ export function InventoryPreviewModal({
                     })}
 
                     {/* Overall grand total */}
-                    <div
-                      className="grand-total-section flex justify-between items-center bg-zinc-100 border border-zinc-300 px-4 py-2 text-black font-bold text-[13px]"
-                      style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
+                    <table
+                      className="grand-total-section w-full border-collapse border border-zinc-300 text-[18px] leading-relaxed text-black"
+                      style={{ width: "100%", tableLayout: "fixed", pageBreakInside: "avoid", breakInside: "avoid" }}
                     >
-                      <span>{isAr ? "المجموع الإجمالي للقطع والمعدات المفهرسة:" : "TOTAL GÉNÉRAL DU MATÉRIEL :"}</span>
-                      <span className="font-mono text-[15px]">
-                        {items.reduce((acc, it) => acc + it.quantity, 0)} {isAr ? "قطعة" : "unités"}
-                      </span>
-                    </div>
+                      <tbody>
+                        <tr className="bg-zinc-100 font-bold">
+                          <td className="border border-zinc-300 px-4 py-2.5 text-start">
+                            {isAr ? "المجموع الإجمالي للقطع والمعدات المفهرسة:" : "TOTAL GÉNÉRAL DU MATÉRIEL :"}
+                          </td>
+                          <td className="w-40 border border-zinc-300 px-4 py-2.5 text-center font-mono">
+                            {items.reduce((acc, it) => acc + it.quantity, 0)} {isAr ? "قطعة" : "unités"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
 
                   {/* Institutional Signatures strictly by role only */}
