@@ -182,7 +182,7 @@ export function EditFinancialOperationModal({
                 {/* Amount */}
                 <div className="min-w-0 space-y-1.5">
                   <label htmlFor="financial-operation-amount" className="block text-xs font-semibold text-foreground">
-                    {isAr ? "المبلغ (دج) *" : "Montant (DZD) *"}
+                    {isAr ? "المبلغ (د.ج) *" : "Montant (DZD) *"}
                   </label>
                   <input
                     id="financial-operation-amount"

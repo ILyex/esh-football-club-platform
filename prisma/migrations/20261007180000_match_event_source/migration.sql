@@ -1,0 +1,5 @@
+DO $$ BEGIN
+  CREATE TYPE "MatchEventSource" AS ENUM ('MANUAL', 'REFEREE_REPORT');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+ALTER TABLE "MatchEvent" ADD COLUMN IF NOT EXISTS "source" "MatchEventSource" NOT NULL DEFAULT 'MANUAL';

@@ -23,7 +23,7 @@ export function DeleteFinancialOperationDialog({
   const router = useRouter();
   const isAr = locale === "ar";
 
-  const currencySuffix = isAr ? " دج" : " DZD";
+  const currencySuffix = isAr ? " د.ج" : " DZD";
   const formattedAmount = operation.amount.toLocaleString(locale) + currencySuffix;
 
   const handleDelete = async () => {

@@ -6,6 +6,7 @@ import { getPublicMatchDetail } from "@/lib/public/matches";
 import { TacticalPitch } from "@/components/football/tactical-pitch";
 import { cn } from "@/lib/utils";
 import { frenchPublicCategory, frenchPublicText } from "@/lib/public/locale-text";
+import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 
 export default async function PublicMatchDetailPage({
   params
@@ -56,6 +57,7 @@ export default async function PublicMatchDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+      <LiveMatchRefresh enabled={match.status === "LIVE"} />
       {/* Breadcrumbs */}
       <nav className="mb-8 flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Link href={`/${locale}/matches`} className="hover:text-club-primary transition-colors">
@@ -204,6 +206,11 @@ export default async function PublicMatchDetailPage({
                   {(locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
                     <p className="text-xs text-muted-foreground mt-0.5">{locale === "ar" ? event.notes : frenchPublicText(event.notes, "")}</p>
                   )}
+                  <span className="mt-1 inline-flex rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    {event.source === "REFEREE_REPORT"
+                      ? (locale === "ar" ? "مصدر: تقرير الحكم" : "Source : rapport arbitral")
+                      : (locale === "ar" ? "مصدر: تسجيل المنصة" : "Source : plateforme")}
+                  </span>
                 </div>
               </div>
             ))}

@@ -198,7 +198,7 @@ async function callAIArbiter(
       `اللاعب المستهدف: ${context.player.firstName} ${context.player.lastName}. ` +
       `نوع الوثيقة المطلوب: ${context.kind === "INSURANCE" ? "وثيقة تأمين رياضي" : context.kind === "IDENTITY" ? "وثيقة هوية" : "عقد"}.`;
   } else if (context.kind === "EXPENSE_RECEIPT") {
-    contextHint = `المبلغ المسجّل: ${context.amount} دج.`;
+    contextHint = `المبلغ المسجّل: ${context.amount} د.ج.`;
   }
 
   const findingDesc =

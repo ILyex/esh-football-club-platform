@@ -334,6 +334,7 @@ ${squadRoster}
         matchId: match.id,
         playerId: item.playerId,
         type: item.type,
+        source: "REFEREE_REPORT",
         minute: item.minute,
         notes: item.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي"
       }

@@ -6,6 +6,7 @@ import { getPublicMatches } from "@/lib/public/matches";
 import { getPublicTeams } from "@/lib/public/teams";
 import { MatchCard } from "@/components/public/match-card";
 import { frenchPublicCategory } from "@/lib/public/locale-text";
+import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 
 export default async function PublicMatchesPage({
   params,
@@ -45,6 +46,7 @@ export default async function PublicMatchesPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} />
       {/* Header */}
       <div className="border-b border-border/80 pb-6">
         <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">

@@ -239,7 +239,7 @@ export default async function TreasuryAccountDetailPage({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-foreground">
-                    {t("fields.amount")} ({locale === "ar" ? "دج" : "DZD"}) *
+                    {t("fields.amount")} ({locale === "ar" ? "د.ج" : "DZD"}) *
                   </label>
                   <input
                     name="amount"
@@ -337,7 +337,7 @@ export default async function TreasuryAccountDetailPage({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-foreground">
-                    {t("fields.amount")} ({locale === "ar" ? "دج" : "DZD"}) *
+                    {t("fields.amount")} ({locale === "ar" ? "د.ج" : "DZD"}) *
                   </label>
                   <input
                     name="amount"

@@ -60,7 +60,7 @@ export function ClubExpensesTable({ expenses, locale = "ar" }: ClubExpensesTable
   const pageSize = 5;
 
   const isAr = locale === "ar";
-  const currencySuffix = isAr ? " دج" : " DZD";
+  const currencySuffix = isAr ? " د.ج" : " DZD";
   const formatMoney = (amount: number) => amount.toLocaleString(locale) + currencySuffix;
 
   const categoryNames = isAr ? CATEGORY_NAMES_AR : CATEGORY_NAMES_FR;

@@ -30,6 +30,7 @@ export interface PublicMatchEventItem {
   id: string;
   minute: number;
   type: string;
+  source: "MANUAL" | "REFEREE_REPORT";
   side: "HOME" | "AWAY";
   notes: string | null;
   playerName: string;
@@ -270,6 +271,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
           id: true,
           minute: true,
           type: true,
+          source: true,
           side: true,
           notes: true,
           playerId: true,
@@ -333,6 +335,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
     id: e.id,
     minute: e.minute,
     type: e.type,
+    source: e.source,
     side: e.side,
     notes: e.notes,
     playerName: e.player ? `${e.player.firstName} ${e.player.lastName}` : "—",

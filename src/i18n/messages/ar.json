@@ -808,8 +808,8 @@
       "EXPENSE_BUDGET_MISMATCH": "المصروف {reference} لا يطابق موسم ميزانيته أو فئتها",
       "EXPENSE_PAYMENT_INCONSISTENT": "عدم اتساق بين المصروف {reference} ودفعته: {issue, select, PAYMENT_ON_NON_POSTED {دفعة مرتبطة بمصروف غير مرحّل} CANCELLED_WITH_LIVE_PAYMENT {مصروف ملغى مع دفعة غير ملغاة} other {مبلغ الدفعة يختلف عن مبلغ المصروف}}",
       "TREASURY_NEGATIVE_BALANCE": "الرصيد المحسوب لحساب «{name}» سالب",
-      "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} دج ({count} فاتورة) — أقدمها منذ {days} يومًا",
-      "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} دج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
+      "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} د.ج ({count} فاتورة) — أقدمها منذ {days} يومًا",
+      "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} د.ج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
     },
     "typeLabels": {
       "CONTRACT_EXPIRING": "عقود قاربت على الانتهاء",
@@ -833,8 +833,8 @@
       "FINANCE_DEBT_UNSETTLED": "ديون معلقة",
       "FINANCE_DEBT_CRITICAL": "ديون حرجة"
     },
-    "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} دج ({count} فاتورة) — أقدمها منذ {days} يومًا",
-    "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} دج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
+    "FINANCE_DEBT_UNSETTLED": "ديون معلقة غير مسددة بقيمة {amount} د.ج ({count} فاتورة) — أقدمها منذ {days} يومًا",
+    "FINANCE_DEBT_CRITICAL": "ديون حرجة بقيمة {amount} د.ج — نسبة تغطية السيولة {coverage}% وأقدم دين منذ {days} يومًا"
   },
   "notifications": {
     "title": "مركز الإشعارات والتنبيهات",
@@ -928,8 +928,8 @@
       "season": "الموسم",
       "team": "الفئة",
       "category": "الفئة المالية",
-      "amount": "المبلغ (دج)",
-      "allocatedAmount": "المبلغ المخصص (دج)",
+      "amount": "المبلغ (د.ج)",
+      "allocatedAmount": "المبلغ المخصص (د.ج)",
       "date": "التاريخ",
       "description": "الوصف",
       "payeeName": "المستفيد",

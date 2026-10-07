@@ -137,7 +137,7 @@ export default async function FinanceOverviewPage({
   const isDebt = debtSummary.hasDebt;
   const debtAmount = debtSummary.debtAmount;
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
   const formatMoney = (amount: number) => amount.toLocaleString(locale) + currencySuffix;
 
   // Helper to merge calendar date with time accurately

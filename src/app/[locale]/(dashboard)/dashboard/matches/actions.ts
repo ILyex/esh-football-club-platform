@@ -219,7 +219,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
 
   const event = await db.$transaction(async (tx) => {
     const created = await tx.matchEvent.create({
-      data: { matchId, playerId, staffId, type: parsed.type, side: parsed.side, minute: parsed.minute, notes: parsed.notes }
+      data: { matchId, playerId, staffId, type: parsed.type, side: parsed.side, source: "MANUAL", minute: parsed.minute, notes: parsed.notes }
     });
     if (parsed.type === "GOAL" || parsed.type === "OWN_GOAL") {
       await tx.match.update({

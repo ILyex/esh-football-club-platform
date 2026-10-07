@@ -115,7 +115,7 @@ export default async function ExpensesListPage({
     })
     .sort((a, b) => b.timestamp - a.timestamp);
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
   const currentSeason = seasons.find((s) => s.isCurrent) || seasons[0];
   const clubBudget = budgets.find((b) => !b.teamId) || budgets[0];
   const isExpenseOpen = sp.showNew === "expense" || sp.showNew === "1";
@@ -195,7 +195,7 @@ export default async function ExpensesListPage({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground">
-                {locale === "ar" ? "المبلغ المصروف المحدد (دج)" : t("fields.amount")} *
+                {locale === "ar" ? "المبلغ المصروف المحدد (د.ج)" : t("fields.amount")} *
               </label>
               <input
                 name="amount"

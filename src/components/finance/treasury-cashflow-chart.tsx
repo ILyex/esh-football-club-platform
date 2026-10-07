@@ -27,7 +27,7 @@ interface TreasuryCashflowChartProps {
 export function TreasuryCashflowChart({ transactions, locale = "ar" }: TreasuryCashflowChartProps) {
   const [period, setPeriod] = useState<"MONTH" | "SIX_MONTHS" | "YEAR" | "ALL">("SIX_MONTHS");
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
 
   const filteredData = useMemo(() => {
     const now = new Date();
@@ -196,10 +196,10 @@ export function TreasuryCashflowChart({ transactions, locale = "ar" }: TreasuryC
                   tickFormatter={(val) => {
                     if (val === 0) return `0${currencySuffix}`;
                     if (val >= 1_000_000) {
-                      return `${(val / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${locale === "ar" ? "مليون دج" : "M DZD"}`;
+                      return `${(val / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${locale === "ar" ? "مليون د.ج" : "M DZD"}`;
                     }
                     if (val >= 1_000) {
-                      return `${(val / 1_000).toLocaleString(locale, { maximumFractionDigits: 0 })} ${locale === "ar" ? "ألف دج" : "k DZD"}`;
+                      return `${(val / 1_000).toLocaleString(locale, { maximumFractionDigits: 0 })} ${locale === "ar" ? "ألف د.ج" : "k DZD"}`;
                     }
                     return `${val}${currencySuffix}`;
                   }}

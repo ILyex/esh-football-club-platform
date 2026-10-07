@@ -51,7 +51,7 @@ export default async function BudgetsListPage({
   const totalRemaining = Math.max(0, totalAllocated - totalSpent);
   const totalPercent = totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0;
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
   const formatMoney = (val: number) => val.toLocaleString(locale) + currencySuffix;
 
   return (

@@ -240,7 +240,7 @@ const CORRESPONDENCE_AVAILABLE_PATHS = [
 type LabelMap = Record<string, string>;
 const FINANCE_MESSAGES = { ar: arMessages.finance, fr: frMessages.finance } as unknown as Record<DocumentLanguage, Record<string, LabelMap | string>>;
 const TEAM_CATEGORY_MESSAGES = { ar: arMessages.teams.categories, fr: frMessages.teams.categories } as Record<DocumentLanguage, LabelMap>;
-const CURRENCY_LABEL: Record<DocumentLanguage, string> = { ar: "دج", fr: "DA" };
+const CURRENCY_LABEL: Record<DocumentLanguage, string> = { ar: "د.ج", fr: "DA" };
 
 function financeLabel(language: DocumentLanguage, group: string, key: string | null | undefined): string {
   if (!key) return "";

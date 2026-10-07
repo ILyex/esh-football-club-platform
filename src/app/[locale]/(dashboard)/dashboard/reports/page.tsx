@@ -82,7 +82,7 @@ export default async function ReportsPage({
   const withdrawals = treasuryFor("WITHDRAWAL");
   const formatDzd = (value: number) => {
     const number = new Intl.NumberFormat(isAr ? "ar-DZ" : "fr-DZ", { maximumFractionDigits: 0 }).format(value);
-    return isAr ? `${number}\u00a0د.ج` : `${number}\u00a0DZD`;
+    return isAr ? `${number}\u00a0DZD` : `${number}\u00a0DZD`;
   };
   const today = formatDateToDMY(new Date());
   const scopedSummary = isAr ? `النطاق: ${scopeLabel}.` : `Périmètre : ${scopeLabel}.`;

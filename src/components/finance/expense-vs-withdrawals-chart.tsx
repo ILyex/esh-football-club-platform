@@ -38,7 +38,7 @@ export function ExpenseVsWithdrawalsChart({
 }: ExpenseVsWithdrawalsChartProps) {
   const [period, setPeriod] = useState<"MONTH" | "SIX_MONTHS" | "YEAR" | "ALL">("SIX_MONTHS");
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
 
   // Filter both withdrawals and expenses by selected period
   const { filteredWithdrawals, filteredExpenses } = useMemo(() => {
@@ -296,12 +296,12 @@ export function ExpenseVsWithdrawalsChart({
                   if (val === 0) return `0${currencySuffix}`;
                   if (Math.abs(val) >= 1_000_000) {
                     return `${(val / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${
-                      locale === "ar" ? "مليون دج" : "M DZD"
+                      locale === "ar" ? "مليون د.ج" : "M DZD"
                     }`;
                   }
                   if (Math.abs(val) >= 1_000) {
                     return `${(val / 1_000).toLocaleString(locale, { maximumFractionDigits: 0 })} ${
-                      locale === "ar" ? "ألف دج" : "k DZD"
+                      locale === "ar" ? "ألف د.ج" : "k DZD"
                     }`;
                   }
                   return `${val}${currencySuffix}`;

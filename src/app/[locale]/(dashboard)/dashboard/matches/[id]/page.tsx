@@ -482,6 +482,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     {e.type === "YELLOW_CARD" ? <Square className="h-3.5 w-3.5 fill-yellow-400 text-yellow-500" /> : null}
                     {e.type === "RED_CARD" ? <Square className="h-3.5 w-3.5 fill-red-500 text-red-600" /> : null}
                     {e.minute}&apos; — {t(`events.${e.type}` as any)} {e.player ? `(${e.player.firstName} ${e.player.lastName})` : e.staff ? `(${e.staff.firstName} ${e.staff.lastName})` : ""}
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {e.source === "REFEREE_REPORT" ? (locale === "ar" ? "تقرير الحكم" : "Rapport arbitral") : (locale === "ar" ? "المنصة" : "Plateforme")}
+                    </span>
                   </span>
                 </span>
                 {canReport && (

@@ -133,7 +133,7 @@ export default async function TreasuryDepositsPage({
     }
   }
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
   const formatMoney = (val: number) => val.toLocaleString(locale) + currencySuffix;
   const today = new Date().toISOString().slice(0, 10);
   const inputClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -350,7 +350,7 @@ export default async function TreasuryDepositsPage({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground">
-                {locale === "ar" ? "المبلغ المودع المحدد (دج)" : t("fields.amount")} *
+                {locale === "ar" ? "المبلغ المودع المحدد (د.ج)" : t("fields.amount")} *
               </label>
               <input
                 name="amount"
@@ -483,7 +483,7 @@ export default async function TreasuryDepositsPage({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground">
-                {locale === "ar" ? "المبلغ المسحوب المحدد (دج)" : t("fields.amount")} *
+                {locale === "ar" ? "المبلغ المسحوب المحدد (د.ج)" : t("fields.amount")} *
               </label>
               <input
                 name="amount"

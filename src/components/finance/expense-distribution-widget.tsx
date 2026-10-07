@@ -54,7 +54,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export function ExpenseDistributionWidget({
   categories,
   totalSpent,
-  currencySuffix = " دج",
+  currencySuffix = " DZD",
   locale = "ar"
 }: ExpenseDistributionWidgetProps) {
   return (

@@ -348,6 +348,15 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   letter-spacing: normal !important;
 }
 
+/* Use the platform's Arabic typesetting for the DZD abbreviation everywhere. */
+[dir="rtl"] .currency-dzd {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  font-size: 0.9em;
+  font-weight: 700;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
 /* Uploaded player, user, and staff photos must not be draggable from the UI. */
 img[data-protected-image="true"],
 img[src^="/api/storage/"],

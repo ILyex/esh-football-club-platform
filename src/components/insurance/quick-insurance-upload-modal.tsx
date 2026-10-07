@@ -47,7 +47,7 @@ export function QuickInsuranceUploadModal({
       ? `نوع الملف لا يطابق الوثيقة المطلوبة (تأمين رياضي). تحقّق من الوثيقة التي رفعتها واختر وثيقة التأمين الصحيحة.`
       : `Le fichier ne correspond pas au document demandé (assurance sportive). Vérifiez le fichier et sélectionnez l’attestation d’assurance attendue.`,
     AMOUNT_MISMATCH: (p) => isAr
-      ? `المبلغ المسجّل (${p?.amount ?? ""} دج) غير موجود في الوثيقة`
+      ? `المبلغ المسجّل (${p?.amount ?? ""} د.ج) غير موجود في الوثيقة`
       : `Le montant déclaré (${p?.amount ?? ""} DA) absent du document`,
     AMOUNT_NOT_FOUND: () => isAr
       ? `لم يُعثر على أي مبلغ في الوثيقة`

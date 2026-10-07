@@ -734,6 +734,11 @@ enum MatchEventSide {
   AWAY
 }
 
+enum MatchEventSource {
+  MANUAL
+  REFEREE_REPORT
+}
+
 model MatchEvent {
   id       String         @id @default(cuid())
   matchId  String
@@ -744,6 +749,7 @@ model MatchEvent {
   staff    Staff?         @relation(fields: [staffId], references: [id])
   type     MatchEventType
   side     MatchEventSide @default(HOME)
+  source   MatchEventSource @default(MANUAL)
   minute   Int
   notes    String?
 

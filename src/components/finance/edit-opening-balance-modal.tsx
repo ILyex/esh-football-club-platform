@@ -80,7 +80,7 @@ export function EditOpeningBalanceModal({
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  {isAr ? "مبلغ الإعانة الجديد (دج)" : "Nouveau montant de la subvention (DZD)"}
+                  {isAr ? "مبلغ الإعانة الجديد (DZD)" : "Nouveau montant de la subvention (DZD)"}
                 </label>
                 <div className="relative">
                   <input
@@ -92,7 +92,7 @@ export function EditOpeningBalanceModal({
                     className="w-full rounded-xl border border-border bg-background py-2.5 ps-12 pe-3.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <span aria-hidden="true" className="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                    {isAr ? "دج" : "DZD"}
+                    {isAr ? "د.ج" : "DZD"}
                   </span>
                 </div>
               </div>

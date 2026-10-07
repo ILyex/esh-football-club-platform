@@ -42,7 +42,7 @@ export function FinancialOperationsTable({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 5;
 
-  const currencySuffix = locale === "ar" ? " دج" : " DZD";
+  const currencySuffix = locale === "ar" ? " د.ج" : " DZD";
   const formatMoney = (amount: number) => amount.toLocaleString(locale) + currencySuffix;
 
   // Counts for tabs
