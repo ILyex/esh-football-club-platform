@@ -183,7 +183,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
       </form>
 
       {/* ── Team Assignments — P2 ────────────────────────────────────────── */}
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <section className="overflow-visible rounded-2xl border border-border bg-card shadow-sm">
         <div className="flex items-start justify-between gap-4 border-b border-border/80 bg-gradient-to-l from-club-primary/[0.08] via-card to-card px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary ring-1 ring-club-primary/15">
