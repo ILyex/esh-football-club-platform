@@ -341,6 +341,7 @@ export default async function TreasuryDepositsPage({
                 name="treasuryAccountId"
                 defaultValue={primaryBank?.id ?? activeAccounts[0]!.id}
                 className="w-full"
+                tone="emerald"
                 options={activeAccounts.map((a) => ({
                   value: a.id,
                   label: `${a.name} (${t(`accountTypes.${a.type}` as any)}) ${a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}`
@@ -473,6 +474,7 @@ export default async function TreasuryDepositsPage({
                 name="treasuryAccountId"
                 defaultValue={primaryBank?.id ?? activeAccounts[0]!.id}
                 className="w-full"
+                tone="amber"
                 options={activeAccounts.map((a) => ({
                   value: a.id,
                   label: `${a.name} (${t(`accountTypes.${a.type}` as any)}) ${a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}`
