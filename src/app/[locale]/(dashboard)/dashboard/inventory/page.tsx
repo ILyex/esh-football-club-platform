@@ -120,8 +120,8 @@ export default async function InventoryListPage({
           />
           {canManage && (
             <Link href={`/${locale}/dashboard/inventory/new`}>
-              <Button size="sm">
-                <Plus className="me-1.5 h-4 w-4" />
+              <Button size="sm" className="inline-flex items-center gap-1.5 text-xs font-semibold shadow-2xs">
+                <Plus className="h-4 w-4 shrink-0" />
                 {t("addItem")}
               </Button>
             </Link>

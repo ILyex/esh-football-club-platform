@@ -79,7 +79,7 @@ export function InventoryPreviewModal({
         onClick={() => setIsOpen(true)}
         className="inline-flex items-center gap-1.5 shadow-2xs text-xs font-semibold"
       >
-        <Eye className="h-4 w-4 text-club-primary" />
+        <Eye className="h-4 w-4 shrink-0 text-club-primary" />
         <span>{isAr ? "معاينة وطباعة الجرد" : "Aperçu & Impression"}</span>
       </Button>
 
