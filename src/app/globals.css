@@ -436,6 +436,19 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   font-size: 30px !important;
 }
 
+/* The shared footer is rendered from inside the header component, but it must
+   always anchor to the physical A4 paper box, never to the header's height. */
+.printable-document .esh-document-footer,
+.esh-print-page .esh-document-footer {
+  position: absolute !important;
+  bottom: 8mm !important;
+  left: 10mm !important;
+  right: 10mm !important;
+  top: auto !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
 
 /* Visual canvas view for docx-preview in browser */
 .docx-preview-root .docx-wrapper {

@@ -209,7 +209,7 @@ export function OfficialPlayerAttestationModal({
                           <strong className="font-mono text-[20px] font-black tracking-wider">
                             {licenceNo}
                           </strong>
-                          ، هو لاعب مسجل رسمياً وبصفة قانونية ضمن صفوف النادي الرياضي الهاوي{" "}
+                          ، هو لاعب مسجل رسمياً وبصفة قانونية ضمن صفوف{" "}
                           <strong>«الجمعية الرياضية أمل سيدي حسني لكرة القدم»</strong> في فئة:{" "}
                           <strong className="font-black">
                             {player.teamCategory || player.teamName || "الأكابر"}
