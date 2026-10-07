@@ -13,12 +13,14 @@ if (!fs.existsSync(path.join(standaloneRoot, "server.js"))) {
 const staticSource = path.join(nextBuild, "static");
 const staticTarget = path.join(standaloneRoot, ".next", "static");
 if (fs.existsSync(staticSource)) {
+  fs.rmSync(staticTarget, { recursive: true, force: true });
   fs.cpSync(staticSource, staticTarget, { recursive: true, force: true });
 }
 
 const publicSource = path.join(projectRoot, "public");
 const publicTarget = path.join(standaloneRoot, "public");
 if (fs.existsSync(publicSource)) {
+  fs.rmSync(publicTarget, { recursive: true, force: true });
   fs.cpSync(publicSource, publicTarget, { recursive: true, force: true });
 }
 
