@@ -300,19 +300,15 @@ export function MatchFormClient({
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {isRtl ? "فئة الفريق *" : "Catégorie de l'équipe *"}
             </label>
-            <select
+            <FormSelect
               name="teamId"
               required
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {teams.map((tm) => (
-                <option key={tm.id} value={tm.id}>
-                  {tm.name} ({tm.category})
-                </option>
-              ))}
-            </select>
+              defaultValue={teamId}
+              locale={locale}
+              ariaLabel={isRtl ? "فئة الفريق" : "Catégorie de l'équipe"}
+              onValueChange={setTeamId}
+              options={teams.map((tm) => ({ value: tm.id, label: `${tm.name} (${tm.category})` }))}
+            />
           </div>
 
           {/* Competition */}
@@ -320,19 +316,15 @@ export function MatchFormClient({
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {isRtl ? "المسابقة / البطولة *" : "Compétition *"}
             </label>
-            <select
+            <FormSelect
               name="competitionId"
               required
-              value={competitionId}
-              onChange={(e) => setCompetitionId(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {competitions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              defaultValue={competitionId}
+              locale={locale}
+              ariaLabel={isRtl ? "المسابقة / البطولة" : "Compétition"}
+              onValueChange={setCompetitionId}
+              options={competitions.map((c) => ({ value: c.id, label: c.name }))}
+            />
           </div>
 
           {/* Opponent Name */}
