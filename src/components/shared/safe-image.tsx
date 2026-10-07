@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ImgHTMLAttributes } from "react";
+import { useEffect, useState, type ImgHTMLAttributes } from "react";
 
 type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc: string;
@@ -11,7 +11,19 @@ type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
  * broken-image icon. The fallback is local and bundled with every release.
  */
 export function SafeImage({ fallbackSrc, src, alt = "", onError, ...props }: SafeImageProps) {
-  const [imageSrc, setImageSrc] = useState<string | undefined>(src?.toString());
+  const normalizedSrc = typeof src === "string" && (
+    src.startsWith("data:image/") ||
+    src.startsWith("/") ||
+    /^https?:\/\//i.test(src)
+  ) ? src : undefined;
+  const [imageSrc, setImageSrc] = useState<string | undefined>(normalizedSrc);
+
+  // Server data can change after a settings/profile update without remounting
+  // the header. Keep the displayed source in sync and avoid retaining a
+  // previously failed or unrelated image URL.
+  useEffect(() => {
+    setImageSrc(normalizedSrc);
+  }, [normalizedSrc]);
 
   return (
     <img

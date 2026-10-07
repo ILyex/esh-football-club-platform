@@ -114,7 +114,12 @@ export default async function DashboardLayout({
 
         {/* Scrollable Navigation Area */}
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-          <SidebarNav groups={visibleGroups} locale={locale} />
+          <SidebarNav
+            groups={visibleGroups}
+            locale={locale}
+            clubName={locale === "ar" ? clubSettings?.name : clubSettings?.shortName}
+            clubLogoUrl={clubSettings?.logoUrl}
+          />
         </div>
 
         {/* User Mini Profile & Language/Theme Controls Footer */}

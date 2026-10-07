@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isDashboardNavHrefActive } from "@/lib/dashboard-navigation";
+import { SafeImage } from "@/components/shared/safe-image";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
@@ -101,7 +102,17 @@ export type NavGroup = {
 // are filtered out BEFORE rendering (see dashboard layout, which passes only
 // the permitted subset). This is presentation-layer convenience only — the
 // real enforcement is server-side in each page/action (spec section 41).
-export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: string }) {
+export function SidebarNav({
+  groups,
+  locale,
+  clubName,
+  clubLogoUrl
+}: {
+  groups: NavGroup[];
+  locale: string;
+  clubName?: string | null;
+  clubLogoUrl?: string | null;
+}) {
   const t = useTranslations("dashboard.nav");
   const tGroups = useTranslations("dashboard.navGroups");
   const pathname = usePathname();
@@ -188,10 +199,9 @@ export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: str
       {/* Mobile: a top bar with a menu toggle replaces the always-visible desktop sidebar. */}
       <div className="flex items-center justify-between border-b border-border bg-card p-3 md:hidden">
         <div className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/branding/esh-logo-64.png" alt="ESH" className="h-7 w-7" />
+          <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || "ESH"} className="h-7 w-7 object-contain" />
           <span className="text-sm font-bold tracking-tight">
-            ESH SIDI HOSNI
+            {clubName || "ESH SIDI HOSNI"}
           </span>
         </div>
         <button
@@ -209,8 +219,7 @@ export function SidebarNav({ groups, locale }: { groups: NavGroup[]; locale: str
           <div className="w-72 overflow-y-auto bg-card shadow-2xl border-e border-border">
             <div className="flex items-center justify-between border-b border-border p-4 bg-muted/30">
               <div className="flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/branding/esh-logo-64.png" alt="ESH" className="h-7 w-7" />
+                <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || "ESH"} className="h-7 w-7 object-contain" />
                 <span className="text-sm font-bold tracking-tight">{tGroups("navigation")}</span>
               </div>
               <button
