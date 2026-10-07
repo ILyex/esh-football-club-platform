@@ -196,23 +196,11 @@ export function PlayerPrintListModal({
                   </div>
                 </div>
 
-                {/* Institutional Signatures & Stamp Block by Role Only */}
-                <div className="relative z-10 mt-6 flex shrink-0 items-end justify-between px-4 pt-4 text-center text-sm text-zinc-700">
+                {/* The players department is approved by the association president. */}
+                <div className="relative z-10 mt-6 flex shrink-0 justify-center px-4 pt-4 text-center text-sm text-zinc-700">
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "الأمين العام للنادي" : "Le Secrétaire Général"}</p>
-                    <p className="text-[11px] text-zinc-500">{isAr ? "التوقيع والتأشيرة" : "Signature & Visa"}</p>
-                    <div className="h-16"></div>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "ختم النادي الرسمي" : "Cachet Officiel"}</p>
-                    <div className="h-16 flex items-center justify-center">
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "رئيس النادي" : "Le Président"}</p>
-                    <p className="text-[11px] text-zinc-500">{isAr ? "التوقيع والاعتماد" : "Signature & Approbation"}</p>
+                    <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "رئيس الجمعية" : "Le Président de l'association"}</p>
+                    <p className="text-[11px] text-zinc-500">{isAr ? "الختم والتوقيع" : "Cachet et signature"}</p>
                     <div className="h-16"></div>
                   </div>
                 </div>

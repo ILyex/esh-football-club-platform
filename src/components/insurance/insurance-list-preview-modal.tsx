@@ -174,21 +174,13 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
                     )}
                   </div>
 
-                  {/* Signatures strictly by role only */}
+                  {/* Player insurance is approved by the association president. */}
                   <div
-                    className="signatures-section grid grid-cols-3 text-[14px] pt-8 mt-auto text-black"
+                    className="signatures-section flex justify-center text-center text-[14px] pt-8 mt-auto text-black"
                     style={{ breakInside: "avoid", pageBreakInside: "avoid", pageBreakBefore: "avoid", breakBefore: "avoid" }}
                   >
-                    <div>
-                      <p className="font-bold">{isAr ? "أمين الخزينة" : "Le Trésorier Général"}</p>
-                      <div className="h-14" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-bold">{isAr ? "الأمين العام" : "Le Secrétaire Général"}</p>
-                      <div className="h-14" />
-                    </div>
-                    <div className="text-end">
-                      <p className="font-bold">{isAr ? "رئيس النادي" : "Le Président du Club"}</p>
+                    <div className="min-w-[220px]">
+                      <p className="font-bold">{isAr ? "رئيس الجمعية" : "Le Président de l'association"}</p>
                       <div className="h-14" />
                     </div>
                   </div>

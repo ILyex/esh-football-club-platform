@@ -294,38 +294,14 @@ export function OfficialVoucherModal({
                   </p>
                 </div>
 
-                {/* Triple Signature Blocks strictly by role only, zero decorative lines */}
+                {/* Financial documents are approved by the treasurer. */}
                 <div
-                  className="grid grid-cols-3 gap-6 pt-6 mt-6 text-center text-black"
+                  className="flex justify-center pt-6 mt-6 text-center text-black"
                   style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
                 >
-                  <div>
-                    <p className="text-[15px] sm:text-[16px] font-bold text-black">
-                      {locale === "ar"
-                        ? isExpense
-                          ? "المستفيد"
-                          : isDeposit
-                            ? "المودع"
-                            : "المستلم"
-                        : isExpense
-                          ? "Le Bénéficiaire"
-                          : isDeposit
-                            ? "Le Déposant"
-                            : "Le Réceptionnaire"}
-                    </p>
-                    <div className="h-20" />
-                  </div>
-
-                  <div>
+                  <div className="min-w-[220px]">
                     <p className="text-[15px] sm:text-[16px] font-bold text-black">
                       {locale === "ar" ? "أمين الخزينة" : "Le Trésorier Général"}
-                    </p>
-                    <div className="h-20" />
-                  </div>
-
-                  <div>
-                    <p className="text-[15px] sm:text-[16px] font-bold text-black">
-                      {locale === "ar" ? "رئيس النادي" : "Le Président du Club"}
                     </p>
                     <div className="h-20" />
                   </div>

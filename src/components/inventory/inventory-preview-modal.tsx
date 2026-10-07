@@ -255,33 +255,17 @@ export function InventoryPreviewModal({
                     </table>
                   </div>
 
-                  {/* Institutional Signatures strictly by role only */}
+                  {/* The equipment department signs its own inventory. */}
                   <div
-                    className="signatures-section grid grid-cols-3 text-[13px] sm:text-[14px] pt-8 mt-6 text-black"
+                    className="signatures-section flex justify-center text-center text-[13px] sm:text-[14px] pt-8 mt-6 text-black"
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
                       pageBreakInside: "avoid",
                       breakInside: "avoid"
                     }}
                   >
-                    <div>
+                    <div className="min-w-[220px]">
                       <p className="font-bold text-black">
                         {isAr ? "مسؤول العتاد" : "Le Responsable du Matériel"}
-                      </p>
-                      <div className="h-14" />
-                    </div>
-
-                    <div className="text-center">
-                      <p className="font-bold text-black">
-                        {isAr ? "الأمين العام" : "Le Secrétaire Général"}
-                      </p>
-                      <div className="h-14" />
-                    </div>
-
-                    <div className="text-end">
-                      <p className="font-bold text-black">
-                        {isAr ? "رئيس النادي" : "Le Président du Club"}
                       </p>
                       <div className="h-14" />
                     </div>

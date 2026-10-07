@@ -255,30 +255,18 @@ export function OfficialPlayerAttestationModal({
 
                 {/* Footer Signatures Block - Strictly by role only, zero decorative lines */}
                 <div
-                  className="esh-attestation-footer relative z-10 mt-8 border-t border-zinc-200 pt-6"
+                  className="esh-attestation-footer relative z-10 mt-8 pt-6"
                   style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid", pageBreakInside: "avoid" }}
                 >
-                  <div className="flex items-start justify-between gap-8 text-black text-[13px]">
-                    {/* Secretariat label; the document date is shown only in the shared header. */}
-                    <div className="space-y-1">
-                      <p className="esh-attestation-secretariat text-[13px] text-zinc-600">
-                        {isAr ? "الأمانة العامة للنادي" : "Secrétariat Général du Club"}
-                      </p>
-                    </div>
-
-                    {/* Official Signature and Stamp by Role Only */}
-                    <div className="min-w-[190px] space-y-2 text-center">
+                  <div className="flex justify-center text-center text-black text-[13px]">
+                    <div className="min-w-[220px] space-y-2">
                       <p className="esh-attestation-signature text-[15px] font-black">
-                        {isAr ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Le Président du Club"}
+                        {isAr ? "رئيس الجمعية" : "Le Président de l'association"}
                       </p>
                       <div className="esh-attestation-stamp mx-auto flex h-20 w-40 items-center justify-center text-[13px] text-zinc-400 select-none">
-                        {isAr ? "ختم وتوقيع رئيس النادي" : "Cachet et Signature"}
+                        {isAr ? "الختم والتوقيع" : "Cachet et signature"}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="esh-attestation-club-code mt-6 border-t border-zinc-200 pt-3 text-center text-[10px] text-zinc-500 font-mono">
-                    Association Sportive Espoir Sidi Hosni de Football • STADE MUNICIPAL SIDI HOSNI • WILAYA DE TIARET • FAF CODE: ESH-26
                   </div>
                 </div>
               </div>
