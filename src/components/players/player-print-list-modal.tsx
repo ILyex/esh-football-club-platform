@@ -53,8 +53,6 @@ export function PlayerPrintListModal({
     );
   };
 
-  const todayFormatted = formatDateDMY(new Date());
-
   return (
     <>
       <Button
@@ -101,7 +99,7 @@ export function PlayerPrintListModal({
             <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex justify-center">
               <div
                 id={elementId}
-                className="printable-document player-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-zinc-900 p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col justify-between"
+                className="printable-document player-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-zinc-900 p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col"
                 style={{
                   fontFamily: ESH_DOCUMENT_FONT_FAMILY,
                   direction: isAr ? "rtl" : "ltr"
@@ -129,17 +127,15 @@ export function PlayerPrintListModal({
                     locale={locale}
                   />
 
-                  {/* Category and date context */}
-                  <div className="my-3 text-center">
-                    {teamCategoryName && (
-                    <p className="mt-1 text-base font-bold text-zinc-800">
+                  {/* Optional category context; the redundant season/date line
+                      was removed so the table follows the document title. */}
+                  {teamCategoryName && (
+                    <div className="my-3 text-center">
+                      <p className="mt-1 text-base font-bold text-zinc-800">
                         {isAr ? `الفئة الرياضية: ${teamCategoryName}` : `Catégorie: ${teamCategoryName}`}
                       </p>
-                    )}
-                    <p className="mt-1 text-sm text-zinc-600">
-                      {isAr ? `الموسم الرياضي: 2025 / 2026 • تاريخ التحرير: ${todayFormatted}` : `Saison: 2025 / 2026 • Date: ${todayFormatted}`}
-                    </p>
-                  </div>
+                    </div>
+                  )}
 
                   {/* Clean Institutional Table */}
                   <div className="mt-5 w-full" style={{ width: "100%", maxWidth: "none" }}>
@@ -201,7 +197,7 @@ export function PlayerPrintListModal({
                 </div>
 
                 {/* Institutional Signatures & Stamp Block by Role Only */}
-                <div className="relative z-10 mt-10 flex items-end justify-between px-4 pt-6 text-center text-sm text-zinc-700">
+                <div className="relative z-10 mt-6 flex shrink-0 items-end justify-between px-4 pt-4 text-center text-sm text-zinc-700">
                   <div>
                     <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "الأمين العام للنادي" : "Le Secrétaire Général"}</p>
                     <p className="text-[11px] text-zinc-500">{isAr ? "التوقيع والتأشيرة" : "Signature & Visa"}</p>
