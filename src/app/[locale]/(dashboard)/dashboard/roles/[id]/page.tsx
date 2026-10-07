@@ -41,12 +41,13 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <SettingsNavTabs locale={locale} />
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">{role.name}</h1>
+        <h1 className="text-xl font-semibold">{locale === "ar" ? "تعديل الصلاحيات" : "Modifier les autorisations"}</h1>
         {role.isSystem && <Badge tone="neutral">{t("systemRole")}</Badge>}
       </div>
+      <p className="-mt-5 text-sm text-muted-foreground">{role.name}</p>
 
       <form action={update} className="grid gap-4 rounded-lg border border-border bg-card p-6">
         <div>
@@ -65,7 +66,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
       <form action={updatePermissions} className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-base font-bold text-foreground">{locale === "ar" ? "تعديل الصلاحيات" : "Modifier les autorisations"}</h2>
+            <h2 className="text-base font-bold text-foreground">{locale === "ar" ? `صلاحيات الدور: ${role.name}` : `Autorisations du rôle : ${role.name}`}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {locale === "ar"
                 ? "حدد الصلاحيات الإدارية والفنية الممنوحة لهذا الدور بدقة عبر القطاعات المختلفة"
