@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/start-dev.mjs",
     "build": "next build",
-    "build:cloudflare": "opennextjs-cloudflare build && node scripts/prepare-cloudflare-wasm.mjs",
+    "build:cloudflare": "opennextjs-cloudflare build && node scripts/prepare-cpanel.mjs && node scripts/prepare-cloudflare-wasm.mjs",
     "preview:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare preview",
     "build:cpanel": "npm run build && node scripts/prepare-cpanel.mjs",
     "package:cpanel": "node scripts/package-cpanel.mjs",
