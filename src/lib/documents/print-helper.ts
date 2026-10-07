@@ -171,6 +171,23 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       border-collapse: collapse !important;
     }
 
+    .esh-print-page thead { display: table-header-group !important; }
+    .esh-print-page tfoot { display: table-footer-group !important; }
+    .esh-print-page tr,
+    .esh-print-page th,
+    .esh-print-page td {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .esh-print-page .category-section {
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+    .esh-print-page .signatures-section {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
     .esh-print-page th,
     .esh-print-page td {
       box-sizing: border-box !important;

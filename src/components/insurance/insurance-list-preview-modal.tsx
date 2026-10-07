@@ -85,7 +85,7 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
               {/* A4: 210mm wide, min 297mm tall */}
               <div
                 id={elementId}
-                className="printable-document esh-security-watermark relative bg-white text-black shadow-xl border border-zinc-200 w-full max-w-[210mm] min-h-[297mm] p-[15mm] flex flex-col"
+                className="printable-document insurance-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-black p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col"
                 style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, boxSizing: "border-box" }}
               >
                 <div
@@ -94,7 +94,10 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
                   aria-hidden="true"
                 />
 
-                <div className="relative z-10 flex flex-1 flex-col space-y-4">
+                <div
+                  className="relative z-10 w-[190mm] min-w-[190mm] max-w-[190mm] flex flex-1 flex-col space-y-4"
+                  style={{ width: "190mm", minWidth: "190mm", maxWidth: "190mm" }}
+                >
                   <OfficialDocumentHeader
                     badgeText={isAr ? "قائمة التأمين" : "ASSURANCE"}
                     documentTitle={isAr ? "قائمة تأمين اللاعبين" : "LISTE D'ASSURANCE DES JOUEURS"}
@@ -102,27 +105,6 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
                     date={new Date()}
                     locale={locale}
                     className="mb-2"
-                  />
-
-                  {/* Dedicated multi-page print pagination style */}
-                  <style
-                    dangerouslySetInnerHTML={{
-                      __html: `
-                        @media print {
-                          @page {
-                            size: A4 portrait;
-                            margin: 12mm 14mm 12mm 14mm;
-                          }
-                          thead { display: table-header-group !important; }
-                          tfoot { display: table-footer-group !important; }
-                          tr { break-inside: avoid !important; page-break-inside: avoid !important; }
-                          th, td { break-inside: avoid !important; page-break-inside: avoid !important; }
-                          .category-header { break-after: avoid !important; page-break-after: avoid !important; }
-                          .category-section { break-inside: auto !important; page-break-inside: auto !important; }
-                          .signatures-section { break-inside: avoid !important; page-break-inside: avoid !important; }
-                        }
-                      `
-                    }}
                   />
 
                   <div className="space-y-6 text-black">
