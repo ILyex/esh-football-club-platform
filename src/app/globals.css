@@ -396,6 +396,25 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   font-weight: 700 !important;
 }
 
+/* The player roster is an A4 document; keep its identity and table readable
+   when the browser scales the complete sheet into the print preview. */
+.player-list-document .esh-document-authority p {
+  font-size: 20px !important;
+}
+
+.player-list-document .esh-document-reference p {
+  font-size: 18px !important;
+}
+
+.player-list-document .esh-club-name {
+  font-size: 18px !important;
+}
+
+.player-list-document .esh-official-document-header h1 {
+  font-size: 30px !important;
+}
+
+
 /* Visual canvas view for docx-preview in browser */
 .docx-preview-root .docx-wrapper {
   background: transparent !important;
@@ -427,7 +446,154 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   direction: rtl !important;
 }
 
-/* Printing is handled exclusively by src/lib/documents/print-helper.ts. Keep the dashboard stylesheet free of global @media print rules so the preview and isolated A4 frame cannot diverge. */
+/* Isolated Print Styles: Strips all dashboard chrome and preserves A4 layout */
+@media print {
+  @page {
+    size: 210mm 297mm;
+    margin: 0 !important;
+  }
+
+  /* Hide entire dashboard navigation, sidebar, topbar, search, and action tools */
+  aside,
+  header,
+  nav,
+  footer,
+  [class*="print:hidden"],
+  .no-print,
+  [data-sidebar],
+  .sidebar,
+  [role="dialog"]:not(:has(.printable-document)) {
+    display: none !important;
+  }
+
+  /* When a dialog contains a printable document, remove modal backdrop and position normally */
+  [role="dialog"]:has(.printable-document),
+  [role="dialog"]:has(#official-inventory-preview-document) {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    display: block !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  /* Print dialogs contain a wrapper, then a toolbar and the paper. Hiding the
+     wrapper itself makes Chrome's print preview a completely blank A4 sheet.
+     Hide only the first nested toolbar and keep the paper in the print tree. */
+  [role="dialog"]:has(.printable-document) > div > div:first-child,
+  [role="dialog"]:has(#official-inventory-preview-document) > div > div:first-child {
+    display: none !important;
+  }
+  [role="dialog"]:has(.printable-document) div,
+  [role="dialog"]:has(#official-inventory-preview-document) div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Reset body and container backgrounds for pristine paper printing */
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  main,
+  #root,
+  .printable-document,
+  .printable-document-container,
+  #official-inventory-document,
+  #official-inventory-preview-document {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
+  /* The roster is laid out against the A4 content box, not a centered
+     narrow column. Keep its nested blocks and table at the same width as the
+     red content guides used in the preview. */
+  .player-list-document > .relative,
+  .player-list-document > .relative > .mt-5,
+  .player-list-document table {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .player-list-document {
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Clean up docx-preview elements for printing */
+  .docx-preview-root .docx-wrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .docx-preview-root .docx-wrapper > section.docx {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    background: white !important;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjAwIDEwMCI+CiAgPHRleHQgeD0iNTAiIHk9IjQyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDUwIDQyKSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjQiPkVTSDwvdGV4dD4KICA8dGV4dCB4PSIxNTAiIHk9IjkyIiBmb250LWZhbWlseT0iJ1RyYWRpdGlvbmFsIEFyYWJpYycsICdBcmFiaWMgVHlwZXNldHRpbmcnLCBzZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4xMCIgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDE1MCA5MikiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSI0Ij5FU0g8L3RleHQ+Cjwvc3ZnPg==") !important;
+    background-size: 100px 50px !important;
+    background-repeat: repeat !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure the last page doesn't produce an empty trailing blank sheet */
+  .docx-preview-root .docx-wrapper > section.docx:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Remove all underlines, decorative horizontal rules and decorative lines */
+  .printable-document u,
+  .printable-document ins,
+  .printable-document a,
+  .printable-document .underline,
+  .printable-document [style*="text-decoration: underline"] {
+    text-decoration: none !important;
+  }
+
+  /* Multi-page split protection: prevent row split, repeat table headers */
+  table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  thead {
+    display: table-header-group !important;
+  }
+  tfoot {
+    display: table-footer-group !important;
+  }
+  .page-break-avoid,
+  .signature-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
 
 /* Official Institutional Anti-Counterfeit Security Micro-Watermark */
 .esh-security-watermark {
