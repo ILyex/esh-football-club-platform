@@ -35,8 +35,10 @@ if not "%EXPECTED_BUILD%"=="" if "%EXPECTED_BUILD%"=="%SERVED_BUILD%" (
   )
 )
 
-REM A different build is ready, so replace only this project's app.js process.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ps=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '\bapp\.js\b' }; $ps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 500"
+REM A different build is ready, so replace this project's production process.
+REM Also stop a stale `next dev` process on port 3000. Reusing it would keep
+REM the development compiler alive and can consume more than 1 GB of RAM.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=[regex]::Escape('%ROOT%'); $listeners=Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; foreach($c in $listeners){$p=Get-CimInstance Win32_Process -Filter (\"ProcessId = \" + $c.OwningProcess) -ErrorAction SilentlyContinue; if($p -and $p.CommandLine -match $root -and ($p.CommandLine -match 'next.*dev|start-dev|start-server\.js|app\.js')){taskkill.exe /PID $p.ProcessId /T /F | Out-Null}}; Start-Sleep -Milliseconds 700"
 
 if not exist ".next\standalone\server.js" (
   if not exist "node_modules\.bin\next.cmd" (
