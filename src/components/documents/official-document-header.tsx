@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ESH_DOCUMENT_FONT_FAMILY } from "@/lib/documents/watermark";
+import { OfficialDocumentFooter } from "./official-document-footer";
 
 export interface OfficialDocumentHeaderProps {
   badgeText?: string;
@@ -155,15 +156,7 @@ export function OfficialDocumentHeader({
         </div>
       )}
 
-      {/* Shared institutional footer: kept at the bottom of every printed sheet. */}
-      <div
-        className="esh-document-footer pointer-events-none fixed bottom-[8mm] left-[10mm] right-[10mm] z-20 flex items-center justify-between text-[10px] text-zinc-500 print:fixed"
-        style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
-        aria-hidden="true"
-      >
-        <span>{isAr ? "الموسم الرياضي: 2025 / 2026" : "Saison sportive : 2025 / 2026"}</span>
-        <span>{isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم • 2018 — ∞" : "Association Sportive Espoir Sidi Hosni de Football • 2018 — ∞"}</span>
-      </div>
+      <OfficialDocumentFooter locale={locale} />
     </div>
   );
 }
