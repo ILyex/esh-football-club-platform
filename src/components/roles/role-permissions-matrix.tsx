@@ -187,7 +187,7 @@ export function RolePermissionsMatrix({
               </div>
 
               {/* Permissions Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 justify-items-center">
                 {items.map((perm) => {
                   const isChecked = selectedKeys.has(perm.key);
 
@@ -195,7 +195,7 @@ export function RolePermissionsMatrix({
                     <div
                       key={perm.id}
                       onClick={() => toggleKey(perm.key)}
-                      className={`relative flex items-start gap-3 rounded-xl border p-3.5 transition-all cursor-pointer ${
+                      className={`relative flex w-full max-w-2xl items-center justify-center gap-3 rounded-xl border p-3.5 text-center transition-all cursor-pointer ${
                         isChecked
                           ? "border-primary/40 bg-primary/[0.04] shadow-xs"
                           : "border-border/60 bg-card hover:bg-muted/20"
@@ -209,8 +209,8 @@ export function RolePermissionsMatrix({
                         className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary pointer-events-none"
                       />
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
                           <p className="font-semibold text-xs text-foreground">
                             {isAr ? perm.meta.labelAr : perm.meta.labelFr}
                           </p>

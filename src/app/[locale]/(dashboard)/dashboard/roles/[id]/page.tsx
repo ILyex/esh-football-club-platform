@@ -64,7 +64,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
       <form action={updatePermissions} className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-base font-bold text-foreground">{t("fields.permissions")}</h2>
+            <h2 className="text-base font-bold text-foreground">{locale === "ar" ? "تعديل الصلاحيات" : "Modifier les autorisations"}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {locale === "ar"
                 ? "حدد الصلاحيات الإدارية والفنية الممنوحة لهذا الدور بدقة عبر القطاعات المختلفة"
