@@ -65,7 +65,8 @@ export function OfficialDocumentHeader({
           style={{
             fontFamily: ESH_DOCUMENT_FONT_FAMILY,
             textAlign: isAr ? "right" : "left",
-            flex: "1 1 0%"
+            flex: "1 1 0%",
+            minWidth: 0
           }}
         >
           <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px] whitespace-nowrap">
@@ -108,26 +109,27 @@ export function OfficialDocumentHeader({
           style={{
             fontFamily: ESH_DOCUMENT_FONT_FAMILY,
             textAlign: isAr ? "left" : "right",
-            flex: "1 1 0%"
+            flex: "1 1 0%",
+            minWidth: 0
           }}
         >
           {badgeText && (
             <p
-              className="text-[14px] font-bold text-zinc-800 whitespace-nowrap"
+              className="text-[14px] font-bold text-zinc-800"
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {badgeText}
             </p>
           )}
           <p
-            className="text-[14px] font-bold text-black whitespace-nowrap"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+            className="text-[14px] font-bold text-black"
+            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "anywhere" }}
           >
             {isAr ? "المرجع: " : "Réf : "}{referenceNumber}
           </p>
           <p
-            className="text-[14px] font-bold text-black whitespace-nowrap"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+            className="text-[14px] font-bold text-black"
+            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "anywhere" }}
           >
             {isAr ? `بتاريخ: ${formattedDate}` : `Le : ${formattedDate}`}
           </p>
