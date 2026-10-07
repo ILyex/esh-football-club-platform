@@ -283,21 +283,20 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
 
   await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
 
-  await db.$transaction([
-    db.userTeam.upsert({
+  await db.$transaction(async (tx) => {
+    await tx.userTeam.upsert({
       where: { userId_teamId: { userId: targetUserId, teamId: parsed.teamId } },
       create: { userId: targetUserId, teamId: parsed.teamId },
       update: {} // already assigned — safe no-op
-    }),
-    db.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
-  ]);
-
-  await writeAuditLog({
-    userId: actor.id,
-    action: "user.team_assignment.add",
-    entityType: "UserTeam",
-    entityId: targetUserId,
-    changes: { teamId: parsed.teamId }
+    });
+    await tx.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } });
+    await writeAuditLog({
+      userId: actor.id,
+      action: "user.team_assignment.add",
+      entityType: "UserTeam",
+      entityId: targetUserId,
+      changes: { teamId: parsed.teamId }
+    }, tx);
   });
 
   revalidatePath("/[locale]/dashboard/users", "page");
@@ -310,17 +309,16 @@ export async function removeUserTeamAction(userId: string, teamId: string) {
 
   await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
 
-  await db.$transaction([
-    db.userTeam.deleteMany({ where: { userId: targetUserId, teamId } }),
-    db.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
-  ]);
-
-  await writeAuditLog({
-    userId: actor.id,
-    action: "user.team_assignment.remove",
-    entityType: "UserTeam",
-    entityId: targetUserId,
-    changes: { teamId }
+  await db.$transaction(async (tx) => {
+    await tx.userTeam.deleteMany({ where: { userId: targetUserId, teamId } });
+    await tx.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } });
+    await writeAuditLog({
+      userId: actor.id,
+      action: "user.team_assignment.remove",
+      entityType: "UserTeam",
+      entityId: targetUserId,
+      changes: { teamId }
+    }, tx);
   });
 
   revalidatePath("/[locale]/dashboard/users", "page");

@@ -31,7 +31,8 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
   }
   async function updatePermissions(formData: FormData) {
     "use server";
-    await updateRolePermissionsAction(id, formData);
+    const result = await updateRolePermissionsAction(id, formData);
+    if (result.actorSessionWillBeRevoked) redirect(`/${locale}/login?permissionsUpdated=1`);
   }
   async function remove() {
     "use server";

@@ -55,21 +55,32 @@ export async function updateRolePermissionsAction(roleId: string, formData: Form
     selectedKeys = selectedKeys.filter((key) => key !== "*");
   }
   const permissions = await db.permission.findMany({ where: { key: { in: selectedKeys } } });
+  const actorSessionWillBeRevoked = role.key === actor.roleKey;
 
-  await db.$transaction([
-    db.rolePermission.deleteMany({ where: { roleId } }),
-    db.rolePermission.createMany({ data: permissions.map((p) => ({ roleId, permissionId: p.id })) }),
-    db.user.updateMany({ where: { roleId }, data: { tokenVersion: { increment: 1 } } })
-  ]);
-
-  await writeAuditLog({
-    userId: actor.id,
-    action: "role.permissions_update",
-    entityType: "Role",
-    entityId: roleId,
-    changes: { after: { permissionKeys: selectedKeys } }
+  // Use an interactive transaction: db is a lazy Prisma proxy that resolves
+  // model methods to ordinary Promises, so Prisma's array/PrismaPromise form
+  // cannot safely be used here. Keep permissions, token revocation and audit
+  // record atomic so a partial update can never leave mixed authorization.
+  await db.$transaction(async (tx) => {
+    await tx.rolePermission.deleteMany({ where: { roleId } });
+    if (permissions.length > 0) {
+      await tx.rolePermission.createMany({ data: permissions.map((p) => ({ roleId, permissionId: p.id })) });
+    }
+    await tx.user.updateMany({ where: { roleId }, data: { tokenVersion: { increment: 1 } } });
+    await writeAuditLog({
+      userId: actor.id,
+      action: "role.permissions_update",
+      entityType: "Role",
+      entityId: roleId,
+      changes: { after: { permissionKeys: selectedKeys } }
+    }, tx);
   });
-  revalidatePath(`/[locale]/dashboard/roles/${roleId}`, "page");
+
+  // If the actor belongs to this role, the update deliberately revokes their
+  // old JWT. Redirect to sign-in rather than re-rendering a now-forbidden page
+  // and showing Next.js's generic Server Component error screen.
+  if (!actorSessionWillBeRevoked) revalidatePath(`/[locale]/dashboard/roles/${roleId}`, "page");
+  return { actorSessionWillBeRevoked };
 }
 
 export async function deleteRoleAction(roleId: string) {
