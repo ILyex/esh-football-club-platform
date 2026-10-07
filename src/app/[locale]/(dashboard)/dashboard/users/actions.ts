@@ -13,6 +13,24 @@ import {
   deletePublicFile,
   isPublicStorageConfigured
 } from "@/lib/storage";
+import { userIdPrefixFromRoute } from "@/lib/user-route";
+
+/**
+ * User detail links intentionally expose a readable route segment such as
+ * `super-admin--cmuqk2tw`, while mutations must always use the full database
+ * CUID. Resolve both forms at the server boundary so a form submission never
+ * targets the display URL as if it were the primary key.
+ */
+async function resolveUserId(routeOrId: string): Promise<string> {
+  const direct = await db.user.findFirst({ where: { id: routeOrId, deletedAt: null }, select: { id: true } });
+  if (direct) return direct.id;
+
+  const prefix = userIdPrefixFromRoute(routeOrId);
+  if (!prefix) throw new Error("userNotFound");
+  const byPrefix = await db.user.findFirst({ where: { id: { startsWith: prefix }, deletedAt: null }, select: { id: true } });
+  if (!byPrefix) throw new Error("userNotFound");
+  return byPrefix.id;
+}
 
 async function extractUserPhoto(formData: FormData): Promise<string | undefined> {
   const file = formData.get("photo");
@@ -71,7 +89,8 @@ export async function createUserAction(formData: FormData) {
 
 export async function updateUserAction(userId: string, formData: FormData) {
   const actor = await requirePermission("users.manage");
-  const before = await db.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+  const targetUserId = await resolveUserId(userId);
+  const before = await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null } });
 
   const raw = Object.fromEntries(formData.entries());
   const { photo, removePhoto, ...schemaInput } = raw;
@@ -102,7 +121,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
     const losingSuperAdmin = beforeRole?.key === "super_admin" && (parsed.roleId !== before.roleId || !parsed.isActive);
     if (losingSuperAdmin) {
       const otherActiveSuperAdmins = await db.user.count({
-        where: { id: { not: userId }, isActive: true, role: { key: "super_admin" } }
+        where: { id: { not: targetUserId }, isActive: true, role: { key: "super_admin" } }
       });
       if (otherActiveSuperAdmins === 0) throw new Error("lastSuperAdmin");
     }
@@ -125,7 +144,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
   }
 
   const user = await db.user.update({
-    where: { id: userId },
+    where: { id: targetUserId },
     data: {
       name: parsed.name,
       email: parsed.email.toLowerCase(),
@@ -156,25 +175,26 @@ export async function updateUserAction(userId: string, formData: FormData) {
  */
 export async function deleteUserAction(userId: string) {
   const actor = await requirePermission("users.manage");
-  if (actor.id === userId) throw new Error("cannotDeleteOwnAccount");
+  const targetUserId = await resolveUserId(userId);
+  if (actor.id === targetUserId) throw new Error("cannotDeleteOwnAccount");
 
   const deletedAt = new Date();
   const target = await db.$transaction(async (tx) => {
     // Recheck inside a serializable transaction to prevent simultaneous deletes
     // from removing the final active super-admin.
     const current = await tx.user.findFirst({
-      where: { id: userId, deletedAt: null },
+      where: { id: targetUserId, deletedAt: null },
       include: { role: { select: { key: true } } }
     });
     if (!current) throw new Error("userNotFound");
     if (current.isActive && current.role.key === "super_admin") {
       const otherActiveSuperAdmins = await tx.user.count({
-        where: { id: { not: userId }, isActive: true, deletedAt: null, role: { key: "super_admin" } }
+        where: { id: { not: targetUserId }, isActive: true, deletedAt: null, role: { key: "super_admin" } }
       });
       if (otherActiveSuperAdmins === 0) throw new Error("lastSuperAdmin");
     }
     await tx.user.update({
-      where: { id: userId },
+      where: { id: targetUserId },
       data: {
         name: "Deleted account",
         email: `deleted-${current.id}@deleted.invalid`,
@@ -205,15 +225,16 @@ export async function deleteUserAction(userId: string) {
 
 export async function deleteUserPhotoAction(userId: string) {
   const actor = await requirePermission("users.manage");
-  const user = await db.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+  const targetUserId = await resolveUserId(userId);
+  const user = await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null } });
   if (user.image) {
     await deletePublicFile(user.image).catch(() => {});
-    await db.user.update({ where: { id: userId }, data: { image: null } });
+    await db.user.update({ where: { id: targetUserId }, data: { image: null } });
     await writeAuditLog({
       userId: actor.id,
       action: "user.photo.delete",
       entityType: "User",
-      entityId: userId
+      entityId: targetUserId
     });
   }
   revalidatePath("/[locale]/dashboard/users", "page");
@@ -222,15 +243,16 @@ export async function deleteUserPhotoAction(userId: string) {
 
 export async function resetUserPasswordAction(userId: string, formData: FormData) {
   const actor = await requirePermission("users.manage");
+  const targetUserId = await resolveUserId(userId);
   const raw = Object.fromEntries(formData.entries());
   const parsed = resetPasswordSchema.parse(raw);
 
   const passwordHash = await bcrypt.hash(parsed.password, 10);
   // A password reset must also force re-login everywhere — bump
   // tokenVersion.
-  await db.user.update({ where: { id: userId, deletedAt: null }, data: { passwordHash, tokenVersion: { increment: 1 }, lastSeenAt: null } });
+  await db.user.update({ where: { id: targetUserId, deletedAt: null }, data: { passwordHash, tokenVersion: { increment: 1 }, lastSeenAt: null } });
 
-  await writeAuditLog({ userId: actor.id, action: "user.password_reset", entityType: "User", entityId: userId });
+  await writeAuditLog({ userId: actor.id, action: "user.password_reset", entityType: "User", entityId: targetUserId });
   revalidatePath(`/[locale]/dashboard/users/${userId}`, "page");
 }
 
@@ -254,26 +276,27 @@ import { teamAssignmentSchema } from "@/lib/validations/team-assignment";
 
 export async function addUserTeamAction(userId: string, formData: FormData) {
   const actor = await requirePermission("users.manage");
+  const targetUserId = await resolveUserId(userId);
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = teamAssignmentSchema.parse(raw);
 
-  await db.user.findFirstOrThrow({ where: { id: userId, deletedAt: null }, select: { id: true } });
+  await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
 
   await db.$transaction([
     db.userTeam.upsert({
-      where: { userId_teamId: { userId, teamId: parsed.teamId } },
-      create: { userId, teamId: parsed.teamId },
+      where: { userId_teamId: { userId: targetUserId, teamId: parsed.teamId } },
+      create: { userId: targetUserId, teamId: parsed.teamId },
       update: {} // already assigned — safe no-op
     }),
-    db.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
+    db.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
   ]);
 
   await writeAuditLog({
     userId: actor.id,
     action: "user.team_assignment.add",
     entityType: "UserTeam",
-    entityId: userId,
+    entityId: targetUserId,
     changes: { teamId: parsed.teamId }
   });
 
@@ -283,19 +306,20 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
 
 export async function removeUserTeamAction(userId: string, teamId: string) {
   const actor = await requirePermission("users.manage");
+  const targetUserId = await resolveUserId(userId);
 
-  await db.user.findFirstOrThrow({ where: { id: userId, deletedAt: null }, select: { id: true } });
+  await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
 
   await db.$transaction([
-    db.userTeam.deleteMany({ where: { userId, teamId } }),
-    db.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
+    db.userTeam.deleteMany({ where: { userId: targetUserId, teamId } }),
+    db.user.update({ where: { id: targetUserId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } })
   ]);
 
   await writeAuditLog({
     userId: actor.id,
     action: "user.team_assignment.remove",
     entityType: "UserTeam",
-    entityId: userId,
+    entityId: targetUserId,
     changes: { teamId }
   });
 
@@ -305,5 +329,5 @@ export async function removeUserTeamAction(userId: string, teamId: string) {
 
 export async function terminateSessionAction(userId: string, _formData?: FormData): Promise<void> {
   const { terminateUserSession } = await import("@/lib/security/session-manager");
-  await terminateUserSession(userId);
+  await terminateUserSession(await resolveUserId(userId));
 }
