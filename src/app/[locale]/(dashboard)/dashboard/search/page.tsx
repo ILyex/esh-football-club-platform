@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Search as SearchIcon, ArrowRight, ArrowLeft } from "lucide-react";
+import { Search as SearchIcon, ArrowRight, ArrowLeft, ListFilter } from "lucide-react";
 import { executeGlobalSearch } from "@/lib/search/search-service";
 
 export default async function GlobalSearchPage({
@@ -16,7 +16,6 @@ export default async function GlobalSearchPage({
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
 
   const t = await getTranslations("search");
-  const tCommon = await getTranslations("common");
 
   const query = (q || "").trim();
 
@@ -33,28 +32,22 @@ export default async function GlobalSearchPage({
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           {t("title")}
         </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {query ? t("resultsCount", { count: totalResults }) : t("noQuery")}
-        </p>
-
-        <form action={`/${locale}/dashboard/search`} method="GET" className="mt-4 flex max-w-xl gap-2">
-          <div className="relative flex-1">
-            <SearchIcon className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              name="q"
-              type="search"
-              defaultValue={query}
-              placeholder={t("placeholder")}
-              className="w-full rounded-lg border border-border bg-background ps-9 pe-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-club-primary/50"
-            />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-xs">
+            <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-club-primary/10 px-2 text-lg font-black tabular-nums text-club-primary">
+              {totalResults}
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              {query ? (isRtl ? "نتائج مطابقة" : "résultats correspondants") : t("noQuery")}
+            </span>
           </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-club-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-club-primary/90"
-          >
-            {tCommon("search")}
-          </button>
-        </form>
+          {query && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+              <ListFilter className="h-3.5 w-3.5" />
+              {t("allCategories")}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Category Pills Filter */}
