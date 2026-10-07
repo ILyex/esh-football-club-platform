@@ -168,9 +168,9 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
                 <span className="h-10 w-10 shrink-0 rounded-full border border-border bg-background" aria-hidden="true" />
               )}
               <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                {locale === "ar" ? "ÇÎÊÑ ÕæÑÉ ÌÏíÏÉ" : "Choisir une nouvelle photo"}
+                {locale === "ar" ? "Ø§Ø®ØªØ± ØµÙˆØ±Ø© Ø¬Ø¯ÙŠØ¯Ø©" : "Choisir une nouvelle photo"}
               </span>
-              <span className="shrink-0 rounded-lg bg-club-primary px-3 py-1.5 text-xs font-semibold text-white">{locale === "ar" ? "ÇÎÊíÇÑ" : "Choisir"}</span>
+              <span className="shrink-0 rounded-lg bg-club-primary px-3 py-1.5 text-xs font-semibold text-white">{locale === "ar" ? "Ø§Ø®ØªÙŠØ§Ø±" : "Choisir"}</span>
               <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" disabled={!canUpdate} className="sr-only" />
             </label>
           </div>
