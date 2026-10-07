@@ -55,7 +55,6 @@ export function OfficialPlayerAttestationModal({
   const birthDateFormatted = formatDateDMY(player.dateOfBirth);
   const joiningDateFormatted = formatDateDMY(player.joiningDate || new Date("2026-08-15"));
   const licenceNo = player.licenceNumber?.trim() || (isAr ? "قيد الإصدار (FAF-26)" : "En cours (FAF-26)");
-  const todayFormatted = formatDateDMY(new Date());
 
   const handlePrint = () => {
     printDocumentElement(
@@ -258,11 +257,8 @@ export function OfficialPlayerAttestationModal({
                   style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid", pageBreakInside: "avoid" }}
                 >
                   <div className="flex items-start justify-between gap-8 text-black text-[13px]">
-                    {/* Date and Location */}
+                    {/* Secretariat label; the document date is shown only in the shared header. */}
                     <div className="space-y-1">
-                      <p className="esh-attestation-date text-[14px] font-bold">
-                        {isAr ? "حرر بسيدي حسني في:" : "Fait à Sidi Hosni, le :"} {todayFormatted}
-                      </p>
                       <p className="esh-attestation-secretariat text-[13px] text-zinc-600">
                         {isAr ? "الأمانة العامة للنادي" : "Secrétariat Général du Club"}
                       </p>
