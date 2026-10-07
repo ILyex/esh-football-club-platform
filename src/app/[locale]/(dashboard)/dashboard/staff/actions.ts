@@ -353,6 +353,19 @@ export async function archiveStaffAction(staffId: string) {
   revalidatePath("/[locale]/staff", "page");
 }
 
+export async function restoreStaffAction(staffId: string) {
+  const user = await requirePermission("staff.update");
+  const scopeContext = await getMutationScopeContext();
+  const before = await db.staff.findUniqueOrThrow({ where: { id: staffId } });
+  assertTeamScope(scopeContext, before.teamId, "Staff");
+  if (before.status !== "ARCHIVED") return;
+
+  const staff = await db.staff.update({ where: { id: staffId }, data: { status: "ACTIVE" } });
+  await writeAuditLog({ userId: user.id, action: "staff.restore", entityType: "Staff", entityId: staff.id });
+  revalidatePath("/[locale]/dashboard/staff", "page");
+  revalidatePath("/[locale]/staff", "page");
+}
+
 export async function hardDeleteStaffAction(staffId: string) {
   const user = await requirePermission("staff.delete");
   const scopeContext = await getMutationScopeContext();

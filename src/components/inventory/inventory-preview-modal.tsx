@@ -43,7 +43,7 @@ export function InventoryPreviewModal({
   const handlePrint = () => {
     printDocumentElement(
       elementId,
-      isAr ? "جرد العتاد — ESH SIDI HOSNI" : "Inventaire du Matériel — ESH SIDI HOSNI"
+      isAr ? "جرد العتاد — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Inventaire du Matériel — Association Sportive Espoire Sidi Hosni de Football"
     );
   };
 
@@ -285,7 +285,7 @@ export function InventoryPreviewModal({
                     className="print-footer pt-3 mt-4 text-[11px] text-zinc-600 flex items-center justify-between"
                     style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
                   >
-                    <span>{isAr ? "جرد العتاد — أمل سيدي حسني (ESH)" : "Inventaire du matériel — ESH Sidi Hosni"}</span>
+                    <span>{isAr ? "جرد العتاد — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Inventaire du matériel — Association Sportive Espoire Sidi Hosni de Football"}</span>
                     <span>{isAr ? "الموسم الرياضي: 2025 / 2026" : "Saison: 2025/2026"}</span>
                   </div>
                 </div>

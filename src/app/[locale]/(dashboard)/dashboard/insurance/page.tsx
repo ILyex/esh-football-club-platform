@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
@@ -11,6 +11,7 @@ import { InsuranceListPreviewModal } from "@/components/insurance/insurance-list
 import { InsuranceCategorySelect } from "@/components/insurance/insurance-category-select";
 import { evaluatePlayerInsurance, parseInsuranceMetadata, formatInsuranceDate } from "@/lib/documents/insurance-helper";
 import { getPlayerDisplayName } from "@/lib/utils";
+import { frenchNationality } from "@/lib/public/locale-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +39,7 @@ export default async function InsurancePage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("documents.view");
+  const user = await requirePagePermission("documents.view", locale);
   const canUpdate = hasPermission(user, "players.update") || hasPermission(user, "documents.delete");
   const canViewContracts = hasPermission(user, "contracts.view");
   const canViewCorrespondence = hasPermission(user, "correspondence.view");
@@ -502,7 +503,7 @@ export default async function InsurancePage({
                                   {getPlayerDisplayName(p, locale)}
                                 </Link>
                                 <span className="block text-[10px] text-muted-foreground">
-                                  {p.nationality}
+                                  {locale === "ar" ? p.nationality : frenchNationality(p.nationality)}
                                 </span>
                               </div>
                             </div>

@@ -51,9 +51,11 @@ that use a live database are documented in `tests/finance/README.md`.
 
 ## Troubleshooting
 
-- **Slow route compilation or hot reload:** use `npm run dev` (Turbopack) and
-  move the checkout out of OneDrive. Stop duplicate Next.js development
-  servers sharing the same checkout.
+- **High memory use during route visits:** `npm run dev` is a development
+  server; it compiles and retains visited route modules. Use the prepared
+  standalone production package and `Launch-ESH-Platform.vbs` for daily club
+  administration. For development, keep only one server running and move the
+  checkout out of OneDrive when practical.
 - **Prisma client does not match the schema:** run `npm run db:generate`.
 - **Missing database tables:** check `DATABASE_URL`, then run
   `npm run db:migrate:deploy` against the intended local database.

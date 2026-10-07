@@ -91,7 +91,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
             </span>
           )}
           <p className="text-xs sm:text-sm font-bold text-white drop-shadow-md line-clamp-2 leading-relaxed">
-            {photoCaption || (isAr ? "نادي أمل سيدي حسني" : "Espoir Sidi Hosni")}
+            {photoCaption || (isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football")}
           </p>
         </div>
 

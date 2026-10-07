@@ -21,41 +21,42 @@ interface PublicFooterProps {
 
 export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
   const currentYear = new Date().getFullYear();
+  const hasContact = Boolean(club.contactEmail || club.contactPhone);
 
   return (
     <footer className="border-t border-border bg-card/60 dark:bg-[#111214] text-card-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-16">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 sm:py-12 lg:py-16">
+        <div className={`grid grid-cols-1 gap-7 md:gap-8 ${hasContact ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           {/* Club Info Column */}
-          <div className="space-y-4 md:col-span-2">
+          <div className={`space-y-3 md:space-y-4 ${hasContact ? "md:col-span-2" : "md:col-span-2"}`}>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm">
                 {club.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={club.logoUrl} alt={locale === "ar" ? club.name : "ESH Sidi Hosni"} className="h-full w-full object-cover" />
+                  <img src={club.logoUrl} alt={locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"} className="h-full w-full object-cover" />
                 ) : (
                   <Shield className="h-6 w-6 text-club-primary" />
                 )}
               </div>
-              <div>
-                <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  {locale === "ar" ? club.name : "Association Sportive Amal Sidi Hosni de Football"}
+              <div className="min-w-0 text-end">
+                <h3 className="whitespace-nowrap text-[14px] font-bold leading-snug tracking-tight text-foreground sm:text-lg">
+                  {locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"}
                 </h3>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
-                  <span dir={locale === "ar" ? "rtl" : "ltr"} className="tabular-nums font-mono font-bold">
-                    {locale === "ar" ? `${club.name} • 2018 — ∞` : "ESH SIDI HOSNI • 2018 — ∞"}
+                <p className="mt-1 text-xs font-semibold tracking-wider text-muted-foreground">
+                  <span dir="ltr" className="inline-block tabular-nums font-mono font-bold">
+                    ESH • 2018 — ∞
                   </span>
                 </p>
               </div>
             </div>
 
-            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            <p className="max-w-md text-sm leading-6 text-muted-foreground">
               {locale === "ar"
                 ? (club.description || "الجمعية الرياضية أمل سيدي حسني لكرة القدم — بلدية سيدي حسني، ولاية تيارت.")
-                : "Association Sportive Amal Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
+                : "Association Sportive Espoire Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
             </p>
 
-            <div className="flex flex-col space-y-2 pt-2 text-xs text-muted-foreground">
+            <div className="flex flex-col space-y-2 pt-1 text-xs leading-5 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 shrink-0 text-club-primary" />
                 <span>
@@ -64,23 +65,13 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
                 : "Stade communal de la commune de Sidi Hosni, wilaya de Tiaret, Algérie"}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">
-                  {locale === "ar" ? "المقر الرسمي:" : "Siège officiel :"}
-                </span>
-                <span>
-                  {locale === "ar"
-                    ? (club.address || "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر")
-                    : "Stade communal de Sidi Hosni, commune de Sidi Hosni, wilaya de Tiaret, Algérie"}
-                </span>
-              </div>
             </div>
           </div>
 
           {/* Quick Navigation Links */}
-          <div className="space-y-3">
+          <div className="space-y-3 md:space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">{labels.quickLinks}</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="grid grid-cols-2 gap-x-5 gap-y-2 text-sm text-muted-foreground sm:grid-cols-3 md:grid-cols-1">
               <li>
                 <Link href={`/${locale}`} className="transition-colors hover:text-club-primary">
                   {labels.home}
@@ -115,9 +106,10 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
           </div>
 
           {/* Contact & Admin Portal */}
+          {hasContact && (
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">{labels.contact}</h4>
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="space-y-2 text-sm leading-5 text-muted-foreground">
               {club.contactEmail && (
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -136,12 +128,13 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Bottom Bar: Copyright, Attribution & Theme Controls */}
-        <div className="mt-12 border-t border-border/80 pt-6 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-border/80 pt-5 text-center text-xs leading-5 text-muted-foreground sm:mt-12 sm:flex-row sm:gap-4 sm:pt-6">
           <p>
-            © {currentYear} {locale === "ar" ? club.name : "Association Sportive Amal Sidi Hosni de Football"}. {labels.allRightsReserved}.
+            © {currentYear} {locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"}. {labels.allRightsReserved}.
           </p>
           <div className="flex items-center gap-4">
             <span className="font-medium text-foreground">{labels.memberAffiliation}</span>

@@ -73,7 +73,7 @@ export function OfficialVoucherModal({
   const handlePrint = () => {
     printDocumentElement(
       voucherElementId,
-      `${documentTitle} — ESH SIDI HOSNI`
+      `${documentTitle} — Association Sportive Espoire Sidi Hosni de Football`
     );
   };
 
@@ -122,7 +122,7 @@ export function OfficialVoucherModal({
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-club-primary" />
                 <h3 className="text-sm font-bold text-foreground">
-                  {documentTitle} — ESH SIDI HOSNI
+                  {documentTitle} — Association Sportive Espoire Sidi Hosni de Football
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ export function OfficialVoucherModal({
                   <p className="text-[16px] sm:text-[17px]">
                     {locale === "ar" ? (
                       <>
-                        يشهد نادي <strong>أمل سيدي حسني</strong> ممثلاً في أمانة الخزينة، بأن المعني بالعملية:{" "}
+                        تشهد <strong>الجمعية الرياضية أمل سيدي حسني لكرة القدم</strong> ممثلةً في أمانة الخزينة، بأن المعني بالعملية:{" "}
                         <strong>{beneficiaryOrSource || "إدارة النادي"}</strong>
                         {nationalIdNumber && (
                           <>، الحامل لبطاقة التعريف الوطنية رقم: <strong className="font-mono">[{nationalIdNumber}]</strong></>
@@ -211,7 +211,7 @@ export function OfficialVoucherModal({
                       </>
                     ) : (
                       <>
-                        Le club <strong>Espoir Sidi Hosni</strong>, représenté par la trésorerie générale, atteste que :{" "}
+                        L&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong>, représentée par la trésorerie générale, atteste que :{" "}
                         <strong>{beneficiaryOrSource || "Administration du club"}</strong>
                         {nationalIdNumber && (
                           <>, titulaire de la CNI n° <strong className="font-mono">[{nationalIdNumber}]</strong></>

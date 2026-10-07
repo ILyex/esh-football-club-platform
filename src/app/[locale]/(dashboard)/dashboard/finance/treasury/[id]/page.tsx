@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { nanoid } from "nanoid";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getAccountBalance } from "@/lib/finance/treasury-service";
 import { FINANCE_COLORS } from "@/lib/finance/colors";
 import { runFinanceAction, withNotice } from "@/lib/finance/action-notice";
@@ -41,7 +41,7 @@ export default async function TreasuryAccountDetailPage({
 }) {
   const { locale, id } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("finance.view");
+  const user = await requirePagePermission("finance.view", locale);
   const t = await getTranslations("finance");
   const tCommon = await getTranslations("common");
   const canApprove = hasPermission(user, "finance.approve");

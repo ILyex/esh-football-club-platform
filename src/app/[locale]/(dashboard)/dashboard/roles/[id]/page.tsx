@@ -1,7 +1,7 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
 import { updateRoleAction, updateRolePermissionsAction, deleteRoleAction } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 
 export default async function RoleDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  await requirePermission("roles.manage");
+  await requirePagePermission("roles.manage", locale);
   const t = await getTranslations("roles");
   const tCommon = await getTranslations("common");
 

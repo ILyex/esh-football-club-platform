@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { runFinanceAction, withNotice } from "@/lib/finance/action-notice";
 import { reverseTransactionAction } from "../../../actions";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export default async function TreasuryTransactionDetailPage({
 }) {
   const { locale, id, transactionId } = await params;
   const { notice } = await searchParams;
-  const user = await requirePermission("finance.view");
+  const user = await requirePagePermission("finance.view", locale);
   const t = await getTranslations("finance");
   const tCommon = await getTranslations("common");
   const tTemplates = await getTranslations("templates");

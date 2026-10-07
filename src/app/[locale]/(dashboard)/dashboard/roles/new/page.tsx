@@ -1,6 +1,6 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createRoleAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 
 export default async function NewRolePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("roles.manage");
+  await requirePagePermission("roles.manage", locale);
   const t = await getTranslations("roles");
   const tCommon = await getTranslations("common");
 
@@ -19,25 +19,27 @@ export default async function NewRolePage({ params }: { params: Promise<{ locale
   }
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="mx-auto w-full max-w-3xl space-y-5">
       <SettingsNavTabs locale={locale} />
-      <h1 className="mb-4 text-xl font-semibold">{t("addRole")}</h1>
-      <form action={action} className="grid gap-4 rounded-lg border border-border bg-card p-6">
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.key")}</label>
-          <input name="key" placeholder="team_manager" pattern="[a-z0-9_]+" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <p className="mt-1 text-xs text-muted-foreground">{t("errors.keyFormat")}</p>
+      <div className="text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("addRole")}</h1>
+      </div>
+      <form action={action} className="mx-auto grid w-full max-w-2xl gap-6 rounded-2xl border border-border/80 bg-card p-5 shadow-sm sm:p-8">
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-foreground">{t("fields.key")}</label>
+          <input name="key" placeholder="team_manager" pattern="[a-z0-9_]+" required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
+          <p className="text-xs leading-5 text-muted-foreground">{t("errors.keyFormat")}</p>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.name")}</label>
-          <input name="name" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-foreground">{t("fields.name")}</label>
+          <input name="name" required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.description")}</label>
-          <textarea name="description" rows={2} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-foreground">{t("fields.description")}</label>
+          <textarea name="description" rows={4} className="w-full resize-y rounded-xl border border-border bg-background px-3.5 py-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
         </div>
-        <div>
-          <Button type="submit" className="gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
+        <div className="flex justify-center border-t border-border/60 pt-5">
+          <Button type="submit" className="h-11 min-w-36 gap-2 rounded-xl px-6 shadow-sm"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
         </div>
       </form>
     </div>

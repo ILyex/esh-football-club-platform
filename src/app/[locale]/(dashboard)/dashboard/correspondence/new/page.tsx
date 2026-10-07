@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId, getAuthorizedTeams, getAuthorizedTeamIds } from "@/lib/team-context";
 import { createCorrespondenceAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -20,7 +20,7 @@ export default async function NewCorrespondencePage({ params }: { params: Promis
   const { locale } = await params;
   const isAr = locale === "ar";
   const Arrow = isAr ? ArrowRight : ArrowLeft;
-  await requirePermission("correspondence.manage");
+  await requirePagePermission("correspondence.manage", locale);
   const t = await getTranslations("correspondence");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

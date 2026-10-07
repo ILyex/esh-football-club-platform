@@ -49,7 +49,14 @@ export function CommandCenterTrigger({
   const [groups, setGroups] = useState<SearchCategoryGroup[]>([]);
   const [history, setHistory] = useState<string[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const historyKey = `dashboard-search-history:${locale}`;
+
+  useEffect(() => {
+    const focusDashboardSearch = () => inputRef.current?.focus();
+    window.addEventListener("focus-dashboard-search", focusDashboardSearch);
+    return () => window.removeEventListener("focus-dashboard-search", focusDashboardSearch);
+  }, []);
 
   useEffect(() => {
     try {
@@ -120,6 +127,7 @@ export function CommandCenterTrigger({
       <div className={`flex items-center gap-2 rounded-md border border-border bg-background/80 px-3 py-1.5 text-xs transition focus-within:border-club-primary focus-within:ring-2 focus-within:ring-club-primary/15 ${className ?? ""}`}>
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
+          ref={inputRef}
           type="search"
           value={query}
           onFocus={() => { if (query.trim().length >= 2) setOpen(true); }}
@@ -257,7 +265,8 @@ export function CommandCenter({ locale }: { locale: string }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((prev) => !prev);
+        setOpen(false);
+        window.dispatchEvent(new CustomEvent("focus-dashboard-search"));
       } else if (e.key === "Escape" && open) {
         e.preventDefault();
         setOpen(false);

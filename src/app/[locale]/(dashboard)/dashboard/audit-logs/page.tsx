@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
@@ -151,7 +151,7 @@ export default async function AuditLogsPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const currentUser = await requirePermission("audit.view");
+  const currentUser = await requirePagePermission("audit.view", locale);
   const canManageUsers = hasPermission(currentUser, "users.manage");
   const t = await getTranslations("auditLogs");
   const tCommon = await getTranslations("common");

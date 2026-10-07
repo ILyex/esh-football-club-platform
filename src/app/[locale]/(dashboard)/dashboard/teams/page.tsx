@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TeamCategoryChart } from "@/components/teams/team-category-chart";
@@ -13,7 +13,7 @@ const CATEGORY_ORDER = ["SENIOR", "U20", "U17", "U15"] as const;
 export default async function TeamsListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const isAr = locale === "ar";
-  const user = await requirePermission("teams.view");
+  const user = await requirePagePermission("teams.view", locale);
   const t = await getTranslations("teams");
   const tCommon = await getTranslations("common");
   const canManage = hasPermission(user, "teams.manage");

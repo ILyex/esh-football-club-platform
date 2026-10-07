@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { getPlayerDisplayName } from "@/lib/utils";
+import { frenchNationality } from "@/lib/public/locale-text";
 import { OfficialPlayerAttestationModal } from "./official-player-attestation-modal";
 
 export interface SerializedPlayerOverview {
@@ -212,7 +213,7 @@ export function PlayerOverviewModal({
                       )}
                     </div>
                     <p className="text-xs text-white/80 mt-0.5">
-                      {posLabel} • {catLabel} • {player.nationality}
+                      {posLabel} • {catLabel} • {isAr ? player.nationality : frenchNationality(player.nationality)}
                     </p>
                     <div className="flex items-center gap-3 text-[11px] text-white/70 mt-1">
                       <span>{age} {isAr ? "سنة" : "ans"}</span>

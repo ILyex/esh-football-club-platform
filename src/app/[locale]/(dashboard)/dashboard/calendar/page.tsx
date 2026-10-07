@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { NoticeToast } from "@/components/shared/notice-toast";
@@ -9,7 +9,7 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  CalendarPlus,
+  Plus,
   Trophy,
   Dumbbell,
   Users,
@@ -68,7 +68,7 @@ export default async function CalendarPage({
   const { locale } = await params;
   const sp = await searchParams;
   const isAr = locale === "ar";
-  const user = await requirePermission("calendar.view");
+  const user = await requirePagePermission("calendar.view", locale);
   const t = await getTranslations("calendar");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -162,7 +162,7 @@ export default async function CalendarPage({
                 className="group inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-white/20 bg-gradient-to-br from-club-primary to-red-700 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-950/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red-950/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 ring-1 ring-inset ring-white/20 transition-transform group-hover:scale-105">
-                  <CalendarPlus className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                 </span>
                 <span>{isAr ? "إضافة موعد جديد" : t("addEvent")}</span>
                 <ArrowRight className="h-3.5 w-3.5 opacity-80 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

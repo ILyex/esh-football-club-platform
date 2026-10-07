@@ -1,26 +1,27 @@
 import Link from "next/link";
-import { Clock3, MapPin, Save, UsersRound } from "lucide-react";
+import { Clock3, MapPin, Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
 import { createTrainingSessionAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { TimeInput } from "@/components/ui/time-input";
-import { MasterFilterSelect } from "@/components/shared/master-filter-select";
+import { TrainingTeamCoachFields } from "@/components/training/training-team-coach-fields";
 
 export default async function NewTrainingSessionPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("training.manage");
+  await requirePagePermission("training.manage", locale);
   const t = await getTranslations("training");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
   const [coaches, teams, currentTeamId] = await Promise.all([
     db.staff.findMany({
-      where: { role: { in: ["HEAD_COACH", "ASSISTANT_COACH", "GOALKEEPING_COACH", "FITNESS_COACH"] }, status: "ACTIVE" },
+        where: { role: { in: ["HEAD_COACH", "ASSISTANT_COACH", "GOALKEEPING_COACH", "FITNESS_COACH"] }, status: "ACTIVE" },
+        include: { teamAssignments: { select: { teamId: true } } },
       orderBy: { lastName: "asc" }
     }),
     db.team.findMany({ orderBy: { category: "asc" } }),
@@ -40,7 +41,8 @@ export default async function NewTrainingSessionPage({ params }: { params: Promi
   }));
   const coachOptions = coaches.map((coach) => ({
     id: coach.id,
-    label: `${coach.firstName} ${coach.lastName}`.trim()
+    label: `${coach.firstName} ${coach.lastName}`.trim(),
+    teamIds: [coach.teamId, ...coach.teamAssignments.map((assignment) => assignment.teamId)].filter((id): id is string => Boolean(id))
   }));
 
   return (
@@ -56,36 +58,24 @@ export default async function NewTrainingSessionPage({ params }: { params: Promi
       </div>
 
       <form action={action} className="grid grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2 sm:p-7">
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold"><UsersRound className="h-4 w-4 text-club-primary" />{tTeams("title")}</label>
-          <MasterFilterSelect
-            name="teamId"
-            value={currentTeamId ?? ""}
-            options={selectOptions}
-            locale={isAr ? "ar" : "fr"}
-            placeholder={isAr ? "اختر الفئة" : "Choisir une catégorie"}
-            headerTitle={isAr ? "الفئة الرياضية" : "Catégorie sportive"}
-            className="w-full [&>button]:w-full [&>button]:justify-between"
-          />
-        </div>
+        <TrainingTeamCoachFields
+          teams={selectOptions}
+          coaches={coachOptions}
+          initialTeamId={currentTeamId ?? ""}
+          locale={locale}
+          teamLabel={tTeams("title")}
+          coachLabel={t("fields.coach")}
+          teamPlaceholder={isAr ? "اختر الفئة" : "Choisir une catégorie"}
+          coachPlaceholder={isAr ? "اختر المدرب (اختياري)" : "Choisir l’entraîneur (facultatif)"}
+          teamHeader={isAr ? "الفئة الرياضية" : "Catégorie sportive"}
+          coachHeader={isAr ? "المدربون المتاحون لهذه الفئة" : "Entraîneurs de cette catégorie"}
+        />
         <div>
           <DateInput
             label={t("fields.date")}
             name="date"
             required
             locale={locale}
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold"><UsersRound className="h-4 w-4 text-club-primary" />{t("fields.coach")}</label>
-          <MasterFilterSelect
-            name="coachId"
-            value=""
-            options={coachOptions}
-            locale={isAr ? "ar" : "fr"}
-            placeholder={isAr ? "اختر المدرب (اختياري)" : "Choisir l’entraîneur (facultatif)"}
-            headerTitle={isAr ? "المدربون المتاحون" : "Entraîneurs disponibles"}
-            className="w-full [&>button]:w-full [&>button]:justify-between"
           />
         </div>
         <div>

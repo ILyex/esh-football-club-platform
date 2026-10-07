@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export default async function ContractsListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("contracts.view");
+  const user = await requirePagePermission("contracts.view", locale);
   const canManage = hasPermission(user, "contracts.manage");
   const canViewCorrespondence = hasPermission(user, "correspondence.view");
   const canViewMeetings = hasPermission(user, "meetings.view");

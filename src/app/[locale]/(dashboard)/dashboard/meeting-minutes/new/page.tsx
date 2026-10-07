@@ -1,7 +1,7 @@
 import { FileText, Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
 import { createMeetingMinuteAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ import { MeetingAttendeesInput } from "@/components/meetings/meeting-attendees-i
 export default async function NewMeetingMinutePage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ event?: string }> }) {
   const { locale } = await params;
   const { event: eventId } = await searchParams;
-  await requirePermission("meetings.manage");
+  await requirePagePermission("meetings.manage", locale);
   const t = await getTranslations("meetings");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

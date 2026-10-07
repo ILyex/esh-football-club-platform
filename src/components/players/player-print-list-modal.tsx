@@ -49,7 +49,7 @@ export function PlayerPrintListModal({
   const handlePrint = () => {
     printDocumentElement(
       elementId,
-      isAr ? "قائمة اللاعبين — ESH SIDI HOSNI" : "Liste des Joueurs — ESH SIDI HOSNI"
+      isAr ? "قائمة اللاعبين — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Liste des Joueurs — Association Sportive Espoire Sidi Hosni de Football"
     );
   };
 
@@ -101,7 +101,7 @@ export function PlayerPrintListModal({
             <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex justify-center">
               <div
                 id={elementId}
-                className="printable-document esh-security-watermark relative w-full max-w-[210mm] min-h-[297mm] bg-white text-zinc-900 p-8 sm:p-12 shadow-xl border border-zinc-200 text-start flex flex-col justify-between"
+                className="printable-document player-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-zinc-900 p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col justify-between"
                 style={{
                   fontFamily: ESH_DOCUMENT_FONT_FAMILY,
                   direction: isAr ? "rtl" : "ltr"
@@ -118,7 +118,10 @@ export function PlayerPrintListModal({
                   aria-hidden="true"
                 />
 
-                <div className="relative z-10">
+                <div
+                  className="relative z-10 w-[190mm] min-w-[190mm] max-w-[190mm]"
+                  style={{ width: "190mm", minWidth: "190mm", maxWidth: "190mm" }}
+                >
                   {/* Official Institutional Header */}
                   <OfficialDocumentHeader
                     badgeText={isAr ? "قائمة اللاعبين" : "LISTE JOUEURS"}
@@ -129,18 +132,18 @@ export function PlayerPrintListModal({
                   {/* Category and date context */}
                   <div className="my-3 text-center">
                     {teamCategoryName && (
-                      <p className="mt-1 text-sm font-bold text-zinc-800">
+                    <p className="mt-1 text-base font-bold text-zinc-800">
                         {isAr ? `الفئة الرياضية: ${teamCategoryName}` : `Catégorie: ${teamCategoryName}`}
                       </p>
                     )}
-                    <p className="text-xs text-zinc-600 mt-1">
+                    <p className="mt-1 text-sm text-zinc-600">
                       {isAr ? `الموسم الرياضي: 2025 / 2026 • تاريخ التحرير: ${todayFormatted}` : `Saison: 2025 / 2026 • Date: ${todayFormatted}`}
                     </p>
                   </div>
 
                   {/* Clean Institutional Table */}
-                  <div className="mt-5">
-                    <table className="w-full text-sm border-collapse border border-zinc-300">
+                  <div className="mt-5 w-full" style={{ width: "100%", maxWidth: "none" }}>
+                      <table className="w-full border-collapse border border-zinc-300 text-[18px] leading-relaxed" style={{ width: "100%", maxWidth: "none", tableLayout: "fixed" }}>
                       <thead>
                         <tr className="bg-zinc-100 text-zinc-900 font-bold">
                           <th className="py-2.5 px-3 border border-zinc-300 text-center w-12">#</th>
@@ -192,13 +195,13 @@ export function PlayerPrintListModal({
                     </table>
                   </div>
 
-                  <div className="mt-3 text-xs text-zinc-600 flex justify-between px-2">
+                  <div className="mt-3 flex justify-between px-2 text-sm text-zinc-600">
                     <span>{isAr ? `إجمالي اللاعبين المسجلين: ${players.length} لاعب` : `Total des joueurs: ${players.length}`}</span>
                   </div>
                 </div>
 
                 {/* Institutional Signatures & Stamp Block by Role Only */}
-                <div className="relative z-10 mt-10 pt-6 flex justify-between items-end px-4 text-center text-xs text-zinc-700">
+                <div className="relative z-10 mt-10 flex items-end justify-between px-4 pt-6 text-center text-sm text-zinc-700">
                   <div>
                     <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "الأمين العام للنادي" : "Le Secrétaire Général"}</p>
                     <p className="text-[11px] text-zinc-500">{isAr ? "التوقيع والتأشيرة" : "Signature & Visa"}</p>
@@ -209,7 +212,7 @@ export function PlayerPrintListModal({
                     <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "ختم النادي الرسمي" : "Cachet Officiel"}</p>
                     <div className="h-16 flex items-center justify-center">
                       <span dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }} className="text-[10px] text-zinc-400 px-4 py-2 font-mono tabular-nums font-bold">
-                        ESH SIDI HOSNI • 2018 — ∞
+                        Association Sportive Espoire Sidi Hosni de Football • 2018 — ∞
                       </span>
                     </div>
                   </div>
@@ -231,10 +234,6 @@ export function PlayerPrintListModal({
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setIsOpen(false)}>
                   {isAr ? "إغلاق" : "Fermer"}
-                </Button>
-                <Button size="sm" onClick={handlePrint} className="gap-1.5">
-                  <Printer className="h-4 w-4" />
-                  <span>{isAr ? "طباعة الوثيقة" : "Imprimer la liste"}</span>
                 </Button>
               </div>
             </div>

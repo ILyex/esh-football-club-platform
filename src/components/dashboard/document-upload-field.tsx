@@ -19,6 +19,7 @@ interface DocumentUploadFieldProps {
   description?: string;
   required?: boolean;
   locale: string;
+  formId?: string;
   existingDocument?: ExistingDocument | null;
 }
 
@@ -28,6 +29,7 @@ export function DocumentUploadField({
   description,
   required,
   locale,
+  formId,
   existingDocument
 }: DocumentUploadFieldProps) {
   const isRtl = locale === "ar";
@@ -105,6 +107,7 @@ export function DocumentUploadField({
         ref={fileInputRef}
         type="file"
         name={name}
+        form={formId}
         required={required && !existingDocument}
         accept="image/jpeg,image/png,image/webp,application/pdf"
         onChange={handleFileChange}

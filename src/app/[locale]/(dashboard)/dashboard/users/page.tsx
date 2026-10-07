@@ -1,7 +1,8 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { hasPermission, isProgrammer, requirePermission } from "@/lib/permissions";
+import { hasPermission, isProgrammer, requirePagePermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
@@ -11,7 +12,7 @@ import { userDetailsHref } from "@/lib/user-route";
 
 export default async function UsersListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const currentUser = await requirePermission("users.view");
+  const currentUser = await requirePagePermission("users.view", locale);
   const canTerminateSessions = hasPermission(currentUser, "users.manage") && isProgrammer(currentUser);
   const t = await getTranslations("users");
   const tCommon = await getTranslations("common");
@@ -33,7 +34,7 @@ export default async function UsersListPage({ params }: { params: Promise<{ loca
           <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "إدارة حسابات الدخول وحالة اتصال المستخدمين" : "Gérez les comptes et leur présence sur la plateforme."}</p>
         </div>
         <Link href={`/${locale}/dashboard/users/new`} className="self-start sm:self-auto">
-          <Button>{t("addUser")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addUser")}</Button>
         </Link>
       </div>
 

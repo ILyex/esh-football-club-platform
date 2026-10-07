@@ -7,19 +7,43 @@ const overrides = new Map<string, unknown>();
 let localClient: Promise<PrismaClient> | undefined;
 const clientsByRequest = new WeakMap<object, Promise<PrismaClient>>();
 
+/**
+ * pg-connection-string currently treats `prefer`, `require`, and `verify-ca`
+ * as aliases for `verify-full` and warns that this will change in its next
+ * major release. Normalize those legacy values at the Node adapter boundary
+ * so local development and cPanel do not emit a confusing console error or
+ * silently change TLS semantics after a dependency upgrade.
+ */
+function normalizeNodeConnectionString(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode");
+    if (sslMode === "prefer" || sslMode === "require" || sslMode === "verify-ca") {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+  } catch {
+    // Let pg report malformed connection strings using its normal diagnostic.
+  }
+  return connectionString;
+}
+
 function prismaLogLevels(): ("warn" | "error")[] {
   return process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"];
 }
 
 function nodePoolOptions() {
-  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "5", 10);
+  // Two connections are enough for the club's single Node process and keep a
+  // small PC/host from carrying an unnecessary idle pool. Larger deployments
+  // can opt in with DATABASE_POOL_MAX.
+  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "2", 10);
   // Keep each Node process conservative by default. On shared cPanel hosting,
   // Passenger may run more than one process, so total connections are
   // DATABASE_POOL_MAX × process count. Cap the setting to avoid accidental
   // exhaustion of a small managed PostgreSQL plan.
   const max = Number.isInteger(configuredMax) && configuredMax >= 1
     ? Math.min(configuredMax, 20)
-    : 5;
+    : 2;
 
   return {
     connectionString: process.env.DATABASE_URL,
@@ -38,8 +62,9 @@ async function getLocalClient(): Promise<PrismaClient> {
     import("@prisma/adapter-pg"),
     import("pg")
   ]).then(([{ PrismaClient: Client }, { PrismaPg }, { default: pg }]) => {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) throw new Error("DATABASE_URL is required for the PostgreSQL adapter.");
+    const configuredConnectionString = process.env.DATABASE_URL;
+    if (!configuredConnectionString) throw new Error("DATABASE_URL is required for the PostgreSQL adapter.");
+    const connectionString = normalizeNodeConnectionString(configuredConnectionString);
     const pool = new pg.Pool({ ...nodePoolOptions(), connectionString });
     const client = new Client({ adapter: new PrismaPg(pool), log: prismaLogLevels() });
     if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;

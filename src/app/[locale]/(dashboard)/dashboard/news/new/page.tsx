@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createNewsAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Save } from "lucide-react";
 
 export default async function NewNewsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("news.create");
+  await requirePagePermission("news.create", locale);
   const t = await getTranslations("news");
   const tCommon = await getTranslations("common");
 

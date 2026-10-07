@@ -62,7 +62,7 @@ export function PublicHeader({
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
         {/* Club Brand & Logo */}
         <Link href={`/${locale}`} className="group flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
           <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/80 bg-card p-0.5 shadow-sm transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
@@ -73,12 +73,15 @@ export function PublicHeader({
               <Shield className="h-5 w-5 text-club-primary" />
             )}
           </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-sm font-extrabold leading-tight tracking-tight text-foreground transition-colors group-hover:text-club-primary sm:text-base">
+          {/* Keep the name anchored beside the logo in both writing directions.
+              `text-end` pushed Arabic text to the far edge of the flex cell,
+              leaving a large gap between the name and the logo. */}
+          <div className="flex min-w-0 flex-1 flex-col gap-1 text-start">
+            <span className="whitespace-nowrap text-[12px] font-extrabold leading-snug tracking-tight text-foreground transition-colors group-hover:text-club-primary sm:text-base">
               {clubShortName || clubName}
             </span>
-            <span className="hidden text-[10px] font-medium leading-tight text-muted-foreground min-[360px]:inline sm:text-[11px]">
-              {locale === "ar" ? "نادي كرة القدم • تأسس 2018" : "Club de football • Fondé en 2018"}
+            <span dir="ltr" className="hidden text-[10px] font-medium leading-tight text-muted-foreground min-[360px]:inline sm:text-[11px]">
+              ESH • 2018 — ∞
             </span>
           </div>
         </Link>

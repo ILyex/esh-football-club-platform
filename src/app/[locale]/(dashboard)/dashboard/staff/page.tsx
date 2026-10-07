@@ -1,9 +1,10 @@
+import { Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export default async function StaffListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  await requirePermission("staff.view");
+  await requirePagePermission("staff.view", locale);
 
   const t = await getTranslations("staff");
   const tTeams = await getTranslations("teams");
@@ -48,23 +49,23 @@ export default async function StaffListPage({
   const where = {
     ...(sp.role ? { role: sp.role as any } : {}),
     ...(sp.status ? { status: sp.status as any } : { status: { not: "ARCHIVED" as const } }),
-    ...(effectiveTeamId ? { teamId: effectiveTeamId } : {}),
-    ...(sp.q
-      ? {
-          OR: [
+    ...((effectiveTeamId || sp.q) ? {
+      AND: [
+        ...(effectiveTeamId ? [{ OR: [{ teamId: effectiveTeamId }, { teamAssignments: { some: { teamId: effectiveTeamId } } }] }] : []),
+        ...(sp.q ? [{ OR: [
             { firstName: { contains: sp.q, mode: "insensitive" as const } },
             { lastName: { contains: sp.q, mode: "insensitive" as const } },
             { firstNameFr: { contains: sp.q, mode: "insensitive" as const } },
             { lastNameFr: { contains: sp.q, mode: "insensitive" as const } }
-          ]
-        }
-      : {})
+          ] }] : [])
+      ]
+    } : {})
   };
 
   const [staff, total, teams, allActiveStaff] = await Promise.all([
     db.staff.findMany({
       where,
-      include: { team: true },
+      include: { team: true, teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } } },
       orderBy: [{ role: "asc" }, { lastName: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -88,6 +89,10 @@ export default async function StaffListPage({
             category: true,
             name: true
           }
+        },
+        teamAssignments: {
+          include: { team: { select: { id: true, category: true, name: true } } },
+          orderBy: { createdAt: "asc" }
         }
       }
     })
@@ -106,7 +111,7 @@ export default async function StaffListPage({
           </p>
         </div>
         <Link href={`/${locale}/dashboard/staff/new`}>
-          <Button>{t("addStaff")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addStaff")}</Button>
         </Link>
       </div>
 
@@ -178,7 +183,13 @@ export default async function StaffListPage({
                     {t(`roles.${s.role}` as any)}
                   </span>
                 </td>
-                <td className="px-4 py-2">{s.team ? tTeams(`categories.${s.team.category}` as any) : "—"}</td>
+                <td className="px-4 py-2">
+                  {s.teamAssignments?.length
+                    ? s.teamAssignments.map((assignment) => tTeams(`categories.${assignment.team.category}` as any)).join("، ")
+                    : s.team
+                      ? tTeams(`categories.${s.team.category}` as any)
+                      : "—"}
+                </td>
                 <td className="px-4 py-2">
                   <Badge tone={STATUS_TONE[s.status]}>{t(`statuses.${s.status}` as any)}</Badge>
                 </td>

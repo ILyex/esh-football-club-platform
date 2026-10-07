@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { updateClubSettingsAction } from "./actions";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { ClubSettingsForm } from "@/components/settings/club-settings-form";
 
 export default async function SettingsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("settings.manage");
+  await requirePagePermission("settings.manage", locale);
   const isAr = locale === "ar";
 
   const settings = await db.clubSettings.findUniqueOrThrow({ where: { id: "singleton" } });

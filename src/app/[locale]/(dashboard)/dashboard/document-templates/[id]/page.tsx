@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
 import { addTemplateVersionAction } from "../actions";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
 
 export default async function DocumentTemplateDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  await requirePermission("templates.manage");
+  await requirePagePermission("templates.manage", locale);
   const t = await getTranslations("templates");
   const tCommon = await getTranslations("common");
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { CalendarPlus, ChevronRight, Save } from "lucide-react";
+import { Plus, ChevronRight, Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
 import { updateCalendarEventAction, deleteCalendarEventAction } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ const TYPES = ["MEETING", "ADMINISTRATIVE", "OTHER"] as const;
 
 export default async function CalendarEventDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("calendar.view");
+  const user = await requirePagePermission("calendar.view", locale);
   const t = await getTranslations("calendar");
   const tCommon = await getTranslations("common");
   const isAr = locale === "ar";
@@ -43,7 +43,7 @@ export default async function CalendarEventDetailPage({ params }: { params: Prom
     <div className="mx-auto w-full max-w-3xl">
       <div className="mb-6 flex flex-col items-center text-center">
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-club-primary/20 bg-club-primary/10 text-club-primary shadow-sm">
-          <CalendarPlus className="h-5 w-5" />
+          <Plus className="h-5 w-5" />
         </div>
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
           {isAr ? "تعديل موعد" : "Modifier le rendez-vous"}

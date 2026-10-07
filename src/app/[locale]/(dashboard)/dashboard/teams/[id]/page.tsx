@@ -2,14 +2,14 @@ import Link from "next/link";
 import { ArrowLeft, Save, UsersRound } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { updateTeamAction } from "../actions";
 import { Button } from "@/components/ui/button";
 
 export default async function TeamEditPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { id, locale } = await params;
-  await requirePermission("teams.manage");
+  await requirePagePermission("teams.manage", locale);
   const t = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 

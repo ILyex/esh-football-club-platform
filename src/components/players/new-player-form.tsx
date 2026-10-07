@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { toast } from "sonner";
-import { User, Shield, Activity, FileText, Image as ImageIcon, AlertCircle, Loader2, Save } from "lucide-react";
+import { User, Shield, Activity, FileText, Image as ImageIcon, AlertCircle, Loader2, Save, UploadCloud, ImagePlus } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
 
@@ -51,6 +51,7 @@ export function NewPlayerForm({
 }: NewPlayerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [formEpoch, setFormEpoch] = useState(0);
   const isAr = locale === "ar";
 
@@ -73,6 +74,7 @@ export function NewPlayerForm({
         );
       }
       form.reset();
+      setSelectedPhoto(null);
       setFormEpoch((epoch) => epoch + 1);
     } catch (err: any) {
       let rawMsg = err?.message || "";
@@ -245,16 +247,40 @@ export function NewPlayerForm({
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="space-y-2">
+            <label htmlFor="new-player-photo" className="block text-xs font-semibold text-foreground">
               {translations.photo}
             </label>
             <input
+              id="new-player-photo"
               name="photo"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-semibold file:text-foreground hover:file:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="peer sr-only"
+              onChange={(event) => setSelectedPhoto(event.currentTarget.files?.[0] ?? null)}
             />
+            <label
+              htmlFor="new-player-photo"
+              className="group flex min-h-[76px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-3 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-club-primary/30 sm:px-4"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/10 text-club-primary transition-colors group-hover:bg-club-primary/15">
+                {selectedPhoto ? <ImagePlus className="h-5 w-5" aria-hidden="true" /> : <UploadCloud className="h-5 w-5" aria-hidden="true" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-foreground">
+                  {selectedPhoto?.name ?? (isAr ? "اختر صورة اللاعب من جهازك" : "Choisir la photo du joueur")}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {selectedPhoto
+                    ? `${Math.max(1, Math.ceil(selectedPhoto.size / 1024))} KB`
+                    : (isAr ? "PNG أو JPG أو WebP" : "PNG, JPG ou WebP")}
+                </span>
+              </span>
+              <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors group-hover:border-club-primary/30 group-hover:text-club-primary">
+                <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                {isAr ? "استعراض" : "Parcourir"}
+              </span>
+            </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

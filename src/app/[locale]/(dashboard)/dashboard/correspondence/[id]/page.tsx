@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound } from "next/navigation";
 import { updateCorrespondenceAction, attachDocumentAction, detachDocumentAction, uploadAndAttachCorrespondenceDocumentAction } from "../actions";
@@ -12,7 +12,7 @@ import { Save,  FileText, Download, Upload, Paperclip } from "lucide-react";
 
 export default async function CorrespondenceDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("correspondence.view");
+  const user = await requirePagePermission("correspondence.view", locale);
   const t = await getTranslations("correspondence");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

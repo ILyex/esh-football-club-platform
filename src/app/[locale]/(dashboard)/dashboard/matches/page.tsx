@@ -3,11 +3,11 @@ import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { Plus } from "lucide-react";
 import { MatchDocumentPreviewButton } from "@/components/matches/match-document-preview-button";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -27,7 +27,7 @@ export default async function MatchesListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("matches.view");
+  const user = await requirePagePermission("matches.view", locale);
   const t = await getTranslations("matches");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -71,7 +71,7 @@ export default async function MatchesListPage({
           {canCreate && (
             <Link href={`/${locale}/dashboard/matches/new`}>
               <Button size="sm" className="gap-1.5 text-xs font-bold">
-                <PlusCircle className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" />
                 <span>{t("addMatch")}</span>
               </Button>
             </Link>

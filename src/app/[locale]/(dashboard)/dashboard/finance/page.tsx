@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getAccountBalances } from "@/lib/finance/treasury-service";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   Clock,
   ShieldCheck,
-  PlusCircle,
+  Plus,
   FileCheck,
   AlertTriangle,
   Landmark
@@ -35,7 +35,7 @@ export default async function FinanceOverviewPage({
 }) {
   await searchParams;
   const { locale } = await params;
-  const user = await requirePermission("finance.view");
+  const user = await requirePagePermission("finance.view", locale);
   const canManage = hasPermission(user, "finance.manage");
   const canApprove = hasPermission(user, "finance.approve");
   const isProgrammer =

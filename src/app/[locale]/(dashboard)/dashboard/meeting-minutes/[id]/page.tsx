@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound } from "next/navigation";
 import { updateMeetingMinuteAction, attachMeetingDocumentAction, detachMeetingDocumentAction, uploadAndAttachMeetingDocumentAction } from "../actions";
@@ -12,7 +12,7 @@ import { Save,  FileText, Download, Upload, Paperclip } from "lucide-react";
 
 export default async function MeetingMinuteDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("meetings.view");
+  const user = await requirePagePermission("meetings.view", locale);
   const t = await getTranslations("meetings");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

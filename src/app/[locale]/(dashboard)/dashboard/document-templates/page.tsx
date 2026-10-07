@@ -1,7 +1,8 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { hasPermission, requirePermission } from "@/lib/permissions";
+import { hasPermission, requirePagePermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
@@ -14,7 +15,7 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
 
 export default async function DocumentTemplatesListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const user = await requirePermission("templates.view");
+  const user = await requirePagePermission("templates.view", locale);
   const t = await getTranslations("templates");
   const tCommon = await getTranslations("common");
   const canManageTemplates = hasPermission(user, "templates.manage");
@@ -48,7 +49,7 @@ export default async function DocumentTemplatesListPage({ params }: { params: Pr
         </div>
         {canManageTemplates && (
           <Link href={`/${locale}/dashboard/document-templates/new`} className="shrink-0">
-            <Button>{t("addTemplate")}</Button>
+            <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addTemplate")}</Button>
           </Link>
         )}
       </div>
@@ -99,7 +100,7 @@ export default async function DocumentTemplatesListPage({ params }: { params: Pr
             </p>
             {canManageTemplates && (
               <Link href={`/${locale}/dashboard/document-templates/new`} className="mt-4 inline-flex">
-                <Button>{t("addTemplate")}</Button>
+                <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addTemplate")}</Button>
               </Link>
             )}
           </div>

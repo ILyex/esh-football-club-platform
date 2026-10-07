@@ -58,12 +58,14 @@ export function DocumentViewer({
       const iframe = document.createElement("iframe");
       iframe.id = "esh-print-frame";
       iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
+      iframe.style.left = "0";
+      iframe.style.top = "0";
+      iframe.style.width = "210mm";
+      iframe.style.height = "297mm";
       iframe.style.border = "none";
-      iframe.style.visibility = "hidden";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.style.zIndex = "-9999";
       document.body.appendChild(iframe);
 
       const doc = iframe.contentWindow?.document;
@@ -91,7 +93,7 @@ export function DocumentViewer({
             ${styleElements.join("\n")}
             <style>
               @page {
-                size: A4 portrait;
+                size: auto;
                 margin: 0 !important;
               }
               *, *::before, *::after {
@@ -108,12 +110,17 @@ export function DocumentViewer({
               }
               .esh-print-watermark {
                 position: fixed !important;
-                inset: 0 auto auto 0 !important;
-                width: 210mm !important;
-                height: 297mm !important;
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
                 object-fit: fill !important;
                 z-index: 0 !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
                 pointer-events: none !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               .docx-preview-root { position: relative !important; z-index: 1 !important; background: transparent !important; }
               u, ins, a, .underline {
@@ -129,7 +136,6 @@ export function DocumentViewer({
                 border: none !important;
                 border-top: 3px solid #c8102e !important;
                 margin: 0 auto !important;
-                padding: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
                 min-height: auto !important;

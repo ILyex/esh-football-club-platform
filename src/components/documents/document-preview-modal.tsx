@@ -126,7 +126,7 @@ export function DocumentPreviewModal({
                                 @page { size: A4; margin: 10mm; }
                                 body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Traditional Arabic', 'Arabic Typesetting', serif; }
                                 .document-image { max-width: 95%; max-height: 88vh; object-fit: contain; position: relative; z-index: 1; }
-                                .watermark-layer { position: fixed; inset: 0 auto auto 0; width: 210mm; height: 297mm; object-fit: fill; z-index: 2; pointer-events: none; }
+                                .watermark-layer { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: fill !important; z-index: 2 !important; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                               </style>
                             </head>
                             <body>

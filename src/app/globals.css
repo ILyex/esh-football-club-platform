@@ -41,6 +41,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Tailwind Preflight leaves buttons with the browser's default cursor. Keep
+   every actionable control (including icon-only buttons) visibly clickable. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* Sonner's rich-colour defaults follow the OS colour scheme, while the
  * platform theme is user-controlled through the `dark` class. Keep every
  * notification aligned with the active platform surface instead of showing
@@ -383,6 +396,24 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   font-weight: 700 !important;
 }
 
+/* The player roster is an A4 document; keep its identity and table readable
+   when the browser scales the complete sheet into the print preview. */
+.player-list-document .esh-document-authority p {
+  font-size: 20px !important;
+}
+
+.player-list-document .esh-document-reference p {
+  font-size: 18px !important;
+}
+
+.player-list-document .esh-club-name {
+  font-size: 18px !important;
+}
+
+.player-list-document .esh-official-document-header h1 {
+  font-size: 30px !important;
+}
+
 
 /* Visual canvas view for docx-preview in browser */
 .docx-preview-root .docx-wrapper {
@@ -418,7 +449,7 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 /* Isolated Print Styles: Strips all dashboard chrome and preserves A4 layout */
 @media print {
   @page {
-    size: A4 portrait;
+    size: 210mm 297mm;
     margin: 0 !important;
   }
 
@@ -447,8 +478,11 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     overflow: visible !important;
     max-height: none !important;
   }
-  [role="dialog"]:has(.printable-document) > div:first-child,
-  [role="dialog"]:has(#official-inventory-preview-document) > div:first-child {
+  /* Print dialogs contain a wrapper, then a toolbar and the paper. Hiding the
+     wrapper itself makes Chrome's print preview a completely blank A4 sheet.
+     Hide only the first nested toolbar and keep the paper in the print tree. */
+  [role="dialog"]:has(.printable-document) > div > div:first-child,
+  [role="dialog"]:has(#official-inventory-preview-document) > div > div:first-child {
     display: none !important;
   }
   [role="dialog"]:has(.printable-document) div,
@@ -477,12 +511,27 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     background: white !important;
     color: black !important;
     margin: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     transform: none !important;
     overflow: visible !important;
+  }
+
+  /* The roster is laid out against the A4 content box, not a centered
+     narrow column. Keep its nested blocks and table at the same width as the
+     red content guides used in the preview. */
+  .player-list-document > .relative,
+  .player-list-document > .relative > .mt-5,
+  .player-list-document table {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .player-list-document {
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
   }
 
   /* Clean up docx-preview elements for printing */
@@ -496,7 +545,6 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     box-shadow: none !important;
     border: none !important;
     margin: 0 auto !important;
-    padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     min-height: auto !important;

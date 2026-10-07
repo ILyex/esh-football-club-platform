@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createContractAction } from "../actions";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, FileCheck, ShieldCheck } from "lucide-react";
@@ -12,7 +12,7 @@ const STATUSES = ["PENDING", "ACTIVE", "EXPIRING_SOON", "EXPIRED"] as const;
 
 export default async function NewContractPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("contracts.manage");
+  await requirePagePermission("contracts.manage", locale);
   const t = await getTranslations("contracts");
   const tTeams = await getTranslations("teams");
   const tStaff = await getTranslations("staff");

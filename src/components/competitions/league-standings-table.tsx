@@ -426,7 +426,7 @@ export function LeagueStandingsTable({
           <div className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-1.5 font-medium">
               <span className="h-2.5 w-2.5 rounded-full bg-club-primary" />
-              <span>{isAr ? "فريق أمل سيدي حسني" : "Espoir Sidi Hosni (Notre Club)"}</span>
+              <span>{isAr ? "فريق الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football (Notre Club)"}</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />

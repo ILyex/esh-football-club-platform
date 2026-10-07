@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { computeInsights, filterInsightsForUser } from "@/lib/insights/rules";
 import { Badge } from "@/components/ui/badge";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
@@ -13,7 +13,7 @@ const SEVERITY_TONE: Record<string, "success" | "warning" | "danger" | "neutral"
 
 export default async function DataQualityPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const user = await requirePermission("reports.view");
+  const user = await requirePagePermission("reports.view", locale);
   const t = await getTranslations("insights");
   const tCommon = await getTranslations("common");
 

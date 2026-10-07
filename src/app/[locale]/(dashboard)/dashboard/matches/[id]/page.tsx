@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound } from "next/navigation";
 import {
@@ -25,7 +25,7 @@ const EVENT_TYPES = ["GOAL", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "S
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("matches.view");
+  const user = await requirePagePermission("matches.view", locale);
   const t = await getTranslations("matches");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

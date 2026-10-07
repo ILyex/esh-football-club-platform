@@ -746,6 +746,8 @@ model MatchEvent {
   side     MatchEventSide @default(HOME)
   minute   Int
   notes    String?
+
+  @@index([staffId])
 }
 
 model MatchLineup {

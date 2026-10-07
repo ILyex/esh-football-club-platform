@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { readPermissionForEntityType, LABELLED_ENTITY_TYPES, resolveSourceEntityScope } from "@/lib/documents/entity-data-resolvers";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { getPrivateFileBuffer } from "@/lib/storage";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default async function GeneratedDocumentDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("documents.generate");
+  const user = await requirePagePermission("documents.generate", locale);
   const t = await getTranslations("generatedDocuments");
   const tTemplates = await getTranslations("templates");
 
@@ -27,7 +27,7 @@ export default async function GeneratedDocumentDetailPage({ params }: { params: 
   // payees) is as sensitive as the expense/ledger entry itself, so changing
   // this id in the URL must not open it for someone without finance access.
   const entityReadPermission = readPermissionForEntityType(generated.relatedEntityType);
-  if (entityReadPermission) await requirePermission(entityReadPermission);
+  if (entityReadPermission) await requirePagePermission(entityReadPermission, locale);
 
   // Authoritative team-scope check: resolve source entity scope
   const sourceScope = await resolveSourceEntityScope(generated.relatedEntityType, generated.relatedEntityId);

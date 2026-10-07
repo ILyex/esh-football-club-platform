@@ -353,30 +353,55 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
   const removePhoto = formData.get("removePhoto") === "true";
   const newPhotoUrl = await extractPlayerPhoto(formData);
 
-  const player = await db.player.update({
-    where: { id: playerId },
-    data: {
-      firstName: parsed.firstName,
-      lastName: parsed.lastName,
-      firstNameFr: parsed.firstNameFr,
-      lastNameFr: parsed.lastNameFr,
-      position: parsed.position,
-      nationality: parsed.nationality,
-      dateOfBirth: parsed.dateOfBirth,
-      teamId: parsed.teamId,
-      shirtNumber: parsed.shirtNumber,
-      height: parsed.height,
-      weight: parsed.weight,
-      previousTeam: parsed.previousTeam,
-      birthCertificateNumber: parsed.birthCertificateNumber,
-      licenceNumber: parsed.licenceNumber,
-      preferredFoot: parsed.preferredFoot,
-      joiningDate: parsed.joiningDate,
-      status: parsed.status,
-      internalNotes: parsed.internalNotes,
-      ...(newPhotoUrl ? { photoUrl: newPhotoUrl } : removePhoto ? { photoUrl: null } : {})
-    },
-    include: { team: true }
+  const player = await db.$transaction(async (tx) => {
+    const updated = await tx.player.update({
+      where: { id: playerId },
+      data: {
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        firstNameFr: parsed.firstNameFr,
+        lastNameFr: parsed.lastNameFr,
+        position: parsed.position,
+        nationality: parsed.nationality,
+        dateOfBirth: parsed.dateOfBirth,
+        teamId: parsed.teamId,
+        shirtNumber: parsed.shirtNumber,
+        height: parsed.height,
+        weight: parsed.weight,
+        previousTeam: parsed.previousTeam,
+        birthCertificateNumber: parsed.birthCertificateNumber,
+        licenceNumber: parsed.licenceNumber,
+        preferredFoot: parsed.preferredFoot,
+        joiningDate: parsed.joiningDate,
+        status: parsed.status,
+        internalNotes: parsed.internalNotes,
+        ...(newPhotoUrl ? { photoUrl: newPhotoUrl } : removePhoto ? { photoUrl: null } : {})
+      },
+      include: { team: true }
+    });
+
+    for (const [translationLocale, biography] of [["ar", parsed.biographyAr], ["fr", parsed.biographyFr]] as const) {
+      const normalizedBiography = biography?.trim() ?? "";
+      if (normalizedBiography) {
+        await tx.playerTranslation.upsert({
+          where: { playerId_locale: { playerId, locale: translationLocale } },
+          create: { playerId, locale: translationLocale, biography: normalizedBiography },
+          update: { biography: normalizedBiography }
+        });
+      } else {
+        await tx.playerTranslation.deleteMany({ where: { playerId, locale: translationLocale } });
+      }
+    }
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "player.update",
+      entityType: "Player",
+      entityId: updated.id,
+      changes: { before, after: parsed }
+    }, tx);
+
+    return updated;
   });
 
   let positiveDrugTestDetected = false;
@@ -432,14 +457,6 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
     await deletePublicFile(before.photoUrl).catch(() => {});
   }
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "player.update",
-    entityType: "Player",
-    entityId: player.id,
-    changes: { before, after: parsed }
-  });
-
   const categorySlug = player.team?.category?.toLowerCase();
   revalidatePath("/[locale]/dashboard/players", "page");
   revalidatePath(`/[locale]/dashboard/players/${playerId}`, "page");
@@ -471,6 +488,19 @@ export async function archivePlayerAction(playerId: string) {
   if (categorySlug) {
     revalidatePath(`/[locale]/team/${categorySlug}`, "page");
   }
+}
+
+export async function restorePlayerAction(playerId: string) {
+  const user = await requirePermission("players.archive");
+  const scopeContext = await getMutationScopeContext();
+  const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
+  assertTeamScope(scopeContext, player.teamId, "Player");
+  if (player.status !== "ARCHIVED") return;
+
+  const updated = await db.player.update({ where: { id: playerId }, data: { status: "ACTIVE" } });
+  await writeAuditLog({ userId: user.id, action: "player.restore", entityType: "Player", entityId: updated.id });
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath("/[locale]/team", "page");
 }
 
 export async function hardDeletePlayerAction(playerId: string) {

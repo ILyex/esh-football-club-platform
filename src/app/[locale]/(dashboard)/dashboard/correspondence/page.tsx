@@ -1,8 +1,9 @@
+import { Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ export default async function CorrespondenceListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("correspondence.view");
+  const user = await requirePagePermission("correspondence.view", locale);
   const canViewContracts = hasPermission(user, "contracts.view");
   const canViewMeetings = hasPermission(user, "meetings.view");
 
@@ -89,7 +90,7 @@ export default async function CorrespondenceListPage({
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link href={`/${locale}/dashboard/correspondence/new`}>
-          <Button>{t("addCorrespondence")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addCorrespondence")}</Button>
         </Link>
       </div>
 

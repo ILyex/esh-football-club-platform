@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { ReportsClientHub } from "@/components/reports/reports-client-hub";
 import { ReportItemData } from "@/components/reports/report-print-modal";
@@ -15,7 +15,7 @@ export default async function ReportsPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  await requirePermission("reports.view");
+  await requirePagePermission("reports.view", locale);
 
   const [teamContext, tPlayers, tTeams, tContracts, tTraining, tStaff] = await Promise.all([
     resolveUserTeamContext(sp.team),

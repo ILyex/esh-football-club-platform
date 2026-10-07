@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Save,
-  PlusCircle,
+  Plus,
   FileText,
   AlertTriangle,
   X
@@ -299,7 +299,7 @@ export function WebsiteCmsClient({
                 onClick={() => handleSelectMatch("NEW")}
                 className="text-xs font-bold gap-1"
               >
-                <PlusCircle className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" />
                 <span>{isRtl ? "مباراة جديدة" : "Nouveau"}</span>
               </Button>
             </div>

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export default async function DocumentsListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("documents.view");
+  const user = await requirePagePermission("documents.view", locale);
   const t = await getTranslations("documents");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -72,7 +72,7 @@ export default async function DocumentsListPage({
   if (activeFilter === "matches") {
     filterWhere.relatedMatchId = { not: null };
   } else if (activeFilter === "personnel") {
-    filterWhere.OR = [{ relatedPlayerId: { isNot: null } }, { relatedStaffId: { isNot: null } }];
+    filterWhere.OR = [{ relatedPlayerId: { not: null } }, { relatedStaffId: { not: null } }];
   } else if (activeFilter === "official") {
     filterWhere.OR = [
       { category: { key: { in: ["decision", "certificate", "meeting_minute", "report"] } } },

@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { updateFieldMappingsAction } from "../../../actions";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export default async function FieldMappingPage({
 }) {
   const { locale, versionId } = await params;
   const { notice } = await searchParams;
-  await requirePermission("templates.manage");
+  await requirePagePermission("templates.manage", locale);
   const t = await getTranslations("templates");
   const tCommon = await getTranslations("common");
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { resolveUserTeamContext, getEffectiveTeamId } from "@/lib/team-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +42,7 @@ export default async function TestingPage({
   const { locale } = await params;
   const sp = await searchParams;
   const isAr = locale === "ar";
-  const user = await requirePermission("players.view");
+  const user = await requirePagePermission("players.view", locale);
   const canManage =
     hasPermission(user, "testing.manage") ||
     hasPermission(user, "training.manage") ||

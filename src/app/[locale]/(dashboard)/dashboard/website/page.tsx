@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { hasPermission, requirePermission } from "@/lib/permissions";
+import { hasPermission, requirePagePermission } from "@/lib/permissions";
 import { getWebsiteAnalytics } from "@/lib/analytics";
 import { WebsiteAnalyticsDashboard } from "@/components/dashboard/website-analytics-dashboard";
 import { WebsiteAppearanceManager } from "@/components/dashboard/website-appearance-manager";
@@ -11,7 +11,7 @@ export default async function WebsiteManagementPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const user = await requirePermission("news.view");
+  const user = await requirePagePermission("news.view", locale);
   const canManageAppearance = hasPermission(user, "settings.manage");
 
   const [

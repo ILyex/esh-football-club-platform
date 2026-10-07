@@ -71,13 +71,13 @@ test("every exported finance server action authorizes server-side before doing a
 test("every finance page enforces a permission on the server (direct URL / direct ID access)", () => {
   const pages = sources.filter((s) => /dashboard\/finance\/.*page\.tsx$/.test(s.path));
   assert.ok(pages.length >= 10, `expected the finance pages, found ${pages.length}`);
-  for (const p of pages) assert.match(p.text, /await requirePermission\("finance\.(view|manage)"\)/, p.path);
+  for (const p of pages) assert.match(p.text, /await require(?:Page)?Permission\("finance\.(view|manage)"/, p.path);
 });
 test("generated-document surfaces inherit the entity read permission (list, detail, download)", () => {
   const listAlias = sources.find((s) => s.path === "src/app/[locale]/(dashboard)/dashboard/generated-documents/page.tsx")!.text;
   assert.match(listAlias, /redirect\(`\/\$\{locale\}\/dashboard\/documents`\)/, "legacy list URL must redirect to the canonical protected documents surface");
   const canonicalDocuments = sources.find((s) => s.path === "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx")!.text;
-  assert.match(canonicalDocuments, /requirePermission\("documents\.view"\)/, "canonical list target must enforce read permission");
+  assert.match(canonicalDocuments, /require(?:Page)?Permission\("documents\.view"/, "canonical list target must enforce read permission");
   for (const path of ["src/app/[locale]/(dashboard)/dashboard/generated-documents/[id]/page.tsx", "src/app/api/generated-documents/[id]/download/route.ts"]) {
     assert.match(sources.find((s) => s.path === path)!.text, /readPermissionForEntityType|forbiddenGeneratedEntityTypes/, path);
   }

@@ -2,7 +2,7 @@ import { Save } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { runFinanceAction, withNotice } from "@/lib/finance/action-notice";
 import { createTreasuryAccountAction } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default async function NewTreasuryAccountPage({
 }) {
   const { locale } = await params;
   const { notice } = await searchParams;
-  await requirePermission("finance.manage");
+  await requirePagePermission("finance.manage", locale);
   const t = await getTranslations("finance");
   const tCommon = await getTranslations("common");
 

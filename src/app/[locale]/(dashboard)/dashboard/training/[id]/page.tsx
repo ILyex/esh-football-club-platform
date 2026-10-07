@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound, redirect } from "next/navigation";
 import { updateTrainingSessionAction, deleteTrainingSessionAction } from "../actions";
@@ -17,7 +17,7 @@ const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.g
 
 export default async function TrainingDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("training.view");
+  const user = await requirePagePermission("training.view", locale);
   const t = await getTranslations("training");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

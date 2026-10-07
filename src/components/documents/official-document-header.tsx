@@ -16,7 +16,7 @@ export interface OfficialDocumentHeaderProps {
 /**
  * Standard Official Institutional Header for all official documents across the ESH Sidi Hosni platform.
  * Conforms strictly to Algerian Ministry of Youth & Sports standards and official club identity:
- * أمل سيدي حسني — ESPOIRE SIDI HOSNI
+ * الجمعية الرياضية أمل سيدي حسني لكرة القدم — Association Sportive Espoire Sidi Hosni de Football
  *
  * Strict Typography: Traditional Arabic / Arabic Typesetting ONLY.
  * Zero underlines or decorative lines.
@@ -41,7 +41,7 @@ export function OfficialDocumentHeader({
 
   return (
     <div
-      className={`pb-3 text-center text-black ${className}`}
+      className={`esh-official-document-header pb-3 text-center text-black ${className}`}
       style={{
         fontFamily: ESH_DOCUMENT_FONT_FAMILY,
         breakInside: "avoid",
@@ -60,30 +60,30 @@ export function OfficialDocumentHeader({
       >
         {/* Right / Official Authority Side */}
         <div
-          className="text-start space-y-1"
+          className="esh-document-authority text-start space-y-1"
           style={{
             fontFamily: ESH_DOCUMENT_FONT_FAMILY,
             textAlign: isAr ? "right" : "left",
             flex: "1 1 0%"
           }}
         >
-          <p className="text-[14px] sm:text-[15px] font-bold text-black leading-snug">
+          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
             {isAr ? "الجمهورية الجزائرية الديمقراطية الشعبية" : "RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE"}
           </p>
-          <p className="text-[14px] sm:text-[15px] font-bold text-black leading-snug">
+          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
             {isAr ? "مديرية الشباب والرياضة — ولاية تيارت" : "Direction de la Jeunesse et des Sports — W. Tiaret"}
           </p>
-          <p className="text-[14px] sm:text-[15px] font-bold text-black leading-snug">
+          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
             {isAr ? "الرابطة الولائية لكرة القدم — تيارت" : "Ligue de Football de la Wilaya de Tiaret"}
           </p>
-          <p className="text-[14px] sm:text-[15px] font-bold text-black leading-snug">
-            {isAr ? "نادي أمل سيدي حسني" : "Espoir Sidi Hosni"}
+          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
+            {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
           </p>
         </div>
 
         {/* Center Crest / Logo */}
         <div
-          className="flex flex-col items-center shrink-0"
+          className="esh-document-brand flex flex-col items-center shrink-0"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -95,21 +95,21 @@ export function OfficialDocumentHeader({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/branding/esh-logo-transparent.png"
-            alt="أمل سيدي حسني"
-            className="h-16 w-16 object-contain"
-            style={{ height: "64px", width: "64px", objectFit: "contain" }}
+            alt="الجمعية الرياضية أمل سيدي حسني لكرة القدم"
+            className="esh-club-logo h-24 w-24 object-contain"
+            style={{ height: "96px", width: "96px", objectFit: "contain" }}
           />
           <span
-            className="text-[11px] font-bold tracking-wider text-black uppercase leading-none mt-1.5"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: "nowrap" }}
+            className="esh-club-name mt-1.5 max-w-[180px] whitespace-normal text-center text-[15px] font-bold uppercase leading-tight tracking-wide text-black"
+            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
           >
-            {isAr ? "أمل سيدي حسني" : "ESPOIRE SIDI HOSNI"}
+            {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
           </span>
         </div>
 
         {/* Left / Reference Number & Date */}
         <div
-          className="text-end space-y-1"
+          className="esh-document-reference text-end space-y-1"
           style={{
             fontFamily: ESH_DOCUMENT_FONT_FAMILY,
             textAlign: isAr ? "left" : "right",
@@ -118,20 +118,20 @@ export function OfficialDocumentHeader({
         >
           {badgeText && (
             <p
-              className="text-[12px] sm:text-[13px] font-bold text-zinc-800"
+              className="text-[15px] font-bold text-zinc-800"
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {badgeText}
             </p>
           )}
           <p
-            className="text-[13px] sm:text-[14px] font-bold text-black"
+            className="text-[15px] font-bold text-black"
             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
           >
             {isAr ? "المرجع: " : "Réf : "}{referenceNumber}
           </p>
           <p
-            className="text-[14px] sm:text-[15px] text-black font-bold"
+            className="text-[15px] font-bold text-black"
             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
           >
             {isAr ? `بتاريخ: ${formattedDate}` : `Le : ${formattedDate}`}
@@ -144,7 +144,7 @@ export function OfficialDocumentHeader({
         <div className="mt-4 pt-1 text-center">
           {documentTitle && (
             <h1
-              className="text-[19px] sm:text-[22px] font-bold tracking-normal text-black leading-snug uppercase"
+              className="text-[23px] sm:text-[26px] font-bold tracking-normal text-black leading-snug uppercase"
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {documentTitle}
@@ -152,7 +152,7 @@ export function OfficialDocumentHeader({
           )}
           {documentSubtitle && (
             <p
-              className="text-[14px] sm:text-[15px] font-medium text-zinc-700 mt-1"
+              className="text-[18px] sm:text-[19px] font-medium text-zinc-700 mt-1"
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {documentSubtitle}

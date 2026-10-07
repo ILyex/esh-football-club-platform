@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createStaffAction } from "../actions";
 import { NewStaffForm } from "@/components/staff/new-staff-form";
 
@@ -15,7 +15,7 @@ const ROLES = [
 
 export default async function NewStaffPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("staff.create");
+  await requirePagePermission("staff.create", locale);
   const t = await getTranslations("staff");
   const tCommon = await getTranslations("common");
 

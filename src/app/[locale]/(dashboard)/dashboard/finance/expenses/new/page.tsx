@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createExpenseAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ export default async function NewExpensePage({
 }) {
   const { locale } = await params;
   const { notice } = await searchParams;
-  await requirePermission("finance.manage");
+  await requirePagePermission("finance.manage", locale);
   const t = await getTranslations("finance");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

@@ -1,6 +1,6 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createTemplateAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ const TYPES = [
 
 export default async function NewDocumentTemplatePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("templates.manage");
+  await requirePagePermission("templates.manage", locale);
   const t = await getTranslations("templates");
   const tCommon = await getTranslations("common");
 

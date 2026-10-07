@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getAuthorizedTeams } from "@/lib/team-context";
 import { Button } from "@/components/ui/button";
 import { Timer, ArrowLeft, ArrowRight } from "lucide-react";
@@ -15,7 +15,7 @@ export default async function NewTestingSessionPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const user = await requirePermission("players.view");
+  const user = await requirePagePermission("players.view", locale);
   const canManage = hasPermission(user, "testing.manage") || hasPermission(user, "training.manage") || hasPermission(user, "*");
   if (!canManage) {
     redirect(`/${locale}/dashboard/testing`);

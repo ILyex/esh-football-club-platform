@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
 import { updateAnnouncementAction, setAnnouncementStatusAction, deleteAnnouncementAction } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
 
 export default async function AnnouncementEditPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("announcements.view");
+  const user = await requirePagePermission("announcements.view", locale);
   const t = await getTranslations("announcements");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

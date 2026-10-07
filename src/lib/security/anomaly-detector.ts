@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { z } from "zod";
+import { getActiveAIProvider, isAIConfigured } from "@/lib/ai/provider";
 
 export type ThreatLevel = "NORMAL" | "LOW" | "HIGH" | "CRITICAL" | "INSUFFICIENT_DATA";
 
@@ -10,6 +12,9 @@ export interface AnomalyReport {
   primaryReasonAr: string;
   primaryReasonFr: string;
   hasSufficientData: boolean;
+  aiInsight?: {
+    evidence: ("FAILED_LOGIN_BURST" | "REPEATED_AUTH_DENIAL" | "SINGLE_AUTH_DENIAL")[];
+  };
   detectedAnomalies: {
     id: string;
     severity: "info" | "warning" | "danger";
@@ -64,6 +69,13 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     db.auditLog.count({ where: { action: "authorization.denied", createdAt: { gte: since24h } } })
   ]);
 
+  // A single denied request is a normal authorization outcome.  Keep a
+  // separate short-window count so repeated denials can be distinguished from
+  // an isolated permissions mistake.
+  const unauthorizedAttemptsRecent = recentLogs.filter(
+    (log) => log.action.toLowerCase() === "authorization.denied" && log.createdAt >= since2h
+  ).length;
+
   const anomalies: AnomalyReport["detectedAnomalies"] = [];
 
   // Track real security metrics
@@ -78,7 +90,7 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     if (actionLower === "authorization.denied") {
       anomalies.push({
         id: `unauth-${log.id}`,
-        severity: "danger",
+        severity: "warning",
         titleAr: "رفض إجراء لغياب الصلاحية",
         titleFr: "Action refusée faute de permission",
         descriptionAr: `رُفض إجراء يتطلب صلاحية إضافية (${log.entityType ?? "صلاحية"}) للمستخدم ${log.user?.name ?? "مستخدم غير معروف"}.`,
@@ -132,27 +144,71 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     threatLevelLabelFr = "Données insuffisantes";
     primaryReasonAr = `سُجلت ${totalRecentAuditEvents} أحداث تدقيق فقط خلال 24 ساعة؛ لا يمكن اعتبار غياب التنبيهات دليلاً على سلامة النظام.`;
     primaryReasonFr = `${totalRecentAuditEvents} événements d'audit observés en 24h ; l'absence d'alerte ne prouve pas que le système est sûr.`;
-  } else if (failedLoginsRecent >= 8 && unauthorizedAttemptsCount > 0) {
+  } else if (failedLoginsRecent >= 8 && (unauthorizedAttemptsRecent >= 3 || unauthorizedAttemptsCount >= 5)) {
     threatLevel = "CRITICAL";
     threatLevelLabelAr = "حرج";
     threatLevelLabelFr = "Critique";
-    primaryReasonAr = `${failedLoginsRecent} محاولات دخول فاشلة خلال ساعتين، مع محاولات موثقة لرفض الصلاحيات.`;
-    primaryReasonFr = `${failedLoginsRecent} tentatives de connexion échouées + tentatives d'accès non autorisé (403).`;
-  } else if (unauthorizedAttemptsCount > 0 || failedLoginsRecent >= 5) {
+    primaryReasonAr = `${failedLoginsRecent} محاولات دخول فاشلة خلال ساعتين، و${unauthorizedAttemptsCount} حالات رفض صلاحية خلال 24 ساعة (منها ${unauthorizedAttemptsRecent} خلال ساعتين).`;
+    primaryReasonFr = `${failedLoginsRecent} échecs de connexion en 2h et ${unauthorizedAttemptsCount} refus d'autorisation en 24h (dont ${unauthorizedAttemptsRecent} en 2h).`;
+  } else if (failedLoginsRecent >= 5 || unauthorizedAttemptsRecent >= 5 || unauthorizedAttemptsCount >= 10) {
     threatLevel = "HIGH";
     threatLevelLabelAr = "مرتفع";
     threatLevelLabelFr = "Élevé";
     const reasons: string[] = [];
-    if (failedLoginsRecent >= 5) reasons.push(`${failedLoginsRecent} محاولات دخول فاشلة`);
-    if (unauthorizedAttemptsCount > 0) reasons.push(`${unauthorizedAttemptsCount} محاولات وصول غير مصرح بها (403)`);
-    primaryReasonAr = reasons.join(" + ");
-    primaryReasonFr = "Tentatives non autorisées et/ou échecs répétitifs d'authentification.";
+    if (failedLoginsRecent >= 5) reasons.push(`${failedLoginsRecent} محاولات دخول فاشلة خلال ساعتين`);
+    if (unauthorizedAttemptsRecent >= 5 || unauthorizedAttemptsCount >= 10) reasons.push(`${unauthorizedAttemptsCount} حالات رفض صلاحية خلال 24 ساعة`);
+    primaryReasonAr = `${reasons.join(" + ")}. التصنيف مرتفع بسبب التكرار، وليس بسبب رفض منفرد.`;
+    primaryReasonFr = `${reasons.join(" + ")}. Le niveau est élevé à cause de la répétition, pas d'un refus isolé.`;
+  } else if (unauthorizedAttemptsCount > 0) {
+    threatLevel = "LOW";
+    threatLevelLabelAr = "مراقبة (رفض صلاحية)";
+    threatLevelLabelFr = "Surveillance (permission refusée)";
+    primaryReasonAr = `سُجلت ${unauthorizedAttemptsCount} حالة رفض صلاحية خلال 24 ساعة، منها ${unauthorizedAttemptsRecent} خلال ساعتين. هذا مؤشر متابعة فقط ولا يثبت اختراقاً.`;
+    primaryReasonFr = `${unauthorizedAttemptsCount} refus d'autorisation en 24h, dont ${unauthorizedAttemptsRecent} en 2h. Indicateur de suivi uniquement ; cela ne prouve pas une intrusion.`;
   } else if (failedLogins24h > 0) {
     threatLevel = "LOW";
     threatLevelLabelAr = "منخفض";
     threatLevelLabelFr = "Faible";
     primaryReasonAr = `سُجلت ${failedLogins24h} محاولة دخول غير ناجحة خلال 24 ساعة. راجع السياق؛ هذا العدد وحده لا يثبت هجوماً أو سلامة النظام.`;
     primaryReasonFr = `${failedLogins24h} échec(s) de connexion en 24h. Examiner le contexte ; ce nombre seul ne prouve ni attaque ni sécurité.`;
+  }
+
+  // Optional local AI assistance is strictly advisory. The model receives
+  // aggregate counts only and can select existing evidence keys; it cannot
+  // change threatLevel, query the database, or invent an event.
+  let aiInsight: AnomalyReport["aiInsight"];
+  if (isAIConfigured()) {
+    try {
+      const insight = await getActiveAIProvider().generateStructured({
+        system:
+          "أنت مساعد أمني محلي. اختر فقط مؤشرات موجودة في البيانات المرفقة. " +
+          "لا تستنتج اختراقاً ولا تضف أرقاماً أو أحداثاً. أعد JSON مطابقاً للمخطط فقط.",
+        prompt: JSON.stringify({
+          failedLogins24h,
+          failedLoginsRecent,
+          unauthorizedAttemptsCount,
+          unauthorizedAttemptsRecent,
+          allowedEvidence: ["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL"]
+        }),
+        schema: z.object({
+          evidence: z.array(
+            z.enum(["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL"])
+          ).max(3)
+        }),
+        timeoutMs: 4000,
+        temperature: 0
+      });
+      const evidence = insight.evidence.filter((key) =>
+        key === "FAILED_LOGIN_BURST"
+          ? failedLoginsRecent >= 5
+          : key === "REPEATED_AUTH_DENIAL"
+            ? unauthorizedAttemptsCount >= 2
+            : unauthorizedAttemptsCount === 1
+      );
+      if (evidence.length > 0) aiInsight = { evidence };
+    } catch {
+      // Local AI is optional; deterministic analysis remains authoritative.
+    }
   }
 
   // Activity over 4-hour time windows in last 24h
@@ -258,6 +314,7 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     primaryReasonAr,
     primaryReasonFr,
     hasSufficientData,
+    aiInsight,
     detectedAnomalies: anomalies,
     stats: {
       recentActions24h: totalRecentAuditEvents,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { Plus, Trophy, Layers } from "lucide-react";
@@ -22,7 +22,7 @@ export default async function CompetitionsListPage({
 }) {
   const { locale } = await params;
   const isAr = locale === "ar";
-  const user = await requirePermission("competitions.view");
+  const user = await requirePagePermission("competitions.view", locale);
   const t = await getTranslations("competitions");
   const tCommon = await getTranslations("common");
   const canManage = hasPermission(user, "competitions.manage");
@@ -30,7 +30,9 @@ export default async function CompetitionsListPage({
   // Fetch seasons & club settings
   let seasons = await db.season.findMany({ orderBy: { startDate: "desc" } });
   const clubSettings = await db.clubSettings.findUnique({ where: { id: "singleton" } });
-  const clubName = clubSettings?.name || "أمل سيدي حسني (ESH)";
+  const clubName = locale === "ar"
+    ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم")
+    : "Association Sportive Espoire Sidi Hosni de Football";
 
   const currentSeason = seasons.find((s) => s.isCurrent) || seasons[0] || null;
 
@@ -114,7 +116,7 @@ export default async function CompetitionsListPage({
 
       {/* Inline Season Creator (For Future Seasons) */}
       {canManage && (
-        <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs">
+        <div id="season-creator" className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs">
           <div className="border-b border-border/60 pb-3 mb-4">
             <h3 className="text-sm font-bold text-foreground">
               {isAr ? "إضافة وتخزين موسم رياضي مستقبلي" : "Ajouter une saison future"}

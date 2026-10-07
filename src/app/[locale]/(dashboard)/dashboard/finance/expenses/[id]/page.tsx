@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission, requiredPermissionForDocument } from "@/lib/permissions";
+import { requirePagePermission, requirePermission, hasPermission, requiredPermissionForDocument } from "@/lib/permissions";
 import { getAccountBalances } from "@/lib/finance/treasury-service";
 import { runFinanceAction, withNotice } from "@/lib/finance/action-notice";
 import { updateExpenseAction, postExpenseAction, cancelExpenseAction } from "../actions";
@@ -32,7 +32,7 @@ export default async function ExpenseDetailPage({
   const { notice } = await searchParams;
   // Server-side gate for direct URL / direct-ID access. Every mutation below
   // is additionally protected inside its own action.
-  const user = await requirePermission("finance.view");
+  const user = await requirePagePermission("finance.view", locale);
   const t = await getTranslations("finance");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

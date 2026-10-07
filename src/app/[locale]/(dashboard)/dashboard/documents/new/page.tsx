@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getCurrentTeamId, getAuthorizedTeams, getAuthorizedTeamIds } from "@/lib/team-context";
 import { uploadDocumentAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -9,7 +9,7 @@ import { DateInput } from "@/components/ui/date-input";
 
 export default async function NewDocumentPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const user = await requirePermission("documents.create");
+  const user = await requirePagePermission("documents.create", locale);
   const t = await getTranslations("documents");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

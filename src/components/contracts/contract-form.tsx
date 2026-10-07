@@ -84,27 +84,27 @@ export function ContractForm({
       className="space-y-6"
     >
       {/* ── Section 1: Contracting Party Selection (الطرف المتعاقد) ── */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
-        <div className="border-b border-border/80 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary text-xs font-bold">
+      <div className="space-y-5 rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
+        <div className="flex flex-col gap-2 border-b border-border/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-club-primary/10 text-xs font-bold text-club-primary">
               1
             </span>
-            <h2 className="text-base font-bold text-foreground">
+            <h2 className="text-sm font-bold leading-snug text-foreground sm:text-base">
               {isAr ? "الطرف المتعاقد (لاعب أو عضو طاقم)" : "Partie contractante (Joueur ou Staff)"}
             </h2>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="ps-10 text-xs text-muted-foreground sm:ps-0">
             {isAr ? "عقد فردي حصري" : "Contrat individuel exclusif"}
           </span>
         </div>
 
         {/* Toggle Pills */}
-        <div className="grid grid-cols-2 gap-3 max-w-md">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => handleSubjectTypeChange("PLAYER")}
-            className={`flex items-center justify-center gap-2.5 rounded-xl border p-3.5 text-sm font-bold transition-all cursor-pointer ${
+            className={`flex min-h-14 items-center justify-center gap-2 rounded-xl border px-3 py-3 text-center text-sm font-bold leading-snug transition-all cursor-pointer ${
               subjectType === "PLAYER"
                 ? "border-club-primary bg-club-primary/10 text-club-primary shadow-xs ring-1 ring-club-primary/30"
                 : "border-border bg-background text-muted-foreground hover:bg-muted/50"
@@ -120,7 +120,7 @@ export function ContractForm({
           <button
             type="button"
             onClick={() => handleSubjectTypeChange("STAFF")}
-            className={`flex items-center justify-center gap-2.5 rounded-xl border p-3.5 text-sm font-bold transition-all cursor-pointer ${
+            className={`flex min-h-14 items-center justify-center gap-2 rounded-xl border px-3 py-3 text-center text-sm font-bold leading-snug transition-all cursor-pointer ${
               subjectType === "STAFF"
                 ? "border-club-primary bg-club-primary/10 text-club-primary shadow-xs ring-1 ring-club-primary/30"
                 : "border-border bg-background text-muted-foreground hover:bg-muted/50"
@@ -136,8 +136,8 @@ export function ContractForm({
 
         {/* Subject Select Dropdown */}
         {subjectType === "PLAYER" ? (
-          <div className="mx-auto w-full max-w-2xl">
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="w-full">
+            <label className="mb-2 block text-xs font-bold tracking-wide text-muted-foreground">
               {t.playerLabel} <span className="text-red-500">*</span>
             </label>
             <FormSelect
@@ -157,8 +157,8 @@ export function ContractForm({
             <input type="hidden" name="staffId" value="" />
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-2xl">
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="w-full">
+            <label className="mb-2 block text-xs font-bold tracking-wide text-muted-foreground">
               {t.staffLabel} <span className="text-red-500">*</span>
             </label>
             <FormSelect

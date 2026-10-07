@@ -1,9 +1,13 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-// Allow next dev to expose local Cloudflare bindings while keeping the regular
-// Node.js development/runtime workflow unchanged.
-initOpenNextCloudflareForDev();
+// Cloudflare's Wrangler bridge is only needed when explicitly requested. It
+// starts an extra local runtime and can consume hundreds of MB on the club's
+// low-spec administration PC, while the normal Node.js profile uses .env and
+// PostgreSQL directly.
+if (process.env.OPENNEXT_DEV === "true") {
+  initOpenNextCloudflareForDev();
+}
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -36,7 +40,14 @@ const nextConfig = {
   output: "standalone",
   // OpenNext packages the regular `.next` output in its worker bundle.
   reactStrictMode: true,
+  // Hide Next.js development indicator from the application UI.
+  devIndicators: false,
   webpack(config) {
+    // The development compiler otherwise keeps every visited route's module
+    // graph in memory. That is convenient on a workstation but causes the
+    // club's low-spec PC to grow continuously while staff browse the dashboard.
+    // Production builds keep their normal optimized cache.
+    if (!isProduction) config.cache = false;
     // Prisma's workerd client imports its query compiler as WebAssembly.
     // Next's webpack build must treat that import as an async WASM module.
     config.experiments = { ...config.experiments, asyncWebAssembly: true };

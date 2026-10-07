@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { retryJobAction, cancelJobAction } from "./actions";
@@ -55,7 +55,7 @@ export default async function BackgroundJobsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  await requirePermission("settings.manage");
+  await requirePagePermission("settings.manage", locale);
   const isAr = locale === "ar";
   const now = new Date();
 

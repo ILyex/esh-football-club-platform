@@ -2,7 +2,7 @@ import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { birthYearMismatch, getPlayerDisplayName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { PlayerOverviewModal } from "@/components/players/player-overview-modal"
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { PlayerPrintListModal } from "@/components/players/player-print-list-modal";
 import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
+import { frenchNationality } from "@/lib/public/locale-text";
 import { AlertTriangle, Plus } from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -30,7 +31,7 @@ export default async function PlayersListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  await requirePermission("players.view");
+  await requirePagePermission("players.view", locale);
 
   const t = await getTranslations("players");
   const tTeams = await getTranslations("teams");
@@ -279,7 +280,7 @@ export default async function PlayersListPage({
                       {t(`positions.${p.position}` as any)}
                     </span>
                   </td>
-                  <td className="px-4 py-2">{p.nationality}</td>
+                  <td className="px-4 py-2">{locale === "ar" ? p.nationality : frenchNationality(p.nationality)}</td>
                   <td className="px-4 py-2">
                     {(() => {
                       const evalRes = evaluatePlayerInsurance(p.documents);

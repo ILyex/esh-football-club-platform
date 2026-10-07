@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useId, useState, type ChangeEvent } from "react";
+import { ImagePlus, UploadCloud } from "lucide-react";
 
 /** Compresses avatars before the server action so the online DB stores only a small image. */
 export function AvatarUploadField({ locale }: { locale: string }) {
   const [busy, setBusy] = useState(false);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const inputId = useId();
+  const isAr = locale === "ar";
 
   async function compress(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const file = input.files?.[0];
     if (!file) return;
+    setSelectedName(file.name);
     setBusy(true);
     try {
       const bitmap = await createImageBitmap(file);
@@ -34,13 +39,38 @@ export function AvatarUploadField({ locale }: { locale: string }) {
   }
 
   return (
-    <>
-      <input name="photo" type="file" accept="image/png,image/jpeg,image/webp" onChange={compress} disabled={busy} className="w-full text-xs file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer rounded-md border border-border bg-background p-1.5" />
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        {busy
-          ? (locale === "ar" ? "جارٍ ضغط الصورة…" : "Compression de l’image…")
-          : (locale === "ar" ? "تُضغط الصورة تلقائيًا لتوفير المساحة." : "La photo est compressée automatiquement pour économiser l’espace.")}
-      </p>
-    </>
+    <div className="space-y-2">
+      <input
+        id={inputId}
+        name="photo"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={compress}
+        disabled={busy}
+        className="peer sr-only"
+      />
+      <label
+        htmlFor={inputId}
+        className="group flex min-h-[68px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-2.5 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-club-primary/30 sm:px-4"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/10 text-club-primary transition-colors group-hover:bg-club-primary/15">
+          {selectedName ? <ImagePlus className="h-5 w-5" aria-hidden="true" /> : <UploadCloud className="h-5 w-5" aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            {busy
+              ? (isAr ? "جارٍ تجهيز الصورة…" : "Préparation de la photo…")
+              : selectedName ?? (isAr ? "اختر صورة من جهازك" : "Choisir une photo sur l’appareil")}
+          </span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {isAr ? "PNG أو JPG أو WebP · تُضغط تلقائيًا لتوفير المساحة" : "PNG, JPG ou WebP · compression automatique"}
+          </span>
+        </span>
+        <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors group-hover:border-club-primary/30 group-hover:text-club-primary">
+          <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+          {isAr ? "استعراض" : "Parcourir"}
+        </span>
+      </label>
+    </div>
   );
 }

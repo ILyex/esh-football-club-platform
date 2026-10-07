@@ -1,6 +1,8 @@
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, Trophy } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
 import { createMatchAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -9,9 +11,8 @@ import { MatchFormClient } from "@/components/matches/match-form-client";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("matches.create");
+  await requirePagePermission("matches.create", locale);
   const t = await getTranslations("matches");
-  const tCommon = await getTranslations("common");
 
   const [competitions, teams, currentTeamId, savedOpponents, clubSettings] = await Promise.all([
     db.competition.findMany({ orderBy: { name: "asc" } }),
@@ -39,7 +40,30 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
       </div>
 
       {competitions.length === 0 ? (
-        <p className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">{tCommon("noResults")}</p>
+        <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary">
+              <Trophy className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-bold text-foreground">
+                {locale === "ar" ? "أضف مسابقة قبل تسجيل المباراة" : "Créez une compétition avant le match"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {locale === "ar"
+                  ? "لا توجد مسابقات مرتبطة بموسم بعد. أنشئ المسابقة أولاً، ثم ارجع إلى هنا لإضافة المباراة."
+                  : "Aucune compétition n’est encore liée à une saison. Créez d’abord une compétition, puis revenez ici pour ajouter le match."}
+              </p>
+              <Link
+                href={`/${locale}/dashboard/competitions/new`}
+                className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-club-primary px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                <span>{locale === "ar" ? "إضافة مسابقة" : "Ajouter une compétition"}</span>
+                {locale === "ar" ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+              </Link>
+            </div>
+          </div>
+        </section>
       ) : (
         <MatchFormClient
           locale={locale}
@@ -52,9 +76,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
               ? (clubSettings?.name && /[\u0600-\u06FF]/.test(clubSettings.name)
                   ? clubSettings.name
                   : "أمل سيدي حسني")
-              : (clubSettings?.shortName && clubSettings.shortName.length > 3
-                  ? clubSettings.shortName
-                  : "ESPOIRE SIDI HOSNI")
+              : "Association Sportive Espoire Sidi Hosni de Football"
           }
           action={action}
         />

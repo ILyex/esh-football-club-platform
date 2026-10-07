@@ -1,8 +1,8 @@
-import { ArrowRight, Save, UserPlus } from "lucide-react";
+import { ArrowRight, Save, Plus } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createUserAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 
 export default async function NewUserPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("users.manage");
+  await requirePagePermission("users.manage", locale);
   const t = await getTranslations("users");
   const tCommon = await getTranslations("common");
 
@@ -29,7 +29,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
       <SettingsNavTabs locale={locale} />
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-club-primary/25 bg-club-primary/10 text-club-primary">
-          <UserPlus className="h-5 w-5" aria-hidden="true" />
+          <Plus className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>
           <h1 className="text-xl font-bold text-foreground">{t("addUser")}</h1>
@@ -39,7 +39,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
         </div>
       </div>
       <form action={action} encType="multipart/form-data" className="overflow-visible rounded-2xl border border-border bg-card shadow-xs">
-        <div className="grid grid-cols-1 gap-x-5 gap-y-5 p-4 sm:grid-cols-2 sm:p-6">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-6 p-4 sm:grid-cols-2 sm:p-6">
           <div className="sm:col-span-2">
             <FileUploadDropzone
               name="photo"
@@ -49,22 +49,22 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
               theme="primary"
             />
           </div>
-          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{t("fields.name")}</span>
             <input name="name" autoComplete="name" required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
-          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{t("fields.email")}</span>
             <input name="email" type="email" dir="ltr" autoComplete="email" required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
-          <label className="block space-y-1.5 text-xs font-semibold text-foreground">
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{t("fields.password")}</span>
             <input name="password" type="password" dir="ltr" autoComplete="new-password" minLength={8} maxLength={72} required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
-            <span className="block text-[11px] font-normal text-muted-foreground">
+            <span className="mt-0.5 block text-[11px] leading-5 font-normal text-muted-foreground">
               {locale === "ar" ? "8 أحرف على الأقل" : "8 caractères minimum"}
             </span>
           </label>
-          <div className="space-y-1.5 text-xs font-semibold text-foreground">
+          <div className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span className="block">{t("fields.role")}</span>
             <FormSelect
               name="roleId"

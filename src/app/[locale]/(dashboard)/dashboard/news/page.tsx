@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import { setNewsStatusAction, deleteNewsAction } from "./actions";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Eye, EyeOff, Trash2, Edit } from "lucide-react";
+import { Eye, EyeOff, Trash2, Edit, Plus} from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -25,7 +25,7 @@ export default async function NewsListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("news.view");
+  const user = await requirePagePermission("news.view", locale);
   const t = await getTranslations("news");
   const tCommon = await getTranslations("common");
   const canPublish = hasPermission(user, "news.publish");
@@ -43,7 +43,7 @@ export default async function NewsListPage({
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t("title")}</h1>
         <Link href={`/${locale}/dashboard/news/new`}>
-          <Button>{t("addNews")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addNews")}</Button>
         </Link>
       </div>
 

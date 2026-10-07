@@ -1,12 +1,12 @@
 import { getTranslations } from "next-intl/server";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { createPlayerAction } from "../actions";
 import { NewPlayerForm } from "@/components/players/new-player-form";
 
 export default async function NewPlayerPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("players.create");
+  await requirePagePermission("players.create", locale);
   const t = await getTranslations("players");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

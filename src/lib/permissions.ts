@@ -1,6 +1,7 @@
 import "server-only";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { redirect } from "next/navigation";
 
 // ============================================================================
 // RBAC ENFORCEMENT — SERVER-SIDE ONLY (spec section 41: "لا تعتمد على Frontend فقط")
@@ -96,6 +97,17 @@ export async function requirePermission(permissionKey: string): Promise<SessionU
     throw new ForbiddenError(permissionKey);
   }
   return user;
+}
+
+/** Page-only permission guard: render a localized 403 page for denied visits. */
+export async function requirePagePermission(permissionKey: string, locale: string): Promise<SessionUser> {
+  try {
+    return await requirePermission(permissionKey);
+  } catch (error) {
+    if (!(error instanceof ForbiddenError)) throw error;
+    const safeLocale = locale === "fr" ? "fr" : "ar";
+    redirect(`/${safeLocale}/access-denied?code=403`);
+  }
 }
 
 /**

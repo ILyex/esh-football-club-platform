@@ -1,7 +1,7 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission, requiredPermissionForDocument } from "@/lib/permissions";
+import { requirePagePermission, hasPermission, requiredPermissionForDocument } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound, redirect } from "next/navigation";
 import { updateDocumentMetadataAction, setDocumentStatusAction, deleteDocumentAction } from "../actions";
@@ -14,7 +14,7 @@ const STATUS_TONE = { PENDING_REVIEW: "warning", APPROVED: "success", ARCHIVED: 
 
 export default async function DocumentDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("documents.view");
+  const user = await requirePagePermission("documents.view", locale);
   const t = await getTranslations("documents");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

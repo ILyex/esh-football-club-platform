@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { toast } from "sonner";
-import { User, Shield, Briefcase, FileText, AlertCircle, Loader2 } from "lucide-react";
+import { User, Shield, Briefcase, FileText, AlertCircle, Loader2, UploadCloud, Image as ImageIcon } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
 
 const ROLES = [
@@ -33,6 +33,11 @@ export function NewStaffForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formEpoch, setFormEpoch] = useState(0);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  useEffect(() => () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
   const isAr = locale === "ar";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -54,6 +59,7 @@ export function NewStaffForm({
         );
       }
       form.reset();
+      setPhotoPreview(null);
       setFormEpoch((epoch) => epoch + 1);
     } catch (err: any) {
       let rawMsg = err?.message || "";
@@ -85,7 +91,7 @@ export function NewStaffForm({
           </div>
           <div>
             <h2 className="text-sm font-bold text-foreground">
-              {isAr ? "البيانات الشخصية والمدنية (باللغتين)" : "Informations personnelles & civiles (Bilingue)"}
+              {isAr ? "البيانات الشخصية والمدنية (باللغتين)" : "Informations personnelles & civiles"}
             </h2>
             <p className="text-xs text-muted-foreground">
               {isAr ? "الاسم واللقب بالعربية وبالفرنسية لضمان الطباعة الدقيقة في الوثائق" : "Nom et prénom en arabe et en français pour les documents officiels"}
@@ -135,8 +141,8 @@ export function NewStaffForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.12fr)] md:items-end">
+          <div className="min-w-0">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {isAr ? "الصفة / المنصب" : "Rôle"} <span className="text-red-500">*</span>
             </label>
@@ -150,22 +156,50 @@ export function NewStaffForm({
             />
           </div>
 
-          <Field
-            label={isAr ? "بيانات التواصل المهني" : "Contact interne"}
-            name="internalContact"
-            placeholder={isAr ? "رقم الهاتف أو البريد المهني..." : "Téléphone ou email interne..."}
-          />
+          <div className="min-w-0">
+            <Field
+              label={isAr ? "بيانات التواصل المهني" : "Contact interne"}
+              name="internalContact"
+              placeholder={isAr ? "رقم الهاتف أو البريد المهني..." : "Téléphone ou email interne..."}
+            />
+          </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {isAr ? "الصورة الشخصية" : "Photo"}
             </label>
-            <input
-              name="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-semibold file:text-foreground hover:file:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <label className="group flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border border-dashed border-club-primary/40 bg-club-primary/[0.04] px-3 py-2 transition hover:border-club-primary hover:bg-club-primary/[0.08]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background text-club-primary">
+                {photoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+                ) : <ImageIcon className="h-5 w-5" />}
+              </span>
+              <span className="min-w-0 flex-1 text-start">
+                <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-foreground">
+                  <UploadCloud className="h-4 w-4 text-club-primary" />
+                  {isAr ? "اختر صورة شخصية" : "Choisir une photo"}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                  {photoPreview ? (isAr ? "تم اختيار الصورة" : "Photo sélectionnée") : (isAr ? "JPG أو PNG أو WebP — الحد الأقصى 5 ميغابايت" : "JPG, PNG ou WebP — 5 Mo maximum")}
+                </span>
+              </span>
+              <input
+                key={formEpoch}
+                name="photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setPhotoPreview((previous) => {
+                    if (previous) URL.revokeObjectURL(previous);
+                    return URL.createObjectURL(file);
+                  });
+                }}
+              />
+            </label>
           </div>
         </div>
 

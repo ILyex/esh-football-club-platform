@@ -29,6 +29,18 @@ describe('playerSchema preprocessing', () => {
     assert.equal(parsed.joiningDate, undefined);
   });
 
+  it('accepts a blank team for club-wide players because Player.teamId is nullable', () => {
+    const parsed = playerSchema.parse({
+      firstName: 'Ahmed',
+      lastName: 'Test',
+      position: 'MIDFIELDER',
+      nationality: 'DZ',
+      dateOfBirth: '2000-01-01',
+      teamId: ''
+    });
+    assert.equal(parsed.teamId, null);
+  });
+
   it('parses valid numeric and text strings correctly', () => {
     const raw = {
       firstName: 'Jane',

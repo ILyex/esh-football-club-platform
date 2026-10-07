@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { OfficialDocumentHeader } from "@/components/documents/official-document-header";
 import { printDocumentElement } from "@/lib/documents/print-helper";
 import { getPlayerDisplayName } from "@/lib/utils";
+import { frenchNationality } from "@/lib/public/locale-text";
 import { ESH_DOCUMENT_FONT_FAMILY, ESH_WATERMARK_CSS_URL } from "@/lib/documents/watermark";
 
 export interface OfficialPlayerAttestationModalProps {
@@ -60,8 +61,8 @@ export function OfficialPlayerAttestationModal({
     printDocumentElement(
       elementId,
       isAr
-        ? `شهادة إنتساب — ${displayName} — ESH SIDI HOSNI`
-        : `Attestation Joueur — ${displayName} — ESH SIDI HOSNI`
+        ? `شهادة إنتساب — ${displayName} — الجمعية الرياضية أمل سيدي حسني لكرة القدم`
+        : `Attestation Joueur — ${displayName} — Association Sportive Espoire Sidi Hosni de Football`
     );
   };
 
@@ -111,7 +112,7 @@ export function OfficialPlayerAttestationModal({
         >
           <div className="absolute inset-0" onClick={() => setIsOpen(false)} />
 
-          <div className="relative z-10 flex flex-col w-full max-w-4xl max-h-[92vh] bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+          <div className="relative z-10 flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             {/* Header controls (hidden in print) */}
             <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3 shrink-0 print:hidden">
               <div className="flex items-center gap-2">
@@ -137,10 +138,10 @@ export function OfficialPlayerAttestationModal({
             </div>
 
             {/* Document preview container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/50 dark:bg-zinc-950/50 flex justify-center">
+            <div className="relative flex-1 overflow-auto bg-[#525659] p-4 sm:p-8">
               <div
                 id={elementId}
-                className="printable-document esh-security-watermark relative bg-white text-black shadow-xl border border-zinc-200 w-full max-w-[210mm] min-h-[297mm] p-[16mm] flex flex-col justify-between"
+                className="printable-document esh-security-watermark relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col justify-between border border-zinc-200 bg-white p-[14mm] text-black shadow-2xl"
                 style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, boxSizing: "border-box" }}
               >
                 {/* Security watermark */}
@@ -151,7 +152,7 @@ export function OfficialPlayerAttestationModal({
                 />
 
                 {/* Inner Content */}
-                <div className="relative z-10 space-y-6">
+                <div className="relative z-10 space-y-5">
                   {/* Official Institutional Header */}
                   <OfficialDocumentHeader
                     referenceNumber={`ESH-LIC-${player.id.slice(-6).toUpperCase()}`}
@@ -163,24 +164,24 @@ export function OfficialPlayerAttestationModal({
 
                   {/* Main Attestation Body - Clean, direct, no underlines or decorative boxes */}
                   <div
-                    className="mt-6 space-y-5 text-black text-justify leading-relaxed"
-                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "19px", lineHeight: "2.1" }}
+                    className="mt-5 space-y-5 text-justify text-black"
+                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "18px", lineHeight: "1.75" }}
                   >
-                    <p className="font-bold text-center text-[22px] mb-5">
+                    <p className="mb-4 text-center text-[18px] font-bold leading-relaxed">
                       {isAr
-                        ? "رئيس نادي أمل سيدي حسني"
-                        : "Le Président du Club Sportif Espoir Sidi Hosni"}
+                        ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم"
+                        : "Le Président de l'Association Sportive Espoire Sidi Hosni de Football"}
                     </p>
 
                     <p>
                       {isAr ? (
                         <>
-                          يشهد رئيس نادي <strong>أمل سيدي حسني</strong> أن اللاعب:{" "}
-                          <strong className="font-black text-[21px]">
+                          يشهد رئيس <strong>الجمعية الرياضية أمل سيدي حسني لكرة القدم</strong> أن اللاعب:{" "}
+                          <strong className="font-black text-[19px]">
                             {getPlayerDisplayName(player, "ar")}
                           </strong>
                           {player.firstNameFr && player.lastNameFr && (player.firstName || player.lastName) && (
-                            <span className="font-mono text-[16px] text-zinc-800">
+                            <span className="font-mono text-[19px] text-zinc-800">
                               {" "}({player.firstNameFr} {player.lastNameFr})
                             </span>
                           )}
@@ -191,12 +192,12 @@ export function OfficialPlayerAttestationModal({
                         </>
                       ) : (
                         <>
-                          Le Président du club <strong>Espoir Sidi Hosni</strong> atteste que le joueur :{" "}
-                          <strong className="font-black text-[20px]">
+                          Le Président de l&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong> atteste que le joueur :{" "}
+                          <strong className="font-black text-[19px]">
                             {getPlayerDisplayName(player, "fr")}
                           </strong>
                           , né le : <strong className="font-mono">{birthDateFormatted}</strong> à{" "}
-                          <strong>Tiaret</strong>, de nationalité : <strong>{player.nationality || "Algérienne"}</strong>.
+                          <strong>Tiaret</strong>, de nationalité : <strong>{frenchNationality(player.nationality)}</strong>.
                         </>
                       )}
                     </p>
@@ -205,11 +206,11 @@ export function OfficialPlayerAttestationModal({
                       {isAr ? (
                         <>
                           والحامل للرخصة الرياضية رقم:{" "}
-                          <strong className="font-mono text-[20px] font-black tracking-wider">
+                          <strong className="font-mono text-[24px] font-black tracking-wider">
                             {licenceNo}
                           </strong>
                           ، هو لاعب مسجل رسمياً وبصفة قانونية ضمن صفوف النادي الرياضي الهاوي{" "}
-                          <strong>«أمل سيدي حسني»</strong> في فئة:{" "}
+                          <strong>«الجمعية الرياضية أمل سيدي حسني لكرة القدم»</strong> في فئة:{" "}
                           <strong className="font-black">
                             {player.teamCategory || player.teamName || "الأكابر"}
                           </strong>{" "}
@@ -230,7 +231,7 @@ export function OfficialPlayerAttestationModal({
                           <strong className="font-mono text-[19px] font-black">
                             {licenceNo}
                           </strong>
-                          , est qualifié et enregistré au sein du club <strong>Espoir Sidi Hosni</strong> dans la catégorie :{" "}
+                          , est qualifié et enregistré au sein de l&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong> dans la catégorie :{" "}
                           <strong className="font-bold">{player.teamCategory || player.teamName || "Séniors"}</strong> depuis le :{" "}
                           <strong className="font-mono">{joiningDateFormatted}</strong>.
                         </>
@@ -253,33 +254,33 @@ export function OfficialPlayerAttestationModal({
 
                 {/* Footer Signatures Block - Strictly by role only, zero decorative lines */}
                 <div
-                  className="relative z-10 pt-8 mt-10"
+                  className="esh-attestation-footer relative z-10 mt-8 border-t border-zinc-200 pt-6"
                   style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid", pageBreakInside: "avoid" }}
                 >
-                  <div className="flex items-start justify-between text-black text-[16px]">
+                  <div className="flex items-start justify-between gap-8 text-black text-[13px]">
                     {/* Date and Location */}
                     <div className="space-y-1">
-                      <p className="font-bold">
+                      <p className="esh-attestation-date text-[14px] font-bold">
                         {isAr ? "حرر بسيدي حسني في:" : "Fait à Sidi Hosni, le :"} {todayFormatted}
                       </p>
-                      <p className="text-[13px] text-zinc-600">
+                      <p className="esh-attestation-secretariat text-[13px] text-zinc-600">
                         {isAr ? "الأمانة العامة للنادي" : "Secrétariat Général du Club"}
                       </p>
                     </div>
 
                     {/* Official Signature and Stamp by Role Only */}
-                    <div className="text-center min-w-[220px] space-y-2">
-                      <p className="font-black text-[18px]">
-                        {isAr ? "رئيس نادي أمل سيدي حسني" : "Le Président du Club"}
+                    <div className="min-w-[190px] space-y-2 text-center">
+                      <p className="esh-attestation-signature text-[15px] font-black">
+                        {isAr ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Le Président du Club"}
                       </p>
-                      <div className="h-24 w-44 mx-auto flex items-center justify-center text-[12px] text-zinc-400 select-none">
+                      <div className="esh-attestation-stamp mx-auto flex h-20 w-40 items-center justify-center text-[13px] text-zinc-400 select-none">
                         {isAr ? "ختم وتوقيع رئيس النادي" : "Cachet et Signature"}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-8 pt-3 text-center text-[11px] text-zinc-500 font-mono">
-                    ESH SIDI HOSNI • STADE MUNICIPAL SIDI HOSNI • WILAYA DE TIARET • FAF CODE: ESH-26
+                  <div className="esh-attestation-club-code mt-6 border-t border-zinc-200 pt-3 text-center text-[10px] text-zinc-500 font-mono">
+                    Association Sportive Espoire Sidi Hosni de Football • STADE MUNICIPAL SIDI HOSNI • WILAYA DE TIARET • FAF CODE: ESH-26
                   </div>
                 </div>
               </div>

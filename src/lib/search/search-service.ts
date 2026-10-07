@@ -174,11 +174,21 @@ export async function executeGlobalSearch(
   // 2. STAFF
   if (hasPermission(user, "staff.view") && (!filterCategory || filterCategory === "staff")) {
     const staffWhere: any = {
-      OR: [{ firstName: ci }, { lastName: ci }, { role: ci }]
+      // `role` is a Prisma enum, so it cannot use a text `contains` filter.
+      // Search the localized name fields here; role labels are rendered in the
+      // result but are not text-searchable at the Prisma layer.
+      OR: [
+        { firstName: ci },
+        { lastName: ci },
+        { firstNameFr: ci },
+        { lastNameFr: ci }
+      ]
     };
 
     if (isRestricted) {
-      staffWhere.teams = {
+      // Staff's multi-team assignment relation is named `teamAssignments` in
+      // the Prisma schema (there is no `teams` relation on Staff).
+      staffWhere.teamAssignments = {
         some: { teamId: { in: authorizedTeamIds } }
       };
     }
@@ -189,6 +199,8 @@ export async function executeGlobalSearch(
         id: true,
         firstName: true,
         lastName: true,
+        firstNameFr: true,
+        lastNameFr: true,
         role: true,
         team: {
           select: { name: true }
@@ -211,7 +223,9 @@ export async function executeGlobalSearch(
           badge: s.role,
           score: Math.max(
             calculateRelevanceScore(title, query),
-            calculateRelevanceScore(s.lastName, query)
+            calculateRelevanceScore(s.lastName, query),
+            calculateRelevanceScore(s.firstNameFr ?? "", query),
+            calculateRelevanceScore(s.lastNameFr ?? "", query)
           )
         };
       });

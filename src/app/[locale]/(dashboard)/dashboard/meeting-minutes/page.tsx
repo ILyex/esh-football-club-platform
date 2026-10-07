@@ -3,12 +3,12 @@ import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
-import { CalendarClock, ClipboardPenLine } from "lucide-react";
+import { CalendarClock, ClipboardPenLine, Plus} from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -25,7 +25,7 @@ export default async function MeetingMinutesListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("meetings.view");
+  const user = await requirePagePermission("meetings.view", locale);
   const canViewContracts = hasPermission(user, "contracts.view");
   const canViewCorrespondence = hasPermission(user, "correspondence.view");
   const t = await getTranslations("meetings");
@@ -63,7 +63,7 @@ export default async function MeetingMinutesListPage({
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link href={`/${locale}/dashboard/meeting-minutes/new`}>
-          <Button>{t("addMeeting")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addMeeting")}</Button>
         </Link>
       </div>
 

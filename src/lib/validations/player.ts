@@ -10,7 +10,12 @@ export const playerSchema = z.object({
   position: z.enum(["GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"]),
   nationality: z.string().min(1).max(80),
   dateOfBirth: z.coerce.date(),
-  teamId: z.string().min(1),
+  // Player.teamId is nullable in PostgreSQL. Keep the form contract aligned
+  // so existing club-wide players can be edited without inventing a team.
+  teamId: z.preprocess(
+    (val) => (val === "" || val === undefined ? null : String(val)),
+    z.string().nullable()
+  ),
   // Numeric fields may be empty strings from HTML forms; treat "" as undefined before validation
   shirtNumber: z.preprocess((val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
     z.number().int().min(1).max(99).optional()),

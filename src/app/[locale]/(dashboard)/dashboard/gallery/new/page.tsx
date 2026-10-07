@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { createAlbumAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ const CATEGORIES = ["MATCHES", "TRAINING", "TEAM", "EVENTS", "CLUB"] as const;
 
 export default async function NewAlbumPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("gallery.manage");
+  await requirePagePermission("gallery.manage", locale);
   const t = await getTranslations("gallery");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

@@ -2,13 +2,13 @@ import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { setAnnouncementStatusAction, deleteAnnouncementAction } from "./actions";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Eye, EyeOff, Trash2, Edit } from "lucide-react";
+import { Eye, EyeOff, Trash2, Edit, Plus} from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -32,7 +32,7 @@ export default async function AnnouncementsListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("announcements.view");
+  const user = await requirePagePermission("announcements.view", locale);
   const t = await getTranslations("announcements");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -56,7 +56,7 @@ export default async function AnnouncementsListPage({
         <h1 className="text-xl font-bold">{t("title")}</h1>
         {canManage && (
           <Link href={`/${locale}/dashboard/announcements/new`}>
-            <Button>{t("addAnnouncement")}</Button>
+            <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addAnnouncement")}</Button>
           </Link>
         )}
       </div>

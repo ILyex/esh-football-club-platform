@@ -1,4 +1,4 @@
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getGmailConnectionStatus, listMailboxMessages } from "@/lib/integrations/gmail/service";
 import { MailClient } from "./mail-client";
 import type { GmailMessageSummary } from "@/lib/integrations/gmail/types";
@@ -13,7 +13,7 @@ export default async function MailPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const user = await requirePermission("mail.view");
+  const user = await requirePagePermission("mail.view", locale);
 
   const status = await getGmailConnectionStatus();
   let initialMessages: GmailMessageSummary[] = [];

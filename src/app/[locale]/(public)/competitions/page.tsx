@@ -21,7 +21,7 @@ export default async function PublicCompetitionsPage({
   const seasons = await db.season.findMany({ orderBy: { startDate: "desc" } });
   const currentSeason = seasons.find((s) => s.isCurrent) || seasons[0] || null;
 
-  const clubName = isAr ? "أمل سيدي حسني" : "ESH Sidi Hosni";
+  const clubName = isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football";
 
   // Load competitions
   const dbCompetitions = await db.competition.findMany({
@@ -58,8 +58,8 @@ export default async function PublicCompetitionsPage({
         labelFr: frenchPublicText(round.labelFr, "Tour"),
         matches: round.matches.map((match) => ({
           ...match,
-          homeTeam: { ...match.homeTeam, name: frenchPublicText(match.homeTeam.name, match.homeTeam.isOurClub ? "ESH Sidi Hosni" : "Adversaire") },
-          awayTeam: { ...match.awayTeam, name: frenchPublicText(match.awayTeam.name, match.awayTeam.isOurClub ? "ESH Sidi Hosni" : "Adversaire") },
+          homeTeam: { ...match.homeTeam, name: frenchPublicText(match.homeTeam.name, match.homeTeam.isOurClub ? "Association Sportive Espoire Sidi Hosni de Football" : "Adversaire") },
+          awayTeam: { ...match.awayTeam, name: frenchPublicText(match.awayTeam.name, match.awayTeam.isOurClub ? "Association Sportive Espoire Sidi Hosni de Football" : "Adversaire") },
           notes: frenchPublicText(match.notes, "")
         }))
       }))
@@ -100,8 +100,8 @@ export default async function PublicCompetitionsPage({
         </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
           {isAr
-            ? "تعرف على ترتيب أمل سيدي حسني في بطولة الدوري والرسم الهيكلي لمشوار الفريق في كأس الجزائر عبر كافة الفئات"
-            : "Suivez le parcours de l'Espoir Sidi Hosni en championnat et en Coupe d'Algérie pour toutes les catégories"}
+            ? "تعرف على ترتيب الجمعية الرياضية أمل سيدي حسني لكرة القدم في بطولة الدوري والرسم الهيكلي لمشوار الفريق في كأس الجزائر عبر كافة الفئات"
+            : "Suivez le parcours de l'Association Sportive Espoire Sidi Hosni de Football en championnat et en Coupe d'Algérie pour toutes les catégories"}
         </p>
       </div>
 

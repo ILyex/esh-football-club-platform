@@ -27,6 +27,14 @@ npm run db:migrate:deploy
 npm run dev
 ```
 
+`npm run dev` is for software development and compiles routes as they are
+visited, so its memory use grows during the first navigation through the app.
+For daily club administration on a low-spec PC, prepare the standalone
+production package once with `npm run build:cpanel`, then use the
+`Launch-ESH-Platform.vbs` shortcut. It starts the compiled Node server without
+the development compiler or file watchers. Use `npm run start` only after a
+production build is already present.
+
 Open `http://localhost:3000/ar` for Arabic or `http://localhost:3000/fr` for
 French. For a disposable local database, see [development setup](docs/development.md).
 Never use demo seed data on a production database.
@@ -61,7 +69,9 @@ Never use demo seed data on a production database.
 ## Common commands
 
 ```powershell
-npm run dev                  # Local development with Turbopack
+npm run dev                  # Development only; Webpack compiles routes on demand
+npm run build:cpanel         # Prepare optimized standalone production runtime
+npm run start                # Serve an existing production build
 npm run build                # Production build
 npm run start                # Serve a production build
 npm run lint                 # ESLint
@@ -76,6 +86,8 @@ npm run test:all             # All configured unit suites
 See [development setup](docs/development.md), [architecture](docs/architecture.md),
 [security](docs/security.md), [operations](OPERATIONS.md), and the
 [Arabic/French glossary](docs/localization.md).
+For the PHP/MySQL shared-hosting migration, see
+[the compatibility plan](docs/php-mysql-migration-ar.md).
 For cPanel deployment constraints and setup, see [the cPanel deployment guide](docs/cpanel-deployment-ar.md).
 Before purchasing hosting or publishing, follow the [Arabic production-readiness guide](docs/production-readiness-ar.md).
 See [AI and FAF integration status](docs/integrations.md) before configuring

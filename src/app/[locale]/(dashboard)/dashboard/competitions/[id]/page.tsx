@@ -1,14 +1,14 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { updateCompetitionAction } from "../actions";
 import { Button } from "@/components/ui/button";
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("competitions.view");
+  const user = await requirePagePermission("competitions.view", locale);
   const t = await getTranslations("competitions");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

@@ -1,393 +1,282 @@
 "use client";
 
-import { ESH_DOCUMENT_FONT_FAMILY, ESH_PRINT_WATERMARK_DATA_URL } from "./watermark";
+import { ESH_DOCUMENT_FONT_FAMILY } from "./watermark";
+
+const PRINT_STYLE_ID = "esh-document-print-style";
+const PRINT_TARGET_ATTRIBUTE = "data-esh-print-target";
+const PRINT_ANCESTOR_ATTRIBUTE = "data-esh-print-ancestor";
+const PRINT_HIDDEN_ATTRIBUTE = "data-esh-print-hidden";
 
 /**
- * Universal Official Institutional Print Engine for ESH SIDI HOSNI.
- *
- * Provides 100% visual parity between screen preview and printed document.
- * Eliminates layout scrambling, font metric shifts, decorative lines, and broken headers.
- * Strictly enforces Traditional Arabic / Arabic Typesetting typography and diagonal ESH watermark.
+ * Print the actual preview element instead of cloning and reconstructing it.
+ * Cloning made Chrome resolve a second set of widths, responsive rules and
+ * font metrics, which caused the printed sheet to diverge from the preview.
  */
 export function printDocumentElement(elementIdOrElement: string | HTMLElement, title?: string): void {
   if (typeof window === "undefined") return;
 
-  const targetElement =
-    typeof elementIdOrElement === "string"
-      ? document.getElementById(elementIdOrElement)
-      : elementIdOrElement;
+  const target = typeof elementIdOrElement === "string"
+    ? document.getElementById(elementIdOrElement)
+    : elementIdOrElement;
 
-  if (!targetElement) {
-    console.warn(`[printDocumentElement] Target element not found:`, elementIdOrElement);
+  if (!target) {
+    console.warn("[printDocumentElement] Printable document not found:", elementIdOrElement);
     window.print();
     return;
   }
 
-  // Remove existing print frame if present
-  const existingFrame = document.getElementById("esh-official-print-frame");
-  if (existingFrame) {
-    try {
-      existingFrame.remove();
-    } catch {
-      // ignore
-    }
+  document.getElementById(PRINT_STYLE_ID)?.remove();
+
+  const ancestors: HTMLElement[] = [];
+  let ancestor = target.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    ancestors.push(ancestor);
+    ancestor = ancestor.parentElement;
   }
 
-  // Create isolated print frame positioned invisibly
-  const iframe = document.createElement("iframe");
-  iframe.id = "esh-official-print-frame";
-  iframe.setAttribute(
-    "style",
-    // Keep a real A4 layout viewport. A zero-sized iframe makes Chromium
-    // wrap Arabic content into a narrow column before printing.
-    "position: fixed; left: -10000px; top: 0; width: 210mm; height: 297mm; border: 0; opacity: 0; pointer-events: none; z-index: -9999;"
-  );
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    window.print();
-    return;
+  const oldTargetAttribute = target.getAttribute(PRINT_TARGET_ATTRIBUTE);
+  const oldBodyClass = document.body.classList.contains("esh-document-printing");
+  const previewStyle = window.getComputedStyle(target);
+  const fillsPage = target.classList.contains("flex")
+    && target.classList.contains("flex-col")
+    && target.classList.contains("justify-between");
+  const ancestorAttributes = new Map<HTMLElement, string | null>();
+  const hiddenAttributes = new Map<HTMLElement, string | null>();
+  for (const element of ancestors) {
+    ancestorAttributes.set(element, element.getAttribute(PRINT_ANCESTOR_ATTRIBUTE));
+    element.setAttribute(PRINT_ANCESTOR_ATTRIBUTE, "");
   }
 
-  // Extract all compiled styles from document.styleSheets
-  let compiledCss = "";
-  try {
-    for (const sheet of Array.from(document.styleSheets)) {
-      try {
-        if (sheet.cssRules) {
-          for (const rule of Array.from(sheet.cssRules)) {
-            compiledCss += rule.cssText + "\n";
-          }
-        }
-      } catch {
-        if (sheet.href) {
-          compiledCss += `@import url("${sheet.href}");\n`;
-        }
+  // Keep only the DOM path that contains the actual preview sheet. Using
+  // visibility:hidden for modal footers/backdrops leaves them in layout and
+  // makes Chrome create an extra blank page. Removing siblings from print
+  // layout guarantees that Chrome receives exactly one A4 sheet.
+  let pathChild: HTMLElement = target;
+  let pathParent = target.parentElement;
+  while (pathParent) {
+    for (const child of Array.from(pathParent.children)) {
+      if (child !== pathChild && child instanceof HTMLElement) {
+        hiddenAttributes.set(child, child.getAttribute(PRINT_HIDDEN_ATTRIBUTE));
+        child.setAttribute(PRINT_HIDDEN_ATTRIBUTE, "");
       }
     }
-  } catch {
-    // fallback if styleSheets array iteration fails
+    if (pathParent === document.body) break;
+    pathChild = pathParent;
+    pathParent = pathParent.parentElement;
   }
 
-  // Also include inline <style> elements
-  document.querySelectorAll("style").forEach((styleEl) => {
-    if (styleEl.textContent) {
-      compiledCss += styleEl.textContent + "\n";
-    }
-  });
+  target.setAttribute(PRINT_TARGET_ATTRIBUTE, "");
+  document.body.classList.add("esh-document-printing");
 
-  const isRtl = document.documentElement.dir === "rtl" || document.dir === "rtl";
-  const docTitle = title || "وثيقة — ESH SIDI HOSNI";
-
-  // Clone element and strip modal screen constraints
-  const clone = targetElement.cloneNode(true) as HTMLElement;
-  clone.classList.remove("hidden");
-  clone.style.display = "block";
-  clone.style.visibility = "visible";
-  clone.style.opacity = "1";
-  clone.style.padding = "0";
-  clone.style.margin = "0";
-  clone.style.width = "100%";
-  clone.style.maxWidth = "100%";
-  clone.style.boxShadow = "none";
-  clone.style.border = "none";
-  clone.style.minHeight = "auto";
-
-  const targetHtml = clone.outerHTML;
-
-  doc.open();
-  doc.write(`
-    <!DOCTYPE html>
-    <html lang="${isRtl ? "ar" : "fr"}" dir="${isRtl ? "rtl" : "ltr"}">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <base href="${window.location.origin}/" />
-        <title>${docTitle}</title>
-        <style>
-          /* Compiled Application Styles */
-          ${compiledCss}
-
-          /* Official Institutional Document Print Engine */
-          @page {
-            size: A4 portrait;
-            margin: 10mm 12mm 10mm 12mm !important;
-          }
-
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 10mm 12mm 10mm 12mm !important;
-            }
-          }
-
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            box-sizing: border-box !important;
-          }
-
-          html, body {
-            background: #ffffff !important;
-            color: #000000 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
-            -webkit-font-smoothing: antialiased;
-            overflow: visible !important;
-            direction: ${isRtl ? "rtl" : "ltr"} !important;
-            unicode-bidi: plaintext !important;
-          }
-
-          /* A4 content width after the 12mm page margins. This prevents the
-             hidden print frame from collapsing the document into a mobile
-             sized column while preserving normal browser print scaling. */
-          .print-sheet {
-            width: 186mm !important;
-            max-width: 186mm !important;
-            margin: 0 auto !important;
-            direction: ${isRtl ? "rtl" : "ltr"} !important;
-            unicode-bidi: plaintext !important;
-          }
-
-          /* Ensure all text nodes inside printable documents use the official fonts */
-          body, p, span, h1, h2, h3, h4, td, th, div, label {
-            font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
-          }
-
-          /* Remove all underlines, decorative horizontal rules and decorative lines */
-          u, ins, a, .underline, [style*="text-decoration: underline"] {
-            text-decoration: none !important;
-          }
-
-          /* Official Institutional Mandate: ALL numbers in all club documents strictly use ARIAL EN GRAS (Arial Bold). Strictly NO other font allowed. */
-          .font-mono, [class*="font-mono"],
-          .tabular-nums, [class*="tabular-nums"],
-          .num, .doc-number, .digit,
-          span[dir="ltr"], td[dir="ltr"] {
-            font-family: Arial, sans-serif !important;
-            font-weight: 700 !important;
-          }
-
-          .printable-document :is(.font-mono, .tabular-nums),
-          .print-sheet :is(.font-mono, .tabular-nums) {
-            font-family: Arial, sans-serif !important;
-            font-weight: 700 !important;
-          }
-
-          /* Use an image layer, not a CSS background: browsers can omit
-             background graphics from print despite print-color-adjust. */
-          .esh-print-watermark {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 210mm !important;
-            height: 297mm !important;
-            z-index: 0 !important;
-            object-fit: fill !important;
-            pointer-events: none !important;
-          }
-
-          .print-sheet {
-            position: relative !important;
-            z-index: 1 !important;
-            background: transparent !important;
-          }
-
-          .esh-security-watermark,
-          #official-inventory-preview-document,
-          #official-inventory-document,
-          #official-insurance-list-document,
-          .esh-official-document {
-            background-color: transparent !important;
-            background-image: none !important;
-          }
-
-          /* Hide inner preview watermark div in print because body::before handles all pages uniformly */
-          .esh-security-watermark > div:first-child[style*="backgroundImage"],
-          .pointer-events-none[style*="backgroundImage"],
-          [style*="background-image"][class*="pointer-events-none"] {
-            display: none !important;
-          }
-
-          /* Ensure all buttons, modal close icons, and interactive elements are hidden */
-          .print\\:hidden, button, [role="button"], [role="toolbar"] {
-            display: none !important;
-          }
-
-          /* Printable document wrapper rules */
-          .printable-document,
-          .print-sheet,
-          #official-inventory-preview-document,
-          #official-insurance-list-document,
-          [id^="official-"] {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: relative !important;
-            z-index: 1 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-sizing: border-box !important;
-            box-shadow: none !important;
-            border: none !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            direction: ${isRtl ? "rtl" : "ltr"} !important;
-            unicode-bidi: plaintext !important;
-          }
-
-          /* Clean Administrative Table Formatting */
-          table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            table-layout: fixed !important;
-            margin-top: 4px !important;
-            margin-bottom: 8px !important;
-            page-break-inside: auto !important;
-            break-inside: auto !important;
-          }
-
-          thead {
-            display: table-header-group !important;
-          }
-
-          tbody {
-            display: table-row-group !important;
-          }
-
-          tfoot {
-            display: table-footer-group !important;
-          }
-
-          tr {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-
-          th, td {
-            border: 1px solid #d1d5db !important;
-            padding: 5px 6px !important;
-            box-sizing: border-box !important;
-            word-break: break-word !important;
-            overflow-wrap: break-word !important;
-            vertical-align: middle !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
-          }
-
-          th {
-            background-color: #f3f4f6 !important;
-            color: #000000 !important;
-            font-weight: 700 !important;
-          }
-
-          /* Flexbox & Grid Resets */
-          .flex { display: flex !important; }
-          .flex-col { flex-direction: column !important; }
-          .flex-row { flex-direction: row !important; }
-          .items-center { align-items: center !important; }
-          .items-start { align-items: flex-start !important; }
-          .items-end { align-items: flex-end !important; }
-          .justify-between { justify-content: space-between !important; }
-          .justify-center { justify-content: center !important; }
-          .justify-start { justify-content: flex-start !important; }
-          .justify-end { justify-content: flex-end !important; }
-          .shrink-0 { flex-shrink: 0 !important; }
-          .flex-1 { flex: 1 1 0% !important; }
-
-          .grid { display: grid !important; }
-          .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-          .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-          .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-
-          /* Typography & Alignments */
-          .text-center { text-align: center !important; }
-          .text-start { text-align: start !important; }
-          .text-end { text-align: end !important; }
-          .font-bold { font-weight: 700 !important; }
-          .font-semibold { font-weight: 600 !important; }
-          .font-medium { font-weight: 500 !important; }
-          .font-black { font-weight: 900 !important; }
-
-          /* Page break protection for headers, totals, and signatures */
-          .category-header {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-
-          .category-section {
-            page-break-inside: auto !important;
-            break-inside: auto !important;
-          }
-
-          .grand-total-section,
-          .signatures-section,
-          .signature-block,
-          .print-footer {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-        </style>
-      </head>
-      <body>
-        <img class="esh-print-watermark" src="${ESH_PRINT_WATERMARK_DATA_URL}" alt="" aria-hidden="true" />
-        <div class="print-sheet">
-          ${targetHtml}
-        </div>
-      </body>
-    </html>
-  `);
-  doc.close();
-
-  // Wait for all images and fonts to complete loading before invoking print
-  const docImages = Array.from(doc.images);
-  const imageWaiters = docImages.map((img) => {
-    if (img.complete) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-    });
-  });
-
-  Promise.all(imageWaiters).then(() => {
-    const fontsReady = doc.fonts ? doc.fonts.ready : Promise.resolve();
-    fontsReady
-      .then(() => {
-        setTimeout(executePrint, 150);
-      })
-      .catch(() => {
-        setTimeout(executePrint, 250);
-      });
-  });
-
-  function executePrint() {
-    try {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.onbeforeprint = null;
-        iframe.contentWindow.onafterprint = () => {
-          try {
-            iframe.remove();
-          } catch {
-            // ignore
-          }
-        };
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } else {
-        window.print();
+  const printStyle = document.createElement("style");
+  printStyle.id = PRINT_STYLE_ID;
+  printStyle.textContent = `
+    @media print {
+      /* Explicit physical dimensions are understood consistently by
+         Chromium, Edge and Firefox; the print dialog may still apply a
+         user's manual scale setting, which CSS cannot override. */
+      @page { size: 210mm 297mm; margin: 0 !important; }
+      html, body {
+        width: 210mm !important;
+        min-width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: #fff !important;
+        color: #000 !important;
+        direction: ltr !important;
+        font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
-    } catch (e) {
-      console.error("[printDocumentElement] Error printing iframe:", e);
-      window.print();
+      body.esh-document-printing * {
+        visibility: hidden !important;
+      }
+      body.esh-document-printing [${PRINT_HIDDEN_ATTRIBUTE}] {
+        display: none !important;
+      }
+      body.esh-document-printing [${PRINT_ANCESTOR_ATTRIBUTE}] {
+        display: contents !important;
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        transform: none !important;
+        filter: none !important;
+        perspective: none !important;
+        contain: none !important;
+        visibility: visible !important;
+      }
+      /* Do not let the modal's max-w-4xl/flex sizing become the print width.
+         Chrome resolves percentage widths against that wrapper before it
+         applies the A4 page box, which makes the document look centred and
+         shrunken even though the paper itself is A4. */
+      body.esh-document-printing [${PRINT_ANCESTOR_ATTRIBUTE}] > [${PRINT_ANCESTOR_ATTRIBUTE}],
+      body.esh-document-printing [${PRINT_ANCESTOR_ATTRIBUTE}] > [${PRINT_TARGET_ATTRIBUTE}] {
+        width: 210mm !important;
+        min-width: 210mm !important;
+        max-width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        box-sizing: border-box !important;
+        background: #fff !important;
+        overflow: hidden !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] {
+        display: ${fillsPage ? "flex" : "block"} !important;
+        /* Keep the exact preview element in normal print flow. A fixed
+           left-anchored sheet was responsible for the off-centre paper and
+           the visible horizontal/bottom gray edges in Chrome's preview. */
+        position: absolute !important;
+        inset: 0 !important;
+        flex-direction: ${fillsPage ? "column" : previewStyle.flexDirection} !important;
+        justify-content: ${fillsPage ? "space-between" : previewStyle.justifyContent} !important;
+        width: 210mm !important;
+        min-width: 210mm !important;
+        max-width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        padding: ${previewStyle.padding} !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+        transform: none !important;
+        background-color: #fff !important;
+        background-image: none !important;
+        color: #000 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        break-before: avoid !important;
+        break-after: avoid !important;
+        direction: ${target.dir || document.documentElement.dir || "ltr"} !important;
+        font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        break-before: avoid !important;
+        break-after: avoid !important;
+      }
+      body.esh-document-printing,
+      body.esh-document-printing [${PRINT_ANCESTOR_ATTRIBUTE}],
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] {
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] *,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] *::before,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] *::after {
+        box-sizing: border-box !important;
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* The preview sheet is a column flex container. Stretch its real
+         content column explicitly so Chrome cannot resolve it to the modal's
+         old narrow width during print layout. */
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] > :not(.esh-security-watermark) {
+        width: 190mm !important;
+        min-width: 190mm !important;
+        max-width: 190mm !important;
+        align-self: center !important;
+        margin-inline: auto !important;
+        /* This is a column flexbox. A 190mm flex-basis becomes a vertical
+           height and pushes the signatures onto a second sheet. */
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .esh-official-document-header,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .esh-official-document-header > div,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] table {
+        width: 190mm !important;
+        min-width: 190mm !important;
+        max-width: 190mm !important;
+      }
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] button,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [role="button"],
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [role="toolbar"],
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .print\\:hidden {
+        display: none !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .esh-security-watermark [class~="print:hidden"] {
+        display: block !important;
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] table {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] th,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] td {
+        box-sizing: border-box !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .font-mono,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .tabular-nums,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [class*="font-mono"],
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [class*="tabular-nums"] {
+        font-family: Arial, sans-serif !important;
+        font-weight: 700 !important;
+      }
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] u,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] ins,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] a,
+      body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] .underline {
+        text-decoration: none !important;
+      }
     }
-  }
+  `;
+  document.head.appendChild(printStyle);
+
+  const originalTitle = document.title;
+  if (title) document.title = title;
+
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    window.removeEventListener("afterprint", cleanup);
+    printStyle.remove();
+    if (oldTargetAttribute === null) target.removeAttribute(PRINT_TARGET_ATTRIBUTE);
+    else target.setAttribute(PRINT_TARGET_ATTRIBUTE, oldTargetAttribute);
+    for (const [element, oldValue] of ancestorAttributes) {
+      if (oldValue === null) element.removeAttribute(PRINT_ANCESTOR_ATTRIBUTE);
+      else element.setAttribute(PRINT_ANCESTOR_ATTRIBUTE, oldValue);
+    }
+    for (const [element, oldValue] of hiddenAttributes) {
+      if (oldValue === null) element.removeAttribute(PRINT_HIDDEN_ATTRIBUTE);
+      else element.setAttribute(PRINT_HIDDEN_ATTRIBUTE, oldValue);
+    }
+    if (!oldBodyClass) document.body.classList.remove("esh-document-printing");
+    document.title = originalTitle;
+  };
+
+  window.addEventListener("afterprint", cleanup, { once: true });
+  void document.fonts.ready.finally(() => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+  });
+  window.setTimeout(cleanup, 120_000);
 }

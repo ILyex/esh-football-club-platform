@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound, redirect } from "next/navigation";
 import { updateContractAction, archiveContractAction } from "../actions";
@@ -27,7 +27,7 @@ const STATUSES = ["PENDING", "ACTIVE", "EXPIRING_SOON", "EXPIRED"] as const;
 
 export default async function ContractDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("contracts.view");
+  const user = await requirePagePermission("contracts.view", locale);
   const t = await getTranslations("contracts");
   const tTeams = await getTranslations("teams");
   const tStaff = await getTranslations("staff");

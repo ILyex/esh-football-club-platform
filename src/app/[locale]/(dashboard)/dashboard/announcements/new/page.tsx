@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getAuthorizedTeams } from "@/lib/team-context";
 import { createAnnouncementAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -11,7 +11,7 @@ import { Save } from "lucide-react";
 
 export default async function NewAnnouncementPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("announcements.manage");
+  await requirePagePermission("announcements.manage", locale);
   const t = await getTranslations("announcements");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { User, ChevronRight, ChevronLeft, Trophy, Calendar, Flag, Activity } from "lucide-react";
 import { getPublicPlayerBySlug } from "@/lib/public/teams";
 import { getPlayerDisplayName } from "@/lib/utils";
-import { frenchPublicPersonName, frenchPublicText } from "@/lib/public/locale-text";
+import { frenchPublicPersonName, frenchNationality, frenchPublicText } from "@/lib/public/locale-text";
 
 export default async function PublicPlayerProfilePage({
   params
@@ -121,7 +121,7 @@ export default async function PublicPlayerProfilePage({
                 </dt>
                 <dd className="mt-1 text-sm font-bold text-foreground flex items-center gap-1.5">
                   <Flag className="h-3.5 w-3.5 text-club-primary" />
-                  <span>{locale === "ar" ? player.nationality : frenchPublicText(player.nationality, "Algérie")}</span>
+                  <span>{locale === "ar" ? player.nationality : frenchNationality(player.nationality)}</span>
                 </dd>
               </div>
 

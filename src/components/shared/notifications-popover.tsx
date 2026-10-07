@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCheck, Clock, ExternalLink, Inbox } from "lucide-react";
+import { Bell, Check, CheckCheck, Clock, ExternalLink } from "lucide-react";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "@/app/[locale]/(dashboard)/dashboard/notifications/actions";
 import { cn } from "@/lib/utils";
 
@@ -167,8 +167,10 @@ export function NotificationsPopover({
           {/* Notifications List */}
           <div className="max-h-80 overflow-y-auto divide-y divide-border/60 scrollbar-thin">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                <Inbox className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70">
+                  <Bell className="h-5 w-5" />
+                </div>
                 <p className="text-xs text-muted-foreground">{labels.empty}</p>
               </div>
             ) : (

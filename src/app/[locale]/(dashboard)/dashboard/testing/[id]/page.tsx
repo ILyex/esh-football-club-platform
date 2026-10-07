@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { deleteTestSessionAction } from "../actions";
 import { TestingSessionSheet, type SessionPlayerData } from "@/components/testing/testing-session-sheet";
@@ -18,7 +18,7 @@ export default async function TestingSessionDetailPage({
   params: Promise<{ locale: string; id: string }>;
 }) {
   const { locale, id } = await params;
-  const user = await requirePermission("players.view");
+  const user = await requirePagePermission("players.view", locale);
   const t = await getTranslations("testing");
   const tTeams = await getTranslations("teams");
 

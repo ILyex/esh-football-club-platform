@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
 import { improveFieldAction, generateDocumentAction } from "../../actions";
 import { RESOLVER_REGISTRY, applyMappings, requireResolverPermission, resolveBundleOrNotice } from "@/lib/documents/entity-data-resolvers";
@@ -19,7 +19,7 @@ export default async function GenerateFromVersionPage({
 }) {
   const { locale, versionId } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("documents.generate");
+  const user = await requirePagePermission("documents.generate", locale);
   const t = await getTranslations("generatedDocuments");
   const tCommon = await getTranslations("common");
 

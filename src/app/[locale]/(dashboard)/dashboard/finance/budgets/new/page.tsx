@@ -1,7 +1,7 @@
 import { Save } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
 import { createBudgetAction } from "../actions";
 import { redirect } from "next/navigation";
@@ -11,7 +11,7 @@ const CATEGORIES = ["FOOD", "TRANSPORT", "LODGING", "EQUIPMENT", "MEDICAL", "ADM
 
 export default async function NewBudgetPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("finance.manage");
+  await requirePagePermission("finance.manage", locale);
   const t = await getTranslations("finance");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

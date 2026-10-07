@@ -1,9 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound } from "next/navigation";
-import { updatePlayerAction, archivePlayerAction, hardDeletePlayerAction } from "../actions";
+import { updatePlayerAction, archivePlayerAction, restorePlayerAction, hardDeletePlayerAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { birthYearMismatch } from "@/lib/utils";
@@ -13,25 +13,71 @@ import { PlayerPerformanceCard, type ProtocolPerformanceGroup } from "@/componen
 import { analyzePlayerHistory } from "@/lib/testing/history-analyzer";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { PlayerPhotoEditor } from "@/components/dashboard/player-photo-editor";
+import { PlayerField as Field } from "@/components/players/player-field";
 import { PlayerAttendanceCard } from "@/components/training/player-attendance-card";
 import { evaluatePlayerInsurance, parseInsuranceMetadata, formatInsuranceDate } from "@/lib/documents/insurance-helper";
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { DateInput } from "@/components/ui/date-input";
-import { Save,  ShieldCheck, ShieldAlert, Clock, XCircle, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
+import { FormSelect } from "@/components/ui/form-select";
+import { Save, Trash2, Archive, RotateCcw, ShieldCheck, ShieldAlert, Clock, XCircle, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
+import { redirect } from "next/navigation";
+import { frenchNationality } from "@/lib/public/locale-text";
 
 const POSITIONS = ["GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"] as const;
 const STATUSES = ["ACTIVE", "INJURED", "SUSPENDED", "ON_LOAN", "ARCHIVED"] as const;
 
 export default async function PlayerDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
-  const user = await requirePermission("players.view");
+  const user = await requirePagePermission("players.view", locale);
   const t = await getTranslations("players");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
-  const [player, { authorizedTeams }, testResults, trainingAttendances] = await Promise.all([
-    db.player.findUnique({ where: { id }, include: { translations: true, contracts: true, documents: true, team: true } }),
+  // Load the record needed by the edit form independently from optional
+  // history panels. A broken/stale testing or attendance table must not make
+  // the core player record impossible to edit.
+  const playerRecord = await db.player.findUnique({ where: { id } });
+  if (!playerRecord) notFound();
+
+  const [{ authorizedTeams }, scopeContext] = await Promise.all([
     resolveUserTeamContext(),
+    getMutationScopeContext()
+  ]);
+
+  try {
+    assertTeamScope(scopeContext, playerRecord.teamId, "Player", { allowClubWide: true });
+  } catch {
+    notFound();
+  }
+
+  // Keep ancillary relations out of the critical record query. This also
+  // makes legacy databases with incomplete optional tables diagnosable
+  // without taking down the player edit form.
+  const [translationsResult, contractsResult, documentsResult, teamResult] = await Promise.allSettled([
+    db.playerTranslation.findMany({ where: { playerId: id } }),
+    db.contract.findMany({ where: { playerId: id } }),
+    db.document.findMany({ where: { relatedPlayerId: id } }),
+    playerRecord.teamId ? db.team.findUnique({ where: { id: playerRecord.teamId } }) : Promise.resolve(null)
+  ]);
+  const player = {
+    ...playerRecord,
+    translations: translationsResult.status === "fulfilled" ? translationsResult.value : [],
+    contracts: contractsResult.status === "fulfilled" ? contractsResult.value : [],
+    documents: documentsResult.status === "fulfilled" ? documentsResult.value : [],
+    team: teamResult.status === "fulfilled" ? teamResult.value : null
+  };
+  for (const [relation, result] of [
+    ["translations", translationsResult],
+    ["contracts", contractsResult],
+    ["documents", documentsResult],
+    ["team", teamResult]
+  ] as const) {
+    if (result.status === "rejected") {
+      console.error(`[dashboard/players/[id]] Could not load player ${relation}`, { playerId: id, error: result.reason });
+    }
+  }
+
+  const [testResultsResult, trainingAttendancesResult] = await Promise.allSettled([
     db.testResult.findMany({
       where: { playerId: id, session: { status: "COMPLETED" } },
       include: {
@@ -58,7 +104,15 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
       }
     })
   ]);
-  if (!player) notFound();
+
+  const testResults = testResultsResult.status === "fulfilled" ? testResultsResult.value : [];
+  const trainingAttendances = trainingAttendancesResult.status === "fulfilled" ? trainingAttendancesResult.value : [];
+  if (testResultsResult.status === "rejected") {
+    console.error("[dashboard/players/[id]] Could not load player test history", { playerId: id, error: testResultsResult.reason });
+  }
+  if (trainingAttendancesResult.status === "rejected") {
+    console.error("[dashboard/players/[id]] Could not load player attendance history", { playerId: id, error: trainingAttendancesResult.reason });
+  }
 
   const teams = authorizedTeams.some((tm) => tm.id === player.teamId)
     ? authorizedTeams
@@ -66,16 +120,16 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
       ? [...authorizedTeams, player.team]
       : authorizedTeams;
 
-  const scopeContext = await getMutationScopeContext();
-  try {
-    assertTeamScope(scopeContext, player.teamId, "Player", { allowClubWide: true });
-  } catch {
-    notFound();
-  }
-
-  const canUpdate = hasPermission(user, "players.update");
-  const canArchive = hasPermission(user, "players.archive");
-  const canDelete = hasPermission(user, "players.delete");
+  const canManagePlayerRecord = scopeContext.isUnrestricted || Boolean(
+    player.teamId && scopeContext.authorizedTeamIds.includes(player.teamId)
+  );
+  const hasPlayerManagementPermission =
+    hasPermission(user, "players.update") ||
+    hasPermission(user, "players.archive") ||
+    hasPermission(user, "players.delete");
+  const canUpdate = hasPermission(user, "players.update") && canManagePlayerRecord;
+  const canArchive = hasPermission(user, "players.archive") && canManagePlayerRecord;
+  const canDelete = hasPermission(user, "players.delete") && canManagePlayerRecord;
 
   const bioAr = player.translations.find((tr) => tr.locale === "ar")?.biography ?? "";
   const bioFr = player.translations.find((tr) => tr.locale === "fr")?.biography ?? "";
@@ -155,9 +209,14 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
     "use server";
     await archivePlayerAction(id);
   }
+  async function restore() {
+    "use server";
+    await restorePlayerAction(id);
+  }
   async function hardDelete() {
     "use server";
     await hardDeletePlayerAction(id);
+    redirect(`/${locale}/dashboard/players`);
   }
 
   return (
@@ -215,7 +274,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                 <span>•</span>
                 <span>{calculatedAge} {isAr ? "سنة" : "ans"}</span>
                 <span>•</span>
-                <span>{player.nationality}</span>
+                <span>{locale === "ar" ? player.nationality : frenchNationality(player.nationality)}</span>
                 {player.height && (
                   <>
                     <span>•</span>
@@ -296,11 +355,19 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
         </div>
       )}
 
+      {hasPlayerManagementPermission && !canManagePlayerRecord && (
+        <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-amber-800 dark:text-amber-200">
+          {isAr
+            ? "لا يمكن تعديل هذا اللاعب لأن فريقه خارج نطاق الفرق المرتبط بحسابك. اطلب من مدير المنصة ربط حسابك بالفئة المناسبة."
+            : "Ce joueur est hors du périmètre des équipes associé à votre compte. Demandez à l’administrateur de vous rattacher à la catégorie concernée."}
+        </div>
+      )}
+
       {/* ── Main Workspace: Two Balanced Columns ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* LEFT COLUMN: Player Profile & Official Documents */}
+        {/* LEFT COLUMN: Player Profile */}
         <div className="min-w-0 space-y-6">
-          <form action={update} className="space-y-6">
+          <form id="player-update-form" action={update} className="space-y-6">
             {/* Section 1: Personal & Sporting Attributes */}
             <div className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex items-center gap-2.5 border-b border-border/60 pb-3">
@@ -322,36 +389,31 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t("fields.team")}
                   </label>
-                  <select
+                  <FormSelect
                     name="teamId"
                     defaultValue={player.teamId ?? ""}
                     disabled={!canUpdate}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  >
-                    {teams.map((tm) => (
-                      <option key={tm.id} value={tm.id}>
-                        {tTeams(`categories.${tm.category}` as any)}
-                      </option>
-                    ))}
-                  </select>
+                    locale={locale}
+                    ariaLabel={t("fields.team")}
+                    options={[
+                      { value: "", label: isAr ? "بدون فئة / لاعب على مستوى النادي" : "Sans catégorie / club" },
+                      ...teams.map((tm) => ({ value: tm.id, label: tTeams(`categories.${tm.category}` as any) }))
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t("fields.position")}
                   </label>
-                  <select
+                  <FormSelect
                     name="position"
                     defaultValue={player.position}
                     disabled={!canUpdate}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  >
-                    {POSITIONS.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {t(`positions.${pos}` as any)}
-                      </option>
-                    ))}
-                  </select>
+                    locale={locale}
+                    ariaLabel={t("fields.position")}
+                    options={POSITIONS.map((pos) => ({ value: pos, label: t(`positions.${pos}` as any) }))}
+                  />
                 </div>
 
                 <Field label={t("fields.nationality")} name="nationality" defaultValue={player.nationality} disabled={!canUpdate} />
@@ -369,18 +431,14 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t("fields.status")}
                   </label>
-                  <select
+                  <FormSelect
                     name="status"
                     defaultValue={player.status}
                     disabled={!canUpdate}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {t(`statuses.${s}` as any)}
-                      </option>
-                    ))}
-                  </select>
+                    locale={locale}
+                    ariaLabel={t("fields.status")}
+                    options={STATUSES.map((s) => ({ value: s, label: t(`statuses.${s}` as any) }))}
+                  />
                 </div>
 
                 <Field label={`${t("fields.height")} (cm)`} name="height" type="number" min={120} max={230} step="1" defaultValue={player.height?.toString() ?? ""} disabled={!canUpdate} />
@@ -390,19 +448,17 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t("fields.preferredFoot")}
                   </label>
-                  <select
+                  <FormSelect
                     name="preferredFoot"
                     defaultValue={player.preferredFoot ?? ""}
                     disabled={!canUpdate}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  >
-                    <option value="">—</option>
-                    {["RIGHT", "LEFT", "BOTH"].map((foot) => (
-                      <option key={foot} value={foot}>
-                        {t(`feet.${foot}` as any)}
-                      </option>
-                    ))}
-                  </select>
+                    locale={locale}
+                    ariaLabel={t("fields.preferredFoot")}
+                    options={[
+                      { value: "", label: "—" },
+                      ...(["RIGHT", "LEFT", "BOTH"] as const).map((foot) => ({ value: foot, label: t(`feet.${foot}` as any) }))
+                    ]}
+                  />
                 </div>
 
                 <DateInput
@@ -428,81 +484,6 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                 canUpdate={canUpdate}
                 locale={locale}
               />
-            </div>
-
-            {/* Section 3: Official Player Documents */}
-            <div className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="flex items-center gap-2.5 border-b border-border/60 pb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    {isAr ? "وثائق ومستندات اللاعب الرسمية" : "Documents officiels du joueur"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {isAr
-                      ? "المستندات الثبوتية الأربعة مع التحقق الذكي والمعاينة الفورية"
-                      : "Les 4 justificatifs officiels avec contrôle intelligent et aperçu direct"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <DocumentUploadField
-                  name="cniFile"
-                  label={isAr ? "بطاقة التعريف الوطنية (CNI)" : "Carte Nationale d'Identité (CNI)"}
-                  description={isAr ? "نسخة ممسوحة ضوئياً للبطاقة البيومترية" : "Copie numérisée de la carte biométrique"}
-                  locale={locale}
-                  existingDocument={cniDoc ? {
-                    id: cniDoc.id,
-                    name: cniDoc.name,
-                    mimeType: cniDoc.mimeType,
-                    originalName: cniDoc.originalName,
-                    sizeBytes: cniDoc.sizeBytes
-                  } : null}
-                />
-                <DocumentUploadField
-                  name="contractFile"
-                  label={isAr ? "عقد اللاعب الرسمي" : "Contrat officiel du joueur"}
-                  description={isAr ? "العقد المبرم مع النادي والمختوم" : "Contrat signé et paraphé avec le club"}
-                  locale={locale}
-                  existingDocument={contractDoc ? {
-                    id: contractDoc.id,
-                    name: contractDoc.name,
-                    mimeType: contractDoc.mimeType,
-                    originalName: contractDoc.originalName,
-                    sizeBytes: contractDoc.sizeBytes
-                  } : null}
-                />
-                <DocumentUploadField
-                  name="birthCertificateFile"
-                  label={isAr ? "شهادة الميلاد (عقد الميلاد)" : "Acte de naissance"}
-                  description={isAr ? "مستخرج ميلاد رسمي حديث" : "Extrait de naissance officiel récent"}
-                  locale={locale}
-                  existingDocument={birthCertificateDoc ? {
-                    id: birthCertificateDoc.id,
-                    name: birthCertificateDoc.name,
-                    mimeType: birthCertificateDoc.mimeType,
-                    originalName: birthCertificateDoc.originalName,
-                    sizeBytes: birthCertificateDoc.sizeBytes
-                  } : null}
-                />
-                <DocumentUploadField
-                  name="drugTestFile"
-                  label={isAr ? "وثيقة فحص المخدرات" : "Test de dépistage de drogues"}
-                  description={isAr ? "تقرير الفحص الطبي والتحاليل المخبرية للمواد الممنوعة" : "Résultat du contrôle médical et des analyses de dépistage"}
-                  locale={locale}
-                  existingDocument={drugTestDoc ? {
-                    id: drugTestDoc.id,
-                    name: drugTestDoc.name,
-                    mimeType: drugTestDoc.mimeType,
-                    originalName: drugTestDoc.originalName,
-                    sizeBytes: drugTestDoc.sizeBytes,
-                    positiveDrugTest: drugTestDoc.description === "verification:DRUG_TEST_POSITIVE"
-                  } : null}
-                />
-              </div>
             </div>
 
             {/* Section 4: Biographies & Internal Notes */}
@@ -550,81 +531,136 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
             </div>
 
             {/* Submit and Save */}
-            {canUpdate && (
-              <div className="flex justify-end pt-2">
-                <Button type="submit" className="min-w-36 h-10 font-semibold gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
+            {(canUpdate || canArchive || canDelete) && (
+              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2" dir={isAr ? "rtl" : "ltr"}>
+                {canUpdate && <Button type="submit" className="inline-flex h-10 min-w-36 items-center justify-center gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"><Save className="h-4 w-4 shrink-0" /><span>{tCommon("save")}</span></Button>}
+                {canArchive && (
+                  player.status === "ARCHIVED" ? (
+                    <ConfirmDialog
+                      title={isAr ? "إرجاع اللاعب إلى القائمة النشطة؟" : "Restaurer ce joueur ?"}
+                      body={isAr ? "سيعود اللاعب إلى الحالة النشطة وسيظهر مجددًا ضمن اللاعبين الحاليين." : "Le joueur repassera au statut actif et réapparaîtra dans l'effectif courant."}
+                      onConfirm={restore}
+                    >
+                      <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                        <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {isAr ? "إرجاع اللاعب" : "Restaurer le joueur"}
+                      </Button>
+                    </ConfirmDialog>
+                  ) : (
+                    <ConfirmDialog
+                      title={isAr ? "أرشفة اللاعب؟" : "Archiver le joueur ?"}
+                      body={isAr ? "سيختفي اللاعب من القوائم النشطة مع الاحتفاظ بملفه وسجلاته، ويمكن إرجاعه لاحقًا." : "Le joueur sera retiré des listes actives, tout en conservant son dossier et son historique."}
+                      onConfirm={archive}
+                    >
+                      <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                        <Archive className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {isAr ? "أرشفة اللاعب" : "Archiver le joueur"}
+                      </Button>
+                    </ConfirmDialog>
+                  )
+                )}
+                {canDelete && (
+                  <ConfirmDialog
+                    title={isAr ? "حذف اللاعب نهائيًا؟" : "Supprimer définitivement ce joueur ?"}
+                    body={isAr ? "سيتم حذف سجل اللاعب نهائيًا ولا يمكن التراجع عن هذا الإجراء." : "La fiche du joueur sera supprimée définitivement. Cette action est irréversible."}
+                    onConfirm={hardDelete}
+                  >
+                    <Button type="button" size="icon" variant="destructive" className="h-10 w-10 shrink-0 bg-red-600 text-white hover:bg-red-700" aria-label={isAr ? "حذف اللاعب نهائيًا" : "Supprimer définitivement le joueur"} title={isAr ? "حذف نهائي" : "Suppression définitive"}>
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </ConfirmDialog>
+                )}
               </div>
             )}
           </form>
 
-          {/* Archive / Hard-delete */}
-          {(canArchive || canDelete) && (
-            <div className="flex gap-2.5 pt-2">
-              {canArchive && player.status !== "ARCHIVED" && (
-                <ConfirmDialog onConfirm={archive}>
-                  <Button variant="outline" className="text-muted-foreground hover:text-foreground">
-                    {isAr ? "أرشفة اللاعب" : "Archiver le joueur"}
-                  </Button>
-                </ConfirmDialog>
-              )}
-              {canDelete && (
-                <ConfirmDialog onConfirm={hardDelete}>
-                  <Button variant="destructive">
-                    {isAr ? "حذف نهائي" : "Suppression définitive"}
-                  </Button>
-                </ConfirmDialog>
-              )}
-            </div>
-          )}
         </div>
 
         {/* RIGHT COLUMN: Training Attendance Record & Physical Testing History */}
         <div className="min-w-0 space-y-6">
           <PlayerAttendanceCard attendances={trainingAttendances} locale={locale} />
           <PlayerPerformanceCard groups={performanceGroups} locale={locale} />
+            {/* Section 3: Official Player Documents */}
+            <div className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-border/60 pb-3">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {isAr ? "وثائق ومستندات اللاعب الرسمية" : "Documents officiels du joueur"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isAr
+                      ? "المستندات الثبوتية الأربعة مع التحقق الذكي والمعاينة الفورية"
+                      : "Les 4 justificatifs officiels avec contrôle intelligent et aperçu direct"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <DocumentUploadField
+                  name="cniFile"
+                  label={isAr ? "بطاقة التعريف الوطنية (CNI)" : "Carte Nationale d'Identité (CNI)"}
+                  description={isAr ? "نسخة ممسوحة ضوئياً للبطاقة البيومترية" : "Copie numérisée de la carte biométrique"}
+                  locale={locale}
+                  formId="player-update-form"
+                  existingDocument={cniDoc ? {
+                    id: cniDoc.id,
+                    name: cniDoc.name,
+                    mimeType: cniDoc.mimeType,
+                    originalName: cniDoc.originalName,
+                    sizeBytes: cniDoc.sizeBytes
+                  } : null}
+                />
+                <DocumentUploadField
+                  name="contractFile"
+                  label={isAr ? "عقد اللاعب الرسمي" : "Contrat officiel du joueur"}
+                  description={isAr ? "العقد المبرم مع النادي والمختوم" : "Contrat signé et paraphé avec le club"}
+                  locale={locale}
+                  formId="player-update-form"
+                  existingDocument={contractDoc ? {
+                    id: contractDoc.id,
+                    name: contractDoc.name,
+                    mimeType: contractDoc.mimeType,
+                    originalName: contractDoc.originalName,
+                    sizeBytes: contractDoc.sizeBytes
+                  } : null}
+                />
+                <DocumentUploadField
+                  name="birthCertificateFile"
+                  label={isAr ? "شهادة الميلاد (عقد الميلاد)" : "Acte de naissance"}
+                  description={isAr ? "مستخرج ميلاد رسمي حديث" : "Extrait de naissance officiel récent"}
+                  locale={locale}
+                  formId="player-update-form"
+                  existingDocument={birthCertificateDoc ? {
+                    id: birthCertificateDoc.id,
+                    name: birthCertificateDoc.name,
+                    mimeType: birthCertificateDoc.mimeType,
+                    originalName: birthCertificateDoc.originalName,
+                    sizeBytes: birthCertificateDoc.sizeBytes
+                  } : null}
+                />
+                <DocumentUploadField
+                  name="drugTestFile"
+                  label={isAr ? "وثيقة فحص المخدرات" : "Test de dépistage de drogues"}
+                  description={isAr ? "تقرير الفحص الطبي والتحاليل المخبرية للمواد الممنوعة" : "Résultat du contrôle médical et des analyses de dépistage"}
+                  locale={locale}
+                  formId="player-update-form"
+                  existingDocument={drugTestDoc ? {
+                    id: drugTestDoc.id,
+                    name: drugTestDoc.name,
+                    mimeType: drugTestDoc.mimeType,
+                    originalName: drugTestDoc.originalName,
+                    sizeBytes: drugTestDoc.sizeBytes,
+                    positiveDrugTest: drugTestDoc.description === "verification:DRUG_TEST_POSITIVE"
+                  } : null}
+                />
+              </div>
+            </div>
+
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  defaultValue,
-  disabled,
-  step,
-  min,
-  max
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  defaultValue?: string;
-  disabled?: boolean;
-  step?: string;
-  min?: number;
-  max?: number;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        disabled={disabled}
-        step={step}
-        min={min}
-        max={max}
-        onChange={(event) => {
-          if (min !== undefined && event.currentTarget.value.startsWith("-") && Number(event.currentTarget.value) < 0) {
-            event.currentTarget.value = String(min);
-          }
-        }}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-      />
     </div>
   );
 }

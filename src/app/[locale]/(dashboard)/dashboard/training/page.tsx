@@ -1,8 +1,9 @@
+import { Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export default async function TrainingListPage({
 }) {
   const { locale } = await params;
   const sp = await searchParams;
-  const user = await requirePermission("training.view");
+  const user = await requirePagePermission("training.view", locale);
   const t = await getTranslations("training");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -46,7 +47,7 @@ export default async function TrainingListPage({
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         {canManage && (
           <Link href={`/${locale}/dashboard/training/new`}>
-            <Button>{t("addSession")}</Button>
+            <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addSession")}</Button>
           </Link>
         )}
       </div>

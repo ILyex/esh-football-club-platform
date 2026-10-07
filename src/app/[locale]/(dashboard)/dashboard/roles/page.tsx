@@ -1,14 +1,15 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePagePermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 
 export default async function RolesListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePermission("roles.manage");
+  await requirePagePermission("roles.manage", locale);
   const t = await getTranslations("roles");
   const tCommon = await getTranslations("common");
 
@@ -23,7 +24,7 @@ export default async function RolesListPage({ params }: { params: Promise<{ loca
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link href={`/${locale}/dashboard/roles/new`}>
-          <Button>{t("addRole")}</Button>
+          <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addRole")}</Button>
         </Link>
       </div>
 

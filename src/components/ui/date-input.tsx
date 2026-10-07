@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useId } from "react";
 import {
   Calendar as CalendarIcon,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   X,
@@ -104,6 +105,7 @@ export function DateInput({
 
   const [displayValue, setDisplayValue] = useState<string>(getInitialValue);
   const [isOpen, setIsOpen] = useState(false);
+  const [openDateMenu, setOpenDateMenu] = useState<"month" | "year" | null>(null);
   const [calendarMonth, setCalendarMonth] = useState<number>(() => {
     const init = getInitialValue();
     if (isValidDMY(init)) {
@@ -122,7 +124,16 @@ export function DateInput({
   });
 
   const popoverRef = useRef<HTMLDivElement>(null);
+  const monthYearRef = useRef<HTMLDivElement>(null);
+  const dateMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!openDateMenu) return;
+    dateMenuRef.current
+      ?.querySelector<HTMLElement>('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [openDateMenu]);
 
   // Sync when controlled value changes
   useEffect(() => {
@@ -142,7 +153,10 @@ export function DateInput({
     function handleClickOutside(event: MouseEvent) {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setOpenDateMenu(null);
+        return;
       }
+      if (monthYearRef.current && !monthYearRef.current.contains(event.target as Node)) setOpenDateMenu(null);
     }
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
@@ -151,6 +165,17 @@ export function DateInput({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (openDateMenu) setOpenDateMenu(null);
+      else setIsOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, openDateMenu]);
 
   // Masked typing: auto-insert slashes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,6 +264,7 @@ export function DateInput({
   // Month navigation
   const prevMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setOpenDateMenu(null);
     if (calendarMonth === 0) {
       setCalendarMonth(11);
       setCalendarYear((y) => y - 1);
@@ -249,6 +275,7 @@ export function DateInput({
 
   const nextMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setOpenDateMenu(null);
     if (calendarMonth === 11) {
       setCalendarMonth(0);
       setCalendarYear((y) => y + 1);
@@ -264,6 +291,71 @@ export function DateInput({
   // Year options list for fast jumping (e.g. 1940 to 2035)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 100 }, (_, i) => currentYear + 5 - i);
+
+  const monthMenu = (menu: "month" | "year") => {
+    const isMonth = menu === "month";
+    const selectedValue = isMonth ? calendarMonth : calendarYear;
+    const options = isMonth
+      ? (isAr ? MONTH_NAMES_AR : MONTH_NAMES_FR).map((label, index) => ({ value: index, label }))
+      : yearOptions.map((year) => ({ value: year, label: String(year) }));
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={openDateMenu === menu}
+          aria-controls={`date-${menu}-${uniqueId}`}
+          aria-label={isMonth ? (isAr ? "اختيار الشهر" : "Choisir le mois") : (isAr ? "اختيار السنة" : "Choisir l’année")}
+          onClick={() => setOpenDateMenu((current) => current === menu ? null : menu)}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-xs font-bold text-foreground shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/30 ${
+            openDateMenu === menu
+              ? "border-club-primary bg-club-primary/10 text-club-primary"
+              : "border-border bg-background hover:border-club-primary/50 hover:bg-muted"
+          }`}
+        >
+          <span>{options.find((option) => option.value === selectedValue)?.label}</span>
+          <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${openDateMenu === menu ? "rotate-180" : ""}`} />
+        </button>
+        {openDateMenu === menu && (
+          <div
+            ref={dateMenuRef}
+            id={`date-${menu}-${uniqueId}`}
+            role="listbox"
+            aria-label={isMonth ? (isAr ? "الشهر" : "Mois") : (isAr ? "السنة" : "Année")}
+            className={`absolute ${isAr ? "end-0" : "start-0"} top-full z-[60] mt-1 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1 text-foreground shadow-xl ring-1 ring-black/5 ${
+              isMonth ? "min-w-36" : "min-w-24"
+            }`}
+          >
+            {options.map((option) => {
+              const selected = option.value === selectedValue;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    if (isMonth) setCalendarMonth(option.value);
+                    else setCalendarYear(option.value);
+                    setOpenDateMenu(null);
+                  }}
+                  className={`flex min-h-8 w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-start text-xs transition-colors ${
+                    selected
+                      ? "bg-club-primary/10 font-bold text-club-primary"
+                      : "text-foreground hover:bg-muted hover:text-club-primary"
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-club-primary" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={`relative flex flex-col space-y-1.5 ${className}`} ref={popoverRef}>
@@ -323,7 +415,10 @@ export function DateInput({
             <button
               type="button"
               disabled={disabled}
-              onClick={() => setIsOpen((prev) => !prev)}
+              onClick={() => {
+                setOpenDateMenu(null);
+                setIsOpen((prev) => !prev);
+              }}
               title={isAr ? "اختيار من التقويم" : "Choisir une date"}
               className={`p-1.5 rounded-lg text-muted-foreground hover:text-club-primary hover:bg-muted/60 transition-colors outline-none focus:outline-none ${
                 isOpen ? "bg-club-primary/10 text-club-primary" : ""
@@ -371,32 +466,9 @@ export function DateInput({
               {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
 
-            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-              {/* Month Selector */}
-              <select
-                value={calendarMonth}
-                onChange={(e) => setCalendarMonth(parseInt(e.target.value, 10))}
-                className="bg-transparent border border-border/60 rounded-md px-1.5 py-1 text-xs font-bold text-foreground focus:outline-none cursor-pointer"
-              >
-                {(isAr ? MONTH_NAMES_AR : MONTH_NAMES_FR).map((name, i) => (
-                  <option key={i} value={i} className="bg-card text-foreground">
-                    {name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Year Selector */}
-              <select
-                value={calendarYear}
-                onChange={(e) => setCalendarYear(parseInt(e.target.value, 10))}
-                className="bg-transparent border border-border/60 rounded-md px-1.5 py-1 text-xs font-bold font-mono text-foreground focus:outline-none cursor-pointer"
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y} className="bg-card text-foreground">
-                    {y}
-                  </option>
-                ))}
-              </select>
+            <div ref={monthYearRef} className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              {monthMenu("month")}
+              {monthMenu("year")}
             </div>
 
             <button
