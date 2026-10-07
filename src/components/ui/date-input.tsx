@@ -181,23 +181,23 @@ export function DateInput({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value;
 
-    // Filter out everything except digits and slashes
-    let cleaned = input.replace(/[^\d/]/g, "");
+    // Always rebuild the mask from the digits. Previously, once the first
+    // slash existed, the handler stopped formatting, so the second slash was
+    // never inserted when users typed the month and year manually.
+    const digitsOnly = input.replace(/\D/g, "").slice(0, 8);
+    const endsWithSlash = /\/$/.test(input);
+    let cleaned = digitsOnly;
 
-    // If typing raw digits without slashes, automatically insert slashes
-    const digitsOnly = cleaned.replace(/\//g, "");
-    if (digitsOnly.length > 0 && !input.includes("/")) {
-      if (digitsOnly.length <= 2) {
-        cleaned = digitsOnly;
-      } else if (digitsOnly.length <= 4) {
-        cleaned = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
-      } else {
-        cleaned = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
-      }
+    if (digitsOnly.length > 2) {
+      cleaned = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}`;
+    } else if (endsWithSlash && digitsOnly.length === 2) {
+      cleaned = `${digitsOnly}/`;
     }
 
-    if (cleaned.length > 10) {
-      cleaned = cleaned.slice(0, 10);
+    if (digitsOnly.length > 4) {
+      cleaned += `/${digitsOnly.slice(4)}`;
+    } else if (endsWithSlash && digitsOnly.length === 4) {
+      cleaned += "/";
     }
 
     setDisplayValue(cleaned);
