@@ -336,7 +336,7 @@ export default async function TreasuryDepositsPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "الحساب المستلم (الحساب البنكي الرسمي تلقائياً)" : t("account")} *
               </label>
-              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={inputClass}>
+              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={`${inputClass} finance-select`}>
                 {activeAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({t(`accountTypes.${a.type}` as any)}) {a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}
@@ -466,7 +466,7 @@ export default async function TreasuryDepositsPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "حساب السحب (الحساب البنكي الرسمي تلقائياً)" : t("account")} *
               </label>
-              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={inputClass}>
+              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={`${inputClass} finance-select`}>
                 {activeAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({t(`accountTypes.${a.type}` as any)}) {a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}

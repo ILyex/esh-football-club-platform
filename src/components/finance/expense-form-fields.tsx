@@ -60,7 +60,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-        <select name="category" required defaultValue={defaults.category} className={inputClass}>
+        <select name="category" required defaultValue={defaults.category} className={`${inputClass} finance-select`}>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {t(`categories.${c}` as any)}
@@ -70,7 +70,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.paymentMethod")}</label>
-        <select name="paymentMethod" defaultValue={defaults.paymentMethod ?? ""} className={inputClass}>
+        <select name="paymentMethod" defaultValue={defaults.paymentMethod ?? ""} className={`${inputClass} finance-select`}>
           <option value="">—</option>
           {METHODS.map((m) => (
             <option key={m} value={m}>
@@ -85,7 +85,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{tTeams("title")}</label>
-        <select name="teamId" defaultValue={defaults.teamId ?? ""} className={inputClass}>
+        <select name="teamId" defaultValue={defaults.teamId ?? ""} className={`${inputClass} finance-select`}>
           <option value="">{t("clubWide")}</option>
           {options.teams.map((tm) => (
             <option key={tm.id} value={tm.id}>
@@ -96,7 +96,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.season")}</label>
-        <select name="seasonId" required defaultValue={defaults.seasonId} className={inputClass}>
+        <select name="seasonId" required defaultValue={defaults.seasonId} className={`${inputClass} finance-select`}>
           {options.seasons.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
@@ -106,7 +106,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.budget")}</label>
-        <select name="budgetId" defaultValue={defaults.budgetId ?? ""} className={inputClass}>
+        <select name="budgetId" defaultValue={defaults.budgetId ?? ""} className={`${inputClass} finance-select`}>
           <option value="">—</option>
           {options.budgets.map((b) => (
             <option key={b.id} value={b.id}>
@@ -117,7 +117,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.relatedMatch")}</label>
-        <select name="relatedMatchId" defaultValue={defaults.relatedMatchId ?? ""} className={inputClass}>
+        <select name="relatedMatchId" defaultValue={defaults.relatedMatchId ?? ""} className={`${inputClass} finance-select`}>
           <option value="">—</option>
           {options.matches.map((m) => (
             <option key={m.id} value={m.id}>
@@ -128,7 +128,7 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.relatedTraining")}</label>
-        <select name="relatedTrainingId" defaultValue={defaults.relatedTrainingId ?? ""} className={inputClass}>
+        <select name="relatedTrainingId" defaultValue={defaults.relatedTrainingId ?? ""} className={`${inputClass} finance-select`}>
           <option value="">—</option>
           {options.trainingSessions.map((s) => (
             <option key={s.id} value={s.id}>
