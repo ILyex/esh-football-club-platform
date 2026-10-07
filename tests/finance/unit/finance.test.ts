@@ -267,6 +267,6 @@ test("receipt bundles: direction enforced, reversal entries and reversed origina
     db.treasuryTransaction.findUniqueOrThrow = async () => txFixture({ type: "DEPOSIT" });
     const dep: any = await RESOLVER_REGISTRY.DEPOSIT_RECEIPT!.resolveBundle("t1", { language: "ar" });
     assert.equal(dep.transaction.type, "إيداع");
-    assert.equal(dep.transaction.amountWithCurrency, "3\u00A0000 دج");
+    assert.equal(dep.transaction.amountWithCurrency, "3\u00A0000 د.ج");
   } finally { db.treasuryTransaction.findUniqueOrThrow = original; }
 });
