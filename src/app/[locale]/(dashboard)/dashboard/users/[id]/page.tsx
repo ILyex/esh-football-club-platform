@@ -15,6 +15,7 @@ import { KeyRound, Save, Trash2 } from "lucide-react";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 import { AvatarUploadField } from "@/components/users/avatar-upload-field";
+import { FormSelect } from "@/components/ui/form-select";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -145,13 +146,13 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">{t("fields.role")}</label>
-            <select name="roleId" defaultValue={user.roleId} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15">
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <FormSelect
+              name="roleId"
+              locale={locale}
+              ariaLabel={t("fields.role")}
+              defaultValue={user.roleId}
+              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            />
           </div>
           <label className="flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm">
             <input name="isActive" type="checkbox" defaultChecked={user.isActive} className="h-4 w-4 accent-club-primary" /> {t("fields.isActive")}
@@ -215,16 +216,12 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 {tTeam("addTeam")}
               </label>
-              <select
+              <FormSelect
                 name="teamId"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {unassignedTeams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
+                locale={locale}
+                ariaLabel={tTeam("addTeam")}
+                options={unassignedTeams.map((team) => ({ value: team.id, label: team.name }))}
+              />
             </div>
             <Button type="submit">{tTeam("assign")}</Button>
           </form>
