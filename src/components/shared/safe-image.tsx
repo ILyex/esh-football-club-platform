@@ -30,6 +30,8 @@ export function SafeImage({ fallbackSrc, src, alt = "", onError, ...props }: Saf
       {...props}
       src={imageSrc || fallbackSrc}
       alt={alt}
+      draggable={false}
+      data-protected-image="true"
       onError={(event) => {
         if (imageSrc !== fallbackSrc) setImageSrc(fallbackSrc);
         onError?.(event);

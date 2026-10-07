@@ -348,6 +348,14 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   letter-spacing: normal !important;
 }
 
+/* Uploaded player, user, and staff photos must not be draggable from the UI. */
+img[data-protected-image="true"],
+img[src^="/api/storage/"],
+img[src^="blob:"] {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 /* Finance native selects use the same direction-aware chevron as custom controls. */
 .finance-select {
   appearance: none;

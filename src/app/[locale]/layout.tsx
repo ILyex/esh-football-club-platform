@@ -48,6 +48,15 @@ export default async function LocaleLayout({
             })()`
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              function isImageTarget(target){ return target instanceof HTMLImageElement || (target && target.closest && target.closest('img')); }
+              document.addEventListener('dragstart', function(e){ if (isImageTarget(e.target)) e.preventDefault(); }, true);
+              document.addEventListener('contextmenu', function(e){ if (isImageTarget(e.target)) e.preventDefault(); }, true);
+            })()`
+          }}
+        />
       </head>
       <body>
         <NextIntlClientProvider messages={messages}>
