@@ -17,11 +17,13 @@ export function ChunkRecovery() {
       if (!isChunkError(value)) return;
       try {
         const url = new URL(window.location.href);
-        // Retry once per document URL. The marker prevents an endless loop if
-        // the chunk is genuinely unavailable, while allowing repeated failures
-        // on the same route after a rebuild or server restart.
-        if (url.searchParams.has("esh_reload")) return;
-        url.searchParams.set("esh_reload", String(Date.now()));
+        // Retry a small, bounded number of times. Multiple attempts are needed
+        // when an open App Router tab still holds an older RSC payload after a
+        // rebuild; the cap prevents an endless reload loop for a real failure.
+        const attempt = Number(url.searchParams.get("esh_reload_attempt") || "0");
+        if (attempt >= 3) return;
+        url.searchParams.delete("esh_reload");
+        url.searchParams.set("esh_reload_attempt", String(attempt + 1));
         window.location.replace(url.toString());
         return;
       } catch {
