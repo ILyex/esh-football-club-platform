@@ -57,6 +57,7 @@ export default async function TreasuryDepositsPage({
     user.email === "admin@esh.dz" ||
     user.email.includes("dev") ||
     user.roleKey === "developer";
+  const canRecordTreasury = canApprove || isProgrammer;
 
   const currentView = sp.view || "ALL";
 
@@ -314,7 +315,7 @@ export default async function TreasuryDepositsPage({
       </div>
 
       {/* Inline New Deposit Form (Auto-defaults to official bank account) */}
-      {isDepositOpen && canApprove && activeAccounts.length > 0 && (
+      {isDepositOpen && canRecordTreasury && activeAccounts.length > 0 && (
         <form
           action={handleRecordDeposit}
           className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-5 shadow-sm space-y-4"
@@ -434,7 +435,7 @@ export default async function TreasuryDepositsPage({
       )}
 
       {/* Inline New Withdrawal Form (Auto-defaults to official bank account) */}
-      {isWithdrawalOpen && canApprove && activeAccounts.length > 0 && (
+      {isWithdrawalOpen && canRecordTreasury && activeAccounts.length > 0 && (
         <form
           action={handleRecordWithdrawal}
           className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-5 shadow-sm space-y-4"
