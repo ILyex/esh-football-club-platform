@@ -348,6 +348,23 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   letter-spacing: normal !important;
 }
 
+/* Finance native selects use the same direction-aware chevron as custom controls. */
+.finance-select {
+  appearance: none;
+  background-color: hsl(var(--background));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: left 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  padding-inline-start: 2.25rem;
+}
+
+[dir="ltr"] .finance-select {
+  background-position: right 0.75rem center;
+  padding-inline-start: 0.75rem;
+  padding-inline-end: 2.25rem;
+}
+
 [dir="rtl"] h1,
 [dir="rtl"] h2,
 [dir="rtl"] h3,

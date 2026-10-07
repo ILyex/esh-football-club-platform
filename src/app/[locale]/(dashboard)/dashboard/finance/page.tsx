@@ -373,8 +373,9 @@ export default async function FinanceOverviewPage({
           </div>
           {canApprove && primaryAccount && (
             <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=deposit`} className="mt-3">
-              <Button size="sm" className="w-full text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-                <span>{locale === "ar" ? "+ تسجيل إيداع" : "+ Nouveau dépôt"}</span>
+              <Button size="sm" className="w-full text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                <ArrowDownLeft className="h-4 w-4 shrink-0" />
+                <span>{locale === "ar" ? "تسجيل إيداع" : "Nouveau dépôt"}</span>
               </Button>
             </Link>
           )}
@@ -400,8 +401,9 @@ export default async function FinanceOverviewPage({
           </div>
           {canApprove && primaryAccount && (
             <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=withdrawal`} className="mt-3">
-              <Button variant="outline" size="sm" className="w-full text-xs h-8 border-amber-500/40 text-amber-600 hover:bg-amber-500/10 font-semibold">
-                <span>{locale === "ar" ? "- تسجيل سحب" : "- Nouveau retrait"}</span>
+              <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5 border-amber-500/40 text-amber-600 hover:bg-amber-500/10 font-semibold">
+                <ArrowUpRight className="h-4 w-4 shrink-0" />
+                <span>{locale === "ar" ? "تسجيل سحب" : "Nouveau retrait"}</span>
               </Button>
             </Link>
           )}

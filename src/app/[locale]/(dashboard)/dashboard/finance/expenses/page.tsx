@@ -222,7 +222,7 @@ export default async function ExpensesListPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "تصنيف المصروف" : t("fields.category")} *
               </label>
-              <select name="category" required defaultValue="FOOD" className={inputClass}>
+              <select name="category" required defaultValue="FOOD" className={`${inputClass} finance-select`}>
                 <option value="FOOD">{locale === "ar" ? "إطعام ووجبات غذائية" : "Restauration"}</option>
                 <option value="TRANSPORT">{locale === "ar" ? "نقل ورحلات وتنقلات" : "Transport"}</option>
                 <option value="EQUIPMENT">{locale === "ar" ? "عتاد وتجهيزات وألبسة" : "Équipements"}</option>
@@ -268,7 +268,7 @@ export default async function ExpensesListPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "طريقة الدفع" : t("fields.paymentMethod")}
               </label>
-              <select name="paymentMethod" defaultValue="CASH" className={inputClass}>
+              <select name="paymentMethod" defaultValue="CASH" className={`${inputClass} finance-select`}>
                 <option value="CASH">{locale === "ar" ? "نقد من الصندوق (كاش)" : "Espèces (Caisse)"}</option>
                 <option value="BANK_TRANSFER">{locale === "ar" ? "تحويل بنكي رسمي" : "Virement bancaire"}</option>
                 <option value="CARD">{locale === "ar" ? "صك بنكي / بطاقة" : "Chèque / Carte"}</option>
@@ -280,7 +280,7 @@ export default async function ExpensesListPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "الفئة الرياضية المعنية" : tTeams("title")}
               </label>
-              <select name="teamId" defaultValue="" className={inputClass}>
+              <select name="teamId" defaultValue="" className={`${inputClass} finance-select`}>
                 <option value="">{locale === "ar" ? "على مستوى النادي (عام)" : t("clubWide")}</option>
                 {teams.map((tm) => (
                   <option key={tm.id} value={tm.id}>
@@ -294,7 +294,7 @@ export default async function ExpensesListPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "حالة الفاتورة والمديونية" : "Statut de paiement / Dette"}
               </label>
-              <select name="isDebt" defaultValue="false" className={inputClass}>
+              <select name="isDebt" defaultValue="false" className={`${inputClass} finance-select`}>
                 <option value="false">{locale === "ar" ? "مسددة (مدفوعة ومسواة نقداً)" : "Payée / Réglée"}</option>
                 <option value="true">{locale === "ar" ? "دين معلق على النادي (غير مسدد)" : "Dette en attente (Non réglée)"}</option>
               </select>
