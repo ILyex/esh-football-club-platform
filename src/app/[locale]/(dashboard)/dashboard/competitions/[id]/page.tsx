@@ -5,6 +5,7 @@ import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { updateCompetitionAction } from "../actions";
 import { Button } from "@/components/ui/button";
+import { CompetitionLogoUploadField } from "@/components/competitions/competition-logo-upload-field";
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -106,16 +107,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">{locale === "ar" ? "رابط الشعار" : "URL du logo"}</label>
-          <input
-            name="logoUrl"
-            defaultValue={competition.logoUrl ?? ""}
-            disabled={!canManage}
-            placeholder="https://..."
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
-          />
-        </div>
+        {canManage && <CompetitionLogoUploadField locale={locale} currentLogoUrl={competition.logoUrl} />}
         {canManage && (
           <div className="col-span-2">
             <Button type="submit" className="gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>

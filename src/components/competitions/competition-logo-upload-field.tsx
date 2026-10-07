@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 
 type CompetitionLogoUploadFieldProps = {
   locale: string;
+  currentLogoUrl?: string | null;
 };
 
-export function CompetitionLogoUploadField({ locale }: CompetitionLogoUploadFieldProps) {
+export function CompetitionLogoUploadField({ locale, currentLogoUrl }: CompetitionLogoUploadFieldProps) {
   const isAr = locale === "ar";
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(currentLogoUrl ?? null);
   const [fileName, setFileName] = useState<string | null>(null);
 
   useEffect(() => () => {
@@ -44,6 +45,7 @@ export function CompetitionLogoUploadField({ locale }: CompetitionLogoUploadFiel
         </span>
         <input name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleChange} className="sr-only" />
       </label>
+      {currentLogoUrl && <input type="hidden" name="logoUrl" value={currentLogoUrl} />}
     </div>
   );
 }

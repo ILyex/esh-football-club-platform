@@ -25,8 +25,8 @@ export default async function NewCompetitionPage({ params }: { params: Promise<{
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await createCompetitionAction(formData);
-    redirect(`/${locale}/dashboard/competitions/${id}`);
+    await createCompetitionAction(formData);
+    redirect(`/${locale}/dashboard/competitions`);
   }
 
   return (
