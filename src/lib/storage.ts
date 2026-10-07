@@ -228,20 +228,31 @@ export function extractPublicStorageKey(urlOrKey: string): string | null {
 /** Uploads to the PUBLIC bucket (or local storage if unconfigured) and returns the resulting public URL. Never used for Document rows. */
 export async function uploadPublicFile(params: { key: string; buffer: Buffer; mimeType: string }): Promise<string> {
   if (isPublicStorageConfigured()) {
-    const s3 = getS3Client();
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: PUBLIC_BUCKET,
-        Key: params.key,
-        Body: params.buffer,
-        ContentType: params.mimeType
-      })
-    );
-    // If no public CDN URL is configured (for example, Neon private buckets),
-    // serve the object through the app's authenticated S3 proxy route.
-    return PUBLIC_BASE_URL?.trim()
-      ? `${PUBLIC_BASE_URL.replace(/\/$/, "")}/${params.key}`
-      : `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
+    try {
+      // Resolve the client inside the guarded block as well. A partially
+      // configured deployment (bucket set but credentials missing) must not
+      // crash the Server Component while saving a small profile avatar.
+      const s3 = getS3Client();
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: PUBLIC_BUCKET,
+          Key: params.key,
+          Body: params.buffer,
+          ContentType: params.mimeType
+        })
+      );
+      // If no public CDN URL is configured, serve through the app's S3 proxy.
+      return PUBLIC_BASE_URL?.trim()
+        ? `${PUBLIC_BASE_URL.replace(/\/$/, "")}/${params.key}`
+        : `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
+    } catch (error) {
+      // Small avatars can still be kept online in Neon when an optional S3
+      // endpoint is temporarily unavailable. Large media still fails closed.
+      if (params.key.startsWith("public/users/") && params.buffer.byteLength <= 700 * 1024) {
+        return `data:${params.mimeType};base64,${params.buffer.toString("base64")}`;
+      }
+      throw error;
+    }
   }
 
   if (!isLocalStorageMode()) {
@@ -256,6 +267,8 @@ export async function uploadPublicFile(params: { key: string; buffer: Buffer; mi
 }
 
 export async function deletePublicFile(urlOrKey: string): Promise<void> {
+  // Database-backed avatars and external legacy URLs are not S3 objects.
+  if (urlOrKey.startsWith("data:") || /^https?:\/\//i.test(urlOrKey)) return;
   const key = extractPublicStorageKey(urlOrKey) || urlOrKey;
   if (!key) return;
 
