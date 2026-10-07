@@ -62,7 +62,7 @@ export function OfficialPlayerAttestationModal({
       elementId,
       isAr
         ? `شهادة إنتساب — ${displayName} — الجمعية الرياضية أمل سيدي حسني لكرة القدم`
-        : `Attestation Joueur — ${displayName} — Association Sportive Espoire Sidi Hosni de Football`
+        : `Attestation Joueur — ${displayName} — Association Sportive Espoir Sidi Hosni de Football`
     );
   };
 
@@ -170,7 +170,7 @@ export function OfficialPlayerAttestationModal({
                     <p className="mb-4 text-center text-[18px] font-bold leading-relaxed">
                       {isAr
                         ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم"
-                        : "Le Président de l'Association Sportive Espoire Sidi Hosni de Football"}
+                        : "Le Président de l'Association Sportive Espoir Sidi Hosni de Football"}
                     </p>
 
                     <p>
@@ -192,7 +192,7 @@ export function OfficialPlayerAttestationModal({
                         </>
                       ) : (
                         <>
-                          Le Président de l&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong> atteste que le joueur :{" "}
+                          Le Président de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> atteste que le joueur :{" "}
                           <strong className="font-black text-[19px]">
                             {getPlayerDisplayName(player, "fr")}
                           </strong>
@@ -231,7 +231,7 @@ export function OfficialPlayerAttestationModal({
                           <strong className="font-mono text-[19px] font-black">
                             {licenceNo}
                           </strong>
-                          , est qualifié et enregistré au sein de l&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong> dans la catégorie :{" "}
+                          , est qualifié et enregistré au sein de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> dans la catégorie :{" "}
                           <strong className="font-bold">{player.teamCategory || player.teamName || "Séniors"}</strong> depuis le :{" "}
                           <strong className="font-mono">{joiningDateFormatted}</strong>.
                         </>
@@ -280,7 +280,7 @@ export function OfficialPlayerAttestationModal({
                   </div>
 
                   <div className="esh-attestation-club-code mt-6 border-t border-zinc-200 pt-3 text-center text-[10px] text-zinc-500 font-mono">
-                    Association Sportive Espoire Sidi Hosni de Football • STADE MUNICIPAL SIDI HOSNI • WILAYA DE TIARET • FAF CODE: ESH-26
+                    Association Sportive Espoir Sidi Hosni de Football • STADE MUNICIPAL SIDI HOSNI • WILAYA DE TIARET • FAF CODE: ESH-26
                   </div>
                 </div>
               </div>

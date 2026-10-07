@@ -27,7 +27,7 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
   const elementId = `report-document-${report.title.replace(/\s+/g, "-")}`;
 
   const handlePrint = () => {
-    printDocumentElement(elementId, `${report.title} — Association Sportive Espoire Sidi Hosni de Football`);
+    printDocumentElement(elementId, `${report.title} — Association Sportive Espoir Sidi Hosni de Football`);
   };
 
   return (

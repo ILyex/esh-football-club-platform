@@ -96,11 +96,11 @@ export default async function DashboardLayout({
           <Link href={`/${locale}/dashboard`} className="flex items-center gap-3 group min-w-0">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <SafeImage src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoire Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
+              <SafeImage src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
             </div>
             <div className="min-w-0">
               <p className="line-clamp-3 whitespace-normal text-sm font-bold leading-tight tracking-tight text-foreground group-hover:text-club-primary transition-colors">
-                {locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoire Sidi Hosni de Football"}
+                {locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -117,7 +117,7 @@ export default async function DashboardLayout({
           <SidebarNav
             groups={visibleGroups}
             locale={locale}
-            clubName={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoire Sidi Hosni de Football"}
+            clubName={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"}
             clubLogoUrl={clubSettings?.logoUrl}
           />
         </div>

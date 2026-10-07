@@ -35,7 +35,7 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
   const total = groups.reduce((acc, g) => acc + g.rows.length, 0);
 
   const handlePrint = () =>
-    printDocumentElement(elementId, isAr ? "قائمة تأمين اللاعبين — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Liste d'assurance des joueurs — Association Sportive Espoire Sidi Hosni de Football");
+    printDocumentElement(elementId, isAr ? "قائمة تأمين اللاعبين — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Liste d'assurance des joueurs — Association Sportive Espoir Sidi Hosni de Football");
 
   return (
     <>

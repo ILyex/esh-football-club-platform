@@ -147,7 +147,7 @@ export function ExpenseDistributionWidget({
           <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
           <span>{locale === "ar" ? "حساب موحد للنادي — شفافية كاملة" : "Compte unique du club — Traçabilité 100%"}</span>
         </div>
-        <span className="font-mono text-[10px]">Association Sportive Espoire Sidi Hosni de Football • DZD</span>
+        <span className="font-mono text-[10px]">Association Sportive Espoir Sidi Hosni de Football • DZD</span>
       </div>
     </div>
   );

@@ -174,7 +174,7 @@ export function NewsPreviewModal({
 
             {/* Footer */}
             <div className="flex items-center justify-between border-t border-border bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
-              <span>Association Sportive Espoire Sidi Hosni de Football • CMS Preview</span>
+              <span>Association Sportive Espoir Sidi Hosni de Football • CMS Preview</span>
               <Button size="sm" variant="outline" onClick={() => setIsOpen(false)}>
                 {locale === "ar" ? "إغلاق المعاينة" : "Fermer l'aperçu"}
               </Button>

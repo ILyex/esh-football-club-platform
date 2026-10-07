@@ -76,7 +76,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
               ? (clubSettings?.name && /[\u0600-\u06FF]/.test(clubSettings.name)
                   ? clubSettings.name
                   : "أمل سيدي حسني")
-              : "Association Sportive Espoire Sidi Hosni de Football"
+              : "Association Sportive Espoir Sidi Hosni de Football"
           }
           action={action}
         />

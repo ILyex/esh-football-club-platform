@@ -16,7 +16,7 @@ export interface OfficialDocumentHeaderProps {
 /**
  * Standard Official Institutional Header for all official documents across the ESH Sidi Hosni platform.
  * Conforms strictly to Algerian Ministry of Youth & Sports standards and official club identity:
- * الجمعية الرياضية أمل سيدي حسني لكرة القدم — Association Sportive Espoire Sidi Hosni de Football
+ * الجمعية الرياضية أمل سيدي حسني لكرة القدم — Association Sportive Espoir Sidi Hosni de Football
  *
  * Strict Typography: Traditional Arabic / Arabic Typesetting ONLY.
  * Zero underlines or decorative lines.
@@ -77,7 +77,7 @@ export function OfficialDocumentHeader({
             {isAr ? "الرابطة الولائية لكرة القدم — تيارت" : "Ligue de Football de la Wilaya de Tiaret"}
           </p>
           <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px] whitespace-nowrap">
-            {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
+            {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}
           </p>
         </div>
 
@@ -162,7 +162,7 @@ export function OfficialDocumentHeader({
         aria-hidden="true"
       >
         <span>{isAr ? "الموسم الرياضي: 2025 / 2026" : "Saison sportive : 2025 / 2026"}</span>
-        <span>{isAr ? "حرر النادي — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Établi par le club — Association Sportive Espoire Sidi Hosni de Football"}</span>
+        <span>{isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم • 2018 — ∞" : "Association Sportive Espoir Sidi Hosni de Football • 2018 — ∞"}</span>
       </div>
     </div>
   );

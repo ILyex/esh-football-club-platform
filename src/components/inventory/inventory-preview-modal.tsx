@@ -43,7 +43,7 @@ export function InventoryPreviewModal({
   const handlePrint = () => {
     printDocumentElement(
       elementId,
-      isAr ? "جرد العتاد — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Inventaire du Matériel — Association Sportive Espoire Sidi Hosni de Football"
+      isAr ? "جرد العتاد — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Inventaire du Matériel — Association Sportive Espoir Sidi Hosni de Football"
     );
   };
 

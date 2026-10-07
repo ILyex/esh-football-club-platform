@@ -49,8 +49,8 @@ export default async function PublicLayout({
       <PublicAnalyticsTracker />
       <PublicHeader
         locale={locale}
-        clubName={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
-        clubShortName={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
+        clubName={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}
+        clubShortName={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}
         logoUrl={club.logoUrl}
         labels={headerLabels}
       />

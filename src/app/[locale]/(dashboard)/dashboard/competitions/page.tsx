@@ -32,7 +32,7 @@ export default async function CompetitionsListPage({
   const clubSettings = await db.clubSettings.findUnique({ where: { id: "singleton" } });
   const clubName = locale === "ar"
     ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم")
-    : "Association Sportive Espoire Sidi Hosni de Football";
+    : "Association Sportive Espoir Sidi Hosni de Football";
 
   const currentSeason = seasons.find((s) => s.isCurrent) || seasons[0] || null;
 

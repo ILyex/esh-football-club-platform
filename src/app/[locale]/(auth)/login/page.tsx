@@ -118,7 +118,7 @@ export default function LoginPage() {
             </div>
 
             <div className="border-t border-border pt-4 text-xs text-muted-foreground">
-              <span>{isRtl ? "منذ 2018 · الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Depuis 2018 · Association Sportive Espoire Sidi Hosni de Football"}</span>
+              <span>{isRtl ? "منذ 2018 · الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Depuis 2018 · Association Sportive Espoir Sidi Hosni de Football"}</span>
             </div>
           </aside>
 
@@ -303,7 +303,7 @@ export default function LoginPage() {
       {/* Footer Line */}
       <footer className="w-full border-t border-border/70 bg-background py-4 text-center text-xs text-muted-foreground">
         <p>
-          © {new Date().getFullYear()} {isRtl ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم. جميع الحقوق محفوظة." : "Association Sportive Espoire Sidi Hosni de Football. Tous droits réservés."}
+          © {new Date().getFullYear()} {isRtl ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم. جميع الحقوق محفوظة." : "Association Sportive Espoir Sidi Hosni de Football. Tous droits réservés."}
         </p>
       </footer>
     </div>

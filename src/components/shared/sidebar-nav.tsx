@@ -199,9 +199,9 @@ export function SidebarNav({
       {/* Mobile: a top bar with a menu toggle replaces the always-visible desktop sidebar. */}
       <div className="flex items-center justify-between border-b border-border bg-card p-3 md:hidden">
         <div className="flex items-center gap-2">
-          <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
+          <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
           <span className="text-sm font-bold tracking-tight">
-            <span className="whitespace-normal break-words leading-tight">{clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football")}</span>
+            <span className="whitespace-normal break-words leading-tight">{clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")}</span>
           </span>
         </div>
         <button
@@ -219,7 +219,7 @@ export function SidebarNav({
           <div className="w-72 overflow-y-auto bg-card shadow-2xl border-e border-border">
             <div className="flex items-center justify-between border-b border-border p-4 bg-muted/30">
               <div className="flex items-center gap-2">
-                <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
+                <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
                 <span className="text-sm font-bold tracking-tight">{tGroups("navigation")}</span>
               </div>
               <button

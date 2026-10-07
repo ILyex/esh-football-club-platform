@@ -38,8 +38,8 @@ export default async function PublicMatchDetailPage({
   }).format(match.matchDate);
 
   const statusLabel = tPublic(`matchStatus.${match.status}`);
-  const homeTeamName = locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "Association Sportive Espoire Sidi Hosni de Football" : "Adversaire");
-  const awayTeamName = locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "Association Sportive Espoire Sidi Hosni de Football");
+  const homeTeamName = locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "Association Sportive Espoir Sidi Hosni de Football" : "Adversaire");
+  const awayTeamName = locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "Association Sportive Espoir Sidi Hosni de Football");
 
   const statusTone =
     match.status === "LIVE"

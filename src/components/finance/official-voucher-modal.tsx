@@ -73,7 +73,7 @@ export function OfficialVoucherModal({
   const handlePrint = () => {
     printDocumentElement(
       voucherElementId,
-      `${documentTitle} — Association Sportive Espoire Sidi Hosni de Football`
+      `${documentTitle} — Association Sportive Espoir Sidi Hosni de Football`
     );
   };
 
@@ -122,7 +122,7 @@ export function OfficialVoucherModal({
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-club-primary" />
                 <h3 className="text-sm font-bold text-foreground">
-                  {documentTitle} — Association Sportive Espoire Sidi Hosni de Football
+                  {documentTitle} — Association Sportive Espoir Sidi Hosni de Football
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export function OfficialVoucherModal({
                       </>
                     ) : (
                       <>
-                        L&apos;association <strong>Association Sportive Espoire Sidi Hosni de Football</strong>, représentée par la trésorerie générale, atteste que :{" "}
+                        L&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong>, représentée par la trésorerie générale, atteste que :{" "}
                         <strong>{beneficiaryOrSource || "Administration du club"}</strong>
                         {nationalIdNumber && (
                           <>, titulaire de la CNI n° <strong className="font-mono">[{nationalIdNumber}]</strong></>

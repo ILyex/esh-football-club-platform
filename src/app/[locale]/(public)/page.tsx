@@ -86,7 +86,7 @@ export default async function HomePage({
     teamCategory: session.team?.category ?? "SENIOR",
     teamName: locale === "ar"
       ? (session.team?.name ?? "الجمعية الرياضية أمل سيدي حسني لكرة القدم")
-      : frenchPublicText(session.team?.name, "Association Sportive Espoire Sidi Hosni de Football"),
+      : frenchPublicText(session.team?.name, "Association Sportive Espoir Sidi Hosni de Football"),
     date: session.date,
     startTime: new Intl.DateTimeFormat(intlLocale, {
       hour: "2-digit",
@@ -379,9 +379,9 @@ export default async function HomePage({
               {/* Club Emblem Feature */}
               <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-club-secondary via-zinc-900 to-black p-4 text-white border border-border/40 flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/branding/esh-logo-128.png" alt={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"} className="h-14 w-14 object-contain shrink-0" />
+                <img src="/branding/esh-logo-128.png" alt={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"} className="h-14 w-14 object-contain shrink-0" />
                 <div>
-                  <h4 className="whitespace-nowrap text-xs font-extrabold sm:text-sm">{locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}</h4>
+                  <h4 className="whitespace-nowrap text-xs font-extrabold sm:text-sm">{locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}</h4>
                   <p dir="ltr" className="text-[11px] text-zinc-400 mt-0.5">
                     ESH • 2018 — ∞
                   </p>

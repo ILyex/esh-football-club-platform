@@ -80,7 +80,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Shield className="h-6 w-6 text-club-primary" />
           </div>
           <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "Association Sportive Espoire Sidi Hosni de Football" : "Adversaire")}
+            {locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "Association Sportive Espoir Sidi Hosni de Football" : "Adversaire")}
           </span>
         </div>
 
@@ -111,7 +111,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Shield className="h-6 w-6 text-muted-foreground" />
           </div>
           <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "Association Sportive Espoire Sidi Hosni de Football")}
+            {locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "Association Sportive Espoir Sidi Hosni de Football")}
           </span>
         </div>
       </div>

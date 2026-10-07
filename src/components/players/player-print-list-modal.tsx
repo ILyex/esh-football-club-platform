@@ -49,7 +49,7 @@ export function PlayerPrintListModal({
   const handlePrint = () => {
     printDocumentElement(
       elementId,
-      isAr ? "قائمة اللاعبين — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Liste des Joueurs — Association Sportive Espoire Sidi Hosni de Football"
+      isAr ? "قائمة اللاعبين — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Liste des Joueurs — Association Sportive Espoir Sidi Hosni de Football"
     );
   };
 
@@ -207,9 +207,6 @@ export function PlayerPrintListModal({
                   <div className="text-center">
                     <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "ختم النادي الرسمي" : "Cachet Officiel"}</p>
                     <div className="h-16 flex items-center justify-center">
-                      <span dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }} className="text-[10px] text-zinc-400 px-4 py-2 font-mono tabular-nums font-bold">
-                        Association Sportive Espoire Sidi Hosni de Football • 2018 — ∞
-                      </span>
                     </div>
                   </div>
 

@@ -146,7 +146,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
               <p className="text-xs text-muted-foreground">
                 {isAr
                   ? "أمل سيدي حسني 2018 — ∞ • الاتحاد الجزائري لكرة القدم (FAF) • رابطة تيارت"
-                  : "ESPOIRE SIDI HOSNI 2018 — ∞ • FAF • Ligue de Tiaret"}
+                  : "ESPOIR SIDI HOSNI 2018 — ∞ • FAF • Ligue de Tiaret"}
               </p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
                 required
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value)}
-                placeholder="ESPOIRE SIDI HOSNI (ESH)"
+                placeholder="ESPOIR SIDI HOSNI (ESH)"
                 className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 font-medium"
               />
             </div>

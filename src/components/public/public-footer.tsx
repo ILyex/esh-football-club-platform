@@ -33,14 +33,14 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm">
                 {club.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={club.logoUrl} alt={locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"} className="h-full w-full object-cover" />
+                  <img src={club.logoUrl} alt={locale === "ar" ? club.name : "Association Sportive Espoir Sidi Hosni de Football"} className="h-full w-full object-cover" />
                 ) : (
                   <Shield className="h-6 w-6 text-club-primary" />
                 )}
               </div>
               <div className="min-w-0 text-end">
                 <h3 className="whitespace-nowrap text-[14px] font-bold leading-snug tracking-tight text-foreground sm:text-lg">
-                  {locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"}
+                  {locale === "ar" ? club.name : "Association Sportive Espoir Sidi Hosni de Football"}
                 </h3>
                 <p className="mt-1 text-xs font-semibold tracking-wider text-muted-foreground">
                   <span dir="ltr" className="inline-block tabular-nums font-mono font-bold">
@@ -53,7 +53,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
             <p className="max-w-md text-sm leading-6 text-muted-foreground">
               {locale === "ar"
                 ? (club.description || "الجمعية الرياضية أمل سيدي حسني لكرة القدم — بلدية سيدي حسني، ولاية تيارت.")
-                : "Association Sportive Espoire Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
+                : "Association Sportive Espoir Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
             </p>
 
             <div className="flex flex-col space-y-2 pt-1 text-xs leading-5 text-muted-foreground">
@@ -134,7 +134,7 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
         {/* Bottom Bar: Copyright, Attribution & Theme Controls */}
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-border/80 pt-5 text-center text-xs leading-5 text-muted-foreground sm:mt-12 sm:flex-row sm:gap-4 sm:pt-6">
           <p>
-            © {currentYear} {locale === "ar" ? club.name : "Association Sportive Espoire Sidi Hosni de Football"}. {labels.allRightsReserved}.
+            © {currentYear} {locale === "ar" ? club.name : "Association Sportive Espoir Sidi Hosni de Football"}. {labels.allRightsReserved}.
           </p>
           <div className="flex items-center gap-4">
             <span className="font-medium text-foreground">{labels.memberAffiliation}</span>
