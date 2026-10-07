@@ -325,7 +325,7 @@ export function MatchFormClient({
               locale={locale}
               ariaLabel={isRtl ? "فئة الفريق" : "Catégorie de l'équipe"}
               onValueChange={handleTeamChange}
-              options={teams.map((tm) => ({ value: tm.id, label: `${tm.name} (${tm.category})` }))}
+              options={teams.map((tm) => ({ value: tm.id, label: tm.name }))}
             />
           </div>
 
