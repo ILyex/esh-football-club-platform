@@ -50,12 +50,6 @@ export function PublicFooter({ locale, club, labels }: PublicFooterProps) {
               </div>
             </div>
 
-            <p className="max-w-md text-sm leading-6 text-muted-foreground">
-              {locale === "ar"
-                ? (club.description || "الجمعية الرياضية أمل سيدي حسني لكرة القدم — بلدية سيدي حسني، ولاية تيارت.")
-                : "Association Sportive Espoir Sidi Hosni de Football — Commune de Sidi Hosni, Wilaya de Tiaret."}
-            </p>
-
             <div className="flex flex-col space-y-2 pt-1 text-xs leading-5 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 shrink-0 text-club-primary" />
