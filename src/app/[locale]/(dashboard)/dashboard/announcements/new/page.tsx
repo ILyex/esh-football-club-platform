@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/permissions";
+import { getAuthorizedTeams } from "@/lib/team-context";
 import { createAnnouncementAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
-  const teams = await db.team.findMany({ orderBy: { category: "asc" } });
+  const teams = await getAuthorizedTeams();
 
   async function action(formData: FormData) {
     "use server";

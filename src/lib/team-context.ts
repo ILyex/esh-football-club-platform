@@ -148,4 +148,10 @@ export async function getAuthorizedTeams(): Promise<AuthorizedTeam[]> {
   return ctx.authorizedTeams;
 }
 
+/** Returns the live team IDs the current user may see in team-owned forms. */
+export async function getAuthorizedTeamIds(): Promise<string[]> {
+  const teams = await getAuthorizedTeams();
+  return teams.map((team) => team.id);
+}
+
 export { COOKIE_NAME as TEAM_SWITCHER_COOKIE_NAME, NO_TEAM_SCOPE_ID };

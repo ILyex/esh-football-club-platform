@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/permissions";
-import { getCurrentTeamId } from "@/lib/team-context";
+import { getCurrentTeamId, getAuthorizedTeams, getAuthorizedTeamIds } from "@/lib/team-context";
 import { createCorrespondenceAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,12 @@ export default async function NewCorrespondencePage({ params }: { params: Promis
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
+  const authorizedTeamIds = await getAuthorizedTeamIds();
   const [teams, players, staff, matches, suggestedRef, currentTeamId] = await Promise.all([
-    db.team.findMany({ orderBy: { category: "asc" } }),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: { lastName: "asc" } }),
-    db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
-    db.match.findMany({ orderBy: { matchDate: "desc" }, take: 30 }),
+    getAuthorizedTeams(),
+    db.player.findMany({ where: { status: { not: "ARCHIVED" }, teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.staff.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.match.findMany({ where: { teamId: { in: authorizedTeamIds } }, orderBy: { matchDate: "desc" }, take: 30 }),
     suggestReferenceNumber(),
     getCurrentTeamId()
   ]);

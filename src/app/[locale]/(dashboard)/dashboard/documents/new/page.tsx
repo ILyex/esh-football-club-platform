@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/permissions";
-import { getCurrentTeamId } from "@/lib/team-context";
+import { getCurrentTeamId, getAuthorizedTeams, getAuthorizedTeamIds } from "@/lib/team-context";
 import { uploadDocumentAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,13 @@ export default async function NewDocumentPage({ params }: { params: Promise<{ lo
   const tCommon = await getTranslations("common");
   const canSetRestricted = hasPermission(user, "documents.view.restricted");
 
+  const authorizedTeamIds = await getAuthorizedTeamIds();
   const [categories, teams, players, staff, matches, currentTeamId] = await Promise.all([
     db.documentCategory.findMany({ orderBy: { name: "asc" } }),
-    db.team.findMany({ orderBy: { category: "asc" } }),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: { lastName: "asc" } }),
-    db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
-    db.match.findMany({ orderBy: { matchDate: "desc" }, take: 30 }),
+    getAuthorizedTeams(),
+    db.player.findMany({ where: { status: { not: "ARCHIVED" }, teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.staff.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.match.findMany({ where: { teamId: { in: authorizedTeamIds } }, orderBy: { matchDate: "desc" }, take: 30 }),
     getCurrentTeamId()
   ]);
 
