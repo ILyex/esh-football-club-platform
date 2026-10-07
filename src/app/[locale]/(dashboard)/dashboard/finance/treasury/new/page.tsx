@@ -32,40 +32,42 @@ export default async function NewTreasuryAccountPage({
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="mx-auto w-full max-w-2xl">
       <NoticeToast notice={notice} />
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t("addAccount")}</h1>
+      <div className="mb-6 flex items-center justify-between border-b border-border/70 pb-4">
+        <h1 className="text-2xl font-bold tracking-tight">{t("addAccount")}</h1>
         <Link href={`/${locale}/dashboard/finance/treasury`} className="text-sm text-club-primary underline">
           {tCommon("back")}
         </Link>
       </div>
-      <form action={action} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-6">
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.name")}</label>
-          <input name="name" required maxLength={160} className={inputClass} />
-        </div>
+      <form action={action} className="mx-auto grid w-full max-w-xl grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.accountType")}</label>
-          <select name="type" defaultValue="CASH" className={inputClass}>
+          <label className="mb-2 block text-sm font-semibold">{t("fields.name")}</label>
+          <input name="name" required maxLength={160} className={`${inputClass} h-11`} />
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div>
+          <label className="mb-2 block text-sm font-semibold">{t("fields.accountType")}</label>
+          <select name="type" defaultValue="CASH" className={`${inputClass} h-11`}>
             {TYPES.map((ty) => (
               <option key={ty} value={ty}>
                 {t(`accountTypes.${ty}` as any)}
               </option>
             ))}
           </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold">{t("openingBalance")}</label>
+            <input name="openingBalance" type="number" min={0} step={1} defaultValue={0} required className={`${inputClass} h-11`} />
+          </div>
         </div>
+        <p className="text-xs leading-5 text-muted-foreground">{t("openingBalanceHelp")}</p>
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("openingBalance")}</label>
-          <input name="openingBalance" type="number" min={0} step={1} defaultValue={0} required className={inputClass} />
+          <label className="mb-2 block text-sm font-semibold">{t("fields.notes")}</label>
+          <textarea name="notes" rows={4} className={inputClass} />
         </div>
-        <p className="col-span-2 text-xs text-muted-foreground">{t("openingBalanceHelp")}</p>
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.notes")}</label>
-          <textarea name="notes" rows={3} className={inputClass} />
-        </div>
-        <div className="col-span-2">
-          <Button type="submit" className="gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
+        <div className="flex justify-center pt-1">
+          <Button type="submit" className="h-10 min-w-32 gap-2 px-6"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
         </div>
       </form>
     </div>
