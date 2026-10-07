@@ -28,10 +28,10 @@ export default async function NewCompetitionPage({ params }: { params: Promise<{
   }
 
   return (
-    <div className="max-w-xl">
-      <h1 className="mb-4 text-xl font-semibold">{t("addCompetition")}</h1>
+    <div className="mx-auto w-full max-w-2xl px-4 sm:px-0">
+      <h1 className="mb-6 text-center text-2xl font-bold tracking-tight">{locale === "ar" ? "إنشاء مسابقة" : "Créer une compétition"}</h1>
       {seasons.length === 0 ? (
-        <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+        <section className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm sm:p-10">
           <h2 className="font-bold text-foreground">
             {locale === "ar" ? "أنشئ الموسم الرياضي أولاً" : "Créez d’abord une saison"}
           </h2>
@@ -42,13 +42,13 @@ export default async function NewCompetitionPage({ params }: { params: Promise<{
           </p>
           <Link
             href={`/${locale}/dashboard/competitions#season-creator`}
-            className="mt-4 inline-flex min-h-10 items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            className="mt-6 inline-flex min-h-10 items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
           >
             {locale === "ar" ? "إنشاء موسم رياضي" : "Créer une saison"}
           </Link>
         </section>
       ) : (
-        <form action={action} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-6">
+        <form action={action} className="grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <div className="col-span-2">
             <label className="mb-1 block text-sm font-medium">{t("fields.name")}</label>
             <input name="name" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
