@@ -142,11 +142,11 @@ export default async function DashboardLayout({
       {/* Main Content Workspace */}
       <main className="min-w-0 w-full flex-1 bg-muted/30 p-3 sm:p-4 md:p-6 print:bg-white print:p-0 flex flex-col">
         {/* Top Control Bar (Concept Image media_1790973628860.png Alignment) */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
+        <div className="mb-6 grid grid-cols-1 items-center gap-3 print:hidden lg:grid-cols-[minmax(18rem,1fr)_auto]">
           {/* Quick Search Trigger (Ctrl+K) & Optional Team Switcher */}
-          <div className="flex w-full min-w-0 flex-wrap sm:w-auto items-center gap-2.5 flex-1 max-w-lg">
-            <div className="flex-1 min-w-0 basis-48">
-              <CommandCenterTrigger locale={locale} className="w-full bg-card shadow-2xs py-2 px-3.5 rounded-xl border-border" />
+          <div className="flex w-full min-w-0 items-center gap-2.5 lg:min-w-0">
+            <div className="min-w-0 flex-1">
+              <CommandCenterTrigger locale={locale} className="w-full min-w-0 bg-card shadow-2xs py-2 px-3.5 rounded-xl border-border" />
             </div>
             <TeamSwitcher
               locale={locale}
@@ -157,7 +157,7 @@ export default async function DashboardLayout({
           </div>
 
           {/* Context Controls: User Profile, Date, Language, Notifications */}
-          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-2.5 w-full sm:w-auto">
+          <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-2 sm:justify-end sm:gap-2.5 lg:w-auto">
             {/* Date Display Pill */}
             <div className="hidden lg:flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs">
               <span className="inline-block h-2 w-2 rounded-full bg-club-primary" />
