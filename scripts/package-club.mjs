@@ -64,6 +64,11 @@ const sourceEnvPath = fs.existsSync(path.join(root, ".env"))
   : path.join(previous, ".env");
 if (!fs.existsSync(sourceEnvPath)) throw new Error("A source .env with DATABASE_URL is required to package the club runtime.");
 const sourceEnv = fs.readFileSync(sourceEnvPath, "utf8");
+const sourceLocalPath = fs.existsSync(path.join(root, ".env.local"))
+  ? path.join(root, ".env.local")
+  : path.join(previous, ".env.local");
+const sourceLocalEnv = fs.existsSync(sourceLocalPath) ? fs.readFileSync(sourceLocalPath, "utf8") : "";
+const clubValue = (key, fallback = "") => readEnvValue(sourceEnv, key) || readEnvValue(sourceLocalEnv, key) || fallback;
 const databaseUrl = readEnvValue(sourceEnv, "DATABASE_URL");
 const authSecret = readEnvValue(sourceEnv, "AUTH_SECRET") || crypto.randomBytes(32).toString("hex");
 const cronSecret = readEnvValue(sourceEnv, "CRON_SECRET") || crypto.randomBytes(32).toString("hex");
@@ -73,13 +78,20 @@ const runtimeEnv = [
   `DATABASE_URL=${JSON.stringify(databaseUrl)}`,
   `AUTH_SECRET=${JSON.stringify(authSecret)}`,
   `CRON_SECRET=${JSON.stringify(cronSecret)}`,
-  `NEXTAUTH_URL=${JSON.stringify(readEnvValue(sourceEnv, "NEXTAUTH_URL") || "http://localhost:3000")}`,
-  "FAF_ENABLED=false",
-  "GOOGLE_CLIENT_ID=",
-  "GOOGLE_CLIENT_SECRET=",
-  "GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback",
-  `GMAIL_TOKEN_ENCRYPTION_KEY=${JSON.stringify(authSecret)}`,
-  "STORAGE_DRIVER=local",
+  `NEXTAUTH_URL=${JSON.stringify(clubValue("NEXTAUTH_URL", "http://localhost:3000"))}`,
+  `FAF_ENABLED=${JSON.stringify(clubValue("FAF_ENABLED", "false"))}`,
+  `FAF_PORTAL_URL=${JSON.stringify(clubValue("FAF_PORTAL_URL"))}`,
+  `FAF_CLUB_CODE=${JSON.stringify(clubValue("FAF_CLUB_CODE"))}`,
+  `FAF_USERNAME=${JSON.stringify(clubValue("FAF_USERNAME"))}`,
+  `FAF_PASSWORD=${JSON.stringify(clubValue("FAF_PASSWORD"))}`,
+  `FAF_TIMEOUT_MS=${JSON.stringify(clubValue("FAF_TIMEOUT_MS", "20000"))}`,
+  `FAF_RATE_LIMIT_DELAY_MS=${JSON.stringify(clubValue("FAF_RATE_LIMIT_DELAY_MS", "1000"))}`,
+  `FAF_SESSION_COOKIE=${JSON.stringify(clubValue("FAF_SESSION_COOKIE"))}`,
+  `GOOGLE_CLIENT_ID=${JSON.stringify(clubValue("GOOGLE_CLIENT_ID"))}`,
+  `GOOGLE_CLIENT_SECRET=${JSON.stringify(clubValue("GOOGLE_CLIENT_SECRET"))}`,
+  `GOOGLE_REDIRECT_URI=${JSON.stringify(clubValue("GOOGLE_REDIRECT_URI", "http://localhost:3000/api/auth/google/callback"))}`,
+  `GMAIL_TOKEN_ENCRYPTION_KEY=${JSON.stringify(clubValue("GMAIL_TOKEN_ENCRYPTION_KEY", authSecret))}`,
+  `STORAGE_DRIVER=${JSON.stringify(clubValue("STORAGE_DRIVER", "local"))}`,
   ""
 ].join("\n");
 const runtimeLocalEnv = [
@@ -87,7 +99,7 @@ const runtimeLocalEnv = [
   "AI_ENABLED=true",
   "NEXT_PUBLIC_AI_ENABLED=true",
   "OLLAMA_BASE_URL=http://127.0.0.1:11434",
-  `NEXT_PUBLIC_PUBLIC_SITE_URL=${JSON.stringify(readEnvValue(sourceEnv, "NEXT_PUBLIC_PUBLIC_SITE_URL") || "")}`,
+  `NEXT_PUBLIC_PUBLIC_SITE_URL=${JSON.stringify(clubValue("NEXT_PUBLIC_PUBLIC_SITE_URL"))}`,
   "OLLAMA_MODEL=qwen2.5:7b",
   "OLLAMA_VISION_MODEL=llava:7b",
   "OLLAMA_KEEP_ALIVE=2m",
