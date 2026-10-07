@@ -7,6 +7,7 @@ import { getCurrentTeamId } from "@/lib/team-context";
 import { createCompetitionAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-select";
 
 export default async function NewCompetitionPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -57,43 +58,45 @@ export default async function NewCompetitionPage({ params }: { params: Promise<{
             <label className="mb-1 block text-sm font-medium">
               {tTeams("title")} <span className="text-muted-foreground">({locale === "ar" ? "اختياري" : "optionnel"})</span>
             </label>
-            <select name="teamId" defaultValue={currentTeamId ?? ""} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="" disabled>
-                —
-              </option>
-              {teams.map((tm) => (
-                <option key={tm.id} value={tm.id}>
-                  {tTeams(`categories.${tm.category}` as any)}
-                </option>
-              ))}
-            </select>
+            <FormSelect
+              name="teamId"
+              defaultValue={currentTeamId ?? ""}
+              locale={locale}
+              placeholder="—"
+              ariaLabel={tTeams("title")}
+              options={teams.map((tm) => ({ id: tm.id, label: tTeams(`categories.${tm.category}` as any) })).map((option) => ({ value: option.id, label: option.label }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("fields.season")}</label>
-            <select name="seasonId" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <FormSelect
+              name="seasonId"
+              required
+              defaultValue={seasons[0]?.id ?? ""}
+              locale={locale}
+              ariaLabel={t("fields.season")}
+              options={seasons.map((s) => ({ value: s.id, label: s.label }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{locale === "ar" ? "نوع المسابقة" : "Type de compétition"}</label>
-            <select name="type" defaultValue="LEAGUE" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="LEAGUE">{locale === "ar" ? "الدوري" : "Championnat (Ligue)"}</option>
-              <option value="CUP">{locale === "ar" ? "كأس الجزائر" : "Coupe d'Algérie"}</option>
-            </select>
+            <FormSelect
+              name="type"
+              defaultValue="LEAGUE"
+              locale={locale}
+              ariaLabel={locale === "ar" ? "نوع المسابقة" : "Type de compétition"}
+              options={[{ value: "LEAGUE", label: locale === "ar" ? "الدوري" : "Championnat (Ligue)" }, { value: "CUP", label: locale === "ar" ? "كأس الجزائر" : "Coupe d'Algérie" }]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("fields.status")}</label>
-            <select name="status" defaultValue="UPCOMING" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              {["UPCOMING", "ONGOING", "FINISHED"].map((s) => (
-                <option key={s} value={s}>
-                  {t(`statuses.${s}` as any)}
-                </option>
-              ))}
-            </select>
+            <FormSelect
+              name="status"
+              defaultValue="UPCOMING"
+              locale={locale}
+              ariaLabel={t("fields.status")}
+              options={["UPCOMING", "ONGOING", "FINISHED"].map((value) => ({ value, label: t(`statuses.${value}` as any) }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("fields.organization")}</label>
