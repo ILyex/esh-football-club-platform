@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +17,11 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(internal, { recursive: true });
 
 fs.cpSync(standalone, path.join(internal, ".next", "standalone"), { recursive: true });
+// The standalone tree can contain the developer's local file-storage data.
+// Club records and uploaded files live in Neon/S3 or the installed app's
+// separate .storage directory; never ship local documents, avatars, or
+// generated reports inside the handover archive.
+fs.rmSync(path.join(internal, ".next", "standalone", ".storage"), { recursive: true, force: true });
 // Next may trace the developer's .env into the standalone folder. Remove
 // those nested copies so the launcher reads the package root .env/.env.local,
 // which are the club-specific settings delivered with this package.
@@ -40,25 +46,55 @@ for (const name of [
   if (fs.existsSync(source)) fs.copyFileSync(source, path.join(internal, name));
 }
 
-// Keep the club's existing secrets if a previous prepared package exists.
-for (const name of [".env", ".env.local"]) {
-  const source = fs.existsSync(path.join(root, name)) ? path.join(root, name) : path.join(previous, name);
-  if (fs.existsSync(source)) fs.copyFileSync(source, path.join(internal, name));
+// Build a clean club runtime configuration instead of copying the developer's
+// full .env files. DATABASE_URL_TEST, Gmail OAuth secrets and FAF credentials
+// must never travel inside a handover ZIP.
+function readEnvValue(contents, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = contents.match(new RegExp(`^\\s*${escaped}\\s*=\\s*(.*)$`, "m"));
+  if (!match) return "";
+  const raw = match[1].trim();
+  return ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
+    ? raw.slice(1, -1)
+    : raw;
 }
 
-// The club package is a single-server, self-hosted deployment. When no S3
-// provider was explicitly configured, force the production bundle to use its
-// private local storage directory instead of failing on profile/photo uploads.
-// Keep an explicitly configured S3 driver untouched for installations that
-// provide one.
-for (const name of [".env", ".env.local"]) {
-  const packagedEnv = path.join(internal, name);
-  if (!fs.existsSync(packagedEnv)) continue;
-  const contents = fs.readFileSync(packagedEnv, "utf8");
-  if (!/^\s*STORAGE_DRIVER\s*=/m.test(contents)) {
-    fs.writeFileSync(packagedEnv, `${contents.replace(/\s*$/, "")}\nSTORAGE_DRIVER=local\n`, "utf8");
-  }
-}
+const sourceEnvPath = fs.existsSync(path.join(root, ".env"))
+  ? path.join(root, ".env")
+  : path.join(previous, ".env");
+if (!fs.existsSync(sourceEnvPath)) throw new Error("A source .env with DATABASE_URL is required to package the club runtime.");
+const sourceEnv = fs.readFileSync(sourceEnvPath, "utf8");
+const databaseUrl = readEnvValue(sourceEnv, "DATABASE_URL");
+const authSecret = readEnvValue(sourceEnv, "AUTH_SECRET") || crypto.randomBytes(32).toString("hex");
+const cronSecret = readEnvValue(sourceEnv, "CRON_SECRET") || crypto.randomBytes(32).toString("hex");
+if (!databaseUrl) throw new Error("DATABASE_URL is missing from the source .env.");
+
+const runtimeEnv = [
+  `DATABASE_URL=${JSON.stringify(databaseUrl)}`,
+  `AUTH_SECRET=${JSON.stringify(authSecret)}`,
+  `CRON_SECRET=${JSON.stringify(cronSecret)}`,
+  `NEXTAUTH_URL=${JSON.stringify(readEnvValue(sourceEnv, "NEXTAUTH_URL") || "http://localhost:3000")}`,
+  "FAF_ENABLED=false",
+  "GOOGLE_CLIENT_ID=",
+  "GOOGLE_CLIENT_SECRET=",
+  "GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback",
+  `GMAIL_TOKEN_ENCRYPTION_KEY=${JSON.stringify(authSecret)}`,
+  "STORAGE_DRIVER=local",
+  ""
+].join("\n");
+const runtimeLocalEnv = [
+  "PUBLIC_SITE_ONLY=false",
+  "AI_ENABLED=true",
+  "NEXT_PUBLIC_AI_ENABLED=true",
+  "OLLAMA_BASE_URL=http://127.0.0.1:11434",
+  `NEXT_PUBLIC_PUBLIC_SITE_URL=${JSON.stringify(readEnvValue(sourceEnv, "NEXT_PUBLIC_PUBLIC_SITE_URL") || "")}`,
+  "OLLAMA_MODEL=qwen2.5:7b",
+  "OLLAMA_VISION_MODEL=llava:7b",
+  "OLLAMA_KEEP_ALIVE=2m",
+  ""
+].join("\n");
+fs.writeFileSync(path.join(internal, ".env"), runtimeEnv, "utf8");
+fs.writeFileSync(path.join(internal, ".env.local"), runtimeLocalEnv, "utf8");
 
 // Next's standalone server resolves env files from its own directory rather
 // than the package root. Put the same prepared club configuration there too;
