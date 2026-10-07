@@ -365,6 +365,11 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   padding-inline-end: 2.25rem;
 }
 
+.finance-select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
 [dir="rtl"] h1,
 [dir="rtl"] h2,
 [dir="rtl"] h3,

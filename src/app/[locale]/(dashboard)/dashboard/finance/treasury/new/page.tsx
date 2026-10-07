@@ -48,7 +48,7 @@ export default async function NewTreasuryAccountPage({
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
           <label className="mb-2 block text-sm font-semibold">{t("fields.accountType")}</label>
-          <select name="type" defaultValue="CASH" className={`${inputClass} h-11`}>
+          <select name="type" defaultValue="CASH" className={`${inputClass} finance-select h-11`}>
             {TYPES.map((ty) => (
               <option key={ty} value={ty}>
                 {t(`accountTypes.${ty}` as any)}
