@@ -191,21 +191,19 @@ export default async function TreasuryDepositsPage({
               {showDepositAction && (
               <Link
                 href={treasuryViewHref(isDepositOpen ? undefined : "deposit")}
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700"
               >
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-semibold">
-                  <ArrowDownLeft className="me-1.5 h-4 w-4" />
-                  <span>{locale === "ar" ? "+ تسجيل إيداع" : t("newDepositTitle")}</span>
-                </Button>
+                <ArrowDownLeft className="me-1.5 h-4 w-4" />
+                <span>{locale === "ar" ? "+ تسجيل إيداع" : t("newDepositTitle")}</span>
               </Link>
               )}
               {showWithdrawalAction && (
               <Link
                 href={treasuryViewHref(isWithdrawalOpen ? undefined : "withdrawal")}
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-amber-300 bg-transparent px-3 text-xs font-semibold text-amber-600 shadow-xs transition-colors hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/20"
               >
-                <Button size="sm" variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 shadow-xs font-semibold">
-                  <ArrowUpRight className="me-1.5 h-4 w-4" />
-                  <span>{locale === "ar" ? "- تسجيل سحب" : "Nouveau Retrait"}</span>
-                </Button>
+                <ArrowUpRight className="me-1.5 h-4 w-4" />
+                <span>{locale === "ar" ? "- تسجيل سحب" : "Nouveau Retrait"}</span>
               </Link>
               )}
             </>
