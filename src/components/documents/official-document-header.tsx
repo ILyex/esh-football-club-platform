@@ -67,16 +67,16 @@ export function OfficialDocumentHeader({
             flex: "1 1 0%"
           }}
         >
-          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
+          <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px]" style={{ whiteSpace: "nowrap" }}>
             {isAr ? "الجمهورية الجزائرية الديمقراطية الشعبية" : "RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE"}
           </p>
-          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
+          <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px]" style={{ whiteSpace: "nowrap" }}>
             {isAr ? "مديرية الشباب والرياضة — ولاية تيارت" : "Direction de la Jeunesse et des Sports — W. Tiaret"}
           </p>
-          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
+          <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px]" style={{ whiteSpace: "nowrap" }}>
             {isAr ? "الرابطة الولائية لكرة القدم — تيارت" : "Ligue de Football de la Wilaya de Tiaret"}
           </p>
-          <p className="text-[16px] font-bold leading-snug text-black sm:text-[17px]">
+          <p className="text-[14px] font-bold leading-snug text-black sm:text-[15px]" style={{ whiteSpace: "nowrap" }}>
             {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
           </p>
         </div>
@@ -99,12 +99,6 @@ export function OfficialDocumentHeader({
             className="esh-club-logo h-24 w-24 object-contain"
             style={{ height: "96px", width: "96px", objectFit: "contain" }}
           />
-          <span
-            className="esh-club-name mt-1.5 max-w-[180px] whitespace-normal text-center text-[15px] font-bold uppercase leading-tight tracking-wide text-black"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
-          >
-            {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoire Sidi Hosni de Football"}
-          </span>
         </div>
 
         {/* Left / Reference Number & Date */}
@@ -118,21 +112,21 @@ export function OfficialDocumentHeader({
         >
           {badgeText && (
             <p
-              className="text-[15px] font-bold text-zinc-800"
-              style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+              className="text-[14px] font-bold text-zinc-800"
+              style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: "nowrap" }}
             >
               {badgeText}
             </p>
           )}
           <p
-            className="text-[15px] font-bold text-black"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+            className="text-[14px] font-bold text-black"
+            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: "nowrap" }}
           >
             {isAr ? "المرجع: " : "Réf : "}{referenceNumber}
           </p>
           <p
-            className="text-[15px] font-bold text-black"
-            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+            className="text-[14px] font-bold text-black"
+            style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: "nowrap" }}
           >
             {isAr ? `بتاريخ: ${formattedDate}` : `Le : ${formattedDate}`}
           </p>
@@ -144,7 +138,7 @@ export function OfficialDocumentHeader({
         <div className="mt-4 pt-1 text-center">
           {documentTitle && (
             <h1
-              className="text-[23px] sm:text-[26px] font-bold tracking-normal text-black leading-snug uppercase"
+              className="text-[21px] sm:text-[23px] font-bold tracking-normal text-black leading-snug uppercase"
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {documentTitle}
