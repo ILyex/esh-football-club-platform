@@ -9,6 +9,7 @@ import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { rankStandings } from "@/lib/competitions/standings";
+import { Prisma } from "@prisma/client";
 
 const standingEntrySchema = z.object({
   id: z.string().min(1).max(120),
@@ -109,12 +110,27 @@ export async function createSeasonAction(formData: FormData) {
   assertTeamScope(scopeContext, null, "Season"); // seasons are club-wide
 
   const raw = Object.fromEntries(formData.entries());
-  const parsed = seasonSchema.parse(raw);
-
-  if (parsed.isCurrent) {
-    await db.season.updateMany({ where: { isCurrent: true }, data: { isCurrent: false } });
+  const parsedResult = seasonSchema.safeParse(raw);
+  if (!parsedResult.success) {
+    const labelIssue = parsedResult.error.issues.some((issue) => issue.path[0] === "label");
+    return { error: labelIssue ? "invalid_season_label" : "invalid_season_data" };
   }
-  const season = await db.season.create({ data: parsed });
+  const parsed = parsedResult.data;
+
+  let season;
+  try {
+    season = await db.$transaction(async (tx) => {
+      if (parsed.isCurrent) {
+        await tx.season.updateMany({ where: { isCurrent: true }, data: { isCurrent: false } });
+      }
+      return tx.season.create({ data: parsed });
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: "season_exists" };
+    }
+    throw error;
+  }
 
   await writeAuditLog({ userId: user.id, action: "season.create", entityType: "Season", entityId: season.id, changes: { after: parsed } });
   revalidatePath("/[locale]/dashboard/competitions", "page");

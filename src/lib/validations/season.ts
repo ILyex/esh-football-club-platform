@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const seasonSchema = z
   .object({
-    label: z.string().min(1).max(20),
+    label: z.string().trim().regex(/^\d{4}\/\d{4}$/, "seasonLabel"),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     isCurrent: z.coerce.boolean().default(false)

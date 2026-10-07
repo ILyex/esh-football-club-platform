@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { DateInput } from "@/components/ui/date-input";
 import { Plus, Trophy, Layers } from "lucide-react";
+import { SeasonCreatorForm } from "@/components/competitions/season-creator-form";
 import {
   CompetitionsHub,
   type CompetitionHubData
@@ -70,9 +70,9 @@ export default async function CompetitionsListPage({
     };
   });
 
-  async function addSeason(formData: FormData) {
+  async function addSeason(_prevState: { id?: string; error?: string } | undefined, formData: FormData) {
     "use server";
-    await createSeasonAction(formData);
+    return createSeasonAction(formData);
   }
 
   return (
@@ -128,42 +128,7 @@ export default async function CompetitionsListPage({
             </p>
           </div>
 
-          <form action={addSeason} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                {isAr ? "تسمية الموسم" : "Libellé"}
-              </label>
-              <input
-                type="text"
-                name="label"
-                placeholder="2027/2028"
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:border-club-primary focus:outline-hidden"
-              />
-            </div>
-            <div>
-              <DateInput
-                label={isAr ? "تاريخ البداية" : "Date de début"}
-                name="startDate"
-                required
-                locale={locale}
-              />
-            </div>
-            <div>
-              <DateInput
-                label={isAr ? "تاريخ النهاية" : "Date de fin"}
-                name="endDate"
-                required
-                locale={locale}
-              />
-            </div>
-            <div>
-              <Button type="submit" variant="outline" size="sm" className="w-full font-bold">
-                <Plus className="h-4 w-4 me-1" />
-                <span>{isAr ? "حفظ الموسم" : "Créer saison"}</span>
-              </Button>
-            </div>
-          </form>
+          <SeasonCreatorForm locale={locale} action={addSeason} />
         </div>
       )}
     </div>
