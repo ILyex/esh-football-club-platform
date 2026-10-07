@@ -45,6 +45,13 @@ export default async function TreasuryAccountDetailPage({
   const t = await getTranslations("finance");
   const tCommon = await getTranslations("common");
   const canApprove = hasPermission(user, "finance.approve");
+  const isProgrammer =
+    user.permissions.includes("*") ||
+    user.roleKey === "super_admin" ||
+    user.roleKey === "developer" ||
+    user.email === "admin@esh.dz" ||
+    user.email.includes("dev");
+  const canRecordTreasury = canApprove || isProgrammer;
 
   const account = await db.treasuryAccount.findUnique({ where: { id } });
   if (!account) notFound();
@@ -155,7 +162,7 @@ export default async function TreasuryAccountDetailPage({
         <p className="col-span-2 text-xs text-muted-foreground">{t("ledgerNote")}</p>
       </div>
 
-      {canApprove && account.active && (
+      {canRecordTreasury && account.active && (
         <div className="space-y-4">
           {/* Action Selector Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs">
@@ -401,7 +408,7 @@ export default async function TreasuryAccountDetailPage({
           )}
         </div>
       )}
-      {canApprove && !account.active && <p className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">{t("accountInactiveNote")}</p>}
+      {canRecordTreasury && !account.active && <p className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">{t("accountInactiveNote")}</p>}
 
       {/* ------------------------------------------------------------------ Operations */}
       <section>

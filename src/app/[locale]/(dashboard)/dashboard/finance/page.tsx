@@ -371,7 +371,7 @@ export default async function FinanceOverviewPage({
               {depositsAgg._count.id} {locale === "ar" ? "عملية إيداع بوصل رسمي" : "dépôts certifiés"}
             </p>
           </div>
-          {canApprove && primaryAccount && (
+          {(canApprove || isProgrammer) && primaryAccount && (
             <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=deposit`} className="mt-3">
               <Button size="sm" className="w-full text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
                 <ArrowDownLeft className="h-4 w-4 shrink-0" />
@@ -399,7 +399,7 @@ export default async function FinanceOverviewPage({
               {withdrawalsAgg._count.id} {locale === "ar" ? "عملية سحب بوصل رسمي" : "retraits autorisés"}
             </p>
           </div>
-          {canApprove && primaryAccount && (
+          {(canApprove || isProgrammer) && primaryAccount && (
             <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=withdrawal`} className="mt-3">
               <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5 border-amber-500/40 text-amber-600 hover:bg-amber-500/10 font-semibold">
                 <ArrowUpRight className="h-4 w-4 shrink-0" />

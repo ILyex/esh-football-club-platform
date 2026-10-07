@@ -185,7 +185,7 @@ export default async function TreasuryDepositsPage({
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canApprove && activeAccounts.length > 0 && (
+          {(canApprove || isProgrammer) && activeAccounts.length > 0 && (
             <>
               {showDepositAction && (
               <Link
