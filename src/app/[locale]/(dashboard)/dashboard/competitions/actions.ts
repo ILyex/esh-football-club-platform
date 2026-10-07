@@ -144,7 +144,16 @@ export async function createCompetitionAction(formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   const parsedInput = competitionSchema.parse(raw);
-  const parsed = { ...parsedInput, teamId: parsedInput.teamId || null };
+  let logoUrl = parsedInput.logoUrl ?? null;
+  const logoFile = formData.get("logoFile") as File | null;
+  if (logoFile && logoFile.size > 0 && logoFile.name) {
+    const { uploadPublicFile, generatePublicStorageKey, validateUploadedImage } = await import("@/lib/storage");
+    const buffer = Buffer.from(await logoFile.arrayBuffer());
+    const validated = await validateUploadedImage(buffer);
+    const key = generatePublicStorageKey("competitions", validated.ext);
+    logoUrl = await uploadPublicFile({ key, buffer, mimeType: validated.mime });
+  }
+  const parsed = { ...parsedInput, teamId: parsedInput.teamId || null, logoUrl };
   assertTeamScope(scopeContext, parsed.teamId, "Competition");
   await db.season.findUniqueOrThrow({ where: { id: parsed.seasonId } });
   if (parsed.teamId) await db.team.findUniqueOrThrow({ where: { id: parsed.teamId } });

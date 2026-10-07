@@ -8,6 +8,7 @@ import { createCompetitionAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
+import { CompetitionLogoUploadField } from "@/components/competitions/competition-logo-upload-field";
 
 export default async function NewCompetitionPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -102,10 +103,7 @@ export default async function NewCompetitionPage({ params }: { params: Promise<{
             <label className="mb-1 block text-sm font-medium">{t("fields.organization")}</label>
             <input name="organization" placeholder={locale === "ar" ? "مثال: الرابطة الجهوية سعيدة / FAF" : "ex: LRF Saida / FAF"} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">{locale === "ar" ? "رابط شعار المسابقة (اختياري)" : "URL du logo (optionnel)"}</label>
-            <input name="logoUrl" placeholder="https://..." className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          </div>
+          <CompetitionLogoUploadField locale={locale} />
           <div className="col-span-2">
             <Button type="submit" className="gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
           </div>
