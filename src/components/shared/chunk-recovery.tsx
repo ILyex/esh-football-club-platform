@@ -9,7 +9,6 @@ import { useEffect } from "react";
  */
 export function ChunkRecovery() {
   useEffect(() => {
-    const key = "esh-chunk-recovery-v2";
     const isChunkError = (value: unknown) => {
       const text = value instanceof Error ? `${value.name} ${value.message}` : String(value ?? "");
       return /ChunkLoadError|Loading chunk|Loading CSS chunk|_next\/static\/chunks/.test(text);
@@ -17,17 +16,16 @@ export function ChunkRecovery() {
     const recover = (value: unknown) => {
       if (!isChunkError(value)) return;
       try {
-        const current = window.location.pathname;
-        const previous = sessionStorage.getItem(key);
-        if (previous === current) return;
-        // Navigate to a fresh document immediately. A normal reload can reuse
-        // the old RSC payload in an open tab and request the same stale chunk.
-        sessionStorage.setItem(key, current);
-        const separator = window.location.search ? "&" : "?";
-        window.location.assign(`${window.location.href}${separator}esh_reload=${Date.now()}`);
+        const url = new URL(window.location.href);
+        // Retry once per document URL. The marker prevents an endless loop if
+        // the chunk is genuinely unavailable, while allowing repeated failures
+        // on the same route after a rebuild or server restart.
+        if (url.searchParams.has("esh_reload")) return;
+        url.searchParams.set("esh_reload", String(Date.now()));
+        window.location.replace(url.toString());
         return;
       } catch {
-        // Continue with a normal reload when storage is unavailable.
+        // Continue with a normal reload when URL construction is unavailable.
       }
       window.location.reload();
     };
@@ -35,11 +33,7 @@ export function ChunkRecovery() {
     const onRejection = (event: PromiseRejectionEvent) => recover(event.reason);
     window.addEventListener("error", onError, true);
     window.addEventListener("unhandledrejection", onRejection);
-    const timer = window.setTimeout(() => {
-      try { sessionStorage.removeItem(key); } catch { /* private browsing */ }
-    }, 10_000);
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener("error", onError, true);
       window.removeEventListener("unhandledrejection", onRejection);
     };
