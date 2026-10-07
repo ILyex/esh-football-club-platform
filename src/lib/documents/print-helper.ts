@@ -209,7 +209,6 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
         min-width: 190mm !important;
         max-width: 190mm !important;
       }
-      }
       body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] button,
       body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [role="button"],
       body.esh-document-printing [${PRINT_TARGET_ATTRIBUTE}] [role="toolbar"],
