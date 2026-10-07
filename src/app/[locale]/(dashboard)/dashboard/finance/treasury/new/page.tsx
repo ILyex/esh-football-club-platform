@@ -7,6 +7,7 @@ import { runFinanceAction, withNotice } from "@/lib/finance/action-notice";
 import { createTreasuryAccountAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { NoticeToast } from "@/components/shared/notice-toast";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 const TYPES = ["CASH", "BANK", "OTHER"] as const;
 const inputClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -48,13 +49,11 @@ export default async function NewTreasuryAccountPage({
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
           <label className="mb-2 block text-sm font-semibold">{t("fields.accountType")}</label>
-          <select name="type" defaultValue="CASH" className={`${inputClass} finance-select h-11`}>
-            {TYPES.map((ty) => (
-              <option key={ty} value={ty}>
-                {t(`accountTypes.${ty}` as any)}
-              </option>
-            ))}
-          </select>
+          <StyledSelect
+            name="type"
+            defaultValue="CASH"
+            options={TYPES.map((ty) => ({ value: ty, label: t(`accountTypes.${ty}` as any) }))}
+          />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold">{t("openingBalance")}</label>
