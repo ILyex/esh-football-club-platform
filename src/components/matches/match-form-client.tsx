@@ -22,6 +22,7 @@ import { FormSelect } from "@/components/ui/form-select";
 interface CompetitionOption {
   id: string;
   name: string;
+  teamId: string | null;
 }
 
 interface TeamOption {
@@ -88,7 +89,13 @@ export function MatchFormClient({
 
   // Form interactive states
   const [teamId, setTeamId] = useState(defaultTeamId || teams[0]?.id || "");
-  const [competitionId, setCompetitionId] = useState(competitions[0]?.id || "");
+  const [competitionId, setCompetitionId] = useState(() => competitions.find((competition) => !competition.teamId || competition.teamId === (defaultTeamId || teams[0]?.id))?.id || "");
+  const availableCompetitions = competitions.filter((competition) => !competition.teamId || competition.teamId === teamId);
+  const handleTeamChange = (nextTeamId: string) => {
+    setTeamId(nextTeamId);
+    const firstMatchingCompetition = competitions.find((competition) => !competition.teamId || competition.teamId === nextTeamId);
+    setCompetitionId(firstMatchingCompetition?.id || "");
+  };
   const [opponent, setOpponent] = useState("");
   const [isHomeFixture, setIsHomeFixture] = useState(true);
   const [stadium, setStadium] = useState(isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni");
@@ -306,7 +313,7 @@ export function MatchFormClient({
               defaultValue={teamId}
               locale={locale}
               ariaLabel={isRtl ? "فئة الفريق" : "Catégorie de l'équipe"}
-              onValueChange={setTeamId}
+              onValueChange={handleTeamChange}
               options={teams.map((tm) => ({ value: tm.id, label: `${tm.name} (${tm.category})` }))}
             />
           </div>
@@ -317,14 +324,20 @@ export function MatchFormClient({
               {isRtl ? "المسابقة / البطولة *" : "Compétition *"}
             </label>
             <FormSelect
+              key={`competition-${teamId}-${competitionId}`}
               name="competitionId"
               required
               defaultValue={competitionId}
               locale={locale}
               ariaLabel={isRtl ? "المسابقة / البطولة" : "Compétition"}
               onValueChange={setCompetitionId}
-              options={competitions.map((c) => ({ value: c.id, label: c.name }))}
+              options={availableCompetitions.map((c) => ({ value: c.id, label: c.name }))}
             />
+            {availableCompetitions.length === 0 && (
+              <p className="mt-1.5 text-xs text-destructive">
+                {isRtl ? "لا توجد مسابقة مرتبطة بهذه الفئة." : "Aucune compétition liée à cette catégorie."}
+              </p>
+            )}
           </div>
 
           {/* Opponent Name */}

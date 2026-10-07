@@ -67,7 +67,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
       ) : (
         <MatchFormClient
           locale={locale}
-          competitions={competitions.map((c) => ({ id: c.id, name: c.name }))}
+          competitions={competitions.map((c) => ({ id: c.id, name: c.name, teamId: c.teamId }))}
           teams={teams.map((tm) => ({ id: tm.id, name: tm.name, category: tm.category }))}
           savedOpponents={savedOpponents}
           defaultTeamId={currentTeamId}
