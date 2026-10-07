@@ -432,6 +432,16 @@ export default async function TreasuryDepositsPage({
         </form>
       )}
 
+      {isDepositOpen && canRecordTreasury && activeAccounts.length === 0 && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-5 shadow-sm">
+          <h2 className="text-sm font-bold text-foreground">لا يمكن فتح نموذج الإيداع بعد</h2>
+          <p className="mt-1 text-xs text-muted-foreground">يجب إنشاء حساب خزينة نشط أولاً حتى يتم تسجيل الحركة وحفظها في السجل المالي.</p>
+          <Link href={`/${locale}/dashboard/finance/treasury/new`} className="mt-4 inline-flex h-8 items-center justify-center rounded-md bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700">
+            إنشاء حساب خزينة
+          </Link>
+        </div>
+      )}
+
       {/* Inline New Withdrawal Form (Auto-defaults to official bank account) */}
       {isWithdrawalOpen && canRecordTreasury && activeAccounts.length > 0 && (
         <form
@@ -550,6 +560,16 @@ export default async function TreasuryDepositsPage({
             </Button>
           </div>
         </form>
+      )}
+
+      {isWithdrawalOpen && canRecordTreasury && activeAccounts.length === 0 && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-5 shadow-sm">
+          <h2 className="text-sm font-bold text-foreground">لا يمكن فتح نموذج السحب بعد</h2>
+          <p className="mt-1 text-xs text-muted-foreground">يجب إنشاء حساب خزينة نشط أولاً حتى يتم تسجيل الحركة وحفظها في السجل المالي.</p>
+          <Link href={`/${locale}/dashboard/finance/treasury/new`} className="mt-4 inline-flex h-8 items-center justify-center rounded-md bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700">
+            إنشاء حساب خزينة
+          </Link>
+        </div>
       )}
 
       {/* Filter and View Tabs */}
