@@ -100,7 +100,7 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
                   />
 
                   <div className="my-4 text-center">
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-600">
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-zinc-600">
                       <span>{isAr ? `القسم: ${report.department}` : `Département : ${report.department}`}</span>
                       <span>{isAr ? `النطاق: ${report.scope}` : `Périmètre : ${report.scope}`}</span>
                       <span>{isAr ? `تاريخ الاستخراج: ${report.date}` : `Extrait le : ${report.date}`}</span>
@@ -108,8 +108,8 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
                   </div>
 
                   {/* Summary / Administrative Context */}
-                  <div className="my-5 text-[15px] leading-relaxed text-zinc-900">
-                    <p className="font-bold text-[14px] text-zinc-800 mb-1">
+                  <div className="my-5 text-base leading-relaxed text-zinc-900">
+                    <p className="font-bold text-[15px] text-zinc-800 mb-1">
                       {isAr ? "ملخص البيانات:" : "Synthèse des données :"}
                     </p>
                     <p>{report.summary}</p>
@@ -117,7 +117,7 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
 
                   {/* Indicators / Stats Table (Only structural table borders) */}
                   <div className="mt-5">
-                    <table className="w-full text-sm border-collapse border border-zinc-300">
+                    <table className="w-full text-base border-collapse border border-zinc-300">
                       <thead>
                         <tr className="bg-zinc-100 text-zinc-900">
                           <th className="py-2.5 px-4 border border-zinc-300 text-start font-bold">
@@ -149,7 +149,7 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
                   </div>
                 </div>
 
-                <div className="relative z-10 mt-10 border-t border-zinc-200 pt-4 text-center text-[11px] leading-relaxed text-zinc-500">
+                <div className="relative z-10 mt-10 border-t border-zinc-200 pt-4 text-center text-xs leading-relaxed text-zinc-500">
                   {isAr
                     ? "ملخص آلي للقيم المسجلة في المنصة بتاريخ الاستخراج أعلاه. لا يمثل اعتماداً أو تدقيقاً مالياً."
                     : "Synthèse automatique des valeurs enregistrées à la date d'extraction ci-dessus. Elle ne vaut ni validation ni audit financier."}
