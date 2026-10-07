@@ -15,6 +15,7 @@ import { OfficialVoucherModal } from "@/components/finance/official-voucher-moda
 import { EditOpeningBalanceModal } from "@/components/finance/edit-opening-balance-modal";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { DateInput } from "@/components/ui/date-input";
+import { StyledSelect } from "@/components/ui/styled-select";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -336,13 +337,15 @@ export default async function TreasuryDepositsPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "الحساب المستلم (الحساب البنكي الرسمي تلقائياً)" : t("account")} *
               </label>
-              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={`${inputClass} finance-select`}>
-                {activeAccounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({t(`accountTypes.${a.type}` as any)}) {a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}
-                  </option>
-                ))}
-              </select>
+              <StyledSelect
+                name="treasuryAccountId"
+                defaultValue={primaryBank?.id ?? activeAccounts[0]!.id}
+                className="w-full"
+                options={activeAccounts.map((a) => ({
+                  value: a.id,
+                  label: `${a.name} (${t(`accountTypes.${a.type}` as any)}) ${a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}`
+                }))}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground">
@@ -466,13 +469,15 @@ export default async function TreasuryDepositsPage({
               <label className="mb-1 block text-xs font-medium text-foreground">
                 {locale === "ar" ? "حساب السحب (الحساب البنكي الرسمي تلقائياً)" : t("account")} *
               </label>
-              <select name="treasuryAccountId" defaultValue={primaryBank?.id} required className={`${inputClass} finance-select`}>
-                {activeAccounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({t(`accountTypes.${a.type}` as any)}) {a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}
-                  </option>
-                ))}
-              </select>
+              <StyledSelect
+                name="treasuryAccountId"
+                defaultValue={primaryBank?.id ?? activeAccounts[0]!.id}
+                className="w-full"
+                options={activeAccounts.map((a) => ({
+                  value: a.id,
+                  label: `${a.name} (${t(`accountTypes.${a.type}` as any)}) ${a.id === primaryBank?.id ? (locale === "ar" ? "(البنك الرسمي المعتمد للنادي)" : "(Compte Principal)") : ""}`
+                }))}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground">
