@@ -83,7 +83,7 @@ const POSITION_LABELS: Record<string, { ar: string; fr: string }> = {
 };
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
-  SENIOR: { ar: "أكابر (سينيور)", fr: "Sénior" },
+  SENIOR: { ar: "أكابر", fr: "Sénior" },
   U20: { ar: "أقل من 20 سنة (U20)", fr: "U20" },
   U17: { ar: "أقل من 17 سنة (U17)", fr: "U17" },
   U15: { ar: "أقل من 15 سنة (U15)", fr: "U15" }
@@ -203,12 +203,12 @@ export function PlayerOverviewModal({
                       {player.isInsured ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          <span>{isAr ? "مؤمّن" : "Assuré"}</span>
+                          <span>{isAr ? "مؤمَّن عليه" : "Assuré"}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 border border-red-400/40 px-2 py-0.5 text-[10px] font-bold text-red-300">
                           <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                          <span>{isAr ? "غير مؤمّن" : "Non assuré"}</span>
+                          <span>{isAr ? "بدون تأمين" : "Non assuré"}</span>
                         </span>
                       )}
                     </div>
