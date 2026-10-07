@@ -125,6 +125,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       overflow: hidden !important;
       transform: none !important;
       background-color: #fff !important;
+      background-position: 12px 10px !important;
       color: #000 !important;
       break-before: avoid !important;
       break-after: avoid !important;
