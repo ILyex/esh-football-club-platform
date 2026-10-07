@@ -154,6 +154,16 @@ export function OfficialDocumentHeader({
           )}
         </div>
       )}
+
+      {/* Shared institutional footer: kept at the bottom of every printed sheet. */}
+      <div
+        className="esh-document-footer pointer-events-none fixed bottom-[8mm] left-[10mm] right-[10mm] z-20 flex items-center justify-between text-[10px] text-zinc-500 print:fixed"
+        style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+        aria-hidden="true"
+      >
+        <span>{isAr ? "الموسم الرياضي: 2025 / 2026" : "Saison sportive : 2025 / 2026"}</span>
+        <span>{isAr ? "حرر النادي — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Établi par le club — Association Sportive Espoire Sidi Hosni de Football"}</span>
+      </div>
     </div>
   );
 }

@@ -281,14 +281,6 @@ export function InventoryPreviewModal({
                     </div>
                   </div>
 
-                  {/* Document Footer */}
-                  <div
-                    className="print-footer pt-3 mt-4 text-[11px] text-zinc-600 flex items-center justify-between"
-                    style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
-                  >
-                    <span>{isAr ? "جرد العتاد — الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Inventaire du matériel — Association Sportive Espoire Sidi Hosni de Football"}</span>
-                    <span>{isAr ? "الموسم الرياضي: 2025 / 2026" : "Saison: 2025/2026"}</span>
-                  </div>
                 </div>
               </div>
             </div>
