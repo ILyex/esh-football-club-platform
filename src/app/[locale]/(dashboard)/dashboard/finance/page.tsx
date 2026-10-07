@@ -220,10 +220,26 @@ export default async function FinanceOverviewPage({
 
       {/* Top Header & Fast Action Buttons */}
       {/* Top Header */}
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           {locale === "ar" ? "الإدارة المالية" : "Finances"}
         </h1>
+        {(canApprove || isProgrammer) && primaryAccount && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=deposit`}>
+              <Button size="sm" className="h-9 gap-1.5 bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700">
+                <ArrowDownLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {locale === "ar" ? "تسجيل إيداع" : "Nouveau dépôt"}
+              </Button>
+            </Link>
+            <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=withdrawal`}>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 border-amber-500/40 px-3 text-xs font-semibold text-amber-600 hover:bg-amber-500/10">
+                <ArrowUpRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {locale === "ar" ? "تسجيل سحب" : "Nouveau retrait"}
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Debt Warning Banner */}
