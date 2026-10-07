@@ -202,6 +202,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   const scopeContext = await getMutationScopeContext();
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
+  if (match.status !== "LIVE") throw new Error("matchMustBeLive");
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = matchEventSchema.parse(raw);
@@ -274,6 +275,7 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
   const scopeContext = await getMutationScopeContext();
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
+  if (match.status !== "LIVE") throw new Error("matchMustBeLive");
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = matchLineupEntrySchema.parse(raw);

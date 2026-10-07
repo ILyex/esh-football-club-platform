@@ -498,7 +498,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           {match.events.length === 0 && <li className="py-2 text-sm text-muted-foreground">{tCommon("noResults")}</li>}
         </ul>
 
-        {canReport && (
+        {canReport && match.status === "LIVE" && (
           <form action={addEvent} className="grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-background/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs font-medium">{t("events.minute")}</label>
@@ -551,6 +551,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             </Button>
           </form>
         )}
+        {canReport && match.status !== "LIVE" && (
+          <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+            {locale === "ar" ? "تسجيل الأهداف والبطاقات متاح فقط عندما تكون المباراة مباشرة." : "L’enregistrement des buts et cartons est disponible uniquement lorsque le match est en direct."}
+          </p>
+        )}
       </div>
 
       {/* Lineup */}
@@ -580,7 +585,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           {match.lineups.length === 0 && <li className="py-2 text-sm text-muted-foreground">{tCommon("noResults")}</li>}
         </ul>
 
-        {canReport && (
+        {canReport && match.status === "LIVE" && (
           <form action={addLineupEntry} className="flex flex-wrap items-end gap-2">
             <div>
               <label className="mb-1 block text-xs font-medium">{t("events.player")}</label>
