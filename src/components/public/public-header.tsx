@@ -73,15 +73,14 @@ export function PublicHeader({
               <Shield className="h-5 w-5 text-club-primary" />
             )}
           </div>
-          {/* Keep the name anchored beside the logo in both writing directions.
-              `text-end` pushed Arabic text to the far edge of the flex cell,
-              leaving a large gap between the name and the logo. */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
-            <span dir="ltr" className="order-1 hidden shrink-0 text-[10px] font-medium leading-tight text-muted-foreground min-[360px]:inline sm:text-[11px]">
-              ESH • 2018 — ∞
-            </span>
-            <span className="order-2 min-w-0 whitespace-nowrap text-[12px] font-extrabold leading-snug tracking-tight text-foreground transition-colors group-hover:text-club-primary sm:text-base">
+          {/* Keep the club name aligned with the logo and place the short identity
+              line underneath it instead of beside it. */}
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0 text-start">
+            <span className="block w-full min-w-0 whitespace-nowrap text-[12px] font-extrabold leading-snug tracking-tight text-foreground transition-colors group-hover:text-club-primary sm:text-base">
               {clubShortName || clubName}
+            </span>
+            <span dir="ltr" className="block w-full text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
+              ESH • 2018 — ∞
             </span>
           </div>
         </Link>
