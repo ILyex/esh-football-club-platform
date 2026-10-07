@@ -1,5 +1,8 @@
 node_modules/
 src/generated/prisma-worker/
+src/generated/prisma-mysql/
+.generated/
+prisma/schema.mysql.prisma
 .next/
 .open-next/
 .cloudflare-build/

@@ -57,6 +57,14 @@ function nodePoolOptions() {
 
 async function getLocalClient(): Promise<PrismaClient> {
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  if (process.env.DATABASE_PROVIDER === "mysql") {
+    localClient ??= import("../../.generated/prisma-mysql/client").then(({ PrismaClient: Client }) => {
+      const client = new Client({ log: prismaLogLevels() });
+      if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client as unknown as PrismaClient;
+      return client as unknown as PrismaClient;
+    });
+    return localClient;
+  }
   localClient ??= Promise.all([
     import("@prisma/client"),
     import("@prisma/adapter-pg"),
