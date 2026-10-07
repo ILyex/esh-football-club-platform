@@ -112,6 +112,17 @@ export function MatchFormClient({
   const [awayScore, setAwayScore] = useState("");
   const [matchReport, setMatchReport] = useState("");
 
+  const getLocalDateTimeValue = () => {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  };
+
+  const handleStatusChange = (nextStatus: string) => {
+    setStatus(nextStatus);
+    if (nextStatus === "LIVE") setMatchDate(getLocalDateTimeValue());
+  };
+
   const addRefereeNames = () => {
     const names = refereeDraft.split(/[,،]/).map((name) => name.trim()).filter(Boolean);
     if (!names.length) return;
@@ -481,7 +492,11 @@ export function MatchFormClient({
               name="matchDate"
               required
               value={matchDate}
-              onChange={(_, iso) => setMatchDate(iso || "")}
+              onChange={(_, iso) => {
+                // Keep the draft editable while DD/MM/YYYY is incomplete;
+                // commit it once the date is valid.
+                if (iso) setMatchDate(iso);
+              }}
               locale={locale}
             />
           </div>
@@ -553,7 +568,7 @@ export function MatchFormClient({
               locale={locale}
               required
               ariaLabel={isRtl ? "حالة المباراة" : "Statut du match"}
-              onValueChange={setStatus}
+              onValueChange={handleStatusChange}
               options={[
                 { value: "SCHEDULED", label: isRtl ? "مبرمجة" : "Programmée" },
                 { value: "LIVE", label: isRtl ? "مباشرة الآن" : "En direct" },

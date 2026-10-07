@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { runSchedulerTick } from "@/lib/jobs/scheduler";
 import { processJobBatch } from "@/lib/jobs/worker";
+import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 
 // ============================================================================
 // P5 — CRON TRIGGER & BATCH PROCESSING ROUTE
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Keep kickoff status accurate even when nobody has the dashboard open.
+    const promotedMatches = await promoteDueMatchesToLive();
+
     // 1. Enqueue due recurring jobs
     await runSchedulerTick();
 
@@ -56,7 +60,8 @@ export async function POST(req: NextRequest) {
       processed: batchResult.processed,
       succeeded: batchResult.succeeded,
       failed: batchResult.failed,
-      retried: batchResult.retried
+      retried: batchResult.retried,
+      promotedMatches
     });
   } catch (error) {
     console.error("[Cron process-jobs] Error during batch processing:", error);

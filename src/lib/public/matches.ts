@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { MatchStatus, TeamCategory } from "@prisma/client";
 import { getOpponentsMap } from "@/lib/opponents";
+import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 
 // ============================================================================
 // PUBLIC MATCHES & FIXTURES DATA ACCESS
@@ -58,6 +59,7 @@ export interface PublicMatchDetail extends PublicMatchItem {
 
 /** Fetches the single next scheduled upcoming match for the club (senior team preferred). */
 export async function getPublicNextMatch(): Promise<PublicMatchItem | null> {
+  await promoteDueMatchesToLive();
   const match = await db.match.findFirst({
     where: {
       status: "SCHEDULED",
@@ -104,6 +106,7 @@ export async function getPublicNextMatch(): Promise<PublicMatchItem | null> {
 
 /** Fetches upcoming scheduled matches across categories (seniors, U20, U17, etc.) */
 export async function getPublicUpcomingMatches(limit: number = 6): Promise<PublicMatchItem[]> {
+  await promoteDueMatchesToLive();
   const matches = await db.match.findMany({
     where: {
       status: "SCHEDULED",
@@ -200,6 +203,7 @@ export async function getPublicMatches(options?: {
   mode?: "UPCOMING" | "RESULTS" | "ALL";
   limit?: number;
 }): Promise<PublicMatchItem[]> {
+  await promoteDueMatchesToLive();
   const mode = options?.mode ?? "ALL";
   const where: any = {};
 
@@ -250,6 +254,7 @@ export async function getPublicMatches(options?: {
 
 /** Fetches full public match center details including authorized lineups and events. */
 export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetail | null> {
+  await promoteDueMatchesToLive();
   const match = await db.match.findUnique({
     where: { id },
     select: {
