@@ -79,7 +79,7 @@ export function PublicHeader({
             <span className="block w-full min-w-0 whitespace-nowrap text-[12px] font-extrabold leading-snug tracking-tight text-foreground transition-colors group-hover:text-club-primary sm:text-base">
               {clubShortName || clubName}
             </span>
-            <span dir="ltr" className="block w-full text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
+            <span dir="ltr" className="block w-full text-end text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
               ESH • 2018 — ∞
             </span>
           </div>
