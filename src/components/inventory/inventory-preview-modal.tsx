@@ -127,10 +127,11 @@ export function InventoryPreviewModal({
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/50 dark:bg-zinc-950/50 flex justify-center print:overflow-visible print:p-0 print:m-0 print:bg-white print:block">
               <div
                 id={elementId}
-                className="printable-document esh-security-watermark relative bg-white text-black print:p-0 print:m-0 print:bg-white print:text-black shadow-xl border border-zinc-200 w-full max-w-[210mm] min-h-[297mm] p-[15mm] flex flex-col print:shadow-none print:border-none print:max-w-none print:w-full"
+                className="printable-document inventory-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-black p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col print:shadow-none print:border-none print:max-w-none print:w-[210mm]"
                 style={{
                   fontFamily: ESH_DOCUMENT_FONT_FAMILY,
-                  boxSizing: "border-box"
+                  boxSizing: "border-box",
+                  direction: isAr ? "rtl" : "ltr"
                 }}
               >
                 {/* Dedicated Visible Anti-Counterfeit Watermark Pattern Layer */}
@@ -145,7 +146,7 @@ export function InventoryPreviewModal({
                 />
 
                 {/* Document Content */}
-                <div className="relative z-10 space-y-4">
+                <div className="relative z-10 w-[190mm] min-w-[190mm] max-w-[190mm] space-y-4" style={{ width: "190mm", minWidth: "190mm", maxWidth: "190mm" }}>
                   {/* Official Institutional Header */}
                   <OfficialDocumentHeader
                     badgeText={isAr ? "جرد العتاد" : "INVENTAIRE"}
