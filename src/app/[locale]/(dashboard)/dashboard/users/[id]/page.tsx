@@ -156,9 +156,12 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
           </div>
           <div className="min-w-0 space-y-2">
             <span className="block text-sm font-medium leading-5">{locale === "ar" ? "حالة الحساب" : "Statut du compte"}</span>
-            <label className="flex h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm">
-              <input name="isActive" type="checkbox" defaultChecked={user.isActive} className="h-4 w-4 accent-club-primary" />
-              <span>{t("fields.isActive")}</span>
+            <label className="group flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-background px-3.5 text-sm transition-colors hover:border-club-primary/50 hover:bg-club-primary/[0.03] focus-within:border-club-primary focus-within:ring-2 focus-within:ring-club-primary/15">
+              <span className="flex items-center gap-2.5 font-medium text-foreground">
+                <span className={`h-2.5 w-2.5 rounded-full ring-4 ${user.isActive ? "bg-emerald-500 ring-emerald-500/10" : "bg-zinc-400 ring-zinc-400/10"}`} aria-hidden="true" />
+                {t("fields.isActive")}
+              </span>
+              <input name="isActive" type="checkbox" defaultChecked={user.isActive} className="h-4 w-4 shrink-0 accent-club-primary" />
             </label>
           </div>
         </div>
