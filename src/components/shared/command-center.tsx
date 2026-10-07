@@ -145,6 +145,7 @@ export function CommandCenterTrigger({
           }}
           placeholder={t("placeholder")}
           aria-label={t("placeholder")}
+          role="combobox"
           aria-expanded={open}
           aria-controls="dashboard-search-suggestions"
           className="min-w-0 flex-1 bg-transparent text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground"
