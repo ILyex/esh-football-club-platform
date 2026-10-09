@@ -144,6 +144,10 @@ export default async function MatchesListPage({
               const awayScore = scoreIsActive ? (m.awayScore ?? 0) : "–";
               const outcome = resolveMatchResult(m);
               const winnerName = outcome.winnerSide === "HOME" ? homeTeamName : outcome.winnerSide === "AWAY" ? awayTeamName : null;
+              async function removeMatch() {
+                "use server";
+                await deleteMatchAction(m.id);
+              }
               return (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-2">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(m.matchDate)}</td>
@@ -210,7 +214,7 @@ export default async function MatchesListPage({
                       </Link>
                       {canDelete && (
                         <ConfirmDialog
-                          onConfirm={() => deleteMatchAction(m.id)}
+                          onConfirm={removeMatch}
                           title={locale === "ar" ? "حذف المباراة؟" : "Supprimer le match ?"}
                           body={locale === "ar" ? `سيتم حذف مباراة ${matchTitle} نهائياً.` : `Le match ${matchTitle} sera supprimé définitivement.`}
                           successMessage={locale === "ar" ? "تم حذف المباراة بنجاح" : "Match supprimé avec succès"}
