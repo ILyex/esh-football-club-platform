@@ -1,4 +1,4 @@
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -11,6 +11,8 @@ import { NoticeToast } from "@/components/shared/notice-toast";
 import { SafeImage } from "@/components/shared/safe-image";
 import { isVideoUrl } from "@/lib/media-utils";
 import { actionControlClass } from "@/components/shared/action-controls";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { deleteAlbumAction } from "./actions";
 
 export default async function GalleryListPage({
   params,
@@ -63,7 +65,13 @@ export default async function GalleryListPage({
       </form>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {albums.map((album) => (
+        {albums.map((album) => {
+          async function removeAlbum() {
+            "use server";
+            await deleteAlbumAction(album.id);
+          }
+
+          return (
           <div
             key={album.id}
             className="block overflow-hidden rounded-lg border border-border bg-card"
@@ -83,10 +91,23 @@ export default async function GalleryListPage({
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 truncate text-sm font-bold text-foreground">{album.name}</p>
                 {canManage && (
-                  <Link href={`/${locale}/dashboard/gallery/${album.id}`} className={actionControlClass("edit")}>
-                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{locale === "ar" ? "تعديل" : "Modifier"}</span>
-                  </Link>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Link href={`/${locale}/dashboard/gallery/${album.id}`} className={actionControlClass("edit")}>
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{locale === "ar" ? "تعديل" : "Modifier"}</span>
+                    </Link>
+                    <ConfirmDialog
+                      onConfirm={removeAlbum}
+                      title={locale === "ar" ? "حذف الألبوم؟" : "Supprimer l’album ?"}
+                      body={locale === "ar" ? `سيُحذف ألبوم «${album.name}» وجميع الوسائط التابعة له نهائياً.` : `L’album « ${album.name} » et tous ses médias seront supprimés définitivement.`}
+                      successMessage={locale === "ar" ? "تم حذف الألبوم" : "Album supprimé"}
+                      errorMessage={locale === "ar" ? "تعذر حذف الألبوم" : "Impossible de supprimer l’album"}
+                    >
+                      <button type="button" className={actionControlClass("delete", "!h-8 !w-8 !px-0")} aria-label={locale === "ar" ? "حذف الألبوم" : "Supprimer l’album"} title={locale === "ar" ? "حذف الألبوم" : "Supprimer l’album"}>
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </ConfirmDialog>
+                  </div>
                 )}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -96,7 +117,8 @@ export default async function GalleryListPage({
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         {albums.length === 0 && (
           <p className="col-span-full rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             {tCommon("noResults")}
