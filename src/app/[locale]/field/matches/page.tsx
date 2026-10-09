@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { CalendarDays, CalendarClock, Check, CheckCircle2, Clock3, ExternalLink, Flag, Globe2, Layers3, Pencil, Play, Radio, RotateCcw, Save, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, CalendarClock, CheckCircle2, Clock3, ExternalLink, Flag, Globe2, Layers3, Pencil, Play, Radio, RotateCcw, Save, Trash2, Trophy } from "lucide-react";
 import { db } from "@/lib/db";
 import { hasPermission, requirePagePermission } from "@/lib/permissions";
 import { getMutationScopeContext } from "@/lib/mutation-guards";
@@ -123,7 +123,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
             <div className="grid grid-cols-3 gap-1.5 sm:min-w-[260px] sm:gap-2">
               <div className="flex min-h-10 flex-col justify-center rounded-lg bg-muted/40 px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "المعروضة" : "Affichés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums">{matches.length}</p></div>
               <div className="flex min-h-10 flex-col justify-center rounded-lg bg-rose-500/[0.045] px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "مباشرة" : "En direct"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-rose-500">{matches.filter((match) => match.status === "LIVE").length}</p></div>
-              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-emerald-500/[0.045] px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "مزامنة الموقع" : "Sync site"}</p><p className="inline-flex items-center gap-1 text-[9px] font-bold leading-4 text-emerald-600 dark:text-emerald-400"><Check className="h-2.5 w-2.5" />{isAr ? "تلقائية" : "Active"}</p></div>
+              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-amber-500/[0.045] px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "المؤجلة" : "Reportés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-amber-600 dark:text-amber-400">{matches.filter((match) => match.status === "POSTPONED").length}</p></div>
             </div>
           </div>
         </div>
