@@ -297,8 +297,8 @@ export default async function TreasuryAccountDetailPage({
                     {tCommon("cancel")}
                   </Button>
                 </Link>
-                <Button type="submit" size="sm" className="bg-club-primary hover:bg-club-primary-hover text-white font-semibold">
-                  <ArrowDownLeft className="me-1.5 h-4 w-4" />
+                <Button type="submit" variant="outline" size="sm" className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 font-semibold dark:text-emerald-400">
+                  <ArrowDownLeft className="me-1.5 h-4 w-4 text-current" />
                   <span>{locale === "ar" ? "تأكيد تسجيل الإيداع" : t("deposit")}</span>
                 </Button>
               </div>
