@@ -101,14 +101,14 @@ export function PublicHeader({
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden min-w-0 flex-1 justify-center overflow-hidden md:flex md:items-center md:gap-0 lg:gap-1">
+        <nav className="hidden min-w-0 flex-1 justify-center overflow-hidden xl:flex xl:items-center xl:gap-0 2xl:gap-1">
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group/nav relative inline-flex min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-2xs lg:gap-1.5 lg:px-2 lg:text-sm after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 hover:after:scale-x-100 ${
+                className={`group/nav relative inline-flex min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-2xs 2xl:gap-1.5 2xl:px-2 2xl:text-sm after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 hover:after:scale-x-100 ${
                   active
                     ? "bg-club-primary/10 font-semibold text-club-primary shadow-2xs after:scale-x-100"
                     : "text-muted-foreground hover:bg-club-primary/5 hover:text-club-primary"
@@ -122,7 +122,7 @@ export function PublicHeader({
         </nav>
 
         {/* Right Actions: Theme Toggle & Language Switcher */}
-        <div className="hidden shrink-0 md:flex md:items-center md:gap-2">
+        <div className="hidden shrink-0 xl:flex xl:items-center xl:gap-2">
           {/* Theme Toggle */}
           <ThemeToggle locale={locale} />
 
@@ -140,7 +140,7 @@ export function PublicHeader({
         </div>
 
         {/* Mobile Hamburger Button */}
-        <div className="flex shrink-0 items-center gap-2 md:hidden">
+        <div className="flex shrink-0 items-center gap-2 xl:hidden">
           <Link
             href={switchLocalePath}
             replace
@@ -165,7 +165,7 @@ export function PublicHeader({
       {/* Mobile Drawer Menu */}
       <div
         aria-hidden={!mobileMenuOpen}
-        className={`overflow-hidden border-b border-border bg-card px-4 shadow-lg transition-[max-height,opacity,transform] duration-200 ease-out md:hidden ${
+        className={`overflow-hidden border-b border-border bg-card px-4 shadow-lg transition-[max-height,opacity,transform] duration-200 ease-out xl:hidden ${
           mobileMenuOpen
             ? "pointer-events-auto max-h-[80vh] translate-y-0 pt-2 pb-4 opacity-100"
             : "pointer-events-none max-h-0 -translate-y-1 py-0 opacity-0"
