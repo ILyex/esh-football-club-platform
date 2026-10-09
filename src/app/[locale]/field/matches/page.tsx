@@ -99,7 +99,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary"><Radio className="h-5 w-5" /></span>
               <div className="min-w-0"><p className="text-[10px] font-bold tracking-wide text-club-primary">{isAr ? "إدارة ميدانية" : "GESTION TERRAIN"}</p><h1 className="mt-0.5 text-lg font-black leading-tight">{isAr ? "المباريات" : "Matchs"}</h1><p className="mt-0.5 text-[10px] text-muted-foreground">{isAr ? "إدارة النتائج وأحداث المباريات مباشرة" : "Gérez les scores et événements en direct"}</p></div>
             </div>
-            <div className="flex w-full flex-nowrap items-center justify-end gap-1.5 sm:w-auto sm:flex-wrap sm:gap-2">
+            <div className="flex w-full flex-nowrap items-center justify-between gap-1.5 sm:w-auto sm:justify-start sm:flex-wrap sm:gap-2">
               <span title={isAr ? "متصل" : "En ligne"} aria-label={isAr ? "متصل" : "En ligne"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-bold"><CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "متصل" : "En ligne"}</span></span>
               <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} title={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-semibold"><ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "الموقع" : "Site"}</span></Link>
               <details className="group relative shrink-0 sm:hidden">
@@ -120,7 +120,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                   {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 min-w-8 items-center justify-center rounded-md px-2 text-[10px] font-bold transition ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
                 </div>
               </div>
-              <LogoutButton locale={locale} variant="icon" className="!h-8 !w-8 !shrink-0 !rounded-lg !p-0 sm:hidden" />
+              <LogoutButton locale={locale} variant="icon" className="!order-last !h-8 !w-8 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:hidden" />
             </div>
           </div>
           <div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
