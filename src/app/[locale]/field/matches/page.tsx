@@ -90,8 +90,8 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
 
   return <main className="min-h-screen bg-muted/30 px-3 py-4 text-foreground sm:px-6 sm:py-6" dir={isAr ? "rtl" : "ltr"}>
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <header className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-        <div className="h-1 bg-club-primary" />
+      <header className="relative rounded-2xl border border-border bg-card shadow-xs">
+        <div className="h-1 rounded-t-2xl bg-club-primary" />
         <div className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
@@ -99,11 +99,11 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               <div className="min-w-0"><p className="text-[10px] font-bold tracking-wide text-club-primary">{isAr ? "إدارة ميدانية" : "GESTION TERRAIN"}</p><h1 className="mt-0.5 text-lg font-black leading-tight">{isAr ? "المباريات" : "Matchs"}</h1><p className="mt-0.5 text-[10px] text-muted-foreground">{isAr ? "إدارة النتائج وأحداث المباريات مباشرة" : "Gérez les scores et événements en direct"}</p></div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />{isAr ? "متصل" : "En ligne"}</span>
-              <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[10px] font-semibold text-muted-foreground transition hover:border-club-primary hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" /><span>{isAr ? "الموقع" : "Site"}</span></Link>
-              <ThemeToggle locale={locale} />
-              <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-background p-1" aria-label={isAr ? "تغيير اللغة" : "Changer de langue"}>
-                <Globe2 className="mx-1 h-3.5 w-3.5 text-muted-foreground" />
+              <span title={isAr ? "متصل" : "En ligne"} aria-label={isAr ? "متصل" : "En ligne"} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-bold"><CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "متصل" : "En ligne"}</span></span>
+              <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} title={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-semibold"><ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "الموقع" : "Site"}</span></Link>
+              <ThemeToggle locale={locale} className="[&_button]:h-7 [&_button]:w-7 [&_button]:p-0 sm:[&_button]:h-8 sm:[&_button]:w-8" />
+              <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border bg-background p-0.5 sm:h-9 sm:gap-1 sm:p-1" aria-label={isAr ? "تغيير اللغة" : "Changer de langue"}>
+                <Globe2 className="mx-1 hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                 {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 min-w-8 items-center justify-center rounded-md px-2 text-[10px] font-bold transition ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
               </div>
             </div>
