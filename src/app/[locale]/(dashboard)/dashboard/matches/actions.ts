@@ -514,6 +514,9 @@ export async function deleteMatchEventAction(matchId: string, eventId: string) {
   await writeAuditLog({ userId: user.id, action: "match.event.delete", entityType: "MatchEvent", entityId: eventId });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/matches", "page");
+  revalidatePath("/[locale]", "page");
 }
 
 export async function addShootoutKickAction(matchId: string, formData: FormData) {
