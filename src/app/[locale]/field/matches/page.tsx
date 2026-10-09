@@ -109,8 +109,8 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                   {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-[9px] font-bold transition sm:min-w-8 sm:px-2 sm:text-[10px] ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
                 </div>
               </div>
-              <LogoutButton locale={locale} variant="icon" className="!order-last !h-8 !w-8 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:hidden" />
-              <LogoutButton locale={locale} variant="icon" className="hidden !h-9 !w-9 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:inline-flex" />
+              <LogoutButton locale={locale} variant="icon" className="!order-last !h-8 !w-8 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:!hidden" />
+              <LogoutButton locale={locale} variant="icon" className="!hidden !h-9 !w-9 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:!inline-flex" />
             </div>
           </div>
           <div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-2 sm:items-stretch">
