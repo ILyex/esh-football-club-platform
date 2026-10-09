@@ -12,8 +12,15 @@ export type LoginFormState = { error?: string } | undefined;
 export async function loginAction(_prevState: LoginFormState, formData: FormData): Promise<LoginFormState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const rawCallbackUrl = String(formData.get("callbackUrl") ?? "/dashboard");
-  const callbackUrl = sanitizeReturnTo(rawCallbackUrl, "/dashboard");
+  const localeValue = String(formData.get("locale") ?? "ar");
+  const locale = localeValue === "fr" ? "fr" : "ar";
+  const publicSiteOnly = process.env.PUBLIC_SITE_ONLY === "true" || process.env.PUBLIC_SITE_ONLY === "1";
+  const defaultDestination = publicSiteOnly ? `/${locale}/field/matches` : `/${locale}/dashboard`;
+  const rawCallbackUrl = String(formData.get("callbackUrl") ?? "").trim();
+  const callbackTargetsHiddenDashboard = publicSiteOnly && /^\/(?:(?:ar|fr)\/)?dashboard(?:\/|$)/.test(rawCallbackUrl);
+  const callbackUrl = callbackTargetsHiddenDashboard
+    ? defaultDestination
+    : sanitizeReturnTo(rawCallbackUrl, defaultDestination);
   const rememberMe = formData.get("rememberMe") === "on";
 
   const parsed = loginSchema.safeParse({ email, password });

@@ -22,7 +22,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const routeParams = useParams();
   const locale = (routeParams?.locale as string) || "ar";
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "";
   const [state, formAction, pending] = useActionState(loginAction, undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -161,6 +161,7 @@ export default function LoginPage() {
               className="space-y-4"
             >
               <input type="hidden" name="callbackUrl" value={callbackUrl} />
+              <input type="hidden" name="locale" value={locale} />
 
               {/* Email Address Input */}
               <div className="space-y-1.5">
