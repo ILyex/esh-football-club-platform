@@ -194,12 +194,13 @@ export function OfficialVoucherModal({
                   referenceNumber={referenceNumber}
                   date={date}
                   locale={locale}
+                  authorityFontSize={18}
                   className="mb-3"
                 />
 
                 {/* Official Statement Body */}
-                <div className="space-y-4 text-[16px] sm:text-[17px] leading-relaxed text-black my-4">
-                  <p className="text-[16px] sm:text-[17px]">
+                <div className="space-y-4 text-[18px] leading-relaxed text-black my-4">
+                  <p className="text-[18px]">
                     {locale === "ar" ? (
                       <>
                         تشهد <strong>الجمعية الرياضية أمل سيدي حسني لكرة القدم</strong> ممثلةً في أمانة الخزينة، بأن المعني بالعملية:{" "}
@@ -223,12 +224,12 @@ export function OfficialVoucherModal({
 
                   <div className="py-2 px-1 space-y-2 text-black">
                     <div className="grid grid-cols-3 gap-3 items-center py-0.5">
-                      <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                      <span className="font-bold text-black text-[18px]">
                         {locale === "ar"
                           ? "المعني بالعملية:"
                           : "Bénéficiaire / Concerné :"}
                       </span>
-                      <span className="col-span-2 font-bold text-black text-[16px] sm:text-[17px]">
+                      <span className="col-span-2 font-bold text-black text-[18px]">
                         {beneficiaryOrSource || (isExpense ? (locale === "ar" ? "مصاريف تشغيلية عامة" : "Dépenses opérationnelles") : (locale === "ar" ? "إدارة النادي / الحساب العام" : "Administration du club / Compte général"))}
                         {nationalIdNumber && (
                           <span className="block text-xs font-mono font-normal text-zinc-700 mt-0.5">
@@ -239,7 +240,7 @@ export function OfficialVoucherModal({
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 items-center py-0.5">
-                      <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                      <span className="font-bold text-black text-[18px]">
                         {locale === "ar" ? "المبلغ بالأرقام:" : "Montant en chiffres :"}
                       </span>
                       <div className="col-span-2 flex items-baseline gap-2">
@@ -249,38 +250,38 @@ export function OfficialVoucherModal({
                         >
                           {amount.toLocaleString(locale === "ar" ? "ar-DZ" : "fr-DZ")}
                         </span>
-                        <span className="font-bold text-[15px] sm:text-[16px] text-black">
+                        <span className="font-bold text-[18px] text-black">
                           {locale === "ar" ? "دينار جزائري" : "Dinars Algériens"}
                         </span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 items-center py-0.5">
-                      <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                      <span className="font-bold text-black text-[18px]">
                         {locale === "ar" ? "المبلغ بالحروف:" : "Montant en lettres :"}
                       </span>
-                      <span className="col-span-2 font-bold text-black text-[16px] sm:text-[17px]">
+                      <span className="col-span-2 font-bold text-black text-[18px]">
                         {amountInWords}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 items-start py-0.5">
-                      <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                      <span className="font-bold text-black text-[18px]">
                         {locale === "ar"
                           ? isExpense ? "طبيعة النفقة / البيان:" : "الغرض / التبرير:"
                           : isExpense ? "Nature de la dépense / Objet :" : "Motif / Justification :"}
                       </span>
-                      <span className="col-span-2 text-black text-[15px] sm:text-[16px] leading-relaxed">
+                      <span className="col-span-2 text-black text-[18px] leading-relaxed">
                         {purpose || (isExpense ? (locale === "ar" ? "مصاريف تسيير الفريق والنشاط الرياضي" : "Frais de gestion et activités sportives") : isDeposit ? (locale === "ar" ? "إعانة / تمويل مالي للنادي" : "Subvention / Financement du club") : (locale === "ar" ? "مصاريف تسيير الفريق والنشاط الرياضي" : "Frais de gestion et activités sportives"))}
                       </span>
                     </div>
 
                     {accountName && (
                       <div className="grid grid-cols-3 gap-3 items-center py-0.5">
-                        <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                        <span className="font-bold text-black text-[18px]">
                           {locale === "ar" ? "الحساب المالي:" : "Compte financier :"}
                         </span>
-                        <span className="col-span-2 font-medium text-black text-[15px] sm:text-[16px]">
+                        <span className="col-span-2 font-medium text-black text-[18px]">
                           {accountName} ({locale === "ar" ? "حساب النادي المركزي" : "Compte central du club"})
                         </span>
                       </div>
@@ -300,7 +301,7 @@ export function OfficialVoucherModal({
                   style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
                 >
                   <div className="min-w-[220px]">
-                    <p className="text-[15px] sm:text-[16px] font-bold text-black">
+                    <p className="text-[18px] font-bold text-black">
                       {locale === "ar" ? "أمين الخزينة" : "Le Trésorier Général"}
                     </p>
                     <div className="h-20" />

@@ -154,8 +154,8 @@ export const PERMISSION_METAS: Record<string, PermissionMeta> = {
   "matches.update": {
     key: "matches.update",
     category: "sporting",
-    labelAr: "تعديل بيانات المباراة",
-    labelFr: "Modifier un match",
+    labelAr: "إدارة المباراة",
+    labelFr: "Gérer un match",
     descAr: "تحديث التوقيت، النتيجة أو تفاصيل المقابلة",
     descFr: "Mettre à jour le score et les détails du match"
   },
@@ -334,16 +334,16 @@ export const PERMISSION_METAS: Record<string, PermissionMeta> = {
   "correspondence.view": {
     key: "correspondence.view",
     category: "governance",
-    labelAr: "معاينة المراسلات الإدارية",
-    labelFr: "Consulter le courrier",
+    labelAr: "معاينة المراسلات والطعون",
+    labelFr: "Consulter les correspondances et recours",
     descAr: "سجل الصادر والوارد الرسمي مع الرابطة والاتحاد والبلدية",
     descFr: "Courriers officiels départs et arrivées"
   },
   "correspondence.manage": {
     key: "correspondence.manage",
     category: "governance",
-    labelAr: "إدارة المراسلات الرسمية",
-    labelFr: "Gérer le courrier",
+    labelAr: "إدارة المراسلات والطعون",
+    labelFr: "Gérer les correspondances et recours",
     descAr: "تسجيل وأرشفة وتوجيه المراسلات الإدارية الصادرة والواردة",
     descFr: "Enregistrer et archiver les courriers officiels"
   },

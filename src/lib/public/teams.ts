@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { TeamCategory, PlayerPosition } from "@prisma/client";
 import { ROSTER_PLAYER_STATUSES } from "@/lib/teams/roster";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 // ============================================================================
 // PUBLIC TEAMS & ROSTERS DATA ACCESS
@@ -75,6 +76,7 @@ export interface PublicPlayerProfile {
   position: PlayerPosition;
   nationality: string;
   dateOfBirth: Date;
+  joiningDate: Date | null;
   age: number;
   height: number | null;
   preferredFoot: string | null;
@@ -89,6 +91,7 @@ export interface PublicPlayerProfile {
   stats: {
     appearances: number;
     goals: number;
+    cleanSheets: number;
   };
 }
 
@@ -199,7 +202,7 @@ export async function getPublicTeamByCategory(category: TeamCategory): Promise<P
     shirtNumber: p.shirtNumber,
     position: p.position,
     nationality: p.nationality,
-    photoUrl: p.photoUrl,
+    photoUrl: normalizePublicMediaUrl(p.photoUrl),
     dateOfBirth: p.dateOfBirth,
     age: calculateAge(p.dateOfBirth),
     teamCategory: team.category
@@ -218,7 +221,7 @@ export async function getPublicTeamByCategory(category: TeamCategory): Promise<P
       firstName: s.firstName,
       lastName: s.lastName,
       role: s.role,
-      photoUrl: s.photoUrl,
+      photoUrl: normalizePublicMediaUrl(s.photoUrl),
       biography: s.biography
     })),
     playersByPosition: {
@@ -233,10 +236,26 @@ export async function getPublicTeamByCategory(category: TeamCategory): Promise<P
 
 /** Fetches a public player profile by slug with localized biography and official match statistics. */
 export async function getPublicPlayerBySlug(slug: string, locale: string): Promise<PublicPlayerProfile | null> {
+  // Slugs can contain Arabic characters. Browsers and the Next router may
+  // hand us either the decoded value or the percent encoded value, and
+  // Unicode can arrive in a different (but visually identical) form. Keep
+  // the lookup tolerant so a valid player link never falls through to 404.
+  let normalizedSlug = slug;
+  try {
+    normalizedSlug = decodeURIComponent(slug);
+  } catch {
+    // The value is already decoded (or contains a malformed escape); use it
+    // as-is and let the second lookup below handle the original value.
+  }
+  normalizedSlug = normalizedSlug.normalize("NFKC").trim();
+
   const player = await db.player.findFirst({
     where: {
-      slug,
-      status: { not: "ARCHIVED" }
+      OR: [
+        { slug: normalizedSlug },
+        { slug }
+      ],
+      status: "ACTIVE"
     },
     select: {
       id: true,
@@ -249,6 +268,7 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
       position: true,
       nationality: true,
       dateOfBirth: true,
+      joiningDate: true,
       height: true,
       preferredFoot: true,
       photoUrl: true,
@@ -267,9 +287,20 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
       },
       _count: {
         select: {
-          matchLineups: true,
           matchEvents: {
-            where: { type: "GOAL" }
+            where: { type: { in: ["GOAL", "PENALTY_GOAL"] } }
+          }
+        }
+      },
+      matchLineups: {
+        select: {
+          match: {
+            select: {
+              homeScore: true,
+              awayScore: true,
+              isHomeFixture: true,
+              status: true
+            }
           }
         }
       }
@@ -280,6 +311,13 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
 
   // Use localized biography if available, otherwise fallback to main biography
   const biography = player.translations[0]?.biography || player.biography;
+
+  const cleanSheets = player.position === "GOALKEEPER"
+    ? player.matchLineups.filter(({ match }) =>
+        match.status === "FINISHED" &&
+        (match.isHomeFixture ? match.awayScore === 0 : match.homeScore === 0)
+      ).length
+    : 0;
 
   return {
     id: player.id,
@@ -292,10 +330,11 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
     position: player.position,
     nationality: player.nationality,
     dateOfBirth: player.dateOfBirth,
+    joiningDate: player.joiningDate,
     age: calculateAge(player.dateOfBirth),
     height: player.height,
     preferredFoot: player.preferredFoot,
-    photoUrl: player.photoUrl,
+    photoUrl: normalizePublicMediaUrl(player.photoUrl),
     biography,
     status: player.status,
     team: player.team
@@ -306,8 +345,9 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
         }
       : null,
     stats: {
-      appearances: player._count.matchLineups,
-      goals: player._count.matchEvents
+      appearances: player.matchLineups.length,
+      goals: player._count.matchEvents,
+      cleanSheets
     }
   };
 }

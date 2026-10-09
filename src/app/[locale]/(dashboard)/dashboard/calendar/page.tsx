@@ -15,9 +15,9 @@ import {
   Users,
   Clock,
   MapPin,
-  ArrowRight,
-  CheckCircle2
+  ArrowRight
 } from "lucide-react";
+import { getMatchDisplayNames } from "@/lib/matches/team-names";
 
 function monthRange(month: string) {
   const [yStr, mStr] = month.split("-");
@@ -27,13 +27,6 @@ function monthRange(month: string) {
   const end = new Date(Date.UTC(y, m, 1));
   return { start, end };
 }
-
-const TYPE_ICONS: Record<string, any> = {
-  MATCH: Trophy,
-  TRAINING: Dumbbell,
-  MEETING: Users,
-  OTHER: CalendarIcon
-};
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   MATCH: {
@@ -56,6 +49,13 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
     text: "text-zinc-600 dark:text-zinc-400",
     border: "border-zinc-500/25"
   }
+};
+
+const TYPE_ICONS: Record<string, any> = {
+  MATCH: Trophy,
+  TRAINING: Dumbbell,
+  MEETING: Users,
+  OTHER: CalendarIcon
 };
 
 export default async function CalendarPage({
@@ -92,7 +92,8 @@ export default async function CalendarPage({
         ...(effectiveTeamId ? { OR: [{ teamId: effectiveTeamId }, { teamId: null }] } : {})
       },
       include: {
-        team: true
+        team: true,
+        relatedMatch: { select: { homeTeamName: true, awayTeamName: true, isHomeFixture: true } }
       },
       orderBy: { startDateTime: "asc" }
     }),
@@ -287,7 +288,7 @@ export default async function CalendarPage({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2.5">
                 {dayEvents.map((e) => {
                   const Icon = TYPE_ICONS[e.type] || CalendarIcon;
                   const colors = TYPE_COLORS[e.type] ?? {
@@ -295,57 +296,39 @@ export default async function CalendarPage({
                     text: "text-zinc-600 dark:text-zinc-400",
                     border: "border-zinc-500/25"
                   };
-                  const isAutoSynced = Boolean(e.relatedMatchId || e.relatedTrainingId);
                   const href = e.relatedMatchId
                     ? `/${locale}/dashboard/matches/${e.relatedMatchId}`
                     : e.relatedTrainingId
                       ? `/${locale}/dashboard/training/${e.relatedTrainingId}`
                       : `/${locale}/dashboard/calendar/${e.id}`;
+                  const matchNames = e.relatedMatch ? getMatchDisplayNames(e.relatedMatch, locale) : null;
+                  const displayTitle = matchNames
+                    ? `${matchNames.homeTeamName} ${isAr ? "ضد" : "vs"} ${matchNames.awayTeamName}`
+                    : e.title;
 
                   return (
-                    <div
+                    <Link
                       key={e.id}
-                      className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all hover:shadow-xs ${colors.border} ${colors.bg}`}
+                      href={href}
+                      className={`group flex items-center gap-3 rounded-xl border p-3.5 transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:gap-4 ${colors.border} ${colors.bg}`}
                     >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-extrabold ${colors.text}`}>
-                            <Icon className="h-3.5 w-3.5" />
-                            <span>{t(`types.${e.type}` as any)}</span>
-                          </span>
-
-                          <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {new Intl.DateTimeFormat(locale, {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                timeZone: "UTC"
-                              }).format(e.startDateTime)}
-                            </span>
-                          </span>
-                        </div>
-
-                        <Link
-                          href={href}
-                          className="block text-sm font-bold text-foreground hover:text-primary transition-colors hover:underline"
-                        >
-                          {e.title}
-                        </Link>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>
-                          {e.team ? tTeams(`categories.${e.team.category}` as any) : (isAr ? "لكل النادي" : "Général")}
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${colors.border} ${colors.bg} ${colors.text}`}>
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className={`text-[10px] font-bold ${colors.text}`}>{t(`types.${e.type}` as any)}</span>
+                          <span className="text-[10px] text-muted-foreground">{e.team ? tTeams(`categories.${e.team.category}` as any) : (isAr ? "لكل النادي" : "Général")}</span>
                         </span>
-                        {isAutoSynced && (
-                          <span className="text-[10px] text-muted-foreground/80 inline-flex items-center gap-1">
-                            <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
-                            <span>{isAr ? "مربوط تلقائياً" : "Synchronisé"}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                        <span className="block truncate text-sm font-bold text-foreground transition-colors group-hover:text-primary">{displayTitle}</span>
+                        {e.location && <span className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="h-3 w-3" />{e.location}</span>}
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 font-mono text-xs font-bold text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        {new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(e.startDateTime)}
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:-translate-x-0.5 rtl:rotate-180" aria-hidden="true" />
+                    </Link>
                   );
                 })}
               </div>

@@ -17,6 +17,7 @@ import { ExpenseFormFields } from "@/components/finance/expense-form-fields";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 import { DateInput } from "@/components/ui/date-input";
 import { Save,  FileText, FileCheck, Download, Upload } from "lucide-react";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = { DRAFT: "warning", POSTED: "success", CANCELLED: "neutral" };
 const inputClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -214,11 +215,11 @@ export default async function ExpenseDetailPage({
               {expense.relatedMatch ? (
                 hasPermission(user, "matches.view") ? (
                   <Link href={`/${locale}/dashboard/matches/${expense.relatedMatch.id}`} className="text-club-primary underline">
-                    {expense.relatedMatch.homeTeamName} – {expense.relatedMatch.awayTeamName}
+                    {localizedClubName(expense.relatedMatch.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – {localizedClubName(expense.relatedMatch.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")}
                   </Link>
                 ) : (
                   <span>
-                    {expense.relatedMatch.homeTeamName} – {expense.relatedMatch.awayTeamName}
+                    {localizedClubName(expense.relatedMatch.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – {localizedClubName(expense.relatedMatch.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")}
                   </span>
                 )
               ) : (

@@ -8,23 +8,32 @@ import { createMatchAction } from "../actions";
 import { redirect } from "next/navigation";
 import { getAllOpponentsList } from "@/lib/opponents";
 import { MatchFormClient } from "@/components/matches/match-form-client";
+import { localizedClubName } from "@/lib/public/locale-text";
+import { getMatchFormError } from "@/lib/matches/form-error";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   await requirePagePermission("matches.create", locale);
   const t = await getTranslations("matches");
+  const tTeams = await getTranslations("teams");
 
-  const [competitions, teams, currentTeamId, savedOpponents, clubSettings] = await Promise.all([
+  const [competitions, teams, currentTeamId, savedOpponents, players] = await Promise.all([
     db.competition.findMany({ orderBy: { name: "asc" } }),
     db.team.findMany({ where: { active: true }, orderBy: { category: "asc" } }),
     getCurrentTeamId(),
     getAllOpponentsList(),
-    db.clubSettings.findUnique({ where: { id: "singleton" } })
+    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
   ]);
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await createMatchAction(formData);
+    let result: { id: string };
+    try {
+      result = await createMatchAction(formData);
+    } catch (error) {
+      return getMatchFormError(error, locale);
+    }
+    const { id } = result;
     redirect(`/${locale}/dashboard/matches/${id}`);
   }
 
@@ -68,15 +77,14 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
         <MatchFormClient
           locale={locale}
           competitions={competitions.map((c) => ({ id: c.id, name: c.name, teamId: c.teamId }))}
-          teams={teams.map((tm) => ({ id: tm.id, name: tm.name, category: tm.category }))}
+          teams={teams.map((tm) => ({ id: tm.id, name: localizedClubName(tm.name, locale, tTeams(`categories.${tm.category}` as any)), category: tm.category }))}
+          players={players.map((player) => ({ id: player.id, firstName: player.firstName, lastName: player.lastName, position: player.position, status: player.status, teamId: player.teamId }))}
           savedOpponents={savedOpponents}
           defaultTeamId={currentTeamId}
           clubName={
             locale === "ar"
-              ? (clubSettings?.name && /[\u0600-\u06FF]/.test(clubSettings.name)
-                  ? clubSettings.name
-                  : "أمل سيدي حسني")
-              : "Association Sportive Espoir Sidi Hosni de Football"
+              ? "نادي أمل سيدي حسني"
+              : "Club Espoir Sidi Hosni"
           }
           action={action}
         />

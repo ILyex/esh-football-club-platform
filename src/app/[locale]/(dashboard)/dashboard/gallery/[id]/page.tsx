@@ -6,13 +6,18 @@ import { updateAlbumAction, uploadMediaAction, deleteMediaAction, setAlbumCoverA
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
+import { FormSelect } from "@/components/ui/form-select";
+import { SafeImage } from "@/components/shared/safe-image";
+import { NoticeToast } from "@/components/shared/notice-toast";
+import { GalleryActionForm } from "@/components/gallery/gallery-action-form";
 import { Save, Trash2, Star, Play, Video } from "lucide-react";
 import { isVideoUrl } from "@/lib/media-utils";
 
 const CATEGORIES = ["MATCHES", "TRAINING", "TEAM", "EVENTS", "CLUB"] as const;
 
-export default async function AlbumDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function AlbumDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ notice?: string }> }) {
   const { locale, id } = await params;
+  const sp = await searchParams;
   const isAr = locale === "ar";
   const user = await requirePagePermission("gallery.view", locale);
   const t = await getTranslations("gallery");
@@ -25,14 +30,19 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ lo
     db.team.findMany({ orderBy: { category: "asc" } })
   ]);
   if (!album) notFound();
+  const categoryOptions = CATEGORIES.map((category) => ({ value: category, label: t(`categories.${category}` as any) }));
+  const teamOptions = [
+    { value: "", label: isAr ? "بدون فريق" : "Sans équipe" },
+    ...teams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))
+  ];
 
   async function update(formData: FormData) {
     "use server";
-    await updateAlbumAction(id, formData);
+    return updateAlbumAction(id, formData);
   }
   async function upload(formData: FormData) {
     "use server";
-    await uploadMediaAction(id, formData);
+    return uploadMediaAction(id, formData);
   }
   async function removeAlbum() {
     "use server";
@@ -41,51 +51,45 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ lo
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <NoticeToast notice={sp.notice} />
       {/* ── Album Metadata Form ──────────────────────────────────── */}
-      <form action={update} className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
-        <div className="col-span-2 flex items-center justify-between pb-2 border-b border-border">
-          <h1 className="text-xl font-bold text-foreground">{album.name}</h1>
+      <GalleryActionForm action={update} successMessage={isAr ? "تم حفظ الألبوم بنجاح" : "Album enregistré avec succès"} errorMessage={isAr ? "تعذر حفظ الألبوم" : "Impossible d’enregistrer l’album"} className="grid grid-cols-1 gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        <div className="sm:col-span-2 flex items-center justify-between border-b border-border/70 pb-4">
+          <h1 className="text-xl font-black tracking-tight text-foreground">{album.name}</h1>
           <span className="text-xs text-muted-foreground">
             {album.media.length} {isAr ? "صور في الألبوم" : "photos"}
           </span>
         </div>
 
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.albumTitle")}</label>
-          <input name="name" defaultValue={album.name} disabled={!canManage} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60" />
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.albumTitle")}</label>
+          <input name="name" defaultValue={album.name} disabled={!canManage} className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground shadow-2xs outline-none transition-colors focus:border-club-primary focus:ring-2 focus:ring-club-primary/20 disabled:opacity-60" />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-          <select name="category" defaultValue={album.category} disabled={!canManage} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60">
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(`categories.${c}` as any)}
-              </option>
-            ))}
-          </select>
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.category")}</label>
+          <FormSelect name="category" defaultValue={album.category} disabled={!canManage} locale={locale} options={categoryOptions} ariaLabel={t("fields.category")} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.team")}</label>
-          <select name="teamId" defaultValue={album.teamId ?? ""} disabled={!canManage} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60">
-            <option value="">—</option>
-            {teams.map((tm) => (
-              <option key={tm.id} value={tm.id}>
-                {tTeams(`categories.${tm.category}` as any)}
-              </option>
-            ))}
-          </select>
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.team")}</label>
+          <FormSelect name="teamId" defaultValue={album.teamId ?? ""} disabled={!canManage} locale={locale} options={teamOptions} ariaLabel={t("fields.team")} />
         </div>
-        <label className="col-span-2 flex items-center gap-2 text-sm">
-          <input name="published" type="checkbox" defaultChecked={album.published} disabled={!canManage} /> {t("fields.published")}
+        <label className="group col-span-2 inline-flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3.5 text-xs font-semibold text-foreground">
+          <input type="hidden" name="published" value="false" disabled={!canManage} />
+          <span className="group-has-[:checked]:hidden">{isAr ? "غير منشور" : "Non publié"}</span>
+          <span className="hidden group-has-[:checked]:inline">{isAr ? "منشور" : "Publié"}</span>
+          <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-muted transition-colors has-[:checked]:bg-club-primary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
+            <input name="published" type="checkbox" defaultChecked={album.published} disabled={!canManage} className="peer sr-only" />
+            <span className="pointer-events-none absolute start-1 h-4 w-4 rounded-full bg-white shadow-sm transition-[inset-inline-start] peer-checked:start-6" />
+          </span>
         </label>
 
         {/* Action Buttons: Save (Green) and Delete (Red) side-by-side */}
-        <div className="col-span-2 pt-4 border-t border-border flex flex-wrap items-center gap-3">
+        <div className="sm:col-span-2 flex flex-wrap items-center gap-3 border-t border-border/70 pt-5">
           {canManage && (
             <Button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-club-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-club-primary-hover"
             >
               <Save className="h-4 w-4" />
               <span>{tCommon("save")}</span>
@@ -109,12 +113,15 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ lo
             </ConfirmDialog>
           )}
         </div>
-      </form>
+      </GalleryActionForm>
 
       {/* ── Multi-Image Uploader Form ────────────────────────────── */}
       {canManage && (
-        <form action={upload} encType="multipart/form-data" className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
-          <h2 className="text-base font-bold text-foreground">{t("addImage")}</h2>
+        <GalleryActionForm action={upload} successMessage={isAr ? "تم حفظ الوسائط بنجاح" : "Médias enregistrés avec succès"} errorMessage={isAr ? "تعذر حفظ الوسائط" : "Impossible d’enregistrer les médias"} encType="multipart/form-data" className="space-y-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+          <div>
+            <h2 className="text-base font-black text-foreground">{t("addImage")}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{isAr ? "أضف صورًا أو فيديوهات جديدة إلى هذا الألبوم ثم احفظها." : "Ajoutez de nouveaux médias à cet album puis enregistrez-les."}</p>
+          </div>
 
           <MultiImageUploader
             name="images"
@@ -123,21 +130,21 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ lo
             description={isAr ? "اختر أو اسحب عدة صور معاً، وستظهر لك للمعاينة والترتيب قبل رفعها للألبوم" : "Glissez-déposez ou sélectionnez plusieurs photos"}
           />
 
-          <div className="pt-2 flex items-center justify-between">
+          <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <input
               name="caption"
               placeholder={t("fields.caption") || (isAr ? "تعليق أو وصف اختياري للصور..." : "Légende optionnelle...")}
-              className="w-full max-w-sm rounded-md border border-border bg-background px-3 py-2 text-sm"
+              className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground shadow-2xs outline-none transition-colors placeholder:text-muted-foreground focus:border-club-primary focus:ring-2 focus:ring-club-primary/20 sm:max-w-sm"
             />
             <Button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg shadow-xs"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-club-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-club-primary-hover"
             >
               <Save className="h-4 w-4" />
               <span>{isAr ? "رفع وحفظ الصور المحددة" : "Téléverser les photos"}</span>
             </Button>
           </div>
-        </form>
+        </GalleryActionForm>
       )}
 
       {/* ── Album Media Gallery (Existing Images) ────────────────── */}
@@ -175,13 +182,10 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ lo
                       </span>
                     </>
                   ) : (
-                    // eslint-disable-next-line @next/next/no-img-element -- external CDN URL
-                    <img
+                    <SafeImage
                       src={m.url}
                       alt={m.caption ?? ""}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/branding/esh-logo-256.png";
-                      }}
+                      fallbackSrc="/branding/esh-logo-256.png"
                       className="h-full w-full object-cover"
                     />
                   )}

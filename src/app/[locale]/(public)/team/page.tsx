@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Users, ArrowRight, ArrowLeft } from "lucide-react";
 import { getPublicTeams } from "@/lib/public/teams";
-import { frenchPublicText } from "@/lib/public/locale-text";
+import { frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function TeamsOverviewPage({
   params
@@ -29,24 +30,15 @@ export default async function TeamsOverviewPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      {/* Header */}
-      <div className="border-b border-border/80 pb-8">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-          <Users className="h-4 w-4" />
-          {tPublic("teams.title")}
-        </span>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {tPublic("teams.title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
-          {tPublic("teams.subtitle")}
-        </p>
-      </div>
+      <PublicPageHeading locale={locale} icon={<Users />} eyebrow={tPublic("teams.title")} title={tPublic("teams.title")} description={tPublic("teams.subtitle")} />
 
       {/* Team Cards Grid */}
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {teams.map((team) => {
           const catImg = categoryImages[team.category.toLowerCase()];
+          const categoryLabel = tTeams(`categories.${team.category}` as any) || team.category;
+          const teamDisplayName = localizedClubName(team.name, locale, categoryLabel);
+          const showTeamName = teamDisplayName.trim() !== categoryLabel.trim();
           return (
             <Link
               key={team.id}
@@ -58,7 +50,7 @@ export default async function TeamsOverviewPage({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={catImg}
-                    alt={team.name}
+                    alt={localizedClubName(team.name, locale, tTeams(`categories.${team.category}` as any))}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
@@ -67,16 +59,18 @@ export default async function TeamsOverviewPage({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="rounded-md bg-club-primary/10 px-2.5 py-1 text-xs font-bold text-club-primary">
-                      {tTeams(`categories.${team.category}` as any) || team.category}
+                      {categoryLabel}
                     </span>
                     <span className="text-xs font-medium text-muted-foreground">
                       {team.playerCount} {locale === "ar" ? "لاعب" : "joueurs"}
                     </span>
                   </div>
 
-                  <h2 className="mt-4 text-xl font-bold text-foreground transition-colors group-hover:text-club-primary">
-                    {locale === "ar" ? team.name : frenchPublicText(team.name, tTeams(`categories.${team.category}` as any))}
-                  </h2>
+                  {showTeamName && (
+                    <h2 className="mt-4 text-xl font-bold text-foreground transition-colors group-hover:text-club-primary">
+                      {teamDisplayName}
+                    </h2>
+                  )}
 
               {(locale === "ar" ? team.description : frenchPublicText(team.description, "")) && (
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">

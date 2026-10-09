@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 export interface OpponentClub {
   name: string;
@@ -64,7 +65,25 @@ export async function getOpponentLogo(name: string): Promise<string | null> {
   if (!normalizedName) return null;
   await importLegacyOpponentCache();
   const opponent = await db.opponentClub.findUnique({ where: { normalizedName }, select: { logoUrl: true } });
-  return opponent?.logoUrl ?? null;
+  if (opponent?.logoUrl) return normalizePublicMediaUrl(opponent.logoUrl);
+
+  // Existing fixtures may store only the Arabic name while the opponent
+  // library keys a bilingual name (or its French alias). Match either half.
+  const nameVariants = new Set([normalizedName]);
+  for (const part of name.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) {
+    const normalizedPart = normalizeOpponentName(part);
+    if (normalizedPart) nameVariants.add(normalizedPart);
+  }
+  const opponents = await db.opponentClub.findMany({ select: { name: true, logoUrl: true } });
+  const matchedOpponent = opponents.find((candidate) => {
+    const candidateVariants = new Set([normalizeOpponentName(candidate.name)]);
+    for (const part of candidate.name.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) {
+      const normalizedPart = normalizeOpponentName(part);
+      if (normalizedPart) candidateVariants.add(normalizedPart);
+    }
+    return [...nameVariants].some((variant) => candidateVariants.has(variant));
+  });
+  return normalizePublicMediaUrl(matchedOpponent?.logoUrl);
 }
 
 /** Compatibility map used by public match and competition logo resolvers. */
@@ -73,7 +92,7 @@ export async function getOpponentsMap(): Promise<Record<string, OpponentClub>> {
   const opponents = await db.opponentClub.findMany();
   return Object.fromEntries(opponents.map((opponent) => [opponent.normalizedName, {
     name: opponent.name,
-    logoUrl: opponent.logoUrl,
+    logoUrl: normalizePublicMediaUrl(opponent.logoUrl) ?? opponent.logoUrl,
     stadium: opponent.stadium ?? undefined,
     updatedAt: opponent.updatedAt.toISOString()
   }]));
@@ -108,7 +127,7 @@ export async function getAllOpponentsList(): Promise<OpponentClub[]> {
   const opponents = await db.opponentClub.findMany({ orderBy: { name: "asc" } });
   return opponents.map((opponent) => ({
     name: opponent.name,
-    logoUrl: opponent.logoUrl,
+    logoUrl: normalizePublicMediaUrl(opponent.logoUrl) ?? opponent.logoUrl,
     stadium: opponent.stadium ?? undefined,
     updatedAt: opponent.updatedAt.toISOString()
   }));

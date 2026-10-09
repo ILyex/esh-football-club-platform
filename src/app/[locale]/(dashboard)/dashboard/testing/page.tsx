@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteTestSessionAction } from "./actions";
 import { localizeTestProtocol } from "@/lib/testing/localize-protocol";
+import { compactTestSessionTitle } from "@/lib/testing/session-title";
+import { ensureDefaultTestDefinitions } from "@/lib/testing/seed-definitions";
 import {
   Timer,
   Plus,
@@ -47,6 +49,11 @@ export default async function TestingPage({
     hasPermission(user, "testing.manage") ||
     hasPermission(user, "training.manage") ||
     hasPermission(user, "*");
+
+  const protocolCount = await db.testDefinition.count();
+  if (protocolCount === 0) {
+    await ensureDefaultTestDefinitions(db);
+  }
 
   const [t, tTeams, teamCtx] = await Promise.all([
     getTranslations("testing"),
@@ -223,7 +230,7 @@ export default async function TestingPage({
 
         {canManage && (
           <Link href={`/${locale}/dashboard/testing/new`}>
-            <Button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs text-xs sm:text-sm h-10 px-4">
+            <Button className="flex items-center gap-2 bg-club-primary hover:bg-club-primary-hover text-white font-bold shadow-xs text-xs sm:text-sm h-10 px-4">
               <Plus className="h-4 w-4" />
               <span>{t("actions.newSession")}</span>
             </Button>
@@ -353,7 +360,7 @@ export default async function TestingPage({
               {canManage && (
                 <div className="mt-4">
                   <Link href={`/${locale}/dashboard/testing/new`}>
-                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                    <Button size="sm" className="bg-club-primary hover:bg-club-primary-hover text-white font-semibold">
                       <Plus className="h-4 w-4 me-1.5" />
                       <span>{locale === "ar" ? "إنشاء أول جلسة اختبار" : t("actions.newSession")}</span>
                     </Button>
@@ -383,7 +390,7 @@ export default async function TestingPage({
                           href={`/${locale}/dashboard/testing/${sess.id}`}
                           className="hover:text-emerald-600 font-bold transition-colors flex items-center gap-1.5"
                         >
-                          <span>{sess.title}</span>
+                          <span>{compactTestSessionTitle(sess.title, sess.team.name || tTeams(`categories.${sess.team.category}` as any), sess.testDefinition.code)}</span>
                           <Arrow className="h-3.5 w-3.5 opacity-60" />
                         </Link>
                         {sess.location && (
@@ -391,8 +398,7 @@ export default async function TestingPage({
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-xs">
-                        <span className="font-semibold text-foreground">{localizeTestProtocol(t, sess.testDefinition.code, "name", sess.testDefinition.name)}</span>
-                        <span className="block font-mono text-[10px] text-muted-foreground">
+                        <span className="inline-flex rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-[11px] font-semibold text-muted-foreground">
                           {sess.testDefinition.code}
                         </span>
                       </td>

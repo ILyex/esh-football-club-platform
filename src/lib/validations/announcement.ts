@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formBoolean } from "@/lib/validations/form-values";
 
 export const announcementSchema = z
   .object({
@@ -10,7 +11,7 @@ export const announcementSchema = z
     teamId: z.string().optional().or(z.literal("")), // empty = club-wide (spec section 28)
     startDate: z.coerce.date(),
     endDate: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.date().optional()),
-    homepageVisibility: z.coerce.boolean().default(true),
+    homepageVisibility: formBoolean(true),
     status: z.enum(["DRAFT", "PUBLISHED", "SCHEDULED", "ARCHIVED"]).default("DRAFT")
   })
   .refine((d) => !d.endDate || d.endDate > d.startDate, { message: "endBeforeStart", path: ["endDate"] });

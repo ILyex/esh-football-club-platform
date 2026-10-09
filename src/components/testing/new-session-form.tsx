@@ -20,6 +20,7 @@ import {
   Loader2
 } from "lucide-react";
 import { createTestSessionAction } from "@/app/[locale]/(dashboard)/dashboard/testing/actions";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 interface TeamItem {
   id: string;
@@ -64,13 +65,16 @@ export function NewSessionForm({
 
   const getCleanProtocolName = (proto?: ProtocolItem) => {
     if (!proto) return isAr ? "اللياقة البدنية" : "Physique";
-    if (proto.code.startsWith("YOYO")) return isAr ? "اختبار يويو" : "Test Yo-Yo";
+    if (proto.code.startsWith("YOYO")) return isAr ? `يويو ${proto.code === "YOYO_IR2" ? "IR2" : "IR1"}` : `Yo-Yo ${proto.code === "YOYO_IR2" ? "IR2" : "IR1"}`;
     return proto.name;
   };
 
-  const defaultTitle = isAr
-    ? `اختبار ${getCleanProtocolName(selectedProtocol)} — ${selectedTeam?.name || "الفريق"}`
-    : `Évaluation ${getCleanProtocolName(selectedProtocol)} — ${selectedTeam?.name || "Équipe"}`;
+  const createDefaultTitle = (protocol?: ProtocolItem) => {
+    const name = getCleanProtocolName(protocol);
+    const prefix = isAr ? "اختبار" : "Évaluation";
+    return name.toLocaleLowerCase().startsWith(`${prefix.toLocaleLowerCase()} `) ? name : `${prefix} ${name}`;
+  };
+  const defaultTitle = createDefaultTitle(selectedProtocol);
 
   const [title, setTitle] = useState(defaultTitle);
   const [location, setLocation] = useState(
@@ -84,22 +88,10 @@ export function NewSessionForm({
   // Update title automatically when team or protocol changes if title was default
   const handleProtocolSelect = (proto: ProtocolItem) => {
     setSelectedProtocolId(proto.id);
-    const cleanName = getCleanProtocolName(proto);
-    const newTitle = isAr
-      ? `اختبار ${cleanName} — ${selectedTeam?.name || "الفريق"}`
-      : `Évaluation ${cleanName} — ${selectedTeam?.name || "Équipe"}`;
-    setTitle(newTitle);
+    setTitle(createDefaultTitle(proto));
   };
 
-  const handleTeamChange = (teamId: string) => {
-    setSelectedTeamId(teamId);
-    const team = teams.find((t) => t.id === teamId);
-    const cleanName = getCleanProtocolName(selectedProtocol);
-    const newTitle = isAr
-      ? `اختبار ${cleanName} — ${team?.name || "الفريق"}`
-      : `Évaluation ${cleanName} — ${team?.name || "Équipe"}`;
-    setTitle(newTitle);
-  };
+  const handleTeamChange = (teamId: string) => setSelectedTeamId(teamId);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -192,7 +184,7 @@ export function NewSessionForm({
                     <Shield className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">{team.name || team.category}</p>
+                    <p className="text-xs font-bold text-foreground">{localizedClubName(team.name, locale, team.category)}</p>
                     <p className="text-[10px] text-muted-foreground">{team.playerCount} {isAr ? "لاعب مسجل" : "joueurs"}</p>
                   </div>
                 </div>
@@ -370,7 +362,7 @@ export function NewSessionForm({
           type="submit"
           disabled={isSubmitting}
           size="sm"
-          className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs"
+          className="h-10 px-6 bg-club-primary hover:bg-club-primary-hover text-white font-bold text-xs flex items-center gap-2 shadow-xs"
         >
           {isSubmitting ? (
             <>

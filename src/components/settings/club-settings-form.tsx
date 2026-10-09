@@ -5,7 +5,6 @@ import {
   Building2,
   Palette,
   MapPin,
-  Globe,
   Languages,
   Shield,
   Save,
@@ -49,8 +48,6 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
   const [isPending, startTransition] = useTransition();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const socialLinks = (settings.socialLinks as { facebook?: string; instagram?: string; website?: string } | null) ?? {};
 
   // Form interactive preview states
   const [clubName, setClubName] = useState(settings.name || "أمل سيدي حسني");
@@ -141,7 +138,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="max-w-full break-words text-2xl font-black tracking-tight text-foreground">{clubName}</h2>
+                <h2 className="club-name max-w-full break-words text-2xl font-black tracking-tight text-foreground">{clubName}</h2>
               </div>
               <p className="text-xs text-muted-foreground">
                 {isAr
@@ -398,7 +395,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
             }}
           >
             <div className="flex items-center justify-center gap-3">
-              <span className="font-black text-sm tracking-wide">{clubName}</span>
+              <span className="club-name font-black text-sm tracking-wide">{clubName}</span>
               <span className="text-xs px-2 py-0.5 rounded bg-white/20 font-bold backdrop-blur-xs">
                 {shortName}
               </span>
@@ -465,64 +462,6 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Digital Presence & Social Media */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
-          <div className="flex items-center gap-2.5 border-b border-border/60 pb-3.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Globe className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground">
-                {isAr ? "المنصات الرقمية وشبكات التواصل" : "Présence Digitale & Réseaux"}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {isAr ? "روابط المنصات الرقمية الرسمية لنادي أمل سيدي حسني" : "Liens officiels des plateformes et réseaux sociaux"}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Facebook (الصفحة الرسمية)
-              </label>
-              <input
-                type="url"
-                name="facebookUrl"
-                defaultValue={socialLinks.facebook ?? ""}
-                placeholder="https://facebook.com/espoir.sidihosni"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Instagram
-              </label>
-              <input
-                type="url"
-                name="instagramUrl"
-                defaultValue={socialLinks.instagram ?? ""}
-                placeholder="https://instagram.com/esh_club_official"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {isAr ? "الموقع الإلكتروني الرسمي" : "Site web officiel"}
-              </label>
-              <input
-                type="url"
-                name="websiteUrl"
-                defaultValue={socialLinks.website ?? ""}
-                placeholder="https://esh-sidihosni.dz"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
             </div>
           </div>
         </div>

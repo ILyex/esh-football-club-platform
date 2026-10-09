@@ -372,7 +372,7 @@ export default async function FinanceOverviewPage({
           </div>
           {(canApprove || isProgrammer) && primaryAccount && (
             <Link href={`/${locale}/dashboard/finance/treasury/${primaryAccount.id}?action=deposit`} className="mt-3">
-              <Button size="sm" className="w-full text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+              <Button size="sm" className="w-full text-xs h-8 gap-1.5 bg-club-primary hover:bg-club-primary-hover text-white font-semibold">
                 <ArrowDownLeft className="h-4 w-4 shrink-0" />
                 <span>{locale === "ar" ? "تسجيل إيداع" : "Nouveau dépôt"}</span>
               </Button>

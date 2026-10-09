@@ -6,9 +6,19 @@ import { requirePagePermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { updateTeamAction } from "../actions";
 import { Button } from "@/components/ui/button";
+import { NoticeToast } from "@/components/shared/notice-toast";
+import { redirect } from "next/navigation";
+import { localizedClubName } from "@/lib/public/locale-text";
 
-export default async function TeamEditPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function TeamEditPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams?: Promise<{ notice?: string }>;
+}) {
   const { id, locale } = await params;
+  const { notice } = (await searchParams) ?? {};
   await requirePagePermission("teams.manage", locale);
   const t = await getTranslations("teams");
   const tCommon = await getTranslations("common");
@@ -18,11 +28,17 @@ export default async function TeamEditPage({ params }: { params: Promise<{ local
 
   async function update(formData: FormData) {
     "use server";
-    await updateTeamAction(id, formData);
+    try {
+      await updateTeamAction(id, formData);
+    } catch {
+      redirect(`/${locale}/dashboard/teams/${id}?notice=errors.teamSaveFailed`);
+    }
+    redirect(`/${locale}/dashboard/teams/${id}?notice=teamSaved`);
   }
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
+      <NoticeToast notice={notice} />
       <header className="rounded-2xl border border-border bg-card px-5 py-5 shadow-xs sm:px-7">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-club-primary/20 bg-club-primary/10 text-club-primary">
@@ -31,7 +47,7 @@ export default async function TeamEditPage({ params }: { params: Promise<{ local
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-club-primary">{t(`categories.${team.category}` as any)}</p>
             <h1 className="mt-0.5 text-xl font-bold tracking-tight text-foreground">{t("editTeam")}</h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">{team.name}</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{localizedClubName(team.name, locale, t(`categories.${team.category}` as any))}</p>
           </div>
           <span className="hidden rounded-lg border border-border bg-muted/40 px-2.5 py-1 font-mono text-[11px] text-muted-foreground sm:inline-flex">{team.category}</span>
         </div>
@@ -51,6 +67,7 @@ export default async function TeamEditPage({ params }: { params: Promise<{ local
         </div>
         <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3.5 text-sm transition-colors hover:bg-muted/40">
           <span className="font-medium text-foreground">{t("fields.active")}</span>
+          <input type="hidden" name="active" value="false" />
           <input name="active" type="checkbox" defaultChecked={team.active} className="h-4 w-4 accent-club-primary" />
         </label>
         <div>

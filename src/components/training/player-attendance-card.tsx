@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 export interface PlayerAttendanceRecord {
   trainingId: string;
@@ -219,7 +220,7 @@ export function PlayerAttendanceCard({ attendances = [], locale = "ar" }: Player
                   </span>
                   {record.training.team && (
                     <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">
-                      {record.training.team.name}
+                      {localizedClubName(record.training.team.name, locale, isAr ? "الفريق" : "Club")}
                     </span>
                   )}
                 </div>

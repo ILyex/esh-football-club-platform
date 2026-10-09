@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formBoolean } from "@/lib/validations/form-values";
 
 export const createUserSchema = z.object({
   name: z.string().min(1).max(120),
@@ -12,7 +13,7 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).max(120),
   email: z.string().email(),
   roleId: z.string().min(1),
-  isActive: z.coerce.boolean().default(true)
+  isActive: formBoolean(true)
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 

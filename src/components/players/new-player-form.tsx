@@ -122,7 +122,7 @@ export function NewPlayerForm({
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Field label={translations.nationality} name="nationality" required defaultValue={isAr ? "جزائرية" : "Algérienne"} />
+          <Field label={translations.nationality} name="nationality" required defaultValue={isAr ? "جزائري" : "Algérien"} />
           <div>
             <DateInput
               label={translations.dateOfBirth}

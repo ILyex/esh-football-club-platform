@@ -7,9 +7,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-club-primary text-white hover:opacity-90",
+        default: "bg-club-primary text-white hover:bg-club-primary-hover",
         outline: "border border-border bg-transparent hover:bg-muted",
-        destructive: "bg-destructive text-white hover:opacity-90",
+        destructive: "bg-red-600 text-white hover:bg-red-700",
         ghost: "hover:bg-muted"
       },
       size: {

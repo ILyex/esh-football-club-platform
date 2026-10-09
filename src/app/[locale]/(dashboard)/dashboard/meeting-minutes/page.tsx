@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
 import { CalendarClock, ClipboardPenLine, Plus} from "lucide-react";
+import { actionControlClass } from "@/components/shared/action-controls";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -61,7 +62,7 @@ export default async function MeetingMinutesListPage({
         canViewReports={hasPermission(user, "reports.view")}
       />
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{t("title")}</h1>
         <Link href={`/${locale}/dashboard/meeting-minutes/new`}>
           <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addMeeting")}</Button>
         </Link>
@@ -144,7 +145,7 @@ export default async function MeetingMinutesListPage({
                   <Badge tone={STATUS_TONE[m.status]}>{t(`statuses.${m.status}` as any)}</Badge>
                 </td>
                 <td className="px-4 py-2">
-                  <Link href={`/${locale}/dashboard/meeting-minutes/${m.id}`} className="text-sm text-club-primary underline">
+                  <Link href={`/${locale}/dashboard/meeting-minutes/${m.id}`} className={actionControlClass("edit")}>
                     {tCommon("edit")}
                   </Link>
                 </td>

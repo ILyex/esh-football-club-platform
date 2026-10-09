@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Image as ImageIcon,
@@ -10,9 +10,12 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { isVideoUrl } from "@/lib/media-utils";
+import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 
 export interface ClubPhotoItem {
   id: string;
+  albumId?: string | null;
   url: string;
   caption: string | null;
   albumName?: string | null;
@@ -32,26 +35,55 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
   const orderedPhotos = photos.slice(0, 8);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  useEffect(() => {
+    setCurrentIndex((index) => Math.min(index, Math.max(orderedPhotos.length - 1, 0)));
+  }, [orderedPhotos.length]);
+  const swipe = useSwipeCarousel(
+    () => setCurrentIndex((prev) => (prev + 1) % orderedPhotos.length),
+    () => setCurrentIndex((prev) => (prev === 0 ? orderedPhotos.length - 1 : prev - 1))
+  );
 
   if (orderedPhotos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center rounded-2xl border border-dashed border-border bg-card">
-        <ImageIcon className="h-8 w-8 text-muted-foreground/50 mb-2" />
-        <p className="text-xs text-muted-foreground">
-          {isAr ? "لا توجد صور متاحة حالياً" : "Aucune photo disponible"}
-        </p>
+      <div className="relative flex h-full min-h-[330px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:min-h-[348px]">
+        <div className="flex items-center justify-between border-b border-border/60 p-4 pb-3 sm:p-6 sm:pb-3">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4 text-club-primary" />
+            <h3 className="text-sm font-bold text-foreground">
+              {isAr ? "معرض النادي" : "Galerie du Club"}
+            </h3>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center border-y border-dashed border-border/70 bg-muted/10 p-8 text-center">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground/50">
+            <ImageIcon className="h-7 w-7" />
+          </div>
+          <p className="text-xs font-medium text-muted-foreground">
+            {isAr ? "لا توجد ميديا حاليا" : "Aucun média disponible"}
+          </p>
+        </div>
+        <div className="flex min-h-[82px] items-start border-t border-border/60 px-3 pb-0 pt-4 text-xs text-muted-foreground">
+          <a href={`/${locale}/gallery`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 px-3 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+            <span>{isAr ? "الألبومات" : "Albums"}</span>
+            <Arrow className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        </div>
       </div>
     );
   }
 
-  const currentPhoto = orderedPhotos[currentIndex]!;
+  const safeIndex = Math.min(currentIndex, orderedPhotos.length - 1);
+  const currentPhoto = orderedPhotos[safeIndex]!;
   const photoCaption = isAr ? currentPhoto.caption : frenchPublicText(currentPhoto.caption, "Photo du club");
   const albumName = isAr ? currentPhoto.albumName : frenchPublicText(currentPhoto.albumName, "");
+  const albumHref = currentPhoto.albumId
+    ? `/${locale}/gallery/${encodeURIComponent(currentPhoto.albumId)}`
+    : `/${locale}/gallery`;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs flex flex-col justify-between group">
+    <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:min-h-[348px]">
       {/* Top Header */}
-      <div className="p-5 pb-3 flex items-center justify-between border-b border-border/60">
+      <div className="flex items-center justify-between border-b border-border/60 p-4 pb-3 sm:p-6 sm:pb-3">
         <div className="flex items-center gap-2">
           <ImageIcon className="h-4 w-4 text-club-primary" />
           <h3 className="text-sm font-bold text-foreground">
@@ -59,41 +91,54 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
           </h3>
         </div>
 
-        <Link
-          href={`/${locale}/gallery`}
-          className="text-xs font-semibold text-muted-foreground hover:text-club-primary transition-colors flex items-center gap-1"
-        >
-          <span>{isAr ? "جميع الصور" : "Voir tout"}</span>
-          <Arrow className="h-3 w-3" />
-        </Link>
       </div>
 
       {/* Main Carousel Stage - Strict Fixed Height (Prevent size jumps) */}
-      <div className="relative h-[320px] sm:h-[380px] w-full overflow-hidden bg-black shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={currentPhoto.id}
-          src={currentPhoto.url}
-          alt={photoCaption || (isAr ? "صورة من النادي" : "Photo du club")}
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover object-center transition-all duration-700 ease-out scale-100 group-hover:scale-105 animate-in fade-in zoom-in-95"
-        />
-
-        {/* Ambient Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
-
-        {/* Caption & Album Title Overlay */}
-        <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 text-white z-10 flex flex-col justify-end">
-          {albumName && (
-            <span className="inline-block rounded-md bg-club-primary/80 backdrop-blur-xs px-2 py-0.5 text-[10px] font-black uppercase tracking-wider mb-1.5 w-fit">
-              {albumName}
-            </span>
+      <div className="relative h-[320px] w-full shrink-0 select-none overflow-hidden overscroll-contain bg-black sm:h-[380px]" {...swipe}>
+        <Link
+          href={albumHref}
+          aria-label={isAr ? "فتح الألبوم" : "Ouvrir l’album"}
+          className="absolute inset-0 z-0 block h-full w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-club-primary"
+        >
+          {isVideoUrl(currentPhoto.url) ? (
+            <video
+              src={currentPhoto.url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              controlsList="nodownload noremoteplayback"
+              disableRemotePlayback
+              draggable={false}
+              onContextMenu={(event) => event.preventDefault()}
+              aria-hidden="true"
+              className="pointer-events-none h-full w-full object-cover object-center transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={currentPhoto.url}
+              alt={photoCaption || (isAr ? "صورة من النادي" : "Photo du club")}
+              draggable={false}
+              loading="eager"
+              decoding="async"
+              className="h-full w-full object-cover object-center transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+            />
           )}
-          <p className="text-xs sm:text-sm font-bold text-white drop-shadow-md line-clamp-2 leading-relaxed">
-            {photoCaption || (isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")}
-          </p>
-        </div>
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-4 text-white sm:p-5">
+            {albumName && (
+              <span className="mb-1.5 inline-block w-fit rounded-md bg-club-primary/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider backdrop-blur-xs">
+                {albumName}
+              </span>
+            )}
+            <p className="line-clamp-2 text-xs font-bold leading-relaxed text-white drop-shadow-md sm:text-sm">
+              {photoCaption || (isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")}
+            </p>
+          </div>
+        </Link>
 
         {/* Navigation Arrows */}
         <button
@@ -101,7 +146,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
           onClick={() =>
             setCurrentIndex((prev) => (prev === 0 ? orderedPhotos.length - 1 : prev - 1))
           }
-          className="absolute start-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md"
+          className="absolute start-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white opacity-100 shadow-md backdrop-blur-md transition-all hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
           aria-label={isAr ? "الصورة السابقة" : "Image précédente"}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -112,7 +157,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
           onClick={() =>
             setCurrentIndex((prev) => (prev + 1) % orderedPhotos.length)
           }
-          className="absolute end-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md"
+          className="absolute end-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white opacity-100 shadow-md backdrop-blur-md transition-all hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
           aria-label={isAr ? "الصورة التالية" : "Image suivante"}
         >
           <ChevronRight className="h-4 w-4" />
@@ -120,9 +165,9 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
       </div>
 
       {/* Indicator Dots & Counter Footer */}
-      <div className="p-3 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground bg-card">
+      <div className="flex min-h-[72px] items-center justify-between gap-3 border-t border-border/60 bg-card px-3 py-3 text-xs text-muted-foreground">
         <span className="font-mono text-[11px] font-bold text-foreground">
-          {currentIndex + 1} / {orderedPhotos.length}
+          {safeIndex + 1} / {orderedPhotos.length}
         </span>
 
         {/* Dot Indicators */}
@@ -132,22 +177,22 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
               key={ph.id}
               type="button"
               onClick={() => setCurrentIndex(idx)}
-              className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                currentIndex === idx
+              className="flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
+              aria-label={isAr ? `انتقل إلى الصورة ${idx + 1}` : `Aller à l’image ${idx + 1}`}
+            >
+              <span className={`block h-1.5 rounded-full transition-all ${
+                safeIndex === idx
                   ? "w-5 bg-club-primary"
                   : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60"
-              }`}
-              aria-label={isAr ? `انتقل إلى الصورة ${idx + 1}` : `Aller à l’image ${idx + 1}`}
-            />
+              }`} />
+            </button>
           ))}
         </div>
 
-        <Link
-          href={`/${locale}/gallery`}
-          className="text-[11px] font-semibold text-club-primary hover:underline"
-        >
-          {isAr ? "تصفح الألبومات" : "Albums"}
-        </Link>
+        <a href={`/${locale}/gallery`} className="inline-flex min-h-10 w-auto min-w-[110px] shrink-0 items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 px-3 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+          <span>{isAr ? "الألبومات" : "Albums"}</span>
+          <Arrow className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
       </div>
     </div>
   );

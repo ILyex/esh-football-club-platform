@@ -37,7 +37,9 @@ export const DASHBOARD_NAV_GROUPS: NavGroup[] = [
   {
     groupKey: "media",
     items: [
-      { href: "/dashboard/website", labelKey: "website", requiredPermission: "news.view" },
+      { href: "/dashboard/website/reels", labelKey: "websiteReels", requiredPermission: "settings.manage" },
+      { href: "/dashboard/website/images", labelKey: "websiteImages", requiredPermission: "settings.manage" },
+      { href: "/dashboard/website/analytics", labelKey: "websiteAnalytics", requiredPermission: "news.view" },
       { href: "/dashboard/mail", labelKey: "mail", requiredPermission: "mail.view" },
       { href: "/dashboard/news", labelKey: "news", requiredPermission: "news.view" },
       { href: "/dashboard/announcements", labelKey: "announcements", requiredPermission: "announcements.view" },

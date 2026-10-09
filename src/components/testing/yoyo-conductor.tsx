@@ -20,6 +20,7 @@ import {
   completeTestSessionAction
 } from "@/app/[locale]/(dashboard)/dashboard/testing/actions";
 import { formatMeasurement } from "@/lib/testing/formatters";
+import { localizedFootballPosition } from "@/lib/public/locale-text";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -202,6 +203,9 @@ export function YoYoConductor({
   const pausedAtRef = useRef<number | null>(null);
   const totalPausedMsRef = useRef<number>(0);
   const animFrameRef = useRef<number | null>(null);
+  const lastUiUpdateRef = useRef<number>(0);
+  const lastUiPhaseRef = useRef<ConductorState["phase"]>("NOT_STARTED");
+  const lastUiShuttleIndexRef = useRef<number>(0);
 
   // Audio cue debouncing references
   const lastPhaseRef = useRef<string>("NOT_STARTED");
@@ -246,6 +250,9 @@ export function YoYoConductor({
     setAudioReady(true);
 
     startPerformanceRef.current = performance.now();
+    lastUiUpdateRef.current = 0;
+    lastUiPhaseRef.current = "NOT_STARTED";
+    lastUiShuttleIndexRef.current = 0;
     totalPausedMsRef.current = 0;
     pausedAtRef.current = null;
     countdownBeepsPlayedRef.current.clear();
@@ -254,6 +261,8 @@ export function YoYoConductor({
     lastPhaseRef.current = "NOT_STARTED";
     lastShuttleIndexRef.current = 0;
 
+    setElapsedSec(0);
+    setConductorState(deriveConductorState(-1));
     setIsRunning(true);
     setIsPaused(false);
   };
@@ -285,9 +294,19 @@ export function YoYoConductor({
       (now - startPerformanceRef.current - totalPausedMsRef.current) / 1000
     );
 
-    setElapsedSec(currentElapsedSec);
     const state = deriveConductorState(currentElapsedSec);
-    setConductorState(state);
+    const shuttleIndex = state.currentShuttle?.shuttleIndex ?? 0;
+    if (
+      now - lastUiUpdateRef.current >= 100 ||
+      state.phase !== lastUiPhaseRef.current ||
+      shuttleIndex !== lastUiShuttleIndexRef.current
+    ) {
+      lastUiUpdateRef.current = now;
+      lastUiPhaseRef.current = state.phase;
+      lastUiShuttleIndexRef.current = shuttleIndex;
+      setElapsedSec(currentElapsedSec);
+      setConductorState(state);
+    }
 
     // Audio Cue Checks
     if (state.phase === "COUNTDOWN") {
@@ -368,34 +387,22 @@ export function YoYoConductor({
     );
   };
 
-  // Player action: mark player stopped at current shuttle
-  const handleStopPlayer = (playerId: string, creditCurrentShuttle: boolean = false) => {
-    const curLevel = conductorState.activeLevel;
-    const curShuttle = conductorState.activeShuttleInLevel;
-
-    // By default, if stopped during a shuttle, credit last successfully completed shuttle
-    let finalLevel = curLevel;
-    let finalShuttle = curShuttle;
-
-    if (!creditCurrentShuttle) {
-      if (curShuttle > 1) {
-        finalShuttle = curShuttle - 1;
-      } else {
-        // Find previous level
-        const prevScheduleIndex = conductorState.currentShuttle
-          ? conductorState.currentShuttle.shuttleIndex - 2
-          : 0;
-        if (prevScheduleIndex >= 0) {
-          const prevShuttleInfo = YOYO_IR1_FULL_SCHEDULE[prevScheduleIndex]!;
-          finalLevel = prevShuttleInfo.level;
-          finalShuttle = prevShuttleInfo.shuttleInLevel;
-        } else {
-          // Stopped on very first shuttle
-          finalLevel = 5;
-          finalShuttle = 1;
-        }
-      }
+  const getMostRecentlyCompletedShuttle = () => {
+    const current = conductorState.currentShuttle;
+    if (!current) return null;
+    if (conductorState.phase === "RECOVERY" || conductorState.phase === "COMPLETED") return current;
+    if (conductorState.phase === "SHUTTLE_RUNNING" && current.shuttleIndex > 1) {
+      return YOYO_IR1_FULL_SCHEDULE[current.shuttleIndex - 2] ?? null;
     }
+    return null;
+  };
+
+  // Only credit shuttles that the protocol has actually completed.
+  const handleStopPlayer = (playerId: string) => {
+    const completedShuttle = getMostRecentlyCompletedShuttle();
+    if (!completedShuttle) return;
+    const finalLevel = completedShuttle.level;
+    const finalShuttle = completedShuttle.shuttleInLevel;
 
     const distance = calculateYoYoDistance(finalLevel, finalShuttle);
     const vo2 = calculateYoYoVO2max(distance);
@@ -439,9 +446,11 @@ export function YoYoConductor({
   };
 
   // Stop all currently active runners at current level/shuttle
-  const handleStopAllRemaining = (creditCurrent: boolean = true) => {
-    const curLevel = conductorState.activeLevel;
-    const curShuttle = conductorState.activeShuttleInLevel;
+  const handleStopAllRemaining = () => {
+    const completedShuttle = getMostRecentlyCompletedShuttle();
+    if (!completedShuttle) return;
+    const curLevel = completedShuttle.level;
+    const curShuttle = completedShuttle.shuttleInLevel;
     const distance = calculateYoYoDistance(curLevel, curShuttle);
     const vo2 = calculateYoYoVO2max(distance);
     const scoreDisplay = formatLevelShuttle(curLevel, curShuttle);
@@ -492,9 +501,8 @@ export function YoYoConductor({
   // Helper to serialize runners into measurement entries
   const buildMeasurementEntries = (runnersList: RunnerState[]) => {
     return runnersList.map((r) => {
-      let status: "VALID" | "INCOMPLETE" | "DISQUALIFIED" | "ABSENT" = "VALID";
+      let status: "VALID" | "INCOMPLETE" | "DISQUALIFIED" | "ABSENT" = r.status === "STOPPED" ? "VALID" : "INCOMPLETE";
       if (r.status === "ABSENT") status = "ABSENT";
-      else if (r.status === "WITHDRAWN") status = "INCOMPLETE";
 
       const measurements: Array<{
         key: string;
@@ -546,29 +554,16 @@ export function YoYoConductor({
   const handleCompleteAndSave = () => {
     setErrorMessage(null);
     setSaveSuccess(false);
+    if (runners.some((runner) => runner.status === "ACTIVE")) {
+      setErrorMessage(locale === "ar"
+        ? "أوقف كل لاعب بعد آخر شوط مكتمل قبل إنهاء الجلسة."
+        : "Arrêtez chaque joueur après sa dernière navette terminée avant de clôturer la séance.");
+      return;
+    }
 
     startTransition(async () => {
       try {
-        // Automatically credit any remaining active runners with the current shuttle
-        const updatedRunners = runners.map((r) => {
-          if (r.status !== "ACTIVE") return r;
-          const curLevel = conductorState.activeLevel;
-          const curShuttle = conductorState.activeShuttleInLevel;
-          const distance = calculateYoYoDistance(curLevel, curShuttle);
-          const vo2 = calculateYoYoVO2max(distance);
-          const scoreDisplay = formatLevelShuttle(curLevel, curShuttle);
-          return {
-            ...r,
-            status: "STOPPED" as const,
-            level: curLevel,
-            shuttle: curShuttle,
-            distance,
-            vo2max: vo2,
-            scoreDisplay
-          };
-        });
-
-        const entries = buildMeasurementEntries(updatedRunners);
+        const entries = buildMeasurementEntries(runners);
 
         const saveRes = await saveSessionMeasurementsAction(sessionId, entries);
         if (!saveRes.success) {
@@ -730,7 +725,7 @@ export function YoYoConductor({
                     type="button"
                     size="sm"
                     onClick={handleStartTest}
-                    className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-2 px-4 shadow-sm"
+                    className="h-9 bg-club-primary hover:bg-club-primary-hover text-white font-semibold text-xs flex items-center gap-2 px-4 shadow-sm"
                   >
                     <Play className="h-4 w-4 fill-current" />
                     <span>{t("conductor.startTest")}</span>
@@ -774,8 +769,9 @@ export function YoYoConductor({
                     type="button"
                     size="sm"
                     onClick={handleCompleteAndSave}
-                    disabled={isPending}
-                    className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5"
+                    disabled={isPending || activeRunners.length > 0}
+                    title={activeRunners.length > 0 ? (locale === "ar" ? "أوقف اللاعبين أولًا لتسجيل نتيجة كل لاعب بدقة" : "Stop all active players before completing") : undefined}
+                    className="h-9 bg-club-primary hover:bg-club-primary-hover text-white font-semibold text-xs flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     <span>{isPending ? tCommon("loading") : t("conductor.saveAndComplete")}</span>
@@ -949,7 +945,9 @@ export function YoYoConductor({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => handleStopAllRemaining(true)}
+                  onClick={handleStopAllRemaining}
+                  disabled={!getMostRecentlyCompletedShuttle()}
+                  title={!getMostRecentlyCompletedShuttle() ? (locale === "ar" ? "أكمل شوطًا واحدًا على الأقل أولًا" : "Complete at least one shuttle first") : undefined}
                   className="text-xs h-8 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-1.5"
                 >
                   <Square className="h-3 w-3 fill-current" />
@@ -972,8 +970,9 @@ export function YoYoConductor({
                   type="button"
                   size="sm"
                   onClick={handleCompleteAndSave}
-                  disabled={isPending}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8 flex items-center gap-1.5"
+                  disabled={isPending || activeRunners.length > 0}
+                  title={activeRunners.length > 0 ? (locale === "ar" ? "أوقف اللاعبين أولًا لتسجيل نتيجة كل لاعب بدقة" : "Stop all active players before completing") : undefined}
+                  className="bg-club-primary hover:bg-club-primary-hover text-white font-bold text-xs h-8 flex items-center gap-1.5"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   <span>{t("conductor.saveAndComplete")}</span>
@@ -982,6 +981,14 @@ export function YoYoConductor({
             </div>
           )}
         </div>
+
+        {canManage && activeRunners.length > 0 && (
+          <p className="border-b border-border/70 bg-amber-500/[0.04] px-5 py-2 text-[11px] leading-5 text-muted-foreground">
+            {locale === "ar"
+              ? "أوقف كل لاعب عند خروجه لتسجيل نتيجته حسب آخر شوط مكتمل. إيقاف الجميع يمنحهم نتيجة الشوط نفسه."
+              : "Arrêtez chaque joueur à sa sortie pour enregistrer son dernier shuttle terminé. « Arrêter tous » attribue le même shuttle à tous."}
+          </p>
+        )}
 
         {/* Section 1: Active In-Race Runners */}
         <div className="p-4 space-y-3">
@@ -1008,15 +1015,21 @@ export function YoYoConductor({
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-8 w-8 rounded-full bg-muted font-bold text-xs flex items-center justify-center border shrink-0">
-                      {runner.shirtNumber ? `#${runner.shirtNumber}` : runner.firstName.charAt(0)}
+                    <div className="relative h-10 w-10 shrink-0 overflow-visible">
+                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xs font-bold text-muted-foreground">
+                        {runner.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={runner.photoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : `${runner.firstName.charAt(0)}${runner.lastName.charAt(0)}`}
+                      </div>
+                      {runner.shirtNumber != null && <span className="absolute -bottom-1 -end-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border border-card bg-club-primary px-1 text-[8px] font-black leading-none text-white shadow-sm ring-1 ring-club-primary/30">{runner.shirtNumber}</span>}
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-foreground truncate">
                         {runner.firstName} {runner.lastName}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        {runner.position}
+                        {localizedFootballPosition(runner.position, locale)}
                       </p>
                     </div>
                   </div>
@@ -1042,7 +1055,9 @@ export function YoYoConductor({
                       {/* Primary 1-Tap STOP button */}
                       <button
                         type="button"
-                        onClick={() => handleStopPlayer(runner.playerId, false)}
+                        onClick={() => handleStopPlayer(runner.playerId)}
+                        disabled={!getMostRecentlyCompletedShuttle()}
+                        title={!getMostRecentlyCompletedShuttle() ? (locale === "ar" ? "أكمل شوطًا واحدًا على الأقل أولًا" : "Complete at least one shuttle first") : undefined}
                         className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center gap-1"
                       >
                         <Square className="h-3 w-3 fill-current" />

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useId } from "react";
 import { ChevronDown, Check, Layers, type LucideIcon } from "lucide-react";
+import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
 
 export interface MasterFilterOption {
   id: string;
@@ -16,6 +17,8 @@ export interface MasterFilterSelectProps {
   options: MasterFilterOption[];
   onChange?: (value: string) => void;
   icon?: LucideIcon;
+  /** Hide the decorative trigger icon while keeping the label and value. */
+  hideIcon?: boolean;
   iconSize?: "default" | "prominent";
   placeholder?: string;
   headerTitle?: string;
@@ -41,6 +44,7 @@ export function MasterFilterSelect({
   options,
   onChange,
   icon: Icon,
+  hideIcon = false,
   iconSize = "default",
   placeholder,
   headerTitle,
@@ -56,7 +60,9 @@ export function MasterFilterSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const placement = useAutoPopoverPlacement(isOpen, containerRef, panelRef, 320);
 
   useEffect(() => setSelectedValue(value), [value]);
 
@@ -114,7 +120,7 @@ export function MasterFilterSelect({
       >
         {(Icon || label) && (
           <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-            {(() => {
+            {!hideIcon && (() => {
               const TriggerIcon = Icon ?? Layers;
               return <TriggerIcon className={`${iconSize === "prominent" ? "h-[18px] w-[18px]" : "h-4 w-4"} text-club-primary shrink-0`} />;
             })()}
@@ -139,7 +145,9 @@ export function MasterFilterSelect({
           id={menuId}
           role="menu"
           aria-orientation="vertical"
-          className={`absolute z-50 mt-1.5 min-w-[200px] sm:min-w-[220px] rounded-xl border border-border bg-card p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-150 ${
+          ref={panelRef}
+          style={popoverPlacementStyle(placement, "0.375rem")}
+          className={`absolute z-50 w-[min(18rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1.5 text-foreground shadow-xl animate-in fade-in zoom-in-95 duration-150 ${
             align === "end" ? "end-0" : "start-0"
           }`}
         >
@@ -149,7 +157,7 @@ export function MasterFilterSelect({
             </div>
           )}
 
-          <div className="max-h-60 overflow-y-auto space-y-0.5">
+          <div className="space-y-0.5">
             {options.map((option) => {
               const isSelected = selectedValue === option.id;
               const OptionIcon = option.icon;
@@ -160,7 +168,7 @@ export function MasterFilterSelect({
                   type="button"
                   role="menuitem"
                   onClick={() => handleSelect(option.id)}
-                  className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors text-start cursor-pointer ${
+                  className={`flex min-h-10 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-start text-xs font-medium transition-colors cursor-pointer ${
                     isSelected
                       ? "bg-club-primary/10 text-club-primary font-bold"
                       : "text-foreground hover:bg-muted"

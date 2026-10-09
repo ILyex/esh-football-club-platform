@@ -8,6 +8,8 @@ let themeTransitionTimer: number | undefined;
 
 function setDocumentTheme(isDark: boolean, animate: boolean) {
   const root = document.documentElement;
+  root.style.backgroundColor = isDark ? "#0c0d0e" : "#f8f9fa";
+  root.style.colorScheme = isDark ? "dark" : "light";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!animate || reduceMotion) {
     root.classList.remove("theme-transition");

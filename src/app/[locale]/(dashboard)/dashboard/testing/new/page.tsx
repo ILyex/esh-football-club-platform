@@ -8,6 +8,7 @@ import { Timer, ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { NewSessionForm } from "@/components/testing/new-session-form";
 import { localizeTestProtocol } from "@/lib/testing/localize-protocol";
+import { ensureDefaultTestDefinitions } from "@/lib/testing/seed-definitions";
 
 export default async function NewTestingSessionPage({
   params
@@ -19,6 +20,11 @@ export default async function NewTestingSessionPage({
   const canManage = hasPermission(user, "testing.manage") || hasPermission(user, "training.manage") || hasPermission(user, "*");
   if (!canManage) {
     redirect(`/${locale}/dashboard/testing`);
+  }
+
+  const protocolCount = await db.testDefinition.count();
+  if (protocolCount === 0) {
+    await ensureDefaultTestDefinitions(db);
   }
 
   const [t, tTeams, authorizedTeams, protocols] = await Promise.all([
@@ -35,7 +41,7 @@ export default async function NewTestingSessionPage({
   const teamsWithCounts = await Promise.all(
     authorizedTeams.map(async (team) => {
       const count = await db.player.count({
-        where: { teamId: team.id, status: { not: "ARCHIVED" } }
+        where: { teamId: team.id, status: "ACTIVE" }
       });
       return {
         id: team.id,

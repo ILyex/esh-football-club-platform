@@ -5,6 +5,9 @@ import { getPublicAlbums } from "@/lib/public/gallery";
 import { isVideoUrl } from "@/lib/media-utils";
 import { GalleryImage } from "@/components/public/gallery-image";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { SocialReelsSection } from "@/components/public/social-reels-section";
+import { getPublicClubSettings } from "@/lib/public/club";
 
 export default async function PublicGalleryPage({
   params
@@ -12,31 +15,26 @@ export default async function PublicGalleryPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const [tPublic, albums] = await Promise.all([
+  const [tPublic, albums, club] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
-    getPublicAlbums()
+    getPublicAlbums(),
+    getPublicClubSettings()
   ]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      {/* Header */}
-      <div className="border-b border-border/80 pb-8">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-          <ImageIcon className="h-4 w-4" />
-          {tPublic("gallery.title")}
-        </span>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {tPublic("gallery.title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
-          {tPublic("gallery.subtitle")}
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl px-3 py-7 sm:px-6 sm:py-12">
+      <PublicPageHeading locale={locale} icon={<ImageIcon />} eyebrow={tPublic("gallery.title")} title={tPublic("gallery.title")} description={tPublic("gallery.subtitle")} />
+
+      {club.socialReels.length > 0 && (
+        <div className="mt-6 sm:mt-8">
+          <SocialReelsSection reels={club.socialReels} locale={locale} />
+        </div>
+      )}
 
       {/* Albums Grid */}
-      <div className="mt-8">
+      <div className={`${club.socialReels.length > 0 ? "mt-8 sm:mt-10" : "mt-5 sm:mt-8"}`}>
         {albums.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
             {albums.map((album) => {
               const albumName = locale === "ar" ? album.name : frenchPublicText(album.name, "Album photo");
               const albumDescription = locale === "ar" ? album.description : frenchPublicText(album.description, "");
@@ -50,13 +48,13 @@ export default async function PublicGalleryPage({
                 <Link
                   key={album.id}
                   href={`/${locale}/gallery/${album.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:-translate-y-1 hover:border-club-primary/50 hover:shadow-md"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all hover:-translate-y-1 hover:border-club-primary/50 hover:shadow-md sm:rounded-2xl"
                 >
-                  <div className="relative aspect-[16/10] min-h-[180px] w-full overflow-hidden bg-muted/60">
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/60 sm:min-h-[180px]">
                     {album.coverImageUrl ? (
                       isVideoUrl(album.coverImageUrl) ? (
                         <div className="relative h-full w-full bg-black/90 flex items-center justify-center">
-                          <video src={album.coverImageUrl} className="h-full w-full object-cover" preload="metadata" muted />
+                          <video src={album.coverImageUrl} className="h-full w-full object-cover" preload="metadata" muted controlsList="nodownload noremoteplayback" disableRemotePlayback draggable={false} />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors">
                             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-club-primary/90 text-white shadow-lg group-hover:scale-110 transition-transform">
                               <Play className="h-6 w-6 fill-white" />
@@ -86,7 +84,7 @@ export default async function PublicGalleryPage({
                     </div>
                   </div>
 
-                  <div className="flex flex-1 flex-col justify-between p-5">
+                  <div className="flex flex-1 flex-col justify-between p-3 sm:p-5">
                     <div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5" />

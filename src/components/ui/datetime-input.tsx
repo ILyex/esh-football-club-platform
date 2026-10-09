@@ -74,12 +74,12 @@ export function DateTimeInput({
   const [timePart, setTimePart] = useState(initial.timeStr);
 
   useEffect(() => {
-    if (value !== undefined) {
+    if (value !== undefined || defaultValue !== undefined) {
       const parsed = parseInitial();
       setDatePart(parsed.dateStr);
       setTimePart(parsed.timeStr);
     }
-  }, [value, parseInitial]);
+  }, [value, defaultValue, parseInitial]);
 
   const computeIso = (dStr: string, tStr: string): string | null => {
     if (!isValidDMY(dStr)) return null;

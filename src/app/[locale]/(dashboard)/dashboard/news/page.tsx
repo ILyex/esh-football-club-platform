@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import { setNewsStatusAction, deleteNewsAction } from "./actions";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { actionControlClass } from "@/components/shared/action-controls";
 import { Eye, EyeOff, Trash2, Edit, Plus} from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -98,54 +99,51 @@ export default async function NewsListPage({
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <Link
+                    <div className="mx-auto grid h-8 w-[15.75rem] grid-cols-3 items-center gap-2">
+                      <div className="flex w-[4.75rem] justify-center">
+                        <Link
                         href={`/${locale}/dashboard/news/${a.id}`}
-                        className="text-xs font-semibold text-club-primary hover:underline flex items-center gap-1"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                        <span>{tCommon("edit")}</span>
-                      </Link>
+                        className={actionControlClass("edit")}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                          <span>{tCommon("edit")}</span>
+                        </Link>
+                      </div>
 
-                      {canPublish && a.status === "PUBLISHED" && (
-                        <form action={unpublish}>
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <EyeOff className="h-3.5 w-3.5" />
-                            <span>{locale === "ar" ? "إخفاء" : "Masquer"}</span>
-                          </button>
-                        </form>
-                      )}
+                      <div className="flex w-[4.75rem] justify-center">
+                        {canPublish && a.status === "PUBLISHED" && (
+                          <form action={unpublish}>
+                            <button type="submit" className={actionControlClass("hide")}>
+                              <EyeOff className="h-3.5 w-3.5" />
+                              <span>{locale === "ar" ? "إخفاء" : "Masquer"}</span>
+                            </button>
+                          </form>
+                        )}
 
-                      {canPublish && a.status !== "PUBLISHED" && (
-                        <form action={publish}>
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>{locale === "ar" ? "إظهار" : "Publier"}</span>
-                          </button>
-                        </form>
-                      )}
+                        {canPublish && a.status !== "PUBLISHED" && (
+                          <form action={publish}>
+                            <button type="submit" className={actionControlClass("publish")}>
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>{locale === "ar" ? "إظهار" : "Publier"}</span>
+                            </button>
+                          </form>
+                        )}
+                      </div>
 
-                      {canDelete && (
-                        <ConfirmDialog
+                      <div className="flex w-[4.75rem] justify-center">
+                        {canDelete && (
+                          <ConfirmDialog
                           title={locale === "ar" ? "تأكيد الحذف" : "Confirmer la suppression"}
                           body={locale === "ar" ? "هل أنت متأكد من حذف هذا الخبر نهائياً؟" : "Êtes-vous sûr de vouloir supprimer cet article ?"}
                           onConfirm={remove}
-                        >
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>{tCommon("delete")}</span>
-                          </button>
-                        </ConfirmDialog>
-                      )}
+                            <button type="button" className={actionControlClass("delete")}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>{tCommon("delete")}</span>
+                            </button>
+                          </ConfirmDialog>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

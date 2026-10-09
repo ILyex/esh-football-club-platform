@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { SafeImage } from "@/components/shared/safe-image";
 
 interface GalleryImageProps {
   src: string;
@@ -15,17 +15,12 @@ export function GalleryImage({
   className,
   fallbackSrc = "/branding/esh-logo-256.png"
 }: GalleryImageProps) {
-  const [imageSrc, setImageSrc] = useState(src);
-
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={imageSrc}
+    <SafeImage
+      src={src}
+      fallbackSrc={fallbackSrc}
       alt={alt}
       className={className}
-      onError={() => {
-        if (imageSrc !== fallbackSrc) setImageSrc(fallbackSrc);
-      }}
     />
   );
 }

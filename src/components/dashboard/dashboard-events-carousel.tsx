@@ -14,6 +14,8 @@ import {
   MapPin,
   Trophy
 } from "lucide-react";
+import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 export interface DashboardMatchItem {
   id: string;
@@ -55,6 +57,10 @@ export function DashboardEventsCarousel({
   const isAr = locale === "ar";
   const Arrow = isAr ? ArrowLeft : ArrowRight;
   const Chevron = isAr ? ChevronLeft : ChevronRight;
+  const swipe = useSwipeCarousel(
+    () => setSlide((prev) => ((prev + 1) % 3) as 0 | 1 | 2),
+    () => setSlide((prev) => ((prev + 2) % 3) as 0 | 1 | 2)
+  );
 
   // Auto rotate slides every 8 seconds
   useEffect(() => {
@@ -65,7 +71,7 @@ export function DashboardEventsCarousel({
   }, []);
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between min-h-[360px] transition-all carousel-no-stroke select-none outline-none focus:outline-none">
+    <div {...swipe} className="rounded-2xl border border-border/80 bg-card p-3 sm:p-5 shadow-xs flex flex-col justify-between min-h-[280px] sm:min-h-[360px] transition-all carousel-no-stroke select-none outline-none focus:outline-none">
       <div>
         {/* Header & Tabs */}
         <div className="flex flex-wrap items-center justify-between border-b border-border/60 pb-3 mb-4 gap-2">
@@ -136,14 +142,14 @@ export function DashboardEventsCarousel({
                   <Link
                     key={m.id}
                     href={`/${locale}/dashboard/matches/${m.id}`}
-                    className="flex items-center justify-between py-2.5 group hover:bg-muted/30 px-2 rounded-lg transition-colors"
+                    className="flex items-center justify-between py-2 sm:py-2.5 group hover:bg-muted/30 px-1.5 sm:px-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/branding/esh-logo-32.png" alt="ESH" className="h-6 w-6 object-contain shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-foreground group-hover:text-club-primary transition-colors truncate">
-                          {m.opponentName}
+                          {localizedClubName(m.opponentName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")}
                         </p>
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3" />
@@ -153,7 +159,7 @@ export function DashboardEventsCarousel({
                               timeStyle: "short"
                             }).format(new Date(m.matchDate))}
                           </span>
-                          {m.competitionName && <span>• {m.competitionName}</span>}
+                          {m.competitionName && <span className="min-w-0 truncate">• {m.competitionName}</span>}
                         </p>
                       </div>
                     </div>
@@ -179,7 +185,7 @@ export function DashboardEventsCarousel({
                   <Link
                     key={t.id}
                     href={`/${locale}/dashboard/training/${t.id}`}
-                    className="flex items-center justify-between py-2.5 group hover:bg-muted/30 px-2 rounded-lg transition-colors"
+                    className="flex items-center justify-between py-2 sm:py-2.5 group hover:bg-muted/30 px-1.5 sm:px-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0">
@@ -197,7 +203,7 @@ export function DashboardEventsCarousel({
                               timeStyle: "short"
                             }).format(new Date(t.date))}
                           </span>
-                          {t.location && <span>• {t.location}</span>}
+                          {t.location && <span className="min-w-0 truncate">• {t.location}</span>}
                         </p>
                       </div>
                     </div>
@@ -223,7 +229,7 @@ export function DashboardEventsCarousel({
                   <Link
                     key={m.id}
                     href={`/${locale}/dashboard/meeting-minutes/${m.id}`}
-                    className="flex items-center justify-between py-2.5 group hover:bg-muted/30 px-2 rounded-lg transition-colors"
+                    className="flex items-center justify-between py-2 sm:py-2.5 group hover:bg-muted/30 px-1.5 sm:px-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 shrink-0">

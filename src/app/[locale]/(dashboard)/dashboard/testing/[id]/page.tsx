@@ -6,11 +6,12 @@ import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards"
 import { deleteTestSessionAction } from "../actions";
 import { TestingSessionSheet, type SessionPlayerData } from "@/components/testing/testing-session-sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ArrowLeft, ArrowRight, Calendar, MapPin, User, Shield, Timer, Trash2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { localizeTestProtocol } from "@/lib/testing/localize-protocol";
+import { compactTestSessionTitle } from "@/lib/testing/session-title";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 export default async function TestingSessionDetailPage({
   params
@@ -55,7 +56,7 @@ export default async function TestingSessionDetailPage({
   const teamPlayers = await db.player.findMany({
     where: {
       teamId: session.teamId,
-      status: { not: "ARCHIVED" }
+      status: "ACTIVE"
     },
     select: {
       id: true,
@@ -153,16 +154,13 @@ export default async function TestingSessionDetailPage({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                {session.title}
+                {compactTestSessionTitle(session.title, session.team.name || tTeams(`categories.${session.team.category}` as any), session.testDefinition.code)}
               </h1>
-              <Badge tone="neutral" className="text-xs">
-                {session.testDefinition.code}
-              </Badge>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
               <span className="flex items-center gap-1 font-semibold text-primary">
                 <Shield className="h-3.5 w-3.5" />
-                <span>{session.team.name || tTeams(`categories.${session.team.category}` as any)}</span>
+                <span>{localizedClubName(session.team.name, locale, tTeams(`categories.${session.team.category}` as any))}</span>
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />

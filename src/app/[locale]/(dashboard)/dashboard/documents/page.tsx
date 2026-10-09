@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
+import { localizedClubName } from "@/lib/public/locale-text";
 import {
   FileText,
   Download,
@@ -32,7 +33,7 @@ const DOCUMENT_CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   contract: { ar: "العقود", fr: "Contrats" },
   administrative: { ar: "وثائق إدارية", fr: "Documents administratifs" },
   registration: { ar: "وثائق التسجيل", fr: "Documents d’inscription" },
-  correspondence: { ar: "المراسلات", fr: "Correspondance" },
+  correspondence: { ar: "المراسلات والطعون", fr: "Correspondances et recours" },
   meeting_minute: { ar: "محاضر الاجتماعات", fr: "Procès-verbaux" },
   report: { ar: "التقارير", fr: "Rapports" },
   calendar: { ar: "الجداول الزمنية", fr: "Calendriers" },
@@ -390,7 +391,7 @@ export default async function DocumentsListPage({
                       {doc.relatedMatch && (
                         <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 text-[10px] font-semibold mt-1">
                           <Trophy className="h-3 w-3 shrink-0" />
-                          <span>{locale === "ar" ? "مباراة:" : "Match:"} {doc.relatedMatch.isHomeFixture ? doc.relatedMatch.awayTeamName : doc.relatedMatch.homeTeamName}</span>
+                          <span>{locale === "ar" ? "مباراة:" : "Match:"} {localizedClubName(doc.relatedMatch.isHomeFixture ? doc.relatedMatch.awayTeamName : doc.relatedMatch.homeTeamName, locale, locale === "ar" ? "الفريق المنافس" : "Nom du club adverse")}</span>
                         </span>
                       )}
                       {doc.relatedPlayer && (

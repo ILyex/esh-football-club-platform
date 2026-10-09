@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { readSocialReels, type SocialReel } from "@/lib/social-reels";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 // ============================================================================
 // PUBLIC CLUB SETTINGS DATA ACCESS
@@ -20,6 +22,7 @@ export interface PublicClubSettings {
   contactPhone: string | null;
   address: string | null;
   socialLinks: Record<string, string> | null;
+  socialReels: SocialReel[];
   defaultLocale: string;
 }
 
@@ -55,14 +58,24 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
       stadium: "الملعب البلدي لبلدية سيدي حسني",
       contactEmail: null,
       contactPhone: null,
-      address: "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر",
+      address: "الملعب البلدي لبلدية سيدي حسني",
       socialLinks: null,
+      socialReels: [],
       defaultLocale: "ar"
     };
   }
 
+  const rawSocialLinks = settings.socialLinks && typeof settings.socialLinks === "object" && !Array.isArray(settings.socialLinks)
+    ? settings.socialLinks as Record<string, unknown>
+    : {};
+  const socialLinks = Object.fromEntries(["facebook", "instagram", "tiktok"].flatMap((key) =>
+    typeof rawSocialLinks[key] === "string" ? [[key, rawSocialLinks[key] as string]] : []
+  ));
   return {
     ...settings,
-    socialLinks: (settings.socialLinks as Record<string, string>) ?? null
+    logoUrl: normalizePublicMediaUrl(settings.logoUrl),
+    homepageHeroImageUrl: normalizePublicMediaUrl(settings.homepageHeroImageUrl),
+    socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,
+    socialReels: readSocialReels(rawSocialLinks)
   };
 }

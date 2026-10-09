@@ -45,7 +45,7 @@ export const FINANCE_COLORS = {
     bg: "bg-emerald-500/10",
     border: "border-emerald-500/30",
     badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
-    btn: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    btn: "bg-club-primary hover:bg-club-primary-hover text-white",
     fill: "#10B981"
   },
 

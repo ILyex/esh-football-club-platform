@@ -224,7 +224,7 @@ export function InventoryPreviewModal({
                                 <td colSpan={2} className="border border-zinc-300 px-3 py-1.5 text-start font-bold">
                                   {isAr ? `مجموع (${defaultCategoryLabels[catKey] || catKey})` : `Total (${defaultCategoryLabels[catKey] || catKey})`}
                                 </td>
-                                <td className="border border-zinc-300 px-2 py-1.5 text-center font-bold font-mono">
+                                <td className="print-document-total-count border border-zinc-300 px-2 py-1.5 text-center font-bold font-mono">
                                   {catTotal}
                                 </td>
                                 <td colSpan={3} className="border border-zinc-300 px-2 py-1.5 text-end text-[11px] text-zinc-600">
@@ -248,7 +248,7 @@ export function InventoryPreviewModal({
                             {isAr ? "المجموع الإجمالي للقطع والمعدات المفهرسة:" : "TOTAL GÉNÉRAL DU MATÉRIEL :"}
                           </td>
                           <td className="w-40 border border-zinc-300 px-4 py-2.5 text-center font-mono">
-                            {items.reduce((acc, it) => acc + it.quantity, 0)} {isAr ? "قطعة" : "unités"}
+                            <span className="print-document-total-count">{items.reduce((acc, it) => acc + it.quantity, 0)}</span> {isAr ? "قطعة" : "unités"}
                           </td>
                         </tr>
                       </tbody>
@@ -257,7 +257,7 @@ export function InventoryPreviewModal({
 
                   {/* The equipment department signs its own inventory. */}
                   <div
-                    className="signatures-section flex justify-center text-center text-[13px] sm:text-[14px] pt-8 mt-6 text-black"
+                    className="document-signatures signatures-section flex justify-end text-right pt-8 mt-6 text-black"
                     style={{
                       pageBreakInside: "avoid",
                       breakInside: "avoid"

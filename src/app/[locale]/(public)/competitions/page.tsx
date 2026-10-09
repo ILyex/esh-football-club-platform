@@ -8,7 +8,8 @@ import {
   getCompetitionDisplayData
 } from "@/lib/competitions";
 import { db } from "@/lib/db";
-import { frenchPublicText } from "@/lib/public/locale-text";
+import { frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function PublicCompetitionsPage({
   params
@@ -69,7 +70,9 @@ export default async function PublicCompetitionsPage({
       name: isAr ? c.name : frenchPublicText(c.name, "Compétition officielle"),
       type: c.type,
       logoUrl: c.logoUrl,
-      organization: isAr ? c.organization : frenchPublicText(c.organization, "Compétition officielle"),
+      organization: c.organization?.trim()
+        ? (isAr ? c.organization.trim() : frenchPublicText(c.organization.trim(), ""))
+        : null,
       seasonId: c.seasonId,
       seasonLabel: isAr ? c.season.label : frenchPublicText(c.season.label, "Saison"),
       category: cat,
@@ -79,31 +82,25 @@ export default async function PublicCompetitionsPage({
       ...displayData,
       standings: localizedStandings,
       bracket: localizedBracket,
-      matches: c.matches.map((match) => isAr ? match : ({
+      matches: c.matches.map((match) => ({
         ...match,
-        homeTeamName: frenchPublicText(match.homeTeamName, "Adversaire"),
-        awayTeamName: frenchPublicText(match.awayTeamName, "Adversaire")
+        homeTeamName: localizedClubName(match.homeTeamName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse"),
+        awayTeamName: localizedClubName(match.awayTeamName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")
       }))
     };
   });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-10">
-      {/* Page Hero Header */}
-      <div className="border-b border-border/80 pb-6">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-          <Trophy className="h-4 w-4" />
-          {isAr ? "المسابقات والبطولات" : "Compétitions & Tournois"}
-        </span>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {isAr ? "متابعة المسابقات الرسمية للنادي" : "Calendrier & Classements Officiels"}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
-          {isAr
-            ? "تعرف على ترتيب الجمعية الرياضية أمل سيدي حسني لكرة القدم في بطولة الدوري والرسم الهيكلي لمشوار الفريق في كأس الجزائر عبر كافة الفئات"
-            : "Suivez le parcours de l'Association Sportive Espoir Sidi Hosni de Football en championnat et en Coupe d'Algérie pour toutes les catégories"}
-        </p>
-      </div>
+      <PublicPageHeading
+        locale={locale}
+        icon={<Trophy />}
+        eyebrow={isAr ? "المسابقات والبطولات" : "Compétitions & Tournois"}
+        title={isAr ? "متابعة المسابقات الرسمية" : "Calendrier & Classements Officiels"}
+        description={isAr
+          ? "تعرف على ترتيب الجمعية الرياضية أمل سيدي حسني لكرة القدم في بطولة الدوري والرسم الهيكلي لمشوار الفريق في كأس الجزائر عبر كافة الفئات"
+          : "Suivez le parcours de l'Association Sportive Espoir Sidi Hosni de Football en championnat et en Coupe d'Algérie pour toutes les catégories"}
+      />
 
       {/* Main Public Competitions Hub (Tabs for League Standings & Algerian Cup Knockout Bracket) */}
       <CompetitionsHub

@@ -12,12 +12,16 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  Info,
-  X
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
 import { FormSelect } from "@/components/ui/form-select";
+import { NewMatchLineup } from "@/components/matches/new-match-lineup";
+import { MatchPeriodOptions } from "@/components/matches/match-period-options";
+import { RefereeNamesInput } from "@/components/matches/referee-names-input";
+import { localizedClubName, splitClubNameVariants } from "@/lib/public/locale-text";
+import { toast } from "sonner";
 
 interface CompetitionOption {
   id: string;
@@ -31,6 +35,15 @@ interface TeamOption {
   category: string;
 }
 
+interface MatchPlayerOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  position: string | null;
+  status: string;
+  teamId: string | null;
+}
+
 interface SavedOpponent {
   name: string;
   logoUrl: string;
@@ -41,44 +54,18 @@ interface MatchFormClientProps {
   locale: string;
   competitions: CompetitionOption[];
   teams: TeamOption[];
+  players: MatchPlayerOption[];
   savedOpponents: SavedOpponent[];
   defaultTeamId?: string | null;
   clubName: string;
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<unknown>;
 }
-
-const MATCH_STATUS_PRESENTATION: Record<string, { ar: string; fr: string; className: string }> = {
-  SCHEDULED: {
-    ar: "مبرمجة",
-    fr: "Programmée",
-    className: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
-  },
-  LIVE: {
-    ar: "مباشرة الآن",
-    fr: "En direct",
-    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-  },
-  FINISHED: {
-    ar: "منتهية",
-    fr: "Terminée",
-    className: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-  },
-  POSTPONED: {
-    ar: "مؤجلة",
-    fr: "Reportée",
-    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-  },
-  CANCELLED: {
-    ar: "ملغاة",
-    fr: "Annulée",
-    className: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
-  }
-};
 
 export function MatchFormClient({
   locale,
   competitions,
   teams,
+  players,
   savedOpponents,
   defaultTeamId,
   clubName,
@@ -97,10 +84,10 @@ export function MatchFormClient({
     setCompetitionId(firstMatchingCompetition?.id || "");
   };
   const [opponent, setOpponent] = useState("");
+  const [opponentNameFr, setOpponentNameFr] = useState("");
+  const displayOpponent = localizedClubName(opponent, locale, isRtl ? "الفريق الخصم" : "Nom du club adverse");
   const [isHomeFixture, setIsHomeFixture] = useState(true);
   const [stadium, setStadium] = useState(isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni");
-  const [refereeNames, setRefereeNames] = useState<string[]>([]);
-  const [refereeDraft, setRefereeDraft] = useState("");
   const [status, setStatus] = useState("SCHEDULED");
   const [matchDate, setMatchDate] = useState(() => {
     const d = new Date();
@@ -121,25 +108,6 @@ export function MatchFormClient({
   const handleStatusChange = (nextStatus: string) => {
     setStatus(nextStatus);
     if (nextStatus === "LIVE") setMatchDate(getLocalDateTimeValue());
-  };
-
-  const addRefereeNames = () => {
-    const names = refereeDraft.split(/[,،]/).map((name) => name.trim()).filter(Boolean);
-    if (!names.length) return;
-    setRefereeNames((current) => {
-      const known = new Set(current.map((name) => name.toLocaleLowerCase()));
-      const next = [...current];
-      for (const name of names) {
-        const key = name.toLocaleLowerCase();
-        if (known.has(key)) continue;
-        const candidate = [...next, name].join(", ");
-        if (candidate.length > 120) break;
-        known.add(key);
-        next.push(name);
-      }
-      return next;
-    });
-    setRefereeDraft("");
   };
 
   // Logo state
@@ -186,7 +154,9 @@ export function MatchFormClient({
 
   const handleSelectSavedOpponent = (item: SavedOpponent) => {
     clearLogoFile();
-    setOpponent(item.name);
+    const names = splitClubNameVariants(item.name);
+    setOpponent(names.ar);
+    setOpponentNameFr(names.fr);
     setLogoPreview(item.logoUrl || null);
     if (item.stadium && !isHomeFixture) {
       setStadium(item.stadium);
@@ -220,7 +190,22 @@ export function MatchFormClient({
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
-      await action(formData);
+      try {
+        const result = await action(formData) as { formError?: { field?: string; message: string } } | undefined;
+        if (result?.formError) {
+          if (result.formError.field) {
+            const field = document.querySelector<HTMLElement>(`[name="${CSS.escape(result.formError.field)}"]`);
+            field?.focus();
+            field?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          toast.error(result.formError.message);
+          return;
+        }
+        toast.success(isRtl ? "تم حفظ وبرمجة المباراة بنجاح" : "Match programmé avec succès");
+      } catch (error) {
+        console.error("Match create failed:", error);
+        toast.error(isRtl ? "تعذر حفظ المباراة. تحقق من البيانات ثم أعد المحاولة." : "Impossible d’enregistrer le match. Vérifiez les données puis réessayez.");
+      }
     });
   };
 
@@ -240,14 +225,6 @@ export function MatchFormClient({
             </p>
           </div>
 
-          <span
-            dir={isRtl ? "rtl" : "ltr"}
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${MATCH_STATUS_PRESENTATION[status]?.className ?? "border-border bg-muted text-muted-foreground"}`}
-          >
-            {MATCH_STATUS_PRESENTATION[status]
-              ? (isRtl ? MATCH_STATUS_PRESENTATION[status].ar : MATCH_STATUS_PRESENTATION[status].fr)
-              : status}
-          </span>
         </div>
 
         {/* Visual Match Duel Card */}
@@ -267,7 +244,7 @@ export function MatchFormClient({
             </div>
             <div className="space-y-0.5 text-start md:text-center">
               <h3 className="text-base font-extrabold text-foreground truncate max-w-[180px]">
-                {isHomeFixture ? clubName : opponent || (isRtl ? "الفريق الخصم" : "Adversaire")}
+                {isHomeFixture ? clubName : displayOpponent}
               </h3>
               <span className="inline-block rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold">
                 {isRtl ? "المضيف (داخل الديار)" : "Domicile"}
@@ -300,7 +277,7 @@ export function MatchFormClient({
             </div>
             <div className="space-y-0.5 text-start md:text-center">
               <h3 className="text-base font-extrabold text-foreground truncate max-w-[180px]">
-                {!isHomeFixture ? clubName : opponent || (isRtl ? "الفريق الخصم" : "Adversaire")}
+                {!isHomeFixture ? clubName : displayOpponent}
               </h3>
               <span className="inline-block rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 text-[10px] font-bold">
                 {isRtl ? "الضيف (خارج الديار)" : "Extérieur"}
@@ -355,7 +332,7 @@ export function MatchFormClient({
           <div className="md:col-span-2">
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {isRtl ? "الفريق الخصم *" : "Équipe adverse *"}
+                {isRtl ? "اسم الفريق الخصم بالعربية *" : "Nom arabe de l’équipe adverse *"}
               </label>
               {savedOpponents.length > 0 && (
                 <span className="text-[11px] text-muted-foreground">
@@ -366,17 +343,30 @@ export function MatchFormClient({
             <input
               type="text"
               name="opponent"
-              list="saved-opponent-clubs"
               required
+              dir="rtl"
               value={opponent}
               onChange={(e) => handleOpponentChange(e.target.value)}
               placeholder={isRtl ? "اكتب اسم الفريق الخصم (مثال: مديوني وهران، شبيبة تيارت...)" : "Ex: JS Tiaret"}
               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <datalist id="saved-opponent-clubs">
-              {savedOpponents.map((item) => <option key={item.name} value={item.name} />)}
-            </datalist>
-
+            <label htmlFor="opponent-name-fr" className="mb-1.5 mt-3 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {isRtl ? "اسم الفريق الخصم بالفرنسية" : "Nom français de l’équipe adverse"}
+            </label>
+            <input
+              id="opponent-name-fr"
+              type="text"
+              name="opponentNameFr"
+              dir="ltr"
+              value={opponentNameFr}
+              onChange={(event) => setOpponentNameFr(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }}
+              placeholder="OM Mahdia"
+              maxLength={120}
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
             {/* Quick chips of saved opponents */}
             {savedOpponents.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -391,7 +381,7 @@ export function MatchFormClient({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.logoUrl} alt="" className="h-3.5 w-3.5 object-contain" />
                     )}
-                    <span>{item.name}</span>
+                    <span>{localizedClubName(item.name, locale, isRtl ? "فريق منافس" : "Nom du club adverse")}</span>
                   </button>
                 ))}
               </div>
@@ -493,9 +483,9 @@ export function MatchFormClient({
               required
               value={matchDate}
               onChange={(_, iso) => {
-                // Keep the draft editable while DD/MM/YYYY is incomplete;
-                // commit it once the date is valid.
-                if (iso) setMatchDate(iso);
+                // Keep the controlled value in sync when the user clears the
+                // date, so unrelated rerenders don't restore the old value.
+                setMatchDate(iso ?? "");
               }}
               locale={locale}
             />
@@ -512,48 +502,29 @@ export function MatchFormClient({
               required
               value={stadium}
               onChange={(e) => setStadium(e.target.value)}
+              readOnly={isHomeFixture}
               placeholder={isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 read-only:cursor-not-allowed read-only:opacity-70"
             />
           </div>
 
           {/* Referee */}
-          <div>
+          <div className="space-y-3">
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {isRtl ? "حكم اللقاء الرئيسي والطاقم" : "Arbitre officiel"}
+            {isRtl ? "حكام اللقاء والطاقم" : "Arbitres du match"}
             </label>
-            <div dir={isRtl ? "rtl" : "ltr"} className="flex min-h-11 w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 transition-colors focus-within:border-club-primary focus-within:ring-2 focus-within:ring-club-primary/15">
-              <input type="hidden" name="refereeName" value={refereeNames.join(", ")} />
-              {refereeNames.map((name, index) => (
-                <span key={`${name}-${index}`} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-club-primary/25 bg-club-primary/10 px-2.5 py-1 text-xs font-semibold text-club-primary">
-                  <span className="max-w-56 truncate">{name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setRefereeNames((current) => current.filter((_, nameIndex) => nameIndex !== index))}
-                    aria-label={isRtl ? `حذف الحكم ${name}` : `Retirer l’arbitre ${name}`}
-                    title={isRtl ? "حذف الاسم" : "Supprimer le nom"}
-                    className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-club-primary/75 transition-colors hover:bg-club-primary/15 hover:text-club-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
-                  >
-                    <X className="h-3 w-3" aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-              <input
-                type="text"
-                value={refereeDraft}
-                onChange={(event) => setRefereeDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addRefereeNames();
-                  } else if (event.key === "Backspace" && !refereeDraft && refereeNames.length > 0) {
-                    setRefereeNames((current) => current.slice(0, -1));
-                  }
-                }}
-                placeholder={isRtl ? "اكتب اسم الحكم واضغط Enter" : "Saisissez un nom puis appuyez sur Entrée"}
-                autoComplete="off"
-                className="min-w-40 flex-1 border-0 bg-transparent px-1 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
-              />
+            <p className="mb-1.5 text-[11px] text-muted-foreground">
+              {isRtl ? "بالترتيب: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي." : "Ordre : arbitre principal, assistants, puis arbitre remplaçant."}
+            </p>
+            <div className="grid gap-3">
+              <div>
+                <p className="mb-1 text-[11px] font-semibold text-foreground">{isRtl ? "أسماء الحكام بالعربية" : "Noms des arbitres en arabe"}</p>
+                <RefereeNamesInput name="refereeNameAr" locale={locale} nameDirection="rtl" showOrderHint={false} />
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold text-foreground">{isRtl ? "أسماء الحكام بالفرنسية" : "Noms des arbitres en français"}</p>
+                <RefereeNamesInput name="refereeNameFr" locale={locale} nameDirection="ltr" showOrderHint={false} />
+              </div>
             </div>
           </div>
 
@@ -571,13 +542,14 @@ export function MatchFormClient({
               onValueChange={handleStatusChange}
               options={[
                 { value: "SCHEDULED", label: isRtl ? "مبرمجة" : "Programmée" },
-                { value: "LIVE", label: isRtl ? "مباشرة الآن" : "En direct" },
-                { value: "FINISHED", label: isRtl ? "منتهية" : "Terminée" },
-                { value: "POSTPONED", label: isRtl ? "مؤجلة" : "Reportée" },
-                { value: "CANCELLED", label: isRtl ? "ملغاة" : "Annulée" }
+                { value: "LIVE", label: isRtl ? "مباشر" : "En direct" },
+                { value: "FINISHED", label: isRtl ? "انتهت" : "Terminée" },
+                { value: "POSTPONED", label: isRtl ? "مؤجلة" : "Reportée" }
               ]}
             />
           </div>
+
+          <MatchPeriodOptions locale={locale} initialExtraTime={false} initialShootout={false} />
 
           {/* Scores (if LIVE or FINISHED) */}
           {(status === "LIVE" || status === "FINISHED") ? (
@@ -637,6 +609,8 @@ export function MatchFormClient({
             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
+
+        <NewMatchLineup locale={locale} teamId={teamId} players={players} />
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-5 border-t border-border/80">

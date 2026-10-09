@@ -3,7 +3,14 @@ import Link from "next/link";
 export default function RootNotFound() {
   return (
     <html lang="ar" dir="rtl">
-      <body className="flex min-h-screen flex-col items-center justify-center p-4 text-center font-sans bg-background text-foreground">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var c=(document.cookie.match(/(^|; )theme=([^;]+)/)||[])[2];var t=c||localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||((t==='system'||!t)&&d))document.documentElement.classList.add('dark');}catch(e){}})()`
+          }}
+        />
+      </head>
+      <body suppressHydrationWarning className="flex min-h-screen flex-col items-center justify-center p-4 text-center font-sans bg-background text-foreground">
         <div className="max-w-md space-y-4 rounded-xl border border-border bg-card p-8 shadow-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-club-primary/10 text-club-primary font-mono text-2xl font-bold">
             404

@@ -499,7 +499,7 @@ export function CupKnockoutBracket({
                                 ? isAr ? "انتهت" : "Terminé"
                                 : m.status === "LIVE"
                                 ? isAr ? "مباشر" : "En direct"
-                                : isAr ? "مبرمجة" : "Programmé"}
+                                : isAr ? "مبرمجة" : "Programmée"}
                             </span>
                           </div>
 

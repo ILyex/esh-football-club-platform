@@ -96,7 +96,7 @@ async function resolveMatchReportBundle(matchId: string, context?: ResolverConte
       opponent,
       score: match.homeScore != null && match.awayScore != null ? `${match.homeScore} - ${match.awayScore}` : "",
       stadium: match.stadium ?? "",
-      referee: match.refereeName ?? "",
+      referee: (lang === "fr" ? match.refereeNameFr || match.refereeNameAr : match.refereeNameAr || match.refereeNameFr) || match.refereeName || "",
       status: match.status,
       report: match.matchReport ?? "",
       scorers: goals.map((g) => (g.player ? `${getPlayerDisplayName(g.player, lang)} (${g.minute}')` : `(${g.minute}')`)).join(", ")

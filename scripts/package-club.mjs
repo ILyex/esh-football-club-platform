@@ -17,10 +17,9 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(internal, { recursive: true });
 
 fs.cpSync(standalone, path.join(internal, ".next", "standalone"), { recursive: true });
-// The standalone tree can contain the developer's local file-storage data.
-// Club records and uploaded files live in Neon/S3 or the installed app's
-// separate .storage directory; never ship local documents, avatars, or
-// generated reports inside the handover archive.
+// The standalone tree can contain local file-storage data from development.
+// Public uploads are stored in Neon/S3; never ship local documents, avatars,
+// or generated reports inside the handover archive.
 fs.rmSync(path.join(internal, ".next", "standalone", ".storage"), { recursive: true, force: true });
 // Next may trace the developer's .env into the standalone folder. Remove
 // those nested copies so the launcher reads the package root .env/.env.local,
@@ -39,6 +38,7 @@ if (fs.existsSync(runtimeSource)) fs.cpSync(runtimeSource, path.join(internal, "
 
 for (const name of [
   "app.js", "Launch-ESH-Platform.bat", "Launch-ESH-Platform.vbs",
+  "Local-Platform-Supervisor.mjs", "Start-Local-Platform-Supervisor.ps1",
   "Install-ESH-Platform.vbs", "Setup-ESH-Local-AI.ps1", "Setup-ESH-Local-AI.vbs",
   "Update-ESH-Platform.ps1", "Update-ESH-Platform.vbs"
 ]) {
@@ -91,7 +91,7 @@ const runtimeEnv = [
   `GOOGLE_CLIENT_SECRET=${JSON.stringify(clubValue("GOOGLE_CLIENT_SECRET"))}`,
   `GOOGLE_REDIRECT_URI=${JSON.stringify(clubValue("GOOGLE_REDIRECT_URI", "http://localhost:3000/api/auth/google/callback"))}`,
   `GMAIL_TOKEN_ENCRYPTION_KEY=${JSON.stringify(clubValue("GMAIL_TOKEN_ENCRYPTION_KEY", authSecret))}`,
-  `STORAGE_DRIVER=${JSON.stringify(clubValue("STORAGE_DRIVER", "local"))}`,
+  `STORAGE_DRIVER=${JSON.stringify(clubValue("STORAGE_DRIVER", "database"))}`,
   ""
 ].join("\n");
 const runtimeLocalEnv = [
@@ -107,6 +107,13 @@ const runtimeLocalEnv = [
 ].join("\n");
 fs.writeFileSync(path.join(internal, ".env"), runtimeEnv, "utf8");
 fs.writeFileSync(path.join(internal, ".env.local"), runtimeLocalEnv, "utf8");
+
+// The updater uses this bounded migration to move existing public uploads
+// into the database before switching STORAGE_DRIVER away from local storage.
+fs.copyFileSync(
+  path.join(root, "scripts", "migrate-local-public-assets-to-database.mjs"),
+  path.join(standalone, "migrate-local-public-assets-to-database.mjs")
+);
 
 // Next's standalone server resolves env files from its own directory rather
 // than the package root. Put the same prepared club configuration there too;

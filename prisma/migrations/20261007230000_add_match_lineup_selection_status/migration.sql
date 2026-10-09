@@ -1,0 +1,1 @@
+ALTER TABLE "MatchLineup" ADD COLUMN "selectionStatus" TEXT NOT NULL DEFAULT 'STARTING';

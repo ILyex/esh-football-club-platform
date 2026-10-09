@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { frenchPublicText, hasArabicScript } from "./locale-text";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 // ============================================================================
 // PUBLIC NEWS & ARTICLES DATA ACCESS
@@ -45,7 +46,9 @@ export async function getPublicNewsList(
 
   const where: any = {
     status: "PUBLISHED",
-    publishedAt: { lte: now }
+    // Older published records may predate publishedAt being populated.
+    // They are still public because their authoritative state is PUBLISHED.
+    OR: [{ publishedAt: { lte: now } }, { publishedAt: null }]
   };
 
   if (options?.category && options.category !== "all") {
@@ -77,9 +80,10 @@ export async function getPublicNewsList(
   ]);
 
   const items: PublicNewsItem[] = articles.flatMap((article) => {
-    // Do not silently show Arabic content on the French public site.
+    // Reject Arabic content only on the French public site. Arabic is the
+    // expected language for the Arabic route and must remain visible there.
     const translation = article.translations.find((t) => t.locale === locale);
-    if (!translation || hasArabicScript(translation.title) || hasArabicScript(translation.content)) return [];
+    if (!translation || (locale === "fr" && (hasArabicScript(translation.title) || hasArabicScript(translation.content)))) return [];
 
     const title = translation.title;
     const slug = translation.slug || article.id;
@@ -92,7 +96,7 @@ export async function getPublicNewsList(
       slug,
       title,
       excerpt,
-      featuredImageUrl: article.featuredImageUrl,
+      featuredImageUrl: normalizePublicMediaUrl(article.featuredImageUrl),
       category: locale === "ar" ? article.category : frenchPublicText(article.category, "Club"),
       publishedAt: article.publishedAt || now,
       locale: translation.locale
@@ -109,15 +113,23 @@ export async function getPublicNewsList(
 /** Fetches a single public news article by slug for the requested locale. */
 export async function getPublicNewsArticle(slug: string, locale: string): Promise<PublicNewsArticle | null> {
   const now = new Date();
+  let lookupSlug = slug;
+  try {
+    lookupSlug = decodeURIComponent(slug);
+  } catch {
+    // Next normally provides a decoded segment; keep the original on malformed input.
+  }
 
-  // Find translation with matching slug
+  // Resolve both normal slugs and the id fallback used for older translations.
   const translation = await db.newsTranslation.findFirst({
     where: {
-      slug,
       locale,
+      // Some older records have no translation slug. The list endpoint uses
+      // the news id as a stable fallback, so details must resolve that value too.
+      OR: [{ slug: lookupSlug }, { news: { id: lookupSlug } }],
       news: {
         status: "PUBLISHED",
-        publishedAt: { lte: now }
+        OR: [{ publishedAt: { lte: now } }, { publishedAt: null }]
       }
     },
     include: {
@@ -145,8 +157,8 @@ export async function getPublicNewsArticle(slug: string, locale: string): Promis
     slug: translation.slug,
     title: translation.title,
     content: translation.content,
-    featuredImageUrl: translation.news.featuredImageUrl,
-    imageUrls: translation.news.imageUrls || [],
+    featuredImageUrl: normalizePublicMediaUrl(translation.news.featuredImageUrl),
+    imageUrls: (translation.news.imageUrls || []).map((url) => normalizePublicMediaUrl(url)).filter((url): url is string => Boolean(url)),
     category: locale === "ar" ? translation.news.category : frenchPublicText(translation.news.category, "Club"),
     publishedAt: translation.news.publishedAt || now,
     locale: translation.locale,

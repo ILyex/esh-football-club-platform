@@ -31,7 +31,9 @@ import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8h — tune per section 43 "Session Expiration"
+  // Keep administrators signed in across normal working periods. User status
+  // and tokenVersion are still checked on every server request for revocation.
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 }, // 30 days
   pages: {
     signIn: "/login"
   },

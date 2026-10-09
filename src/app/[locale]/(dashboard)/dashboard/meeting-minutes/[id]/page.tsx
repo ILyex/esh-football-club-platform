@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateTimeInput } from "@/components/ui/datetime-input";
 import { MeetingAttendeesInput } from "@/components/meetings/meeting-attendees-input";
-import { Save,  FileText, Download, Upload, Paperclip } from "lucide-react";
+import { Save,  FileText, Download, Upload, Paperclip, Trash2 } from "lucide-react";
 
 export default async function MeetingMinuteDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -60,7 +60,7 @@ export default async function MeetingMinuteDetailPage({ params }: { params: Prom
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold">{meeting.title}</h1>
+      <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{meeting.title}</h1>
       {meeting.calendarEventId && <p className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">{locale === "ar" ? "موعد هذا الاجتماع مرتبط بالرزنامة. لتعديل العنوان أو التاريخ أو المكان، حدّث الموعد من قسم الرزنامة." : "Cette réunion est liée au calendrier. Modifiez son titre, sa date ou son lieu depuis le calendrier."}</p>}
 
       <form action={update} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-6">
@@ -173,7 +173,10 @@ export default async function MeetingMinuteDetailPage({ params }: { params: Prom
                   </a>
                   {canManage && (
                     <ConfirmDialog onConfirm={detach}>
-                      <button type="button" className="text-xs text-destructive hover:underline">{tCommon("delete")}</button>
+                      <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white">
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{tCommon("delete")}</span>
+                      </button>
                     </ConfirmDialog>
                   )}
                 </div>

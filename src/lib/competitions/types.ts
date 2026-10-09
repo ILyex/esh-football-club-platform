@@ -48,9 +48,9 @@ export interface CupBracketData {
 
 export const OFFICIAL_CATEGORY_NAMES: Record<TeamCategory, { ar: string; fr: string }> = {
   SENIOR: { ar: "الأكابر", fr: "Séniors" },
-  U20: { ar: "الأواسط (U20)", fr: "U20" },
-  U17: { ar: "الأشبال (U17)", fr: "U17" },
-  U15: { ar: "الأصاغر (U15)", fr: "U15" }
+  U20: { ar: "U20", fr: "U20" },
+  U17: { ar: "U17", fr: "U17" },
+  U15: { ar: "U15", fr: "U15" }
 };
 
 export const CLUB_DEFAULT_CREST = "/branding/esh-logo-128.png";

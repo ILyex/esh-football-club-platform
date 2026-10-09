@@ -1,4 +1,4 @@
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission, requiredPermissionForDocument } from "@/lib/permissions";
@@ -8,6 +8,7 @@ import { updateDocumentMetadataAction, setDocumentStatusAction, deleteDocumentAc
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 const CLASSIFICATION_TONE = { PUBLIC: "success", INTERNAL: "neutral", RESTRICTED: "danger" } as const;
 const STATUS_TONE = { PENDING_REVIEW: "warning", APPROVED: "success", ARCHIVED: "neutral" } as const;
@@ -43,7 +44,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
   const [categories, teams, players, staff, matches] = await Promise.all([
     db.documentCategory.findMany({ orderBy: { name: "asc" } }),
     db.team.findMany({ orderBy: { category: "asc" } }),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: { lastName: "asc" } }),
+    db.player.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
     db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
     db.match.findMany({ orderBy: { matchDate: "desc" }, take: 30 })
   ]);
@@ -163,7 +164,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
             <option value="">—</option>
             {matches.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.homeTeamName} – {m.awayTeamName}
+                {localizedClubName(m.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – {localizedClubName(m.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")}
               </option>
             ))}
           </select>
@@ -199,7 +200,10 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
         )}
         {canDelete && (
           <ConfirmDialog onConfirm={remove}>
-            <Button variant="destructive">{tCommon("delete")}</Button>
+          <Button variant="destructive" className="gap-2 rounded-xl font-bold">
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span>{tCommon("delete")}</span>
+          </Button>
           </ConfirmDialog>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
 
 interface TimeInputProps {
   name?: string;
@@ -41,16 +42,19 @@ export function TimeInput({
   const [open, setOpen] = useState(false);
   const [activeColumn, setActiveColumn] = useState<"hour" | "minute">("hour");
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const currentValue = value ?? internalValue;
   const [hour = "00", minute = "00"] = currentValue.split(":");
+  const placement = useAutoPopoverPlacement(open, rootRef, panelRef, 360);
 
   useEffect(() => {
-    if (value !== undefined) {
-      setInternalValue(value);
-      setDraft(value);
+    if (value !== undefined || defaultValue !== undefined) {
+      const nextValue = value ?? defaultValue;
+      setInternalValue(nextValue);
+      setDraft(nextValue);
     }
-  }, [value]);
+  }, [value, defaultValue]);
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -131,7 +135,7 @@ export function TimeInput({
       </div>
 
       {open && !disabled && (
-        <div id={`${id ?? name ?? "time"}-options`} className="absolute start-0 top-[calc(100%+0.375rem)] z-[90] w-56 rounded-xl border border-border bg-card p-2 text-foreground shadow-xl ring-1 ring-black/5" role="group" aria-label={isAr ? "اختيار الوقت" : "Sélection de l’heure"}>
+        <div ref={panelRef} id={`${id ?? name ?? "time"}-options`} style={popoverPlacementStyle(placement, "0.375rem")} className="absolute start-0 z-[90] w-[min(14rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-2 text-foreground shadow-xl ring-1 ring-black/5" role="group" aria-label={isAr ? "اختيار الوقت" : "Sélection de l’heure"}>
           <div className="grid grid-cols-2 gap-2">
             {(["hour", "minute"] as const).map((part) => {
               const options = part === "hour" ? hours : minutes;
@@ -142,7 +146,7 @@ export function TimeInput({
                   <button
                     type="button"
                     onClick={() => setActiveColumn(part)}
-                    className={cn("mb-1 w-full rounded-md px-2 py-1 text-[10px] font-semibold", activeColumn === part ? "bg-club-primary/10 text-club-primary" : "text-muted-foreground hover:bg-muted")}
+                      className={cn("mb-1 min-h-9 w-full rounded-md px-2 py-1 text-[10px] font-semibold", activeColumn === part ? "bg-club-primary/10 text-club-primary" : "text-muted-foreground hover:bg-muted")}
                   >
                     {title}
                   </button>
@@ -154,7 +158,7 @@ export function TimeInput({
                         aria-selected={selected === option}
                         key={option}
                         onClick={() => selectPart(part, option)}
-                        className={cn("my-0.5 min-h-8 w-full rounded-md px-2 text-sm font-mono tabular-nums transition-colors", selected === option ? "bg-club-primary text-white" : "text-foreground hover:bg-muted")}
+                        className={cn("my-0.5 min-h-10 w-full rounded-md px-2 text-sm font-mono tabular-nums transition-colors", selected === option ? "bg-club-primary text-white" : "text-foreground hover:bg-muted")}
                       >
                         {option}
                       </button>

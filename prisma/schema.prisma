@@ -26,7 +26,7 @@
 // ============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "client"
 }
 
@@ -40,6 +40,19 @@ generator clientWorker {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Public media bytes live in the managed database for self-hosted installs,
+// keeping uploaded assets off the administrator's PC. This table is only for
+// public website assets; confidential documents continue using private storage.
+model PublicAsset {
+  key        String   @id
+  mimeType   String
+  sizeBytes  Int
+  data       Bytes
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // ----------------------------------------------------------------------------
@@ -305,6 +318,7 @@ model Player {
   documents              Document[]
   matchEvents            MatchEvent[]
   matchLineups           MatchLineup[]
+  shootoutKicks          MatchShootoutKick[]
   trainingAttendances    TrainingAttendance[]
   correspondences        Correspondence[]
   firstNameFr            String?
@@ -675,26 +689,35 @@ enum MatchStatus {
 }
 
 model Match {
-  id            String      @id @default(cuid())
-  competitionId String
-  competition   Competition @relation(fields: [competitionId], references: [id])
-  teamId        String?
-  team          Team?       @relation(fields: [teamId], references: [id])
-  homeTeamName  String // "Our Club" or opponent name
-  awayTeamName  String
-  isHomeFixture Boolean     @default(true) // whether the club plays at home
-  homeScore     Int?
-  awayScore     Int?
-  matchDate     DateTime
-  stadium       String?
-  refereeName   String?
-  status        MatchStatus @default(SCHEDULED)
-  matchReport   String?     @db.Text
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                 String      @id @default(cuid())
+  competitionId      String
+  competition        Competition @relation(fields: [competitionId], references: [id])
+  teamId             String?
+  team               Team?       @relation(fields: [teamId], references: [id])
+  homeTeamName       String // "Our Club" or opponent name
+  awayTeamName       String
+  isHomeFixture      Boolean     @default(true) // whether the club plays at home
+  homeScore          Int?
+  awayScore          Int?
+  matchDate          DateTime
+  stadium            String?
+  refereeName        String?
+  refereeNameAr      String?
+  refereeNameFr      String?
+  status             MatchStatus @default(SCHEDULED)
+  hasExtraTime       Boolean     @default(false)
+  hasPenaltyShootout Boolean     @default(false)
+  firstHalfAddedTime Int         @default(0)
+  secondHalfAddedTime Int        @default(0)
+  extraTimeFirstHalfAddedTime Int @default(0)
+  extraTimeSecondHalfAddedTime Int @default(0)
+  matchReport        String?     @db.Text
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   events          MatchEvent[]
   lineups         MatchLineup[]
+  shootoutKicks   MatchShootoutKick[]
   documents       Document[]
   calendarEvent   CalendarEvent?
   media           Media[]
@@ -721,6 +744,8 @@ model OpponentClub {
 
 enum MatchEventType {
   GOAL
+  PENALTY_GOAL
+  PENALTY_MISSED
   OWN_GOAL
   ASSIST
   YELLOW_CARD
@@ -740,31 +765,55 @@ enum MatchEventSource {
 }
 
 model MatchEvent {
-  id       String         @id @default(cuid())
+  id       String           @id @default(cuid())
   matchId  String
-  match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match    Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   playerId String?
-  player   Player?        @relation(fields: [playerId], references: [id])
+  player   Player?          @relation(fields: [playerId], references: [id])
   staffId  String?
-  staff    Staff?         @relation(fields: [staffId], references: [id])
+  staff    Staff?           @relation(fields: [staffId], references: [id])
   type     MatchEventType
-  side     MatchEventSide @default(HOME)
+  side     MatchEventSide   @default(HOME)
   source   MatchEventSource @default(MANUAL)
   minute   Int
   notes    String?
+  playerName   String?
+  playerNameFr String?
 
   @@index([staffId])
 }
 
 model MatchLineup {
-  matchId    String
-  playerId   String
-  match      Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  player     Player  @relation(fields: [playerId], references: [id])
-  isStarting Boolean @default(true)
-  position   String?
+  matchId         String
+  playerId        String
+  match           Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player          Player  @relation(fields: [playerId], references: [id])
+  isStarting      Boolean @default(true)
+  selectionStatus String  @default("STARTING")
+  position        String?
 
   @@id([matchId, playerId])
+}
+
+enum ShootoutKickResult {
+  SCORED
+  MISSED
+}
+
+model MatchShootoutKick {
+  id            String             @id @default(cuid())
+  matchId       String
+  match         Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId      String?
+  player        Player?            @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  playerName    String
+  side          MatchEventSide
+  attemptNumber Int
+  result        ShootoutKickResult
+  createdAt     DateTime           @default(now())
+
+  @@unique([matchId, side, attemptNumber])
+  @@index([matchId, createdAt])
 }
 
 // ----------------------------------------------------------------------------

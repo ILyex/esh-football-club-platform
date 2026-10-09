@@ -5,18 +5,14 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
-import { Badge } from "@/components/ui/badge";
+import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { MatchDocumentPreviewButton } from "@/components/matches/match-document-preview-button";
-
-const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
-  SCHEDULED: "neutral",
-  LIVE: "danger",
-  FINISHED: "success",
-  POSTPONED: "warning",
-  CANCELLED: "warning"
-};
+import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
+import { resolveMatchResult } from "@/lib/matches/result";
+import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
+import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 
 export default async function MatchesListPage({
   params,
@@ -32,6 +28,7 @@ export default async function MatchesListPage({
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
   const canCreate = hasPermission(user, "matches.create");
+  await promoteDueMatchesToLive();
 
   const pageSize = 20;
   const page = Math.max(1, Number(sp.page ?? "1"));
@@ -45,7 +42,12 @@ export default async function MatchesListPage({
   const [matches, total, competitions, teams] = await Promise.all([
     db.match.findMany({
       where,
-      include: { competition: true, team: true, documents: { select: { id: true, name: true, matchDocumentType: true } } },
+      include: {
+        competition: true,
+        team: true,
+        documents: { select: { id: true, name: true, matchDocumentType: true } },
+        shootoutKicks: { select: { side: true, result: true } }
+      },
       orderBy: { matchDate: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -55,11 +57,20 @@ export default async function MatchesListPage({
     getAuthorizedTeams()
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const nowMs = Date.now();
+  const nextScheduledKickoff = matches
+    .filter((match) => match.status === "SCHEDULED" && match.matchDate.getTime() > nowMs)
+    .map((match) => match.matchDate.getTime())
+    .sort((a, b) => a - b)[0];
+  const nextStatusRefreshAt = nextScheduledKickoff
+    ? nextScheduledKickoff - (nextScheduledKickoff - nowMs > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
+    : undefined;
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} refreshAt={nextStatusRefreshAt} />
+      <div className="mb-6 grid grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="text-center sm:col-start-2 sm:row-start-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground">{t("title")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {locale === "ar"
@@ -67,7 +78,8 @@ export default async function MatchesListPage({
               : "Planification des matchs, résultats et publication directe sur le site officiel"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div aria-hidden="true" className="hidden sm:col-start-1 sm:row-start-1 sm:block" />
+        <div className="flex items-center justify-center gap-2 sm:col-start-3 sm:row-start-1 sm:justify-self-end">
           {canCreate && (
             <Link href={`/${locale}/dashboard/matches/new`}>
               <Button size="sm" className="gap-1.5 text-xs font-bold">
@@ -91,7 +103,7 @@ export default async function MatchesListPage({
           locale={locale === "ar" ? "ar" : "fr"}
           label={tCommon("status")}
           value={sp.status ?? ""}
-          options={[{ id: "", label: tCommon("filter") }, ...["SCHEDULED", "LIVE", "FINISHED", "POSTPONED", "CANCELLED"].map((s) => ({ id: s, label: t(`statuses.${s}` as any) }))]}
+          options={[{ id: "", label: tCommon("filter") }, ...["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"].map((s) => ({ id: s, label: t(`statuses.${s}` as any) }))]}
           headerTitle={locale === "ar" ? "تصفية حسب حالة المباراة" : "Filtrer par statut du match"}
         />
         <MasterFilterSelect
@@ -122,17 +134,58 @@ export default async function MatchesListPage({
           </thead>
           <tbody>
             {matches.map((m) => {
-              const matchTitle = `${m.homeTeamName} ضد ${m.awayTeamName}`;
+              const { homeTeamName, awayTeamName } = getMatchDisplayNames(m, locale);
+              const matchTitle = `${homeTeamName} ${locale === "ar" ? "ضد" : "vs"} ${awayTeamName}`;
+              const scoreIsActive = m.status === "LIVE" || m.status === "FINISHED";
+              const homeScore = scoreIsActive ? (m.homeScore ?? 0) : "–";
+              const awayScore = scoreIsActive ? (m.awayScore ?? 0) : "–";
+              const outcome = resolveMatchResult(m);
+              const winnerName = outcome.winnerSide === "HOME" ? homeTeamName : outcome.winnerSide === "AWAY" ? awayTeamName : null;
               return (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-2">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(m.matchDate)}</td>
                   <td className="px-4 py-2 font-medium">
-                    {m.homeTeamName} {m.homeScore ?? "-"} : {m.awayScore ?? "-"} {m.awayTeamName}
+                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[280px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                      <span dir="auto" className="truncate">{homeTeamName}</span>
+                      <span dir="ltr" className="inline-flex min-w-[72px] items-center justify-center gap-1 whitespace-nowrap rounded-md bg-muted/60 px-2 py-1 text-center font-mono text-xs font-bold tabular-nums">
+                        <span>{homeScore}</span>
+                        <span className="text-muted-foreground">:</span>
+                        <span>{awayScore}</span>
+                      </span>
+                      <span dir="auto" className="truncate">{awayTeamName}</span>
+                    </span>
+                  {winnerName && (
+                    <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
+                      {outcome.decidedByPenalties && <span dir="ltr" className="ms-1 font-mono">({outcome.homePenaltyScore}–{outcome.awayPenaltyScore})</span>}
+                    </p>
+                  )}
                   </td>
                   <td className="px-4 py-2">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</td>
                   <td className="px-4 py-2">{m.competition.name}</td>
                   <td className="px-4 py-2">
-                    <Badge tone={STATUS_TONE[m.status]}>{t(`statuses.${m.status}` as any)}</Badge>
+                    <MatchOperationalStatus
+                      status={m.status}
+                      matchDate={m.matchDate}
+                      locale={locale}
+                      labels={{
+                        SCHEDULED: t("statuses.SCHEDULED"),
+                        LIVE: t("statuses.LIVE"),
+                        FINISHED: t("statuses.FINISHED"),
+                        POSTPONED: t("statuses.POSTPONED"),
+                        CANCELLED: t("statuses.CANCELLED")
+                      }}
+                      hasExtraTime={m.hasExtraTime}
+                      hasPenaltyShootout={m.hasPenaltyShootout}
+                      homeScore={m.homeScore}
+                      awayScore={m.awayScore}
+                      addedTime={{
+                        firstHalf: m.firstHalfAddedTime,
+                        secondHalf: m.secondHalfAddedTime,
+                        extraTimeFirstHalf: m.extraTimeFirstHalfAddedTime,
+                        extraTimeSecondHalf: m.extraTimeSecondHalfAddedTime
+                      }}
+                    />
                   </td>
                   <td className="px-4 py-2 text-xs">
                     <MatchDocumentPreviewButton
@@ -144,7 +197,7 @@ export default async function MatchesListPage({
                   </td>
                   <td className="px-4 py-2">
                     <Link href={`/${locale}/dashboard/matches/${m.id}`} className="text-sm text-club-primary underline">
-                      {tCommon("edit")}
+                      {t("manage")}
                     </Link>
                   </td>
                 </tr>

@@ -1,11 +1,13 @@
 import { getTranslations } from "next-intl/server";
 import { requirePagePermission } from "@/lib/permissions";
 import { createNewsAction } from "../actions";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
-import { DateTimeInput } from "@/components/ui/datetime-input";
-import { Save } from "lucide-react";
+import { FileText, Languages, Save, Settings2 } from "lucide-react";
+import { NewsPublishingSettings } from "@/components/news/news-publishing-settings";
+import { FrenchOnlyField } from "@/components/news/french-only-field";
+import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
+import { NewsTagsInput } from "@/components/news/news-tags-input";
 
 export default async function NewNewsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -15,75 +17,73 @@ export default async function NewNewsPage({ params }: { params: Promise<{ locale
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await createNewsAction(formData);
-    redirect(`/${locale}/dashboard/news/${id}`);
+    return await createNewsAction(formData);
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t("addNews")}</h1>
+    <div className="mx-auto w-full max-w-5xl space-y-5">
+      <div className="border-b border-border/70 pb-4">
+        <div className="flex items-center gap-2 text-club-primary">
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-wider">{t("title")}</span>
+        </div>
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">{t("addNews")}</h1>
+        <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "أنشئ خبرًا باللغتين مع وسائطه وحالته قبل النشر." : "Créez une actualité bilingue avec ses médias et son statut."}</p>
       </div>
-      <form action={action} encType="multipart/form-data" className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.title")} (AR)</label>
-          <input name="titleAr" dir="rtl" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.content")} (AR)</label>
-          <textarea name="contentAr" dir="rtl" rows={6} required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.title")} (FR)</label>
-          <input name="titleFr" dir="ltr" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.content")} (FR)</label>
-          <textarea name="contentFr" dir="ltr" rows={6} required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
+      <ActionFeedbackForm
+        action={action}
+        encType="multipart/form-data"
+        resetOnSuccess
+        successMessage={locale === "ar" ? "تم حفظ الخبر بنجاح" : "Actualité enregistrée avec succès"}
+        errorMessage={locale === "ar" ? "تعذر حفظ الخبر" : "Échec de l’enregistrement de l’actualité"}
+        className="space-y-5"
+      >
+        <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+          <div className="mb-5 flex items-center gap-2 border-b border-border/70 pb-3 text-sm font-black text-foreground"><Languages className="h-4 w-4 text-club-primary" />{locale === "ar" ? "المحتوى متعدد اللغات" : "Contenu multilingue"}</div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4" dir="rtl">
+              <p className="text-xs font-black text-club-primary">العربية</p>
+              <label className="block text-xs font-bold text-foreground">{t("fields.title")}</label>
+              <input name="titleAr" dir="rtl" required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
+              <label className="block text-xs font-bold text-foreground">{t("fields.content")}</label>
+              <textarea name="contentAr" dir="rtl" rows={9} required className="w-full resize-y rounded-xl border border-border bg-background px-3.5 py-3 text-sm leading-7 outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
+            </div>
+            <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4" dir="ltr">
+              <p className="text-xs font-black text-club-primary">Français</p>
+              <label className="block text-xs font-bold text-foreground">{t("fields.title")}</label>
+              <FrenchOnlyField name="titleFr" locale={locale} required />
+              <label className="block text-xs font-bold text-foreground">{t("fields.content")}</label>
+              <FrenchOnlyField name="contentFr" locale={locale} multiline required />
+            </div>
+          </div>
+        </section>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-          <input name="category" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.tags")}</label>
-          <input name="tags" placeholder="tag1, tag2" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.status")}</label>
-          <select name="status" defaultValue="DRAFT" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="DRAFT">{locale === "ar" ? "مخفي / مسودة" : "Masqué / Brouillon"}</option>
-            <option value="PUBLISHED">{locale === "ar" ? "منشور / مرئي" : "Publié / Visible"}</option>
-            <option value="SCHEDULED">{locale === "ar" ? "مجدول" : "Programmé"}</option>
-          </select>
-        </div>
-        <div>
-          <DateTimeInput
-            label={t("fields.scheduledFor")}
-            name="scheduledFor"
-            locale={locale}
-          />
-        </div>
+        <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+          <div className="mb-5 flex items-center gap-2 border-b border-border/70 pb-3 text-sm font-black text-foreground"><Settings2 className="h-4 w-4 text-club-primary" />{locale === "ar" ? "إعدادات الخبر" : "Paramètres"}</div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><label className="mb-1.5 block text-xs font-bold">{t("fields.category")}</label><input name="category" className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" /></div>
+            <div><label className="mb-1.5 block text-xs font-bold">{t("fields.tags")}</label><NewsTagsInput name="tags" locale={locale} /></div>
+            <NewsPublishingSettings locale={locale} defaultStatus="PUBLISHED" statusLabel={t("fields.status")} scheduledForLabel={t("fields.scheduledFor")} />
+          </div>
+        </section>
 
         {/* Multi-Media Uploader (Images & Videos) */}
-        <div className="col-span-2 pt-2">
+        <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
           <MultiImageUploader
             name="images"
             locale={locale}
             label={locale === "ar" ? "وسائط الخبر (صور وفيديوهات مع المعاينة والترتيب - العنصر الأول هو الغلاف)" : "Médias de l'article (photos & vidéos)"}
             description={locale === "ar" ? "يمكنك رفع صور وفيديوهات قصيرة وخفيفة (MP4/WebM حتى 35MB)" : "Photos et vidéos légères (MP4/WebM max 35MB)"}
           />
-        </div>
+        </section>
 
-        <div className="col-span-2 pt-2 border-t border-border flex items-center gap-3">
-          <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs">
+        <div className="flex items-center gap-3 border-t border-border/70 pt-5">
+          <Button type="submit" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-club-primary px-5 text-sm font-bold text-white shadow-sm hover:bg-club-primary-hover">
             <Save className="h-4 w-4" />
             <span>{tCommon("save")}</span>
           </Button>
         </div>
-      </form>
+      </ActionFeedbackForm>
     </div>
   );
 }

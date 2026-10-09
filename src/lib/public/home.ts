@@ -36,7 +36,7 @@ export async function getPublicHomeData(locale: string): Promise<PublicHomeData>
     getPublicNextMatch(),
     getPublicUpcomingMatches(6),
     getPublicMatches({ mode: "RESULTS", limit: 3 }),
-    getPublicNewsList(locale, { pageSize: 3 }),
+    getPublicNewsList(locale, { pageSize: 4 }),
     db.announcement.findMany({
       where: {
         status: "PUBLISHED",

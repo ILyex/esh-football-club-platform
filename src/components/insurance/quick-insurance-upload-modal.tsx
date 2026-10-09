@@ -27,7 +27,6 @@ export function QuickInsuranceUploadModal({
   const [policyNumber, setPolicyNumber] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rejectFindings, setRejectFindings] = useState<Array<{ code: string; params?: Record<string, string | number> }>>([]);
   const [success, setSuccess] = useState(false);
 
   const isAr = locale === "ar";
@@ -35,17 +34,17 @@ export function QuickInsuranceUploadModal({
   // Finding code → localized message
   const findingMessages: Record<string, (p?: Record<string, string | number>) => string> = {
     OTHER_PLAYER: (p) => isAr
-      ? `الوثيقة غير مطابقة لمعلومات اللاعب؛ الاسم الظاهر يخص لاعبًا آخر (${p?.other ?? ""}) وليس ${p?.name ?? "اللاعب المحدد"}.`
-      : `Le document ne correspond pas aux informations du joueur : le nom détecté est celui d’un autre joueur (${p?.other ?? ""}), pas ${p?.name ?? "du joueur sélectionné"}.`,
+      ? `الوثيقة تخص لاعبًا آخر${p?.other ? ` (${p.other})` : ""}، ولم تُحفظ باسم ${p?.name ?? "اللاعب المحدد"}.`
+      : `Le document appartient à un autre joueur${p?.other ? ` (${p.other})` : ""} ; il n’a pas été enregistré pour ${p?.name ?? "le joueur sélectionné"}.`,
     NAME_MISSING: (p) => isAr
-      ? `الوثيقة غير مطابقة لمعلومات اللاعب؛ لم يُعثر على اسم ${p?.name ?? "اللاعب المحدد"} فيها.`
-      : `Le document ne correspond pas aux informations du joueur : le nom de ${p?.name ?? "la personne sélectionnée"} n’y apparaît pas.`,
+      ? `اسم ${p?.name ?? "اللاعب المحدد"} غير موجود في الوثيقة؛ لم تُحفظ.`
+      : `Le nom de ${p?.name ?? "la personne sélectionnée"} est absent du document ; il n’a pas été enregistré.`,
     NAME_UNCERTAIN: (p) => isAr
-      ? `تعذّر التحقق من اسم اللاعب (${p?.name ?? ""}) في الوثيقة`
-      : `Impossible de vérifier le nom du joueur (${p?.name ?? ""})`,
+      ? `تعذّر تأكيد اسم اللاعب${p?.name ? ` (${p.name})` : ""}. ارفع نسخة أوضح.`
+      : `Impossible de confirmer le nom du joueur${p?.name ? ` (${p.name})` : ""}. Envoyez une copie plus lisible.`,
     WRONG_DOCUMENT_TYPE: () => isAr
-      ? `نوع الملف لا يطابق الوثيقة المطلوبة (تأمين رياضي). تحقّق من الوثيقة التي رفعتها واختر وثيقة التأمين الصحيحة.`
-      : `Le fichier ne correspond pas au document demandé (assurance sportive). Vérifiez le fichier et sélectionnez l’attestation d’assurance attendue.`,
+      ? "الملف ليس وثيقة تأمين رياضي؛ لم يُحفظ."
+      : "Le fichier n’est pas une attestation d’assurance sportive ; il n’a pas été enregistré.",
     AMOUNT_MISMATCH: (p) => isAr
       ? `المبلغ المسجّل (${p?.amount ?? ""} د.ج) غير موجود في الوثيقة`
       : `Le montant déclaré (${p?.amount ?? ""} DA) absent du document`,
@@ -68,8 +67,8 @@ export function QuickInsuranceUploadModal({
     const messageForFinding = finding ? findingMessages[finding.code] : undefined;
     if (finding && messageForFinding) return messageForFinding(finding.params);
     return isAr
-      ? "تعذّر التحقق من وثيقة التأمين، لذلك لم تُحفظ ولم تتغير حالة اللاعب. راجع سبب التحقق أدناه."
-      : "L’assurance n’a pas pu être vérifiée ; elle n’a pas été enregistrée et le statut du joueur n’a pas changé. Consultez le motif ci-dessous.";
+      ? "تعذّر التحقق من الوثيقة؛ لم تُحفظ. جرّب نسخة أوضح."
+      : "Document non vérifié et non enregistré. Essayez une copie plus lisible.";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +93,6 @@ export function QuickInsuranceUploadModal({
 
     setIsSubmitting(true);
     setError(null);
-    setRejectFindings([]);
 
     try {
       const formData = new FormData();
@@ -111,7 +109,6 @@ export function QuickInsuranceUploadModal({
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         if ((data.verdict === "REJECT" || data.verdict === "UNVERIFIED") && Array.isArray(data.findings)) {
-          setRejectFindings(data.findings.filter((f: any) => f.severity === "error" || f.severity === "warning"));
           setError(getVerificationMessage(data.verdict, data.findings));
         } else {
           throw new Error(data.error || (isAr ? "فشل رفع وثيقة التأمين" : "Échec du téléversement"));
@@ -284,25 +281,12 @@ export function QuickInsuranceUploadModal({
                   />
                 </div>
 
-                {(error || rejectFindings.length > 0) && (
+                {error && (
                   <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-600 dark:text-red-400 space-y-1.5">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                       <span className="font-semibold">{error}</span>
                     </div>
-                    {rejectFindings.length > 0 && (
-                      <ul className="mt-1 space-y-1 ps-6 list-none">
-                        {rejectFindings.map((f, i) => {
-                          const msgFn = findingMessages[f.code];
-                          const msg = msgFn ? msgFn(f.params) : f.code;
-                          return (
-                            <li key={i} className="text-[11px] text-red-600 dark:text-red-400">
-                              {msg}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
                   </div>
                 )}
 
@@ -323,7 +307,7 @@ export function QuickInsuranceUploadModal({
                     className="gap-1.5"
                   >
                     {isSubmitting ? (
-                      <span>{isAr ? "جارٍ الحفظ..." : "En cours..."}</span>
+                      <span>{isAr ? "جارٍ التحقق والحفظ..." : "Vérification en cours..."}</span>
                     ) : (
                       <span>{isAr ? "تأكيد وتفعيل التأمين" : "Confirmer"}</span>
                     )}

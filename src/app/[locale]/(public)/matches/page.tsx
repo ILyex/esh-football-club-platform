@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Trophy, Calendar } from "lucide-react";
+import { Trophy, Calendar, CheckCircle2, ListChecks, UsersRound } from "lucide-react";
 import { TeamCategory } from "@prisma/client";
 import { getPublicMatches } from "@/lib/public/matches";
 import { getPublicTeams } from "@/lib/public/teams";
 import { MatchCard } from "@/components/public/match-card";
 import { frenchPublicCategory } from "@/lib/public/locale-text";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function PublicMatchesPage({
   params,
@@ -43,86 +44,91 @@ export default async function PublicMatchesPage({
     home: locale === "ar" ? "المستضيف" : "Domicile",
     away: locale === "ar" ? "الضيف" : "Extérieur"
   };
+  const nowMs = Date.now();
+  const nextScheduledKickoff = matches
+    .filter((match) => match.status === "SCHEDULED" && new Date(match.matchDate).getTime() > nowMs)
+    .map((match) => new Date(match.matchDate).getTime())
+    .sort((a, b) => a - b)[0];
+  const nextStatusRefreshAt = nextScheduledKickoff
+    ? nextScheduledKickoff - (nextScheduledKickoff - nowMs > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
+    : undefined;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} />
-      {/* Header */}
+      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} refreshAt={nextStatusRefreshAt} />
+      <PublicPageHeading locale={locale} icon={<Trophy />} eyebrow={tPublic("matches.title")} title={tPublic("matches.title")} description={tPublic("matches.subtitle")} />
       <div className="border-b border-border/80 pb-6">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-          <Trophy className="h-4 w-4" />
-          {tPublic("matches.title")}
-        </span>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {tPublic("matches.title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
-          {tPublic("matches.subtitle")}
-        </p>
-
         {/* Tab Filters: Upcoming vs Results vs All */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <Link
             href={`/${locale}/matches?tab=UPCOMING${category ? `&category=${category}` : ""}`}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+            className={`inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
               activeTab === "UPCOMING"
                 ? "bg-club-primary text-white shadow-sm"
                 : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
             }`}
           >
+            <Calendar className="me-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {tPublic("matches.upcoming")}
           </Link>
           <Link
             href={`/${locale}/matches?tab=RESULTS${category ? `&category=${category}` : ""}`}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+            className={`inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
               activeTab === "RESULTS"
                 ? "bg-club-primary text-white shadow-sm"
                 : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
             }`}
           >
+            <CheckCircle2 className="me-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {tPublic("matches.completed")}
           </Link>
           <Link
             href={`/${locale}/matches?tab=ALL${category ? `&category=${category}` : ""}`}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+            className={`inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
               activeTab === "ALL"
                 ? "bg-club-primary text-white shadow-sm"
                 : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
             }`}
           >
+            <ListChecks className="me-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {tPublic("matches.all")}
           </Link>
         </div>
 
         {/* Category Pills Filter */}
         {teams.length > 1 && (
-          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="font-semibold text-muted-foreground me-2">
-              {tPublic("teams.selectCategory")}:
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs sm:gap-2">
+            <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
+              {locale === "ar" ? "الفئة:" : "Catégorie :"}
             </span>
             <Link
               href={`/${locale}/matches?tab=${activeTab}`}
-              className={`rounded-full px-3 py-1 font-medium transition-all ${
+              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-all ${
                 !validCategory
-                  ? "bg-foreground text-background"
-                  : "bg-card border border-border text-muted-foreground hover:text-foreground"
+                  ? "border-club-primary bg-club-primary text-white shadow-xs"
+                  : "border-border/80 bg-card text-muted-foreground hover:border-club-primary/50 hover:text-foreground"
               }`}
             >
+              <UsersRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {tPublic("matches.all")}
             </Link>
             {teams.map((t) => {
               const isSelected = validCategory === t.category;
+              const categoryLabel = locale === "ar"
+                ? ({ SENIOR: "الأكابر", U20: "U20", U17: "U17", U15: "U15" } as Record<string, string>)[t.category] ?? t.category
+                : frenchPublicCategory(t.category);
               return (
                 <Link
                   key={t.id}
                   href={`/${locale}/matches?tab=${activeTab}&category=${t.category.toLowerCase()}`}
-                  className={`rounded-full px-3 py-1 font-medium transition-all ${
+                  className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-all ${
                     isSelected
-                      ? "bg-foreground text-background"
-                      : "bg-card border border-border text-muted-foreground hover:text-foreground"
+                      ? "border-club-primary bg-club-primary text-white shadow-xs"
+                      : "border-border/80 bg-card text-muted-foreground hover:border-club-primary/50 hover:text-foreground"
                   }`}
                 >
-                  {locale === "ar" ? t.name : frenchPublicCategory(t.category)}
+                  <UsersRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {categoryLabel}
                 </Link>
               );
             })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 import Link from "next/link";
 import {
   Users,
@@ -117,6 +118,10 @@ export function PlayersAndEquipmentCarousel({
   const isAr = locale === "ar";
   const Arrow = isAr ? ArrowLeft : ArrowRight;
   const Chevron = isAr ? ChevronLeft : ChevronRight;
+  const swipe = useSwipeCarousel(
+    () => setActiveSlide((prev) => (prev === 0 ? 1 : 0)),
+    () => setActiveSlide((prev) => (prev === 0 ? 1 : 0))
+  );
 
   // Auto rotate carousel every 9 seconds
   useEffect(() => {
@@ -143,7 +148,7 @@ export function PlayersAndEquipmentCarousel({
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col justify-between h-full transition-all carousel-no-stroke select-none outline-none focus:outline-none">
+    <div {...swipe} className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col justify-between h-full transition-all carousel-no-stroke select-none outline-none focus:outline-none">
       {/* Top Header & Interactive Carousel Switcher */}
       <div className="flex flex-wrap items-center justify-between border-b border-border/60 pb-3 mb-4 gap-2">
         <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl">

@@ -11,7 +11,7 @@ import { PlayerOverviewModal } from "@/components/players/player-overview-modal"
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { PlayerPrintListModal } from "@/components/players/player-print-list-modal";
 import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
-import { frenchNationality } from "@/lib/public/locale-text";
+import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 import { AlertTriangle, Plus } from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -174,7 +174,7 @@ export default async function PlayersListPage({
           </thead>
           <tbody>
             {players.map((p) => {
-              const goals = p.matchEvents.filter((e) => e.type === "GOAL").length;
+              const goals = p.matchEvents.filter((e) => e.type === "GOAL" || e.type === "PENALTY_GOAL").length;
               const assists = p.matchEvents.filter((e) => e.type === "ASSIST").length;
               const yellowCards = p.matchEvents.filter((e) => e.type === "YELLOW_CARD").length;
               const redCards = p.matchEvents.filter((e) => e.type === "RED_CARD").length;
@@ -280,7 +280,7 @@ export default async function PlayersListPage({
                       {t(`positions.${p.position}` as any)}
                     </span>
                   </td>
-                  <td className="px-4 py-2">{locale === "ar" ? p.nationality : frenchNationality(p.nationality)}</td>
+              <td className="px-4 py-2">{locale === "ar" ? arabicNationality(p.nationality) : frenchNationality(p.nationality)}</td>
                   <td className="px-4 py-2">
                     {(() => {
                       const evalRes = evaluatePlayerInsurance(p.documents);

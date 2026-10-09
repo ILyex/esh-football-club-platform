@@ -99,6 +99,7 @@ html:not(.dark) [data-sonner-toaster][data-theme="dark"] {
 /* Keep the viewport width constant while navigating between short and long dashboard pages. */
 html {
   scrollbar-gutter: stable;
+  background-color: hsl(var(--background));
 }
 
 /* The dashboard sidebar is a full-width mobile menu trigger, then a fixed-width
@@ -122,10 +123,6 @@ html.theme-transition body *::after {
   transition-timing-function: ease;
 }
 
-html.locale-transition body {
-  animation: locale-content-enter 220ms ease-out both;
-}
-
 .chart-view-transition {
   animation: chart-view-enter 180ms ease-out both;
 }
@@ -135,11 +132,6 @@ html.locale-transition body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes locale-content-enter {
-  from { opacity: 0.94; }
-  to { opacity: 1; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html.theme-transition,
   html.theme-transition body,
@@ -147,10 +139,6 @@ html.locale-transition body {
   html.theme-transition body *::before,
   html.theme-transition body *::after {
     transition-duration: 0ms !important;
-  }
-
-  html.locale-transition body {
-    animation: none;
   }
 
   .chart-view-transition {
@@ -264,6 +252,54 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 }
 
 @media (max-width: 640px) {
+  /* Prevent a wide child from shifting the whole page sideways on phones. */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Avoid the automatic zoom jump when focusing small form controls on iOS. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  /* Keep common data grids scrollable inside their own frame, not the page. */
+  main .overflow-x-auto {
+    max-width: 100%;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 1rem;
+  }
+
+  /* Make dashboard forms and actions comfortable to use with a thumb. */
+  [data-dashboard-main] :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+    select,
+    [role="combobox"]
+  ) {
+    min-height: 2.75rem;
+  }
+
+  [data-dashboard-main] :where(textarea) {
+    min-height: 6rem;
+  }
+
+  [data-dashboard-main] :where(button:not([data-mobile-compact]), [role="button"]) {
+    min-height: 2.75rem;
+    touch-action: manipulation;
+  }
+
+  [data-dashboard-main] button[aria-label]:not([data-mobile-compact]) {
+    min-width: 2.75rem;
+  }
+
+  [data-dashboard-main] :where([id]) {
+    scroll-margin-top: 4.5rem;
+  }
+
   .dashboard-filter-toolbar > button {
     flex: 1 1 100%;
   }
@@ -293,6 +329,47 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   }
 
   main :where(h1, h2, h3, p, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-mobile-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+}
+
+@media (max-width: 640px) {
+  .public-site-header {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  [data-public-content] > .mx-auto[class*="py-12"] {
+    padding-block: 2rem;
+  }
+
+  [data-public-content] > .mx-auto[class*="py-10"] {
+    padding-block: 1.75rem;
+  }
+
+  [data-public-content] {
+    min-width: 0;
+  }
+
+  [data-public-content] :where(.overflow-x-auto) {
+    max-width: 100%;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [data-public-content] :where(a[href], button) {
+    touch-action: manipulation;
+  }
+
+  [data-public-content] :where(h1, h2, h3, p, a, span, td, th) {
     overflow-wrap: anywhere;
   }
 }
@@ -343,7 +420,8 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 
 /* Arabic RTL Typography (Locked Spec Section A.1 & A.4) */
 [dir="rtl"] body {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  /* Cairo keeps the two dots of ي visible at normal UI sizes. */
+  font-family: "Cairo", "IBM Plex Sans Arabic", sans-serif;
   line-height: 1.85;
   letter-spacing: normal !important;
 }
@@ -410,6 +488,39 @@ img[src^="blob:"] {
   text-transform: none !important;
 }
 
+/* Keep every displayed club name on the same Arabic typeface, even when the
+   component is rendered outside an element carrying the page direction. */
+.club-name {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-weight: 800;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* The footer identity line uses the same IBM Plex Arabic typeface as the
+   association name, including the affiliation text beside it. */
+.footer-identity {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+}
+
+.sponsor-identity {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  letter-spacing: normal;
+}
+
+.sponsor-lockup {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+}
+
+[dir="rtl"] .club-name {
+  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-weight: 800;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+[dir="ltr"] .club-name {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
 /* Monospace & Tabular Numerical Alignment (Locked Spec Section A.1) */
 .font-mono,
 .tabular-nums {
@@ -448,21 +559,17 @@ img[src^="blob:"] {
   font-weight: 700 !important;
 }
 
-/* The player roster is an A4 document; keep its identity and table readable
-   when the browser scales the complete sheet into the print preview. */
-.player-list-document .esh-document-authority p {
+/* Use the player-list masthead as the shared typography standard for every
+   official document, both in preview and when printing. */
+.esh-official-document-header .esh-document-authority p {
   font-size: 20px !important;
 }
 
-.player-list-document .esh-document-reference p {
+.esh-official-document-header .esh-document-reference p {
   font-size: 18px !important;
 }
 
-.player-list-document .esh-club-name {
-  font-size: 18px !important;
-}
-
-.player-list-document .esh-official-document-header h1 {
+.esh-official-document-header h1 {
   font-size: 30px !important;
 }
 
@@ -491,6 +598,48 @@ img[src^="blob:"] {
 
 .printable-document.esh-security-watermark > .relative.z-10 {
   position: static !important;
+}
+
+/* Keep printed document totals and their counts consistent across modules. */
+.print-document-total-count {
+  font-size: 20px !important;
+  line-height: 1.25 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Signatory names use one readable size in every official document. A lone
+   signer sits at the physical right; multiple signers spread across the row. */
+.document-signatures {
+  direction: ltr !important;
+  font-size: 22px !important;
+}
+
+.document-signatures > *,
+.document-signatures p,
+.document-signatures span,
+.document-signatures .esh-attestation-stamp {
+  font-size: 22px !important;
+  text-align: right !important;
+}
+
+.document-signatures:not(.document-signatures-multiple) {
+  justify-content: flex-end !important;
+}
+
+.document-signatures-multiple {
+  justify-content: space-between !important;
+}
+
+.document-signatures-multiple > :nth-child(2),
+.document-signatures-multiple > :nth-child(2) p,
+.document-signatures-multiple > :nth-child(2) span {
+  text-align: center !important;
+}
+
+.document-signatures-multiple > :nth-child(3),
+.document-signatures-multiple > :nth-child(3) p,
+.document-signatures-multiple > :nth-child(3) span {
+  text-align: left !important;
 }
 
 
@@ -528,8 +677,8 @@ img[src^="blob:"] {
 /* Isolated Print Styles: Strips all dashboard chrome and preserves A4 layout */
 @media print {
   @page {
-    size: 210mm 297mm;
-    margin: 0 !important;
+    size: A4 portrait;
+    margin: 10mm;
   }
 
   /* Hide entire dashboard navigation, sidebar, topbar, search, and action tools */
@@ -611,6 +760,27 @@ img[src^="blob:"] {
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
+  }
+  .player-list-document.esh-print-page {
+    gap: 0 !important;
+  }
+  .player-list-document .print-preview-sheet {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 297mm !important;
+    height: 297mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+  }
+  .player-list-document .print-preview-sheet-break {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  .player-list-document .print-preview-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
   /* Clean up docx-preview elements for printing */
@@ -694,6 +864,20 @@ input:-webkit-autofill:active {
 }
 
 /* Prevent unwanted white outline/stroke on click/focus on buttons, carousels and cards */
+.dark .public-match-card {
+  background-image: url("/branding/match-card-background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.dark .public-training-card {
+  background-image: url("/branding/training-card-background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
 button:focus,
 button:focus-visible,
 button:active,
@@ -712,4 +896,3 @@ button:active,
 *:focus:not(input):not(textarea):not(select) {
   outline: none !important;
 }
-

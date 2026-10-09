@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
 import { Save,  Send, ArrowRight, ArrowLeft, Upload, FileText, Building2, User, Users, Trophy } from "lucide-react";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 async function suggestReferenceNumber(): Promise<string> {
   const year = new Date().getFullYear();
@@ -28,7 +29,7 @@ export default async function NewCorrespondencePage({ params }: { params: Promis
   const authorizedTeamIds = await getAuthorizedTeamIds();
   const [teams, players, staff, matches, suggestedRef, currentTeamId] = await Promise.all([
     getAuthorizedTeams(),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" }, teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.player.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
     db.staff.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
     db.match.findMany({ where: { teamId: { in: authorizedTeamIds } }, orderBy: { matchDate: "desc" }, take: 30 }),
     suggestReferenceNumber(),
@@ -245,7 +246,7 @@ export default async function NewCorrespondencePage({ params }: { params: Promis
                 placeholder={t("none")}
                 options={[
                   { value: "", label: t("none") },
-                  ...matches.map((m) => ({ value: m.id, label: `${m.homeTeamName} – ${m.awayTeamName}` }))
+                  ...matches.map((m) => ({ value: m.id, label: `${localizedClubName(m.homeTeamName, locale, isAr ? "الفريق" : "Club")} – ${localizedClubName(m.awayTeamName, locale, isAr ? "الفريق" : "Club")}` }))
                 ]}
               />
             </div>

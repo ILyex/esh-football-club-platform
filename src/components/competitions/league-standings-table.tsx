@@ -201,21 +201,21 @@ export function LeagueStandingsTable({
       )}
 
       {/* Standings Table Container */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs sm:rounded-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-start text-xs sm:text-sm">
+          <table className="w-full min-w-[360px] text-start text-[11px] sm:min-w-0 sm:text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="py-3 px-3 text-center w-12">{isAr ? "#" : "Pos"}</th>
-                <th className="py-3 px-4 text-start min-w-[200px]">{isAr ? "النادي / الفريق" : "Club / Équipe"}</th>
-                <th className="py-3 px-2.5 text-center">{isAr ? "لعب" : "J"}</th>
-                <th className="py-3 px-2.5 text-center">{isAr ? "فاز" : "G"}</th>
-                <th className="py-3 px-2.5 text-center">{isAr ? "تعادل" : "N"}</th>
-                <th className="py-3 px-2.5 text-center">{isAr ? "خسر" : "P"}</th>
+              <tr className="border-b border-border bg-muted/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-xs">
+                <th className="w-8 px-1 py-2 text-center sm:w-12 sm:px-3 sm:py-3">{isAr ? "#" : "Pos"}</th>
+                <th className="min-w-[150px] px-1.5 py-2 text-start sm:min-w-[200px] sm:px-4 sm:py-3">{isAr ? "النادي / الفريق" : "Club / Équipe"}</th>
+                <th className="px-1 py-2 text-center sm:px-2.5 sm:py-3">{isAr ? "لعب" : "J"}</th>
+                <th className="px-1 py-2 text-center sm:px-2.5 sm:py-3">{isAr ? "فاز" : "G"}</th>
+                <th className="px-1 py-2 text-center sm:px-2.5 sm:py-3">{isAr ? "تعادل" : "N"}</th>
+                <th className="px-1 py-2 text-center sm:px-2.5 sm:py-3">{isAr ? "خسر" : "P"}</th>
                 <th className="py-3 px-2.5 text-center hidden md:table-cell">{isAr ? "له" : "BP"}</th>
                 <th className="py-3 px-2.5 text-center hidden md:table-cell">{isAr ? "عليه" : "BC"}</th>
-                <th className="py-3 px-2.5 text-center font-semibold">{isAr ? "الفارق" : "Diff"}</th>
-                <th className="py-3 px-4 text-center font-black text-foreground bg-muted/40">{isAr ? "النقاط" : "Pts"}</th>
+                <th className="hidden px-2.5 py-3 text-center font-semibold sm:table-cell">{isAr ? "الفارق" : "Diff"}</th>
+                <th className="bg-muted/40 px-1.5 py-2 text-center font-black text-foreground sm:px-4 sm:py-3">{isAr ? "النقاط" : "Pts"}</th>
                 {isEditing && <th className="py-3 px-2 text-center w-12">{isAr ? "إجراء" : "Action"}</th>}
               </tr>
             </thead>
@@ -241,7 +241,7 @@ export function LeagueStandingsTable({
                     }`}
                   >
                     {/* Rank */}
-                    <td className="py-3 px-3 text-center">
+                    <td className="px-1 py-2 text-center sm:px-3 sm:py-3">
                       <div className="flex items-center justify-center">
                         <span
                           className={`inline-flex items-center justify-center h-6 w-6 rounded-full font-mono text-xs font-black ${
@@ -262,11 +262,11 @@ export function LeagueStandingsTable({
                     </td>
 
                     {/* Team Name + Logo */}
-                    <td className="py-3 px-4 text-start">
-                      <div className="flex items-center gap-2.5">
+                    <td className="min-w-0 px-1.5 py-2 text-start sm:px-4 sm:py-3">
+                      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
                         {/* Team Logo Badge */}
                         <div
-                          className={`relative h-8 w-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center border transition-transform ${
+                            className={`relative h-6 w-6 shrink-0 rounded-full overflow-hidden flex items-center justify-center border transition-transform sm:h-8 sm:w-8 ${
                             isOur
                               ? "border-club-primary bg-background shadow-xs ring-2 ring-club-primary/30 scale-105"
                               : "border-border/80 bg-muted/40"
@@ -298,8 +298,8 @@ export function LeagueStandingsTable({
                           ) : (
                             <span
                               className={`truncate font-bold ${
-                                isOur
-                                  ? "text-club-primary dark:text-red-400 text-sm tracking-wide"
+                              isOur
+                                  ? "text-club-primary dark:text-red-400 text-[11px] tracking-wide sm:text-sm"
                                   : "text-foreground"
                               }`}
                             >
@@ -367,7 +367,7 @@ export function LeagueStandingsTable({
                             className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
                           />
                         </td>
-                        <td className="py-3 px-2.5 text-center font-mono font-bold">
+                        <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
                           {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
                         </td>
                         <td className="py-3 px-4 text-center bg-muted/40 font-mono font-black text-club-primary">{team.points}</td>
@@ -392,7 +392,7 @@ export function LeagueStandingsTable({
                         <td className="py-3 px-2.5 text-center font-mono text-red-600 dark:text-red-400">{team.lost}</td>
                         <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsFor}</td>
                         <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsAgainst}</td>
-                        <td className="py-3 px-2.5 text-center font-mono font-bold">
+                        <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
                           <span
                             className={
                               team.goalDifference > 0

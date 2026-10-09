@@ -428,7 +428,7 @@ export default async function TreasuryDepositsPage({
                 {tCommon("cancel")}
               </Button>
             </Link>
-            <Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+            <Button type="submit" size="sm" className="bg-club-primary hover:bg-club-primary-hover text-white font-medium">
               <CheckCircle2 className="me-1.5 h-4 w-4" />
               {t("deposit")}
             </Button>

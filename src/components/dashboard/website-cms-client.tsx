@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 interface MatchOption {
   id: string;
@@ -96,7 +97,7 @@ export function WebsiteCmsClient({
   );
   const [stadium, setStadium] = useState(selectedMatch?.stadium || (isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"));
   const [refereeName, setRefereeName] = useState(selectedMatch?.refereeName || "");
-  const [status, setStatus] = useState<string>(selectedMatch?.status || "SCHEDULED");
+  const [status, setStatus] = useState<string>(selectedMatch?.status === "CANCELLED" ? "POSTPONED" : selectedMatch?.status || "SCHEDULED");
   const [homeScore, setHomeScore] = useState<string>(selectedMatch?.homeScore?.toString() || "");
   const [awayScore, setAwayScore] = useState<string>(selectedMatch?.awayScore?.toString() || "");
   const [competitionId, setCompetitionId] = useState(selectedMatch?.competitionId || competitions[0]?.id || "");
@@ -160,7 +161,7 @@ export function WebsiteCmsClient({
         setMatchDate(new Date(match.matchDate).toISOString().slice(0, 16));
         setStadium(match.stadium || "");
         setRefereeName(match.refereeName || "");
-        setStatus(match.status);
+        setStatus(match.status === "CANCELLED" ? "POSTPONED" : match.status);
         setHomeScore(match.homeScore !== null ? match.homeScore.toString() : "");
         setAwayScore(match.awayScore !== null ? match.awayScore.toString() : "");
         setCompetitionId(match.competitionId);
@@ -327,7 +328,7 @@ export function WebsiteCmsClient({
                       </span>
                     </div>
                     <div className="text-xs font-extrabold text-foreground truncate">
-                      {m.homeTeamName} VS {m.awayTeamName}
+                      {localizedClubName(m.homeTeamName, locale, isRtl ? "الفريق" : "Club")} VS {localizedClubName(m.awayTeamName, locale, isRtl ? "الفريق" : "Club")}
                     </div>
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
                       <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
@@ -460,7 +461,7 @@ export function WebsiteCmsClient({
                 <h3 className="text-base font-bold text-foreground">
                   {selectedMatchId === "NEW"
                     ? isRtl ? "إضافة وتحديد مباراة جديدة للموقع" : "Créer un nouveau match"
-                    : isRtl ? `تعديل بيانات: ${selectedMatch?.homeTeamName} ضد ${selectedMatch?.awayTeamName}` : "Modifier le match"}
+                    : isRtl ? `إدارة المباراة: ${selectedMatch?.homeTeamName} ضد ${selectedMatch?.awayTeamName}` : "Gestion du match"}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isRtl
@@ -634,11 +635,10 @@ export function WebsiteCmsClient({
                   onChange={(e) => setStatus(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="SCHEDULED">{isRtl ? "مجدولة" : "Programmée"}</option>
-                  <option value="LIVE">{isRtl ? "مباشرة الآن" : "En direct"}</option>
-                  <option value="FINISHED">{isRtl ? "منتهية" : "Terminée"}</option>
+                  <option value="SCHEDULED">{isRtl ? "مبرمجة" : "Programmée"}</option>
+                  <option value="LIVE">{isRtl ? "مباشر" : "En direct"}</option>
+                  <option value="FINISHED">{isRtl ? "انتهت" : "Terminée"}</option>
                   <option value="POSTPONED">{isRtl ? "مؤجلة" : "Reportée"}</option>
-                  <option value="CANCELLED">{isRtl ? "ملغاة" : "Annulée"}</option>
                 </select>
               </div>
 

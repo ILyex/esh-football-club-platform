@@ -48,7 +48,7 @@ export function DocumentsNavTabs({
     },
     {
       href: `/${locale}/dashboard/correspondence`,
-      label: isAr ? "المراسلات الرسمية" : "Correspondances officielles",
+      label: isAr ? "المراسلات والطعون" : "Correspondances et recours",
       icon: Send,
       visible: canViewCorrespondence,
       exact: false

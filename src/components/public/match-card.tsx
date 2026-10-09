@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Calendar, MapPin, Trophy, Shield } from "lucide-react";
 import { PublicMatchItem } from "@/lib/public/matches";
-import { frenchPublicCategory, frenchPublicText } from "@/lib/public/locale-text";
+import { frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 
 interface MatchCardProps {
   match: PublicMatchItem;
@@ -21,26 +22,14 @@ interface MatchCardProps {
 export function MatchCard({ match, locale, labels }: MatchCardProps) {
   const isFinished = match.status === "FINISHED";
   const isLive = match.status === "LIVE";
-
-  const statusLabel =
-    match.status === "SCHEDULED"
-      ? labels.scheduled
-      : match.status === "LIVE"
-      ? labels.live
-      : match.status === "FINISHED"
-      ? labels.finished
-      : match.status === "POSTPONED"
-      ? labels.postponed
-      : labels.cancelled;
-
-  const statusTone =
-    match.status === "LIVE"
-      ? "bg-red-500/10 text-red-600 border-red-500/20"
-      : match.status === "FINISHED"
-      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-      : match.status === "SCHEDULED"
-      ? "bg-blue-500/10 text-blue-700 border-blue-500/20"
-      : "bg-amber-500/10 text-amber-700 border-amber-500/20";
+  const winnerName = match.winnerSide === "HOME"
+    ? localizedClubName(match.homeTeamName, locale, locale === "fr" ? "Club Espoir Sidi Hosni" : "نادي أمل سيدي حسني")
+    : match.winnerSide === "AWAY"
+      ? localizedClubName(match.awayTeamName, locale, locale === "fr" ? "Nom du club adverse" : "الفريق المنافس")
+      : null;
+  const categoryLabel = locale === "ar"
+    ? ({ SENIOR: "الأكابر", U20: "U20", U17: "U17", U15: "U15" } as Record<string, string>)[match.teamCategory ?? ""] ?? match.teamCategory
+    : match.teamCategory ? frenchPublicCategory(match.teamCategory) : null;
 
   const formattedDate = new Intl.DateTimeFormat(locale, {
     weekday: "short",
@@ -55,76 +44,107 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
   }).format(match.matchDate);
 
   return (
-    <div className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-club-primary/40 hover:shadow-md">
+    <article className="group flex min-h-[270px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-club-primary/50 hover:shadow-lg sm:min-h-[300px]">
       {/* Top Header: Competition & Status Badge */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-3 text-xs">
-        <div className="flex items-center gap-1.5 font-medium text-muted-foreground truncate">
-          <Trophy className="h-3.5 w-3.5 shrink-0 text-club-secondary" />
-          <span className="truncate">{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
-          {match.teamCategory && (
-            <span className="ms-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
-              {locale === "ar" ? match.teamCategory : frenchPublicCategory(match.teamCategory)}
-            </span>
-          )}
+      <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-4 text-xs">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2 font-bold text-foreground">
+            <Trophy className="h-3.5 w-3.5 shrink-0 text-club-secondary" />
+            <span className="truncate">{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
+            {match.teamCategory && (
+              <span className="inline-flex shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              {categoryLabel}
+              </span>
+            )}
+          </div>
         </div>
-        <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${statusTone}`}>
-          {statusLabel}
-        </span>
+        <MatchOperationalStatus
+          status={match.status}
+          matchDate={match.matchDate}
+          locale={locale}
+          variant="card"
+          labels={{ SCHEDULED: labels.scheduled, LIVE: labels.live, FINISHED: labels.finished, POSTPONED: labels.postponed, CANCELLED: labels.cancelled }}
+          hasExtraTime={match.hasExtraTime}
+          hasPenaltyShootout={match.hasPenaltyShootout}
+          homeScore={match.homeScore}
+          awayScore={match.awayScore}
+          addedTime={match.addedTime}
+        />
       </div>
 
       {/* Main Scoreboard Area */}
-      <div className="my-5 grid grid-cols-5 items-center gap-2">
+      <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 border-y border-border/60 bg-muted/20 px-2 py-4 sm:gap-2 sm:px-4 sm:py-6">
         {/* Home Team */}
-        <div className="col-span-2 flex flex-col items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/40 shadow-xs">
-            <Shield className="h-6 w-6 text-club-primary" />
+        <div className="col-span-1 flex min-w-0 flex-col items-center text-center">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-club-primary/20 bg-club-primary/10 shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
+            <Shield className="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />
           </div>
-          <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {locale === "ar" ? match.homeTeamName : frenchPublicText(match.homeTeamName, match.isHomeFixture ? "Association Sportive Espoir Sidi Hosni de Football" : "Adversaire")}
+          <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">
+            {localizedClubName(match.homeTeamName, locale, match.isHomeFixture ? (locale === "fr" ? "Club Espoir Sidi Hosni" : "نادي أمل سيدي حسني") : (locale === "fr" ? "Nom du club adverse" : "الفريق المنافس"))}
+          </span>
+          <span className="mt-1 rounded-full bg-club-primary/10 px-2 py-0.5 text-[10px] font-bold text-club-primary">
+            {labels.home}
           </span>
         </div>
 
         {/* Middle Score or Kickoff Time */}
         <div className="col-span-1 flex flex-col items-center justify-center text-center">
+          <span className="mb-2 line-clamp-2 max-w-20 text-[9px] font-bold leading-3 text-muted-foreground sm:max-w-none sm:text-[10px] sm:leading-normal sm:uppercase sm:tracking-wider">
+            {isLive ? (locale === "ar" ? "النتيجة الحالية" : "Score en direct") : (locale === "ar" ? "موعد المباراة" : "Coup d’envoi")}
+          </span>
           {isFinished || isLive ? (
-            <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-base sm:text-xl font-black tracking-tight text-foreground font-mono tabular-nums px-2 py-1 rounded-lg bg-muted/60 border border-border/60">
+            <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-base font-black tracking-tight text-foreground shadow-sm font-mono tabular-nums sm:gap-1.5 sm:px-3 sm:text-lg">
               <span className="min-w-4 text-center">{match.homeScore ?? 0}</span>
               <span className="text-muted-foreground text-xs font-normal">-</span>
               <span className="min-w-4 text-center">{match.awayScore ?? 0}</span>
             </div>
           ) : (
-            <div className="rounded-md bg-muted px-2.5 py-1 text-xs font-semibold font-mono text-muted-foreground border border-border/60">
+            <div className="rounded-xl border border-border bg-card px-2 py-2 text-[11px] font-bold font-mono text-muted-foreground shadow-sm sm:px-3 sm:text-xs">
               {formattedTime}
             </div>
           )}
           {isLive && (
-            <span className="mt-1 flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            <span className="relative mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
+              <span className="absolute inline-flex h-2.5 w-2.5 animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
             </span>
           )}
         </div>
 
         {/* Away Team */}
-        <div className="col-span-2 flex flex-col items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-muted/40 shadow-xs">
-            <Shield className="h-6 w-6 text-muted-foreground" />
+        <div className="col-span-1 flex min-w-0 flex-col items-center text-center">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
+            <Shield className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
           </div>
-          <span className="line-clamp-2 text-sm font-bold text-foreground">
-            {locale === "ar" ? match.awayTeamName : frenchPublicText(match.awayTeamName, match.isHomeFixture ? "Adversaire" : "Association Sportive Espoir Sidi Hosni de Football")}
+          <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">
+            {localizedClubName(match.awayTeamName, locale, match.isHomeFixture ? (locale === "fr" ? "Nom du club adverse" : "الفريق المنافس") : (locale === "fr" ? "Club Espoir Sidi Hosni" : "نادي أمل سيدي حسني"))}
+          </span>
+          <span className="mt-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+            {labels.away}
           </span>
         </div>
+        {winnerName && (
+          <div className="col-span-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+            <Trophy className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}</span>
+            {match.decidedByPenalties && (
+              <span dir="ltr" className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono tabular-nums">
+                {locale === "ar" ? "ترجيح" : "TAB"} {match.homePenaltyScore ?? 0}–{match.awayPenaltyScore ?? 0}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer Info & Match Center Link */}
-      <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-3 truncate">
-          <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 truncate">
+          <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 shrink-0" />
             <span>{formattedDate}</span>
           </div>
           {match.stadium && (
-            <div className="hidden items-center gap-1 sm:flex truncate">
+            <div className="hidden min-w-0 items-center gap-1.5 truncate sm:flex">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade Municipal Sidi Hosni")}</span>
             </div>
@@ -133,12 +153,12 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
 
         <Link
           href={`/${locale}/matches/${match.id}`}
-          className="font-semibold text-club-primary hover:underline shrink-0 inline-flex items-center gap-1"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-club-primary/20 bg-club-primary/10 px-3 py-1.5 font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white"
         >
           <span>{labels.details}</span>
           <span>{locale === "ar" ? "←" : "→"}</span>
         </Link>
       </div>
-    </div>
+    </article>
   );
 }

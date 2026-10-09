@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formBoolean } from "@/lib/validations/form-values";
 
 export const teamSchema = z
   .object({
@@ -7,7 +8,7 @@ export const teamSchema = z
     birthYearFrom: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.number().int().min(1980).max(2100).optional()),
     birthYearTo: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.number().int().min(1980).max(2100).optional()),
     description: z.string().max(2000).optional(),
-    active: z.coerce.boolean().default(true)
+    active: formBoolean(true)
   })
   .refine((d) => !d.birthYearFrom || !d.birthYearTo || d.birthYearTo >= d.birthYearFrom, {
     message: "birthYearRangeInvalid",

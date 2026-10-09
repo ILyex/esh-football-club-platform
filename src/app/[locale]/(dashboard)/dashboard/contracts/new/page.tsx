@@ -20,12 +20,12 @@ export default async function NewContractPage({ params }: { params: Promise<{ lo
 
   const [players, staff] = await Promise.all([
     db.player.findMany({
-      where: { status: { not: "ARCHIVED" } },
+      where: { status: "ACTIVE" },
       include: { team: true },
       orderBy: { lastName: "asc" }
     }),
     db.staff.findMany({
-      where: { status: { not: "ARCHIVED" } },
+      where: { status: "ACTIVE" },
       orderBy: { lastName: "asc" }
     })
   ]);

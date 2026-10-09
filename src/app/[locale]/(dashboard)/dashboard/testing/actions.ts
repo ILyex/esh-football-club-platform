@@ -136,7 +136,7 @@ export async function getCoachTestingAIInsightsAction(sessionId: string, locale 
   const inputRows = Array.isArray(currentPlayers) ? currentPlayers.slice(0, 300) : null;
   const inputIds = inputRows?.map((row: any) => typeof row?.id === "string" ? row.id : "").filter(Boolean) ?? [];
   const teamPlayers = inputRows ? await db.player.findMany({
-    where: { id: { in: inputIds }, teamId: session.teamId },
+    where: { id: { in: inputIds }, teamId: session.teamId, status: "ACTIVE" },
     select: { id: true, firstName: true, lastName: true, shirtNumber: true, position: true }
   }) : [];
   const teamPlayerMap = new Map(teamPlayers.map((player) => [player.id, player]));
@@ -190,4 +190,3 @@ export async function getCoachTestingAIInsightsAction(sessionId: string, locale 
     return { success: false, error: err.message };
   }
 }
-

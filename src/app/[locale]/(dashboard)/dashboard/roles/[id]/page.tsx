@@ -1,4 +1,4 @@
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission } from "@/lib/permissions";
@@ -90,7 +90,10 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
 
       {!role.isSystem && role.users.length === 0 && (
         <ConfirmDialog onConfirm={remove}>
-          <Button variant="destructive">{t("deleteRole")}</Button>
+          <Button variant="destructive" className="gap-2 rounded-xl font-bold">
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span>{t("deleteRole")}</span>
+          </Button>
         </ConfirmDialog>
       )}
     </div>

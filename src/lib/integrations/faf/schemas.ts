@@ -79,7 +79,7 @@ export const fafPlayerLicenceSchema = z.object({
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date < new Date();
     }, "Date of birth must be a valid past date"),
-  nationality: z.string().trim().min(2).max(60).default("Algérienne"),
+  nationality: z.string().trim().min(2).max(60).default("Algérien"),
   category: z.string().trim().min(2).max(20),
   status: z.enum(["VALID", "SUSPENDED", "PENDING", "REJECTED"]).default("VALID"),
   medicalClearanceDate: z

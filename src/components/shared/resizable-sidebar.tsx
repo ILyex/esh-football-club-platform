@@ -89,7 +89,7 @@ export function ResizableSidebar({
       ref={sidebarRef}
       data-dashboard-sidebar
       style={{ width: `${width}px` }}
-      className="relative w-full border-b border-border bg-card dark:bg-[#111214] shrink-0 md:w-auto md:border-b-0 md:border-e print:hidden md:sticky md:top-0 md:h-screen flex flex-col justify-between transition-none z-30"
+      className="relative sticky top-0 z-40 flex w-full shrink-0 flex-col justify-between border-b border-border bg-card transition-none dark:bg-[#111214] print:hidden md:z-30 md:w-auto md:border-b-0 md:border-e md:h-screen"
     >
       {/* Sidebar Content */}
       <div className="flex flex-col h-full w-full overflow-hidden">

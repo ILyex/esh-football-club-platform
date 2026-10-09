@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 import { DateInput } from "@/components/ui/date-input";
-import { Save,  FileText, Download, Upload, Paperclip } from "lucide-react";
+import { Save,  FileText, Download, Upload, Paperclip, Trash2 } from "lucide-react";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 export default async function CorrespondenceDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -25,7 +26,7 @@ export default async function CorrespondenceDetailPage({ params }: { params: Pro
       include: { attachments: { include: { document: true } } }
     }),
     db.team.findMany({ orderBy: { category: "asc" } }),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: { lastName: "asc" } }),
+    db.player.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
     db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: { lastName: "asc" } }),
     db.match.findMany({ orderBy: { matchDate: "desc" }, take: 30 }),
     db.document.findMany({
@@ -163,7 +164,7 @@ export default async function CorrespondenceDetailPage({ params }: { params: Pro
             <option value="">{t("none")}</option>
             {matches.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.homeTeamName} – {m.awayTeamName} ({new Intl.DateTimeFormat(locale).format(m.matchDate)})
+                {localizedClubName(m.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – {localizedClubName(m.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")} ({new Intl.DateTimeFormat(locale).format(m.matchDate)})
               </option>
             ))}
           </select>
@@ -232,7 +233,10 @@ export default async function CorrespondenceDetailPage({ params }: { params: Pro
                   </a>
                   {canManage && (
                     <ConfirmDialog onConfirm={detach}>
-                      <button type="button" className="text-xs text-destructive hover:underline">{tCommon("delete")}</button>
+                      <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white">
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{tCommon("delete")}</span>
+                      </button>
                     </ConfirmDialog>
                   )}
                 </div>

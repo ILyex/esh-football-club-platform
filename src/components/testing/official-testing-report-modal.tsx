@@ -97,7 +97,7 @@ export function OfficialTestingReportModal({
             <Button
               onClick={printDocument}
               size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 shadow-xs"
+              className="bg-club-primary hover:bg-club-primary-hover text-white font-semibold flex items-center gap-2 shadow-xs"
             >
               <Printer className="h-4 w-4" />
               <span>{isAr ? "طباعة" : "Imprimer"}</span>
@@ -118,7 +118,7 @@ export function OfficialTestingReportModal({
           {/* Official Document Sheet */}
           <div
             id={docId}
-            className="printable-document esh-security-watermark relative w-full max-w-[210mm] bg-white text-black p-6 sm:p-10 shadow-xl border border-zinc-200 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none"
+            className="printable-document official-testing-report esh-security-watermark relative w-full max-w-[210mm] bg-white text-black p-6 sm:p-10 shadow-xl border border-zinc-200 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none"
             style={{
               fontFamily: ESH_DOCUMENT_FONT_FAMILY
             }}
@@ -140,7 +140,7 @@ export function OfficialTestingReportModal({
                 __html: `
                   @media print {
                     @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
-                    thead { display: table-header-group !important; }
+                    .official-testing-results-table thead { display: table-row-group !important; }
                     tbody { display: table-row-group !important; }
                     tr { break-inside: avoid !important; page-break-inside: avoid !important; }
                     th, td { break-inside: avoid !important; page-break-inside: avoid !important; }
@@ -178,38 +178,6 @@ export function OfficialTestingReportModal({
                 locale={locale}
               />
 
-              {/* 2. ADMINISTRATIVE & SESSION CONTEXT */}
-              <div
-                className="grid grid-cols-3 gap-4 text-[14px] sm:text-[15px] p-3 my-4 bg-zinc-50 border border-zinc-200 text-black"
-                style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
-              >
-                <div>
-                  <span className="text-zinc-600 block text-[13px] font-semibold">
-                    {isAr ? "الفريق / الفئة:" : "Équipe / Catégorie :"}
-                  </span>
-                  <span className="font-bold text-black text-[15px] sm:text-[16px]">{session.teamName}</span>
-                </div>
-                <div className="text-center">
-                  <span className="text-zinc-600 block text-[13px] font-semibold">
-                    {isAr ? "المسؤول عن الاختبار:" : "Évaluateur / Responsable :"}
-                  </span>
-                  <span className="font-bold text-black text-[15px] sm:text-[16px]">
-                    {session.conductorName || (isAr ? "الطاقم الفني والإعداد البدني" : "Staff Technique")}
-                  </span>
-                </div>
-                <div className="text-end">
-                  <span className="text-zinc-600 block text-[13px] font-semibold">
-                    {isAr ? "تعداد اللاعبين:" : "Effectif évalué :"}
-                  </span>
-                  <span
-                    className="font-bold text-black text-[15px] sm:text-[16px]"
-                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
-                  >
-                    {validPlayers.length} / {players.length} {isAr ? "لاعب حاضر" : "joueurs"}
-                  </span>
-                </div>
-              </div>
-
               {/* 3. FORMAL ATHLETES RESULTS TABLE */}
               <div className="mb-6 w-full">
                 <div className="flex items-center justify-between mb-2">
@@ -228,7 +196,7 @@ export function OfficialTestingReportModal({
                 </div>
 
                 <div className="w-full overflow-x-auto print:overflow-visible">
-                  <table className="w-full text-[13px] sm:text-[14px] border-collapse border border-zinc-300 text-black">
+                  <table className="official-testing-results-table w-full text-[13px] sm:text-[14px] border-collapse border border-zinc-300 text-black">
                     <thead style={{ display: "table-header-group" }}>
                       <tr
                         className="bg-zinc-100 text-black font-bold text-[13px] sm:text-[14px]"
@@ -289,8 +257,8 @@ export function OfficialTestingReportModal({
                               {getPlayerDisplayName(player, locale)}
                             </td>
                             <td
-                              className="border border-zinc-300 px-2 py-2 text-center text-black font-medium"
-                              style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
+                              className="border border-zinc-300 px-2 py-2 text-center text-black font-medium whitespace-nowrap"
+                              style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "20px", lineHeight: 1.25 }}
                             >
                               {getPlayerPositionLabel(player.position, locale)}
                             </td>
@@ -332,13 +300,13 @@ export function OfficialTestingReportModal({
 
               {/* 4. OFFICIAL SIGNATURES STRICTLY BY ROLE ONLY */}
               <div
-                className="signature-block grid grid-cols-3 gap-6 pt-8 mt-6 text-black text-center"
+                className="document-signatures document-signatures-multiple signature-block grid grid-cols-3 gap-6 pt-8 mt-6 text-black"
                 style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
               >
                 {/* Fitness Trainer */}
                 <div>
                   <p
-                    className="font-bold text-[15px] sm:text-[16px] text-black"
+                    className="font-bold text-black"
                     style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                   >
                     {isAr ? "المعد البدني" : "Le Préparateur Physique"}
@@ -349,7 +317,7 @@ export function OfficialTestingReportModal({
                 {/* Club Doctor */}
                 <div>
                   <p
-                    className="font-bold text-[15px] sm:text-[16px] text-black"
+                    className="font-bold text-black"
                     style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                   >
                     {isAr ? "طبيب النادي" : "Le Médecin du Club"}
@@ -360,7 +328,7 @@ export function OfficialTestingReportModal({
                 {/* Technical Director */}
                 <div>
                   <p
-                    className="font-bold text-[15px] sm:text-[16px] text-black"
+                    className="font-bold text-black"
                     style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                   >
                     {isAr ? "المدير الفني" : "Le Directeur Technique"}

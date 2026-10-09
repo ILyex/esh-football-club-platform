@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, Check, CheckCheck, Clock, ExternalLink } from "lucide-react";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "@/app/[locale]/(dashboard)/dashboard/notifications/actions";
+import { resolveNotificationLink } from "@/lib/notifications/links";
 import { cn } from "@/lib/utils";
 
 export interface PopoverNotificationItem {
@@ -13,20 +15,6 @@ export interface PopoverNotificationItem {
   createdAt: string | Date;
   isRead: boolean;
   type?: string;
-}
-
-function resolveNotificationLink(rawLink?: string | null): string {
-  if (!rawLink) return "/dashboard";
-  let cleaned = rawLink.replace(/^\/dashboard\/dashboard/, "/dashboard");
-  if (!cleaned.startsWith("/")) cleaned = `/${cleaned}`;
-  if (!cleaned.startsWith("/dashboard")) cleaned = `/dashboard${cleaned}`;
-  if (cleaned.startsWith("/dashboard/contracts/")) {
-    cleaned = "/dashboard/contracts";
-  }
-  if (cleaned.startsWith("/dashboard/documents/")) {
-    cleaned = "/dashboard/documents";
-  }
-  return cleaned;
 }
 
 export function NotificationsPopover({
@@ -47,10 +35,12 @@ export function NotificationsPopover({
   };
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [items, setItems] = useState<PopoverNotificationItem[]>(notifications);
   const [unread, setUnread] = useState(unreadCount);
   const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Sync when server props change
   useEffect(() => {
@@ -82,21 +72,48 @@ export function NotificationsPopover({
   }, [isOpen]);
 
   const handleMarkAllRead = () => {
+    const previousItems = items;
+    const previousUnread = unread;
     setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
     setUnread(0);
     startTransition(async () => {
-      await markAllNotificationsReadAction();
+      try {
+        await markAllNotificationsReadAction();
+        router.refresh();
+      } catch {
+        setItems(previousItems);
+        setUnread(previousUnread);
+      }
     });
   };
 
-  const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleMarkSingleRead = (id: string) => {
+    const target = items.find((item) => item.id === id);
+    if (!target || target.isRead) return;
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
     setUnread((prev) => Math.max(0, prev - 1));
     startTransition(async () => {
-      await markNotificationReadAction(id);
+      try {
+        await markNotificationReadAction(id);
+        router.refresh();
+      } catch {
+        setItems((prev) => prev.map((item) => item.id === id ? { ...item, isRead: false } : item));
+        setUnread((prev) => prev + 1);
+      }
     });
+  };
+
+  const openPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const nextOpen = !isOpen;
+    if (nextOpen) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const width = Math.min(384, window.innerWidth - 24);
+      const desiredLeft = locale === "ar" ? rect.right - width : rect.left;
+      const left = Math.max(12, Math.min(desiredLeft, window.innerWidth - width - 12));
+      const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 280));
+      setPopoverPosition({ top, left });
+    }
+    setIsOpen(nextOpen);
   };
 
   const formatTime = (dateInput: string | Date) => {
@@ -118,11 +135,11 @@ export function NotificationsPopover({
       {/* Bell Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={openPopover}
         aria-expanded={isOpen}
         aria-label={labels.title}
         className={cn(
-          "relative rounded-xl border border-border bg-card p-2 text-muted-foreground transition-all shadow-2xs hover:border-club-primary hover:text-foreground focus-visible:outline-hidden",
+          "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-2 text-muted-foreground shadow-2xs transition-all hover:border-club-primary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-club-primary/50",
           isOpen && "border-club-primary bg-muted/30 text-foreground"
         )}
       >
@@ -139,7 +156,13 @@ export function NotificationsPopover({
         <div
           role="region"
           aria-label={labels.title}
-          className="absolute end-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-border/80 bg-card shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          style={popoverPosition ? {
+            "--notification-popover-top": `${popoverPosition.top}px`,
+            "--notification-popover-left": `${popoverPosition.left}px`
+          } as CSSProperties : undefined}
+          className={cn(
+            "fixed left-[var(--notification-popover-left,0.75rem)] top-[var(--notification-popover-top,5rem)] z-50 w-[min(24rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-var(--notification-popover-top,5rem)-0.75rem)] overflow-y-auto overscroll-contain rounded-2xl border border-border/80 bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          )}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/80 bg-muted/30 px-4 py-3">
@@ -156,7 +179,7 @@ export function NotificationsPopover({
                 type="button"
                 onClick={handleMarkAllRead}
                 disabled={isPending}
-                className="flex items-center gap-1 text-[11px] font-semibold text-club-primary hover:underline transition-colors"
+                className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-club-primary transition-colors hover:bg-muted/70 hover:underline"
               >
                 <CheckCheck className="h-3 w-3" />
                 <span>{labels.markAllRead}</span>
@@ -165,7 +188,7 @@ export function NotificationsPopover({
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-border/60 scrollbar-thin">
+          <div className="max-h-[min(20rem,calc(100dvh-13rem))] overflow-y-auto overscroll-contain divide-y divide-border/60 scrollbar-thin">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70">
@@ -194,8 +217,11 @@ export function NotificationsPopover({
                   <div className="min-w-0 flex-1">
                     {item.link ? (
                       <Link
-                        href={`/${locale}${resolveNotificationLink(item.link)}`}
-                        onClick={() => setIsOpen(false)}
+                        href={resolveNotificationLink(item.link, locale)}
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleMarkSingleRead(item.id);
+                        }}
                         className="block hover:underline"
                       >
                         <p className={cn("text-xs leading-snug", !item.isRead ? "font-bold text-foreground" : "text-muted-foreground")}>
@@ -217,9 +243,9 @@ export function NotificationsPopover({
                   {!item.isRead && (
                     <button
                       type="button"
-                      onClick={(e) => handleMarkSingleRead(item.id, e)}
+                      onClick={() => handleMarkSingleRead(item.id)}
                       title={labels.markRead}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-background hover:text-club-primary shadow-2xs transition-colors"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground shadow-2xs transition-colors hover:bg-background hover:text-club-primary"
                     >
                       <Check className="h-3.5 w-3.5" />
                     </button>
@@ -234,7 +260,7 @@ export function NotificationsPopover({
             <Link
               href={`/${locale}/dashboard/notifications`}
               onClick={() => setIsOpen(false)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-club-primary hover:underline transition-colors"
+              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-3 text-xs font-semibold text-club-primary transition-colors hover:bg-muted/70 hover:underline"
             >
               <span>{labels.viewAll}</span>
               <ExternalLink className="h-3 w-3" />

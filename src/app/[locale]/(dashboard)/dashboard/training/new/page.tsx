@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock3, MapPin, Save } from "lucide-react";
+import { MapPin, Save, ArrowLeft, ArrowRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission } from "@/lib/permissions";
@@ -8,8 +8,8 @@ import { createTrainingSessionAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
-import { TimeInput } from "@/components/ui/time-input";
 import { TrainingTeamCoachFields } from "@/components/training/training-team-coach-fields";
+import { TrainingTimeFields } from "@/components/training/training-time-fields";
 
 export default async function NewTrainingSessionPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -52,8 +52,12 @@ export default async function NewTrainingSessionPage({ params }: { params: Promi
           <p className="mb-1 text-xs font-semibold text-club-primary">{t("title")}</p>
           <h1 className="text-xl font-bold">{t("addSession")}</h1>
         </div>
-        <Link href={`/${locale}/dashboard/training`} className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
-          {isAr ? "العودة إلى سجل التدريبات" : "Retour aux entraînements"}
+        <Link
+          href={`/${locale}/dashboard/training`}
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:border-club-primary/50 hover:bg-club-primary/5 hover:text-foreground"
+        >
+          {isAr ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : <ArrowLeft className="h-4 w-4" aria-hidden="true" />}
+          <span>{isAr ? "العودة إلى سجل التدريبات" : "Retour aux entraînements"}</span>
         </Link>
       </div>
 
@@ -78,14 +82,7 @@ export default async function NewTrainingSessionPage({ params }: { params: Promi
             locale={locale}
           />
         </div>
-        <div>
-          <label className="mb-1 flex items-center gap-2 text-sm font-semibold"><Clock3 className="h-4 w-4 text-club-primary" />{t("fields.startTime")}</label>
-          <TimeInput name="startTime" required locale={locale} />
-        </div>
-        <div>
-          <label className="mb-1 flex items-center gap-2 text-sm font-semibold"><Clock3 className="h-4 w-4 text-club-primary" />{t("fields.endTime")}</label>
-          <TimeInput name="endTime" required locale={locale} />
-        </div>
+        <TrainingTimeFields locale={locale} startLabel={t("fields.startTime")} endLabel={t("fields.endTime")} />
         <div className="col-span-2">
           <label className="mb-1 flex items-center gap-2 text-sm font-semibold"><MapPin className="h-4 w-4 text-club-primary" />{t("fields.location")}</label>
           <input name="location" maxLength={160} placeholder={isAr ? "مثال: الملعب البلدي" : "Ex. : Stade municipal"} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />

@@ -271,7 +271,7 @@ export function ContractForm({
         <Button
           type="submit"
           disabled={submitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-6 shadow-xs"
+          className="bg-club-primary hover:bg-club-primary-hover text-white font-medium flex items-center gap-2 px-6 shadow-xs"
         >
           <Save className="h-4 w-4" />
           <span>{submitting ? (isAr ? "جارٍ الحفظ..." : "Enregistrement...") : t.save}</span>

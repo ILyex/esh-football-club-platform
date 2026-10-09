@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TeamCategoryChart } from "@/components/teams/team-category-chart";
 import { ROSTER_PLAYER_STATUSES } from "@/lib/teams/roster";
+import { localizedClubName } from "@/lib/public/locale-text";
 import { Shield, Users, Trophy, FileCheck, ArrowRight, UserCog, Edit3 } from "lucide-react";
 
 const CATEGORY_ORDER = ["SENIOR", "U20", "U17", "U15"] as const;
@@ -93,7 +94,7 @@ export default async function TeamsListPage({ params }: { params: Promise<{ loca
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">{team.name}</p>
+                      <p className="text-xs text-muted-foreground font-medium mt-0.5">{localizedClubName(team.name, locale, t(`categories.${team.category}` as any))}</p>
                     </div>
                   </div>
 

@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Newspaper } from "lucide-react";
+import { ChevronLeft, ChevronRight, Newspaper } from "lucide-react";
 import { getPublicNewsList } from "@/lib/public/news";
 import { NewsCard } from "@/components/public/news-card";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
+
+// News is managed from the dashboard and must reflect publication changes immediately.
+export const dynamic = "force-dynamic";
 
 export default async function PublicNewsPage({
   params,
@@ -18,31 +22,19 @@ export default async function PublicNewsPage({
 
   const [tPublic, newsData] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
-    getPublicNewsList(locale, { page, pageSize: 9, category })
+    getPublicNewsList(locale, { page, pageSize: 8, category })
   ]);
 
   const { items, totalPages } = newsData;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      {/* Header */}
-      <div className="border-b border-border/80 pb-8">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-          <Newspaper className="h-4 w-4" />
-          {tPublic("news.title")}
-        </span>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {tPublic("news.title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">
-          {tPublic("news.subtitle")}
-        </p>
-      </div>
+      <PublicPageHeading locale={locale} icon={<Newspaper />} eyebrow={tPublic("news.title")} title={tPublic("news.title")} description={tPublic("news.subtitle")} />
 
       {/* Articles Grid */}
       <div className="mt-8">
         {items.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {items.map((article) => (
               <NewsCard
                 key={article.id}
@@ -63,14 +55,22 @@ export default async function PublicNewsPage({
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-2">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 border-t border-border/70 pt-6">
+            <Link
+              href={`/${locale}/news?page=${Math.max(1, page - 1)}${category ? `&category=${category}` : ""}`}
+              aria-disabled={page === 1}
+              className={`inline-flex h-10 items-center gap-1 rounded-lg border px-3 text-xs font-bold transition-colors ${page === 1 ? "pointer-events-none border-border/50 text-muted-foreground/40" : "border-border bg-card text-foreground hover:border-club-primary/50 hover:text-club-primary"}`}
+            >
+              {locale === "ar" ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              <span className="hidden sm:inline">{locale === "ar" ? "السابق" : "Précédent"}</span>
+            </Link>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
               const isActive = p === page;
               return (
                 <Link
                   key={p}
                   href={`/${locale}/news?page=${p}${category ? `&category=${category}` : ""}`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold transition-all ${
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold transition-all ${
                     isActive
                       ? "bg-club-primary text-white shadow-xs"
                       : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -80,6 +80,14 @@ export default async function PublicNewsPage({
                 </Link>
               );
             })}
+            <Link
+              href={`/${locale}/news?page=${Math.min(totalPages, page + 1)}${category ? `&category=${category}` : ""}`}
+              aria-disabled={page === totalPages}
+              className={`inline-flex h-10 items-center gap-1 rounded-lg border px-3 text-xs font-bold transition-colors ${page === totalPages ? "pointer-events-none border-border/50 text-muted-foreground/40" : "border-border bg-card text-foreground hover:border-club-primary/50 hover:text-club-primary"}`}
+            >
+              <span className="hidden sm:inline">{locale === "ar" ? "التالي" : "Suivant"}</span>
+              {locale === "ar" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Link>
           </div>
         )}
       </div>

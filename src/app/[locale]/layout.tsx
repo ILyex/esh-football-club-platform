@@ -39,11 +39,14 @@ export default async function LocaleLayout({
                 var c = (document.cookie.match(/(^|; )theme=([^;]+)/) || [])[2];
                 var t = c || localStorage.getItem('theme');
                 var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (t === 'dark' || ((t === 'system' || !t) && d)) {
+                var dark = t === 'dark' || ((t === 'system' || !t) && d);
+                if (dark) {
                   document.documentElement.classList.add('dark');
                 } else {
                   document.documentElement.classList.remove('dark');
                 }
+                document.documentElement.style.backgroundColor = dark ? '#0c0d0e' : '#f8f9fa';
+                document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
               } catch(e) {}
             })()`
           }}

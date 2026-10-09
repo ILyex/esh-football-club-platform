@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -7,6 +6,7 @@ import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   SCHEDULED: "neutral",
@@ -46,8 +46,12 @@ export default async function TrainingListPage({
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         {canManage && (
-          <Link href={`/${locale}/dashboard/training/new`}>
-            <Button className="inline-flex items-center gap-2"><Plus className="h-4 w-4 shrink-0" aria-hidden="true" />{t("addSession")}</Button>
+          <Link
+            href={`/${locale}/dashboard/training/new`}
+            className="inline-flex h-9 items-center gap-2 rounded-md bg-club-primary px-4 text-sm font-medium text-white transition-colors hover:bg-club-primary/90"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t("addSession")}
           </Link>
         )}
       </div>

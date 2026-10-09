@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Image as ImageIcon, Calendar, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft } from "lucide-react";
+import { Image as ImageIcon, Calendar, ChevronRight, ChevronLeft } from "lucide-react";
 import { getPublicAlbumDetail } from "@/lib/public/gallery";
-import { ClubVideoPlayer } from "@/components/shared/club-video-player";
+import { GalleryVideoModal } from "@/components/public/gallery-video-modal";
 import { isVideoUrl } from "@/lib/media-utils";
 import { GalleryImage } from "@/components/public/gallery-image";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function PublicAlbumDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { locale, id } = await params;
+  const sp = await searchParams;
   const isRtl = locale === "ar";
-  const BreadcrumbChevron = isRtl ? ChevronLeft : ChevronRight;
-  const BackArrow = isRtl ? ArrowRight : ArrowLeft;
 
   const [tPublic, album] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
@@ -28,6 +30,12 @@ export default async function PublicAlbumDetailPage({
   }
   const albumName = locale === "ar" ? album.name : frenchPublicText(album.name, "Album photo");
   const albumDescription = locale === "ar" ? album.description : frenchPublicText(album.description, "");
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(album.photoCount / pageSize));
+  const requestedPage = Number.parseInt(sp.page || "1", 10);
+  const currentPage = Number.isFinite(requestedPage) ? Math.min(Math.max(requestedPage, 1), totalPages) : 1;
+  const pagePhotos = album.photos.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageHref = (page: number) => `/${locale}/gallery/${id}?page=${page}`;
 
   const formattedDate = new Intl.DateTimeFormat(locale, {
     day: "numeric",
@@ -36,57 +44,45 @@ export default async function PublicAlbumDetailPage({
   }).format(album.createdAt);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      {/* Breadcrumbs */}
-      <nav className="mb-8 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <Link href={`/${locale}/gallery`} className="hover:text-club-primary transition-colors">
-          {tPublic("gallery.title")}
-        </Link>
-        <BreadcrumbChevron className="h-3.5 w-3.5" />
-        <span className="font-semibold text-foreground truncate max-w-xs">
-          {albumName}
-        </span>
-      </nav>
-
-      {/* Album Header */}
-      <div className="border-b border-border/80 pb-8">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>{formattedDate}</span>
-          <span>•</span>
-          <span className="font-semibold text-foreground">
-            {album.photoCount} {locale === "ar" ? "صورة" : "photos"}
-          </span>
-        </div>
-
-        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-          {albumName}
-        </h1>
-
-        {albumDescription && (
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-3xl">
-            {albumDescription}
-          </p>
+    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
+      <PublicPageHeading
+        locale={locale}
+        backHref={`/${locale}/gallery`}
+        backLabel={locale === "ar" ? "العودة إلى المعرض" : "Retour à la galerie"}
+        icon={<ImageIcon />}
+        eyebrow={locale === "ar" ? "تفاصيل المعرض" : "Détails de la galerie"}
+        title={albumName}
+        description={albumDescription}
+        trailing={(
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5 text-club-primary" aria-hidden="true" />
+              <span>{formattedDate}</span>
+            </span>
+            <span className="rounded-full border border-club-primary/20 bg-club-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-club-primary">
+              {album.photoCount} {locale === "ar" ? "صورة" : "photos"}
+            </span>
+          </>
         )}
-      </div>
+      />
 
       {/* Photos & Videos Grid */}
-      <div className="mt-8">
-        {album.photos.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {album.photos.map((photo) => {
+      <div className="mt-5 sm:mt-8">
+        {pagePhotos.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            {pagePhotos.map((photo) => {
               const isVideo = isVideoUrl(photo.url);
               return (
                 <div
                   key={photo.id}
-                  className="group overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:border-club-primary/50 hover:shadow-md flex flex-col justify-between"
+                  className="group overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all hover:border-club-primary/50 hover:shadow-md flex flex-col justify-between sm:rounded-2xl"
                 >
-                  <div className="relative aspect-[4/3] min-h-[180px] w-full overflow-hidden bg-black/90">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/90 sm:min-h-[180px]">
                     {isVideo ? (
-                      <ClubVideoPlayer
+                      <GalleryVideoModal
                         src={photo.url}
                         title={locale === "ar" ? (photo.caption || albumName) : frenchPublicText(photo.caption, albumName)}
-                        aspectRatio="4/3"
+                        locale={locale}
                       />
                     ) : (
                       <GalleryImage
@@ -97,7 +93,7 @@ export default async function PublicAlbumDetailPage({
                     )}
                   </div>
                   {(locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")) && (
-                    <div className="p-3 bg-card border-t border-border/60">
+                    <div className="p-2.5 bg-card border-t border-border/60 sm:p-3">
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")}
                       </p>
@@ -117,16 +113,39 @@ export default async function PublicAlbumDetailPage({
         )}
       </div>
 
-      {/* Back Link */}
-      <div className="mt-12 border-t border-border/80 pt-8">
-        <Link
-          href={`/${locale}/gallery`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-club-primary hover:underline"
-        >
-          <BackArrow className="h-4 w-4" />
-          <span>{tPublic("gallery.backToGallery")}</span>
-        </Link>
-      </div>
+      {totalPages > 1 && (
+        <nav aria-label={isRtl ? "صفحات الألبوم" : "Pages de l’album"} className="mt-8 flex flex-wrap items-center justify-center gap-2 border-t border-border/80 pt-6">
+          <Link
+            href={pageHref(Math.max(1, currentPage - 1))}
+            aria-disabled={currentPage === 1}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${currentPage === 1 ? "pointer-events-none border-border/50 text-muted-foreground/40" : "border-border bg-card text-foreground hover:border-club-primary/50 hover:text-club-primary"}`}
+          >
+            {isRtl ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {isRtl ? "السابق" : "Précédent"}
+          </Link>
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+              <Link
+                key={page}
+                href={pageHref(page)}
+                aria-current={page === currentPage ? "page" : undefined}
+                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-xs font-bold transition-colors ${page === currentPage ? "border-club-primary bg-club-primary text-white" : "border-border bg-card text-muted-foreground hover:border-club-primary/50 hover:text-club-primary"}`}
+              >
+                {page}
+              </Link>
+            ))}
+          </div>
+          <Link
+            href={pageHref(Math.min(totalPages, currentPage + 1))}
+            aria-disabled={currentPage === totalPages}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${currentPage === totalPages ? "pointer-events-none border-border/50 text-muted-foreground/40" : "border-border bg-card text-foreground hover:border-club-primary/50 hover:text-club-primary"}`}
+          >
+            {isRtl ? "التالي" : "Suivant"}
+            {isRtl ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Link>
+        </nav>
+      )}
+
     </div>
   );
 }

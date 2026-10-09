@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/permissions";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "./actions";
 import { NOTIFIABLE_TYPE_KEYS } from "@/lib/insights/notifications";
+import { resolveNotificationLink } from "@/lib/notifications/links";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,20 +21,6 @@ import {
   Clock,
   Sparkles
 } from "lucide-react";
-
-function resolveNotificationLink(rawLink?: string | null): string {
-  if (!rawLink) return "/dashboard";
-  let cleaned = rawLink.replace(/^\/dashboard\/dashboard/, "/dashboard");
-  if (!cleaned.startsWith("/")) cleaned = `/${cleaned}`;
-  if (!cleaned.startsWith("/dashboard")) cleaned = `/dashboard${cleaned}`;
-  if (cleaned.startsWith("/dashboard/contracts/")) {
-    cleaned = "/dashboard/contracts";
-  }
-  if (cleaned.startsWith("/dashboard/documents/")) {
-    cleaned = "/dashboard/documents";
-  }
-  return cleaned;
-}
 
 export default async function NotificationsPage({
   params,
@@ -333,7 +320,7 @@ export default async function NotificationsPage({
               </div>
 
               {/* Main Content Link */}
-              <Link href={`/${locale}${resolveNotificationLink(n.link)}`} className="min-w-0 flex-1 pt-0.5">
+              <Link href={resolveNotificationLink(n.link, locale)} className="min-w-0 flex-1 pt-0.5">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span
                     className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${meta.bg} ${meta.color}`}

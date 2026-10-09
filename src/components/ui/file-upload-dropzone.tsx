@@ -34,7 +34,7 @@ export function FileUploadDropzone({
       borderDrag: "border-emerald-600 bg-emerald-500/10 ring-2 ring-emerald-500/20",
       bg: "bg-emerald-500/[0.03]",
       iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      button: "bg-emerald-600 hover:bg-emerald-700 text-white",
+      button: "bg-club-primary hover:bg-club-primary-hover text-white",
       badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
     },
     amber: {

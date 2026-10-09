@@ -5,6 +5,8 @@ import { createAlbumAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
+import { FormSelect } from "@/components/ui/form-select";
+import { GalleryActionForm } from "@/components/gallery/gallery-action-form";
 import { Save } from "lucide-react";
 
 const CATEGORIES = ["MATCHES", "TRAINING", "TEAM", "EVENTS", "CLUB"] as const;
@@ -17,50 +19,56 @@ export default async function NewAlbumPage({ params }: { params: Promise<{ local
   const tCommon = await getTranslations("common");
 
   const teams = await db.team.findMany({ orderBy: { category: "asc" } });
+  const categoryOptions = CATEGORIES.map((category) => ({
+    value: category,
+    label: t(`categories.${category}` as any)
+  }));
+  const teamOptions = [
+    { value: "", label: locale === "ar" ? "بدون فريق" : "Sans équipe" },
+    ...teams.map((team) => ({
+      value: team.id,
+      label: tTeams(`categories.${team.category}` as any)
+    }))
+  ];
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await createAlbumAction(formData);
-    redirect(`/${locale}/dashboard/gallery/${id}`);
+    return createAlbumAction(formData);
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t("addAlbum")}</h1>
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="flex items-center justify-between border-b border-border/70 pb-4">
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-foreground">{t("addAlbum")}</h1>
+          <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "أنشئ ألبومًا جديدًا ونظّم وسائطه قبل النشر." : "Créez un album et organisez ses médias avant publication."}</p>
+        </div>
       </div>
-      <form action={action} encType="multipart/form-data" className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.albumTitle")}</label>
-          <input name="name" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+      <GalleryActionForm action={action} successMessage={locale === "ar" ? "تم حفظ الألبوم بنجاح" : "Album enregistré avec succès"} errorMessage={locale === "ar" ? "تعذر حفظ الألبوم" : "Impossible d’enregistrer l’album"} redirectTo={`/${locale}/dashboard/gallery`} encType="multipart/form-data" className="grid grid-cols-1 gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.albumTitle")}</label>
+          <input name="name" required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground shadow-2xs outline-none transition-colors placeholder:text-muted-foreground focus:border-club-primary focus:ring-2 focus:ring-club-primary/20" />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-          <select name="category" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(`categories.${c}` as any)}
-              </option>
-            ))}
-          </select>
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.category")}</label>
+          <FormSelect name="category" required locale={locale} options={categoryOptions} ariaLabel={t("fields.category")} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.team")}</label>
-          <select name="teamId" defaultValue="" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">—</option>
-            {teams.map((tm) => (
-              <option key={tm.id} value={tm.id}>
-                {tTeams(`categories.${tm.category}` as any)}
-              </option>
-            ))}
-          </select>
+          <label className="mb-1.5 block text-xs font-bold text-foreground">{t("fields.team")}</label>
+          <FormSelect name="teamId" locale={locale} options={teamOptions} ariaLabel={t("fields.team")} />
         </div>
-        <label className="col-span-2 flex items-center gap-2 text-sm">
-          <input name="published" type="checkbox" defaultChecked /> {t("fields.published")}
+        <label className="group sm:col-span-2 inline-flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3.5 text-xs font-semibold text-foreground">
+          <input type="hidden" name="published" value="false" />
+          <span className="group-has-[:checked]:hidden">{locale === "ar" ? "غير منشور" : "Non publié"}</span>
+          <span className="hidden group-has-[:checked]:inline">{locale === "ar" ? "منشور" : "Publié"}</span>
+          <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-muted transition-colors has-[:checked]:bg-club-primary">
+            <input name="published" type="checkbox" defaultChecked className="peer sr-only" />
+            <span className="pointer-events-none absolute start-1 h-4 w-4 rounded-full bg-white shadow-sm transition-[inset-inline-start] peer-checked:start-6" />
+          </span>
         </label>
 
         {/* Multi-Image and Video Uploader with live preview and reordering */}
-        <div className="col-span-2 pt-2">
+        <div className="sm:col-span-2 pt-2">
           <MultiImageUploader
             name="images"
             locale={locale}
@@ -69,16 +77,16 @@ export default async function NewAlbumPage({ params }: { params: Promise<{ local
           />
         </div>
 
-        <div className="col-span-2 pt-2 border-t border-border flex items-center gap-3">
+        <div className="sm:col-span-2 flex items-center gap-3 border-t border-border/70 pt-5">
           <Button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-club-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-club-primary-hover"
           >
             <Save className="h-4 w-4" />
             <span>{tCommon("save")}</span>
           </Button>
         </div>
-      </form>
+      </GalleryActionForm>
     </div>
   );
 }

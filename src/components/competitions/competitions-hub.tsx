@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Trophy,
@@ -9,6 +8,7 @@ import {
   Layers,
   Calendar,
   Sparkles,
+  UsersRound,
   Plus
 } from "lucide-react";
 import type { TeamCategory, CompetitionType } from "@prisma/client";
@@ -93,16 +93,6 @@ export function CompetitionsHub({
       c.seasonId === activeSeasonId
   );
 
-  const orderedMatches = [...(currentComp?.matches ?? [])].sort((a, b) => {
-    const dateA = new Date(a.matchDate).getTime();
-    const dateB = new Date(b.matchDate).getTime();
-    const now = Date.now();
-    const aUpcoming = dateA >= now;
-    const bUpcoming = dateB >= now;
-    if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-    return aUpcoming ? dateA - dateB : dateB - dateA;
-  });
-
   const handleTypeChange = (type: CompetitionType) => {
     if (type === activeType) return;
     setActiveType(type);
@@ -134,13 +124,13 @@ export function CompetitionsHub({
   return (
     <div className="space-y-6">
       {/* TOP HEADER CONTROLS: Competition Type Tabs & Season Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/70 pb-4">
+      <div className="flex flex-col gap-2.5 border-b border-border/70 pb-3 sm:gap-4 sm:pb-4 md:flex-row md:items-center md:justify-between">
         {/* Main Competition Switcher (League vs Algerian Cup) */}
-        <div className={`inline-flex items-center gap-1 rounded-2xl border border-border/80 bg-muted/40 p-1.5 shadow-2xs transition-opacity ${isSwitching ? "opacity-70" : ""}`}>
+        <div className={`inline-flex w-full items-center gap-1 rounded-xl border border-border/80 bg-muted/40 p-1 shadow-2xs transition-opacity sm:w-auto sm:rounded-2xl sm:p-1.5 ${isSwitching ? "opacity-70" : ""}`}>
           <button
             type="button"
             onClick={() => handleTypeChange("LEAGUE")}
-            className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-xs outline-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 sm:text-sm font-bold ${
+            className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] outline-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 sm:flex-none sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm font-bold ${
               activeType === "LEAGUE"
                 ? "bg-card text-foreground shadow-xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -153,7 +143,7 @@ export function CompetitionsHub({
           <button
             type="button"
             onClick={() => handleTypeChange("CUP")}
-            className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-xs outline-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 sm:text-sm font-bold ${
+            className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] outline-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 sm:flex-none sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm font-bold ${
               activeType === "CUP"
                 ? "bg-card text-foreground shadow-xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -165,10 +155,10 @@ export function CompetitionsHub({
         </div>
 
         {/* Season Selector Dropdown */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground whitespace-nowrap">
+        <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-end">
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap sm:text-xs">
             <Calendar className="h-3.5 w-3.5 shrink-0 text-club-primary" />
-            <span>{isAr ? "الموسم الرياضي:" : "Saison:"}</span>
+            <span className="hidden sm:inline">{isAr ? "الموسم الرياضي:" : "Saison:"}</span>
           </div>
 
           <MasterFilterSelect
@@ -183,14 +173,14 @@ export function CompetitionsHub({
             onChange={handleSeasonChange}
             headerTitle={isAr ? "اختيار الموسم الرياضي" : "Choisir la saison"}
             size="sm"
-            className="w-[220px] max-w-[58vw] shrink-0 [&>button]:w-full [&>button]:justify-between [&>button>span]:!max-w-none [&>button>span]:!overflow-visible [&>button>span]:!text-clip [&>button>span]:whitespace-nowrap"
+            className="min-w-0 flex-1 sm:w-[220px] sm:flex-none [&>button]:w-full [&>button]:min-w-0 [&>button]:justify-between [&>button>span]:max-w-[min(9rem,45vw)] [&>button>span]:truncate sm:[&>button>span]:!max-w-none sm:[&>button>span]:!overflow-visible sm:[&>button>span]:!text-clip sm:[&>button>span]:whitespace-nowrap"
           />
         </div>
       </div>
 
       {/* CATEGORY SELECTOR TABS (Seamlessly switches between Senior, U20, U17, U15) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-xs font-semibold text-muted-foreground shrink-0 me-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none sm:gap-2">
+        <span className="shrink-0 text-[11px] font-semibold text-muted-foreground sm:me-1 sm:text-xs">
           {isAr ? "الفئة:" : "Catégorie:"}
         </span>
         {categories.map((cat) => {
@@ -201,13 +191,14 @@ export function CompetitionsHub({
               key={cat}
               type="button"
               onClick={() => handleCategoryChange(cat)}
-              className={`shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all shadow-2xs ${
+                className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-all shadow-2xs ${
                 isActive
-                  ? "bg-club-primary text-white shadow-xs ring-2 ring-club-primary/30"
-                  : "border border-border/80 bg-card text-muted-foreground hover:border-club-primary/50 hover:text-foreground"
+                  ? "border-club-primary bg-club-primary text-white shadow-xs"
+                  : "border-border/80 bg-card text-muted-foreground hover:border-club-primary/50 hover:text-foreground"
               }`}
             >
-              {label}
+              <UsersRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{label}</span>
             </button>
           );
         })}
@@ -215,11 +206,11 @@ export function CompetitionsHub({
 
       {/* COMPETITION BANNER (Logo + Name + Organization + Status) */}
       {currentComp ? (
-        <div key={`banner-${activeType}-${activeCategory}-${activeSeasonId}`} className="relative animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-r from-card via-card to-muted/30 p-4 sm:p-5 shadow-xs">
+        <div key={`banner-${activeType}-${activeCategory}-${activeSeasonId}`} className="relative animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden rounded-xl border border-border/80 bg-gradient-to-r from-card via-card to-muted/30 p-2.5 shadow-xs sm:rounded-2xl sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
               {/* Competition Logo */}
-              <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-2xl border border-border/80 bg-background p-1.5 flex items-center justify-center shadow-xs overflow-hidden">
+              <div className="relative h-10 w-10 shrink-0 rounded-xl border border-border/80 bg-background p-1 flex items-center justify-center shadow-xs overflow-hidden sm:h-16 sm:w-16 sm:rounded-2xl sm:p-1.5">
                 {currentComp.logoUrl ? (
                   <img
                     src={currentComp.logoUrl}
@@ -236,25 +227,23 @@ export function CompetitionsHub({
               {/* Title & Info */}
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="rounded-md bg-club-primary/10 px-2 py-0.5 text-[11px] font-black text-club-primary">
+                  <span className="rounded-md bg-club-primary/10 px-1.5 py-0.5 text-[9px] font-black text-club-primary sm:px-2 sm:text-[11px]">
                     {currentComp.seasonLabel}
-                  </span>
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground">
-                    {isAr ? currentComp.categoryLabelAr : currentComp.categoryLabelFr}
                   </span>
                   {activeType === "CUP" && (
                     <span className="rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 text-[11px] font-bold">
-                      {isAr ? "كأس الجمهورية" : "Coupe Nationale"}
+                      <span className="sm:hidden">{isAr ? "الكأس" : "Coupe"}</span>
+                      <span className="hidden sm:inline">{isAr ? "كأس الجمهورية" : "Coupe Nationale"}</span>
                     </span>
                   )}
                 </div>
 
-                <h2 className="text-lg sm:text-xl font-extrabold text-foreground truncate">
+                <h2 className="text-sm font-extrabold text-foreground truncate sm:text-xl">
                   {currentComp.name}
                 </h2>
 
                 {currentComp.organization && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
                     {currentComp.organization}
                   </p>
                 )}
@@ -317,49 +306,6 @@ export function CompetitionsHub({
         </div>
       )}
 
-      {currentComp && orderedMatches.length > 0 && (
-        <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-club-primary" />
-              <h3 className="text-sm font-bold">{isAr ? "مباريات هذه المسابقة" : "Matchs de cette compétition"}</h3>
-            </div>
-            <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
-              {orderedMatches.length} {isAr ? "مباراة" : "matchs"}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {orderedMatches.map((match) => (
-              <Link
-                key={match.id}
-                href={isPublic ? `/${locale}/matches/${match.id}` : `/${locale}/dashboard/matches/${match.id}`}
-                dir={isAr ? "rtl" : "ltr"}
-                className="block rounded-xl border border-border/70 bg-background/60 px-3 py-3 transition-colors hover:border-club-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/50 sm:px-4"
-              >
-                <div className="mb-3 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                  <time dateTime={new Date(match.matchDate).toISOString()}>
-                    {new Intl.DateTimeFormat(isAr ? "ar-DZ" : "fr-FR", { dateStyle: "medium", timeZone: "Africa/Algiers" }).format(new Date(match.matchDate))}
-                  </time>
-                  <span className={`rounded-full px-2 py-0.5 font-semibold ${match.status === "LIVE" ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-muted text-muted-foreground"}`}>
-                    {match.status === "LIVE" ? (isAr ? "مباشرة" : "En direct")
-                      : match.status === "FINISHED" ? (isAr ? "انتهت" : "Terminée")
-                      : match.status === "POSTPONED" ? (isAr ? "مؤجلة" : "Reportée")
-                      : match.status === "CANCELLED" ? (isAr ? "ملغاة" : "Annulée")
-                      : (isAr ? "مجدولة" : "Programmée")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
-                  <span className="truncate text-start text-xs font-semibold text-foreground sm:text-sm">{match.homeTeamName}</span>
-                  <span className="min-w-12 rounded-lg bg-muted px-2.5 py-1.5 text-center font-mono text-xs font-bold tabular-nums text-foreground">
-                    {match.homeScore == null || match.awayScore == null ? "–" : `${match.homeScore} : ${match.awayScore}`}
-                  </span>
-                  <span className="truncate text-end text-xs font-semibold text-foreground sm:text-sm">{match.awayTeamName}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
+import { resolveMatchResult } from "@/lib/matches/result";
 import { requirePagePermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { ReportsClientHub } from "@/components/reports/reports-client-hub";
@@ -52,7 +53,7 @@ export default async function ReportsPage({
     db.player.groupBy({ by: ["teamId"], _count: true, where: { ...teamWhere, status: { not: "ARCHIVED" } }, orderBy: { teamId: "asc" } }),
     db.staff.groupBy({ by: ["role"], _count: true, where: { ...teamWhere, status: "ACTIVE" }, orderBy: { role: "asc" } }),
     db.contract.groupBy({ by: ["status"], _count: true, where: teamWhere, orderBy: { status: "asc" } }),
-    db.match.findMany({ where: { ...teamWhere, status: "FINISHED" }, select: { isHomeFixture: true, homeScore: true, awayScore: true } }),
+    db.match.findMany({ where: { ...teamWhere, status: "FINISHED" }, select: { isHomeFixture: true, homeScore: true, awayScore: true, hasPenaltyShootout: true, shootoutKicks: { select: { side: true, result: true } } } }),
     db.trainingAttendance.groupBy({ by: ["status"], _count: true, where: { training: teamWhere }, orderBy: { status: "asc" } }),
     db.document.groupBy({ by: ["categoryId"], _count: true, where: teamWhere, orderBy: { categoryId: "asc" } }),
     db.player.count({ where: { ...teamWhere, status: { not: "ARCHIVED" } } }),
@@ -70,11 +71,12 @@ export default async function ReportsPage({
   let draws = 0;
   let losses = 0;
   for (const match of scoredMatches) {
-    const ourScore = match.isHomeFixture ? match.homeScore! : match.awayScore!;
-    const opponentScore = match.isHomeFixture ? match.awayScore! : match.homeScore!;
-    if (ourScore > opponentScore) wins++;
-    else if (ourScore === opponentScore) draws++;
-    else losses++;
+    const outcome = resolveMatchResult({ status: "FINISHED", ...match });
+    if (match.hasPenaltyShootout && match.homeScore === match.awayScore && !outcome.winnerSide) continue;
+    const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
+    if (outcome.winnerSide === clubSide) wins++;
+    else if (outcome.winnerSide) losses++;
+    else draws++;
   }
 
   const treasuryFor = (type: "DEPOSIT" | "WITHDRAWAL") => treasuryByType.find((item) => item.type === type);

@@ -19,11 +19,13 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   // read-only website surface. The local administration build leaves this
   // flag false and keeps the normal authenticated dashboard available.
   if (publicSiteOnly) {
-    const isAdminPage = /^\/(ar|fr)\/(?:dashboard|login)(?:\/|$)/.test(pathname);
+    // The public deployment keeps the full dashboard hidden, while exposing
+    // the deliberately small, permission-gated field page for match updates.
+    const isAdminPage = /^\/(ar|fr)\/dashboard(?:\/|$)/.test(pathname);
     if (isAdminPage) return new NextResponse(null, { status: 404 });
 
     if (pathname.startsWith("/api/")) {
-      const isPublicApi = /^\/api\/(?:health|public-analytics|storage\/public-file)(?:\/|$)/.test(pathname);
+      const isPublicApi = /^\/api\/(?:health|public-analytics|storage\/public-file|auth)(?:\/|$)/.test(pathname);
       if (!isPublicApi) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
@@ -35,7 +37,9 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   // not send API requests through next-intl, which is page-route middleware.
   if (pathname.startsWith("/api/")) return NextResponse.next();
 
-  const isDashboardPath = /^\/(ar|fr)\/dashboard(?:\/|$)/.test(pathname);
+  // The field surface is protected like the dashboard, but remains allowed
+  // in PUBLIC_SITE_ONLY so approved operators can use it online.
+  const isProtectedOperatorPath = /^\/(ar|fr)\/(?:dashboard|field)(?:\/|$)/.test(pathname);
   const session = (req as NextRequest & {
     auth?: { user?: { id?: unknown } | null; invalid?: unknown } | null;
   }).auth;
@@ -48,7 +52,7 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   // Fail closed for absent, malformed, or explicitly invalid sessions. Auth.js
   // can return a session-shaped object for an invalidated JWT, so checking only
   // whether `req.auth` is truthy is not a sufficient route gate.
-  if (isDashboardPath && !hasValidSession) {
+  if (isProtectedOperatorPath && !hasValidSession) {
     const locale = pathname.split("/")[1] || routing.defaultLocale;
     // OpenNext can expose an internal localhost URL as `req.url` in the Worker
     // adapter. Redirect to the configured public origin in production so a

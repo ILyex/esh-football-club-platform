@@ -124,6 +124,7 @@ export async function saveSessionMeasurements(input: z.infer<typeof SaveSessionM
     where: {
       id: { in: playerIds },
       teamId: session.teamId,
+      status: "ACTIVE",
     },
     select: { id: true }
   });

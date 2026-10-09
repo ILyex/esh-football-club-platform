@@ -176,7 +176,7 @@ export async function syncFAFPlayers(
               firstName: normFirstName,
               lastName: normLastName,
               position: mapFafPositionToPrisma(null),
-              nationality: rawPlayer.nationality || "Algérienne",
+              nationality: rawPlayer.nationality || "Algérien",
               dateOfBirth: new Date(rawPlayer.dateOfBirth),
               status: mapFafPlayerStatusToPrisma(rawPlayer.status),
               teamId: targetTeam.id,

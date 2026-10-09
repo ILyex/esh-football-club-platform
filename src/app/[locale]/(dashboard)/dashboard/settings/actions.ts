@@ -27,12 +27,6 @@ export async function updateClubSettingsAction(formData: FormData) {
     logoUrl = await uploadPublicFile({ key, buffer, mimeType: mime });
   }
 
-  const socialLinks = {
-    facebook: parsed.facebookUrl || undefined,
-    instagram: parsed.instagramUrl || undefined,
-    website: parsed.websiteUrl || undefined
-  };
-
   const settings = await db.clubSettings.update({
     where: { id: "singleton" },
     data: {
@@ -46,7 +40,6 @@ export async function updateClubSettingsAction(formData: FormData) {
       primaryColor: parsed.primaryColor,
       secondaryColor: parsed.secondaryColor,
       defaultLocale: parsed.defaultLocale,
-      socialLinks,
       ...(logoUrl ? { logoUrl } : {})
     }
   });

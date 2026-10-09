@@ -38,3 +38,5 @@ prisma/dev.db
 Thumbs.db
 
 .local-admin-build-id
+.local-admin-supervisor.pid
+.local-admin-maintenance

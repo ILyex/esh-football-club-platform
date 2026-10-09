@@ -97,7 +97,7 @@ export function OfficialAttendanceSheetModal({
             <Button
               onClick={printDocument}
               size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 shadow-xs"
+              className="bg-club-primary hover:bg-club-primary-hover text-white font-semibold flex items-center gap-2 shadow-xs"
             >
               <Printer className="h-4 w-4" />
               <span>{isAr ? "طباعة" : "Imprimer"}</span>
@@ -145,9 +145,6 @@ export function OfficialAttendanceSheetModal({
                     size: A4 portrait;
                     margin: 10mm 10mm 12mm 10mm;
                   }
-                  thead {
-                    display: table-header-group !important;
-                  }
                   tbody {
                     display: table-row-group !important;
                   }
@@ -174,30 +171,27 @@ export function OfficialAttendanceSheetModal({
                     ? "ورقة حضور الحصة التدريبية"
                     : "Feuille de Présence à la Séance d'Entraînement"
                 }
-                documentSubtitle={
-                  isAr
-                    ? `الفريق: ${session.teamName} — التوقيت: من ${formatHHMM(session.startTime)} إلى ${formatHHMM(session.endTime)}`
-                    : `Équipe : ${session.teamName} — Horaire : ${formatHHMM(session.startTime)} à ${formatHHMM(session.endTime)}`
-                }
+                authorityFontSize={11}
+                compact
                 locale={locale}
               />
 
               {/* 2. ADMINISTRATIVE & SESSION CONTEXT */}
               <div
-                className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[14px] sm:text-[15px] p-3 my-4 bg-zinc-50 border border-zinc-200 text-black"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[18px] p-2 my-2.5 bg-zinc-50 border border-zinc-200 text-black"
                 style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
               >
                 <div>
                   <span className="text-zinc-600 block text-[13px] font-semibold">
                     {isAr ? "الفريق / الفئة:" : "Équipe / Catégorie :"}
                   </span>
-                  <span className="font-bold text-black text-[15px] sm:text-[16px]">{session.teamName}</span>
+                  <span className="font-bold text-black text-[18px]">{session.teamName}</span>
                 </div>
                 <div>
                   <span className="text-zinc-600 block text-[13px] font-semibold">
                     {isAr ? "المدرب المشرف:" : "Entraîneur Responsable :"}
                   </span>
-                  <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                  <span className="font-bold text-black text-[18px]">
                     {session.coachName || (isAr ? "المدرب الرئيسي" : "Staff Technique")}
                   </span>
                 </div>
@@ -205,7 +199,7 @@ export function OfficialAttendanceSheetModal({
                   <span className="text-zinc-600 block text-[13px] font-semibold">
                     {isAr ? "مكان الحصة:" : "Lieu d'entraînement :"}
                   </span>
-                  <span className="font-bold text-black text-[15px] sm:text-[16px]">
+                  <span className="font-bold text-black text-[18px]">
                     {session.location || (isAr ? "الملعب البلدي - سيدي حسني" : "Stade Municipal Sidi Hosni")}
                   </span>
                 </div>
@@ -213,29 +207,29 @@ export function OfficialAttendanceSheetModal({
                   <span className="text-zinc-600 block text-[13px] font-semibold">
                     {isAr ? "التاريخ والتوقيت:" : "Date & Créneau :"}
                   </span>
-                  <span className="font-bold text-black text-[14px] sm:text-[15px]">
+                  <span className="font-bold text-black text-[18px]">
                     {formatHHMM(session.startTime)} - {formatHHMM(session.endTime)}
                   </span>
                 </div>
               </div>
 
               {/* 3. ROSTER ATTENDANCE TABLE */}
-              <div className="mb-6 w-full">
+              <div className="mb-2 w-full">
                 <div className="w-full overflow-x-auto print:overflow-visible">
-                  <table className="w-full text-[13px] sm:text-[14px] border-collapse border border-zinc-300 text-black">
-                    <thead style={{ display: "table-header-group" }}>
+                  <table className="w-full text-[18px] leading-normal border-collapse border border-zinc-300 text-black">
+                    <thead>
                       <tr
-                        className="bg-zinc-100 text-black font-bold text-[13px] sm:text-[14px]"
+                        className="bg-zinc-100 text-black font-bold text-[18px] leading-normal"
                         style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid" }}
                       >
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-10">#</th>
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-12">{isAr ? "الرقم" : "N°"}</th>
-                        <th className="border border-zinc-300 px-3 py-2 text-start">{isAr ? "اسم ولقب اللاعب" : "Nom & Prénom"}</th>
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-24">{isAr ? "المركز" : "Poste"}</th>
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-16 bg-zinc-50">{isAr ? "حاضر" : "Présent"}</th>
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-16 bg-zinc-50">{isAr ? "غائب" : "Absent"}</th>
-                        <th className="border border-zinc-300 px-2 py-2 text-center w-20 bg-zinc-50">{isAr ? "مبرر" : "Justifié"}</th>
-                        <th className="border border-zinc-300 px-3 py-2 text-start w-48">{isAr ? "الملاحظات" : "Observations"}</th>
+                        <th className="border border-zinc-300 px-1.5 py-1 text-center w-8">#</th>
+                        <th className="border border-zinc-300 px-1.5 py-1 text-center w-9">{isAr ? "الرقم" : "N°"}</th>
+                        <th className="border border-zinc-300 px-2 py-1 text-start">{isAr ? "اسم ولقب اللاعب" : "Nom & Prénom"}</th>
+                        <th className="border border-zinc-300 px-1.5 py-1 text-center w-20">{isAr ? "المركز" : "Poste"}</th>
+                        <th className="border border-zinc-300 px-1 py-1 text-center w-12 bg-zinc-50">{isAr ? "حاضر" : "Présent"}</th>
+                        <th className="border border-zinc-300 px-1 py-1 text-center w-12 bg-zinc-50">{isAr ? "غائب" : "Absent"}</th>
+                        <th className="border border-zinc-300 px-1 py-1 text-center w-14 bg-zinc-50">{isAr ? "مبرر" : "Justifié"}</th>
+                        <th className="border border-zinc-300 px-2 py-1 text-start w-32">{isAr ? "الملاحظات" : "Observations"}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -246,43 +240,43 @@ export function OfficialAttendanceSheetModal({
                           style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
                         >
                           <td
-                            className="border border-zinc-300 px-2 py-2.5 text-center font-bold text-black"
+                            className="border border-zinc-300 px-1.5 py-1.5 text-center font-bold text-black"
                             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                           >
                             {idx + 1}
                           </td>
                           <td
-                            className="border border-zinc-300 px-2 py-2.5 text-center text-black font-bold"
+                            className="border border-zinc-300 px-1.5 py-1.5 text-center text-black font-bold"
                             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                           >
                             {player.shirtNumber ? player.shirtNumber : "—"}
                           </td>
                           <td
-                            className="border border-zinc-300 px-3 py-2.5 font-bold text-black text-[14px] sm:text-[15px]"
+                            className="border border-zinc-300 px-2 py-1.5 font-bold text-black text-[18px] leading-normal"
                             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                           >
                             {getPlayerDisplayName(player, locale)}
                           </td>
                           <td
-                            className="border border-zinc-300 px-2 py-2.5 text-center text-black font-medium text-[13px]"
+                            className="border border-zinc-300 px-1.5 py-1.5 text-center text-black text-[18px] leading-normal"
                             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                           >
                             {POSITION_LABELS[player.position]?.[isAr ? "ar" : "fr"] || player.position || "—"}
                           </td>
                           {/* Checkbox box: Present */}
-                          <td className="border border-zinc-300 px-2 py-2.5 text-center align-middle">
-                            <div className="w-5 h-5 mx-auto border-2 border-black rounded-xs bg-white" />
+                          <td className="border border-zinc-300 px-1 py-1.5 text-center align-middle">
+                            <div className="h-3.5 w-3.5 mx-auto border border-black rounded-xs bg-white" />
                           </td>
                           {/* Checkbox box: Absent */}
-                          <td className="border border-zinc-300 px-2 py-2.5 text-center align-middle">
-                            <div className="w-5 h-5 mx-auto border-2 border-black rounded-xs bg-white" />
+                          <td className="border border-zinc-300 px-1 py-1.5 text-center align-middle">
+                            <div className="h-3.5 w-3.5 mx-auto border border-black rounded-xs bg-white" />
                           </td>
                           {/* Checkbox box: Excused / Injured */}
-                          <td className="border border-zinc-300 px-2 py-2.5 text-center align-middle">
-                            <div className="w-5 h-5 mx-auto border-2 border-black rounded-xs bg-white" />
+                          <td className="border border-zinc-300 px-1 py-1.5 text-center align-middle">
+                            <div className="h-3.5 w-3.5 mx-auto border border-black rounded-xs bg-white" />
                           </td>
                           {/* Observations */}
-                          <td className="border border-zinc-300 px-3 py-2.5 text-start text-zinc-400 text-xs">
+                          <td className="border border-zinc-300 px-2 py-1.5 text-start text-zinc-400 text-[18px] leading-normal">
                             <span className="print:text-transparent">....................................................</span>
                           </td>
                         </tr>
@@ -294,17 +288,17 @@ export function OfficialAttendanceSheetModal({
 
               {/* 4. OFFICIAL SIGNATURE (ROLE ONLY: COACH) */}
               <div
-                className="signature-block flex justify-end pt-8 mt-6 text-black text-center"
+                className="document-signatures signature-block flex justify-end pt-4 mt-4 text-black text-right"
                 style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
               >
-                <div className="w-64 sm:w-72">
+                <div className="w-64 sm:w-72 ml-auto mr-0 text-right">
                   <p
-                    className="font-bold text-[16px] sm:text-[17px] text-black"
+                    className="font-bold text-black"
                     style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
                   >
                     {isAr ? "المدرب" : "L'Entraîneur"}
                   </p>
-                  <div className="h-24" />
+                  <div className="h-10" />
                 </div>
               </div>
             </div>

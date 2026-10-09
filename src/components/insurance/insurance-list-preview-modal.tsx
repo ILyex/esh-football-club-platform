@@ -149,7 +149,7 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
                                   {isAr ? `المجموع (${g.label})` : `Total (${g.label})`}
                                 </td>
                                 <td colSpan={4} className="border border-zinc-300 px-3 py-1.5 text-end font-bold font-mono">
-                                  {isAr ? `${g.rows.length} لاعب` : `${g.rows.length} joueurs`}
+                                  <span className="print-document-total-count">{g.rows.length}</span> {isAr ? "لاعب" : "joueurs"}
                                 </td>
                               </tr>
                             </tfoot>
@@ -164,8 +164,8 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
                         style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
                       >
                         <span>{isAr ? "المجموع الكلي للاعبين المسجلين في القائمة:" : "TOTAL GÉNÉRAL DES JOUEURS :"}</span>
-                        <span className="font-mono text-[14px]">
-                          {total} {isAr ? "لاعب" : "joueurs"}
+                        <span className="font-mono">
+                          <span className="print-document-total-count">{total}</span> {isAr ? "لاعب" : "joueurs"}
                         </span>
                       </div>
                     )}
@@ -176,7 +176,7 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
 
                   {/* Player insurance is approved by the association president. */}
                   <div
-                    className="signatures-section flex justify-center text-center text-[14px] pt-8 mt-auto text-black"
+                    className="document-signatures signatures-section flex justify-end text-right pt-8 mt-auto text-black"
                     style={{ breakInside: "avoid", pageBreakInside: "avoid", pageBreakBefore: "avoid", breakBefore: "avoid" }}
                   >
                     <div className="min-w-[220px]">

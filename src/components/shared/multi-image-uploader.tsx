@@ -51,6 +51,19 @@ export function MultiImageUploader({
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
+  // Allow parent forms to clear a completed create form with the native reset event.
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return;
+    const handleFormReset = () => {
+      itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      setItems([]);
+      setRemovedExistingUrls([]);
+    };
+    form.addEventListener("reset", handleFormReset);
+    return () => form.removeEventListener("reset", handleFormReset);
+  }, []);
+
   // Sync internal items with native file input using DataTransfer
   const syncInputFiles = (currentItems: ImageItem[]) => {
     if (!inputRef.current) return;

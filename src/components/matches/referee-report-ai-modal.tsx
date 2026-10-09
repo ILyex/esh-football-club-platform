@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Bot, CheckCircle2, AlertCircle, Loader2, X, Award, Flame, Info, Target } from "lucide-react";
+import { Sparkles, Bot, CheckCircle2, AlertCircle, Loader2, X, Info, Target, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { analyzeRefereeReportWithAIAction } from "@/app/[locale]/(dashboard)/dashboard/matches/actions";
 
@@ -33,6 +33,7 @@ export function RefereeReportAiModal({
       notes?: string;
       matchedPlayerName?: string;
     }>;
+    aiProviderUsed: "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +42,11 @@ export function RefereeReportAiModal({
   function handleAnalyze() {
     setError(null);
     setResult(null);
+
+    if (!reportText.trim() && !hasAttachedReport) {
+      setError(isAr ? "أدخل نص التقرير أو ارفع تقرير الحكم أولاً." : "Saisissez le rapport ou joignez d’abord le document.");
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -63,9 +69,9 @@ export function RefereeReportAiModal({
         size="sm"
         variant="outline"
         onClick={() => setIsOpen(true)}
-        className="gap-1.5 border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-purple-700 dark:text-purple-300 font-semibold text-xs"
+        className="h-8 min-h-8 shrink-0 gap-1.5 rounded-md border-purple-500/30 bg-purple-500/5 px-3 text-xs font-semibold text-purple-700 hover:bg-purple-500/10 dark:text-purple-300"
       >
-        <Sparkles className="h-3.5 w-3.5 text-purple-500 animate-pulse" />
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-purple-500" />
         <span>{isAr ? "تحليل بالذكاء الاصطناعي" : "Analyser avec l’IA"}</span>
       </Button>}
 
@@ -80,7 +86,7 @@ export function RefereeReportAiModal({
           {/* Modal Container */}
           <div
             dir={isAr ? "rtl" : "ltr"}
-            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl z-10 animate-in zoom-in-95 space-y-4"
+            className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95"
           >
             {/* Close Button */}
             <button
@@ -92,37 +98,48 @@ export function RefereeReportAiModal({
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-border/60 pb-3">
+            <div className="flex items-start gap-3 border-b border-border/60 p-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 border border-purple-500/20">
                 <Bot className="h-5 w-5" />
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <div className="min-w-0 flex-1 pe-7">
+                <h2 className="flex items-center gap-1.5 text-base font-bold leading-tight text-foreground">
                   <span>{isAr ? "المساعد الذكي لتحليل تقرير الحكم" : "Assistant IA pour l’analyse du rapport d’arbitrage"}</span>
                 </h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {isAr
                     ? "يقوم الذكاء الاصطناعي بقراءة أسماء اللاعبين، واكتشاف الأهداف والبطاقات وربطها تلقائياً بملفاتهم"
                     : "Extraction automatique des buteurs, passeurs et cartons depuis le rapport"}
                 </p>
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                  <FileCheck2 className="h-3 w-3" />
+                  {hasAttachedReport
+                    ? (isAr ? "تقرير مرفق جاهز للتحليل" : "Rapport joint prêt à analyser")
+                    : (isAr ? "إدخال يدوي للتقرير" : "Saisie manuelle du rapport")}
+                </span>
               </div>
             </div>
 
+            <div className="space-y-5 p-5 sm:p-6">
             {/* Content Input */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-foreground block">
+              <div className="flex items-center justify-between gap-3">
+                <label className="block text-sm font-semibold text-foreground">
                 {isAr ? "نص تقرير الحكم أو أحداث اللقاء:" : "Texte du rapport d'arbitrage:"}
-              </label>
+                </label>
+                <span className="text-[10px] tabular-nums text-muted-foreground">{reportText.length}/5000</span>
+              </div>
               <textarea
                 rows={5}
+                maxLength={5000}
                 value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
+                onChange={(e) => { setReportText(e.target.value); setResult(null); setError(null); }}
                 placeholder={
                   isAr
                     ? "مثال: د 34 هدف للاعب كريم سلطاني، د 58 بطاقة صفراء للاعب سمير بوعزة بسبب تدخل متهور، د 72 هدف اللاعب أمين درويش بتمريرة من رقم 10..."
                     : "Ex: 34' But Karim Soltani, 58' Carton jaune Samir Bouazza..."
                 }
-                className="w-full rounded-xl border border-border bg-background p-3 text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/40"
+                className="min-h-36 w-full resize-y rounded-xl border border-border bg-background p-3 text-sm leading-6 focus:outline-hidden focus:ring-2 focus:ring-purple-500/40"
               />
               <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                 <Info className="h-3.5 w-3.5 shrink-0" />
@@ -144,10 +161,15 @@ export function RefereeReportAiModal({
 
             {/* Success Result */}
             {result && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+              <div className="space-y-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   <span>{result.summary}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-muted-foreground">
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1">{isAr ? `تمت إضافة ${result.eventsCreated} حدث` : `${result.eventsCreated} événement(s) ajouté(s)`}</span>
+                  <span className="rounded-full bg-muted px-2.5 py-1">{result.aiProviderUsed === "LOCAL_OLLAMA" ? "Ollama AI" : (isAr ? "محرك التحليل الذكي" : "Moteur NLP")}</span>
                 </div>
 
                 {result.events.length > 0 && (
@@ -190,7 +212,9 @@ export function RefereeReportAiModal({
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 p-5 pt-4 sm:px-6">
               <Button
                 type="button"
                 variant="outline"
@@ -205,7 +229,7 @@ export function RefereeReportAiModal({
                 type="button"
                 size="sm"
                 onClick={handleAnalyze}
-                disabled={isPending}
+                disabled={isPending || (!reportText.trim() && !hasAttachedReport)}
                 className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold"
               >
                 {isPending ? (

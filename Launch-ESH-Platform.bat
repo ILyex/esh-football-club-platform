@@ -21,6 +21,11 @@ set "NODE_OPTIONS=--max-old-space-size=768 --max-http-header-size=65536"
 set "OLLAMA_NUM_PARALLEL=1"
 set "OLLAMA_MAX_LOADED_MODELS=1"
 
+REM Run a hidden supervisor for this user session. It keeps the production app
+REM alive and restarts the Node server if it crashes or stops responding.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%Start-Local-Platform-Supervisor.ps1"
+if errorlevel 1 goto :failed
+
 REM Reuse a healthy server when it already serves this exact build. This
 REM avoids a downtime window where the browser can lose a chunk in flight.
 set "EXPECTED_BUILD="
@@ -68,27 +73,24 @@ if not exist ".next\standalone\node_modules\.prisma\client\query_compiler_bg.was
   if errorlevel 1 goto :failed
 )
 
+REM A first-run build may have created the production bundle after the initial
+REM supervisor check, so ask it to start again now that the bundle is ready.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%Start-Local-Platform-Supervisor.ps1"
+if errorlevel 1 goto :failed
+
 REM Keep AI and FAF local. Ollama is optional; the platform still starts safely if it is offline.
 where ollama >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
   powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue; if(-not $c){Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden}"
 )
 
-REM Start detached from this launcher so closing the launcher does not stop the app.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%NODE_BIN%' -ArgumentList 'app.js' -WorkingDirectory '%ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%\.local-admin.log' -RedirectStandardError '%ROOT%\.local-admin-error.log' -PassThru; if(-not $p){exit 1}"
-if errorlevel 1 goto :failed
-
-REM Open the browser immediately after the server becomes reachable. The
-REM health poll below only reports a failed startup and never delays a ready
-REM instance.
+REM The supervisor starts the app detached and recovers it after a crash.
 start "" "http://localhost:3000/ar/login?build=%EXPECTED_BUILD%"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw).Trim() | Set-Content -LiteralPath '%SERVER_BUILD_FILE%' -NoNewline"
 
-REM Start the durable background worker silently when the full source package
-REM is present. Reuse an existing worker so repeated clicks stay lightweight.
 echo Starting the platform...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i -lt 90;$i++){try{$r=Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health?type=liveness' -TimeoutSec 2;if($r.StatusCode -eq 200){exit 0}}catch{};Start-Sleep -Seconds 1};exit 1"
 if errorlevel 1 goto :failed
+powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%BUILD_ID_FILE%' -Raw).Trim() | Set-Content -LiteralPath '%SERVER_BUILD_FILE%' -NoNewline"
 
 :done
 echo The platform is open in your browser.

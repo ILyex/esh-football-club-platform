@@ -11,6 +11,7 @@ import { FinanceNavTabs } from "@/components/finance/finance-nav-tabs";
 import { Receipt, CheckCircle2 } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { FINANCE_COLORS } from "@/lib/finance/colors";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 export default async function NewExpensePage({
   params,
@@ -108,17 +109,17 @@ export default async function NewExpensePage({
             <label className="mb-1 block text-xs font-medium text-foreground">
               {locale === "ar" ? "تصنيف المصروف" : t("fields.category")} *
             </label>
-            <select name="category" required defaultValue="FOOD" className={`${inputClass} finance-select`}>
-              <option value="FOOD">{locale === "ar" ? "إطعام ووجبات غذائية" : "Restauration"}</option>
-              <option value="TRANSPORT">{locale === "ar" ? "نقل ورحلات وتنقلات" : "Transport"}</option>
-              <option value="EQUIPMENT">{locale === "ar" ? "عتاد وتجهيزات وألبسة" : "Équipements"}</option>
-              <option value="LODGING">{locale === "ar" ? "إيواء وفندقة" : "Hébergement"}</option>
-              <option value="MEDICAL">{locale === "ar" ? "مصاريف طبية وعلاج" : "Médical"}</option>
-              <option value="ADMINISTRATION">{locale === "ar" ? "مصاريف إدارية وقانونية" : "Administration"}</option>
-              <option value="TRAINING">{locale === "ar" ? "تدريبات وتربصات" : "Entraînement"}</option>
-              <option value="MATCH">{locale === "ar" ? "مصاريف المباريات الرسمية" : "Matchs"}</option>
-              <option value="OTHER">{locale === "ar" ? "مصاريف أخرى" : "Autres"}</option>
-            </select>
+            <StyledSelect name="category" defaultValue="FOOD" tone="default" options={[
+              { value: "FOOD", label: locale === "ar" ? "إطعام ووجبات غذائية" : "Restauration" },
+              { value: "TRANSPORT", label: locale === "ar" ? "نقل ورحلات وتنقلات" : "Transport" },
+              { value: "EQUIPMENT", label: locale === "ar" ? "عتاد وتجهيزات وألبسة" : "Équipements" },
+              { value: "LODGING", label: locale === "ar" ? "إيواء وفندقة" : "Hébergement" },
+              { value: "MEDICAL", label: locale === "ar" ? "مصاريف طبية وعلاج" : "Médical" },
+              { value: "ADMINISTRATION", label: locale === "ar" ? "مصاريف إدارية وقانونية" : "Administration" },
+              { value: "TRAINING", label: locale === "ar" ? "تدريبات وتربصات" : "Entraînement" },
+              { value: "MATCH", label: locale === "ar" ? "مصاريف المباريات الرسمية" : "Matchs" },
+              { value: "OTHER", label: locale === "ar" ? "مصاريف أخرى" : "Autres" }
+            ]} />
           </div>
 
           <div className="sm:col-span-2">
@@ -154,26 +155,22 @@ export default async function NewExpensePage({
             <label className="mb-1 block text-xs font-medium text-foreground">
               {locale === "ar" ? "طريقة الدفع" : t("fields.paymentMethod")}
             </label>
-            <select name="paymentMethod" defaultValue="CASH" className={`${inputClass} finance-select`}>
-              <option value="CASH">{locale === "ar" ? "نقد من الصندوق (كاش)" : "Espèces (Caisse)"}</option>
-              <option value="BANK_TRANSFER">{locale === "ar" ? "تحويل بنكي رسمي" : "Virement bancaire"}</option>
-              <option value="CARD">{locale === "ar" ? "صك بنكي / بطاقة" : "Chèque / Carte"}</option>
-              <option value="OTHER">{locale === "ar" ? "وسيلة دفع أخرى" : "Autre"}</option>
-            </select>
+            <StyledSelect name="paymentMethod" defaultValue="CASH" options={[
+              { value: "CASH", label: locale === "ar" ? "نقد من الصندوق (كاش)" : "Espèces (Caisse)" },
+              { value: "BANK_TRANSFER", label: locale === "ar" ? "تحويل بنكي رسمي" : "Virement bancaire" },
+              { value: "CARD", label: locale === "ar" ? "صك بنكي / بطاقة" : "Chèque / Carte" },
+              { value: "OTHER", label: locale === "ar" ? "وسيلة دفع أخرى" : "Autre" }
+            ]} />
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-medium text-foreground">
               {locale === "ar" ? "الفئة الرياضية المعنية" : tTeams("title")}
             </label>
-            <select name="teamId" defaultValue="" className={`${inputClass} finance-select`}>
-              <option value="">{locale === "ar" ? "على مستوى النادي (عام)" : t("clubWide")}</option>
-              {teams.map((tm) => (
-                <option key={tm.id} value={tm.id}>
-                  {tTeams(`categories.${tm.category}` as any)}
-                </option>
-              ))}
-            </select>
+            <StyledSelect name="teamId" defaultValue="" options={[
+              { value: "", label: locale === "ar" ? "على مستوى النادي (عام)" : t("clubWide") },
+              ...teams.map((tm) => ({ value: tm.id, label: tTeams(`categories.${tm.category}` as any) }))
+            ]} />
           </div>
 
           <div>

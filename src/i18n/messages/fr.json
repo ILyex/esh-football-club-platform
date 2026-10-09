@@ -25,7 +25,7 @@
   },
   "nav": {
     "home": "Accueil",
-    "club": "Club",
+    "club": "À propos",
     "team": "Équipe",
     "players": "Joueurs",
     "matches": "Matchs",
@@ -64,12 +64,15 @@
       "inventory": "Inventaire & Équipement",
       "news": "Actualités",
       "website": "Gestion du Site Web",
+      "websiteReels": "Gestion des Reels",
+      "websiteImages": "Images du site",
+      "websiteAnalytics": "Statistiques du site",
       "announcements": "Annonces",
       "gallery": "Galerie",
       "documents": "Archives des documents",
       "contracts": "Contrats et conventions",
       "insurance": "Assurance Sportive",
-      "correspondence": "Correspondances officielles",
+      "correspondence": "Correspondances et recours",
       "meetingMinutes": "Procès-verbaux",
       "reports": "Rapports",
       "dataQuality": "Qualité des données",
@@ -285,6 +288,7 @@
   },
   "matches": {
     "title": "Matchs",
+    "manage": "Gestion du match",
     "addMatch": "Ajouter un match",
     "fields": {
       "competition": "Compétition",
@@ -299,11 +303,11 @@
       "matchReport": "Rapport de match"
     },
     "statuses": {
-      "SCHEDULED": "Programmé",
+      "SCHEDULED": "Programmée",
       "LIVE": "En direct",
       "FINISHED": "Terminé",
       "POSTPONED": "Reporté",
-      "CANCELLED": "Annulé"
+      "CANCELLED": "Reporté"
     },
     "events": {
       "title": "Événements du match",
@@ -312,6 +316,8 @@
       "player": "Joueur",
       "type": "Type",
       "GOAL": "But",
+      "PENALTY_GOAL": "But sur penalty",
+      "PENALTY_MISSED": "Penalty manqué",
       "OWN_GOAL": "But contre son camp",
       "ASSIST": "Passe décisive",
       "YELLOW_CARD": "Carton jaune",
@@ -321,7 +327,7 @@
     },
     "lineup": {
       "title": "Composition",
-      "addPlayer": "Ajouter un joueur à la composition",
+      "addPlayer": "Ajouter le joueur",
       "starting": "Titulaire",
       "substitute": "Remplaçant",
       "position": "Poste"
@@ -447,7 +453,7 @@
     }
   },
   "correspondence": {
-    "title": "Correspondance",
+    "title": "Correspondances et recours",
     "addCorrespondence": "Ajouter une correspondance",
     "incoming": "Entrante",
     "outgoing": "Sortante",
@@ -756,10 +762,15 @@
   },
   "notices": {
     "calendarEventCreated": "Le rendez-vous a été ajouté au calendrier",
+    "playerSaved": "Les données du joueur ont été enregistrées",
+    "teamSaved": "Les données de la catégorie ont été enregistrées",
     "mappingSaved": "Mappage des champs enregistré",
+    "albumSaved": "Album enregistré avec succès",
     "activated": "Cette version du modèle a été activée",
     "errors": {
-      "activationBlocked": "Enregistré, mais l'activation est impossible tant que tous les champs détectés ne sont pas correctement mappés"
+      "activationBlocked": "Enregistré, mais l'activation est impossible tant que tous les champs détectés ne sont pas correctement mappés",
+      "playerSaveFailed": "Impossible d’enregistrer les données du joueur",
+      "teamSaveFailed": "Impossible d’enregistrer les données de la catégorie"
     }
   },
   "insights": {
@@ -1228,7 +1239,7 @@
       "type": "Type"
     },
     "gallery": {
-      "title": "Galerie Photos",
+      "title": "Galerie",
       "subtitle": "Moments forts et souvenirs de l'Espoir Sidi Hosni",
       "photoCount": "{count} photos",
       "noAlbums": "Aucun album publié pour le moment",
@@ -1247,17 +1258,19 @@
       "BOTH": "Ambidextre"
     },
     "matchStatus": {
-      "SCHEDULED": "Programmé",
+      "SCHEDULED": "Programmée",
       "IN_PROGRESS": "En cours",
       "LIVE": "En direct",
       "COMPLETED": "Terminé",
       "FINISHED": "Terminé",
       "POSTPONED": "Reporté",
-      "CANCELLED": "Annulé"
+      "CANCELLED": "Reporté"
     },
     "eventTypes": {
       "GOAL": "But",
       "PENALTY": "Penalty",
+      "PENALTY_GOAL": "But sur penalty",
+      "PENALTY_MISSED": "Penalty manqué",
       "OWN_GOAL": "Contre son camp",
       "YELLOW_CARD": "Carton jaune",
       "RED_CARD": "Carton rouge",

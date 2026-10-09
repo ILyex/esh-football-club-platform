@@ -40,6 +40,7 @@ import { YoYoConductor } from "./yoyo-conductor";
 import { OfficialTestingReportModal } from "./official-testing-report-modal";
 import { OfficialDocumentHeader } from "@/components/documents/official-document-header";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
+import { StopwatchMeasurementInput } from "@/components/testing/stopwatch-measurement-input";
 
 export interface SessionPlayerData {
   id: string;
@@ -158,7 +159,8 @@ export function TestingSessionSheet({
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const isSprint = protocolCode === "SPRINT_30M" || protocolCode === "FIFA_RSA";
+  const isSprint = protocolCode === "SPRINT_30M";
+  const isFifaRSA = protocolCode === "FIFA_RSA";
   const isJump = protocolCode === "VERTICAL_JUMP";
 
   const [viewMode, setViewMode] = useState<"CONDUCTOR" | "SHEET">(() => {
@@ -254,12 +256,38 @@ export function TestingSessionSheet({
       prev.map((p) => {
         if (p.id !== playerId) return p;
         const num = parseFloat(value);
+        const measurements = {
+          ...p.measurements,
+          [key]: isNaN(num) ? value : num,
+        };
+        if (isSprint || isFifaRSA) {
+          const keys = isFifaRSA
+            ? Array.from({ length: 6 }, (_, index) => `sprint_${index + 1}`)
+            : ["time_1", "time_2"];
+          const times = keys.map((measurementKey) => Number(measurements[measurementKey])).filter((time) => Number.isFinite(time) && time > 0);
+          const best = times.length ? Math.min(...times) : null;
+          const mean = times.length ? times.reduce((sum, time) => sum + time, 0) / times.length : null;
+          const fatigue = isFifaRSA && times.length === 6 && best
+            ? Math.max(0, Math.round(((times.reduce((sum, time) => sum + time, 0) / (best * 6) - 1) * 100) * 10) / 10)
+            : null;
+          const scoreDisplay = best === null
+            ? null
+            : `${best.toFixed(2)} s${mean === null ? "" : ` · ${locale === "ar" ? "المتوسط" : "Moy."} ${mean.toFixed(2)} s`}${fatigue === null ? "" : ` · ${locale === "ar" ? "الإجهاد" : "Fatigue"} ${fatigue}%`}`;
+          return { ...p, measurements, summaryScore: best, secondaryScore: fatigue, scoreDisplay };
+        }
+        if (isJump) {
+          const heights = ["height_1", "height_2"].map((measurementKey) => Number(measurements[measurementKey])).filter((height) => Number.isFinite(height) && height > 0);
+          const bestHeight = heights.length ? Math.max(...heights) : null;
+          return {
+            ...p,
+            measurements,
+            summaryScore: bestHeight,
+            scoreDisplay: bestHeight === null ? null : `${bestHeight} cm`
+          };
+        }
         return {
           ...p,
-          measurements: {
-            ...p.measurements,
-            [key]: isNaN(num) ? value : num,
-          },
+          measurements,
           summaryScore: isNaN(num) ? p.summaryScore : num,
           scoreDisplay: !isNaN(num) ? `${num} ${primaryUnit}` : p.scoreDisplay,
         };
@@ -334,7 +362,7 @@ export function TestingSessionSheet({
       setData(updatedData);
 
       const entries = updatedData.map((p) => {
-        const rawMeasurements = Object.entries(p.measurements).map(([k, v], idx) => ({
+        const rawMeasurements = Object.entries(p.measurements).filter(([, value]) => value !== "" && value !== null && value !== undefined).map(([k, v], idx) => ({
           key: k,
           value: String(v),
           numericValue: typeof v === "number" ? v : parseFloat(String(v)) || null,
@@ -390,7 +418,7 @@ export function TestingSessionSheet({
       const entries = updatedData.map((p) => ({
         playerId: p.id,
         status: p.status,
-        measurements: Object.entries(p.measurements).map(([k, v], idx) => ({
+        measurements: Object.entries(p.measurements).filter(([, value]) => value !== "" && value !== null && value !== undefined).map(([k, v], idx) => ({
           key: k,
           value: String(v),
           numericValue: typeof v === "number" ? v : parseFloat(String(v)) || null,
@@ -443,7 +471,7 @@ export function TestingSessionSheet({
           { key: "distance", value: String(dist), numericValue: dist, attempt: 1 },
         ];
       } else {
-        rawMeasurements = Object.entries(correctionMeasurements).map(([k, v], idx) => ({
+        rawMeasurements = Object.entries(correctionMeasurements).filter(([, value]) => value !== "" && value !== null && value !== undefined).map(([k, v], idx) => ({
           key: k,
           value: String(v),
           numericValue: typeof v === "number" ? v : parseFloat(String(v)) || null,
@@ -549,7 +577,7 @@ export function TestingSessionSheet({
           </div>
           <div>
             <span className="text-gray-500 font-semibold block">{locale === "ar" ? "إجمالي اللاعبين:" : "Effectif évalué :"}</span>
-            <span className="font-bold text-black">{data.length} {locale === "ar" ? "لاعب" : "joueurs"} ({validPlayers.length} {locale === "ar" ? "مكتمل" : "validés"})</span>
+            <span className="font-bold text-black"><span className="print-document-total-count">{data.length}</span> {locale === "ar" ? "لاعب" : "joueurs"} (<span className="print-document-total-count">{validPlayers.length}</span> {locale === "ar" ? "مكتمل" : "validés"})</span>
           </div>
           <div>
             <span className="text-gray-500 font-semibold block">{locale === "ar" ? "المعدل العام للفريق:" : "Moyenne équipe :"}</span>
@@ -576,17 +604,7 @@ export function TestingSessionSheet({
       )}
 
       {/* Protocol Banner & Quick Guide */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4 shadow-2xs gap-4">
-        <div>
-          <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">{protocolCode}</span>
-          <h2 className="text-base font-bold text-foreground">{isYoYo ? "Yo-Yo Test" : protocolName}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isYoYo && t("protocols.yoyoBannerDesc")}
-            {isSprint && t("protocols.sprintBannerDesc")}
-            {isJump && t("protocols.jumpBannerDesc")}
-          </p>
-        </div>
-
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end rounded-xl border border-border bg-card p-3 shadow-2xs gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 print:hidden">
           {isYoYo && (
             <Button
@@ -608,7 +626,7 @@ export function TestingSessionSheet({
               variant="default"
               size="sm"
               onClick={() => setViewMode("CONDUCTOR")}
-              className="flex items-center gap-1.5 text-xs h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+              className="flex items-center gap-1.5 text-xs h-9 bg-club-primary hover:bg-club-primary-hover text-white font-medium shadow-xs"
             >
               <Timer className="h-4 w-4" />
               <span>{t("conductor.modeConductor")}</span>
@@ -653,7 +671,7 @@ export function TestingSessionSheet({
                 size="sm"
                 onClick={handleComplete}
                 disabled={isPending}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 font-medium"
+                className="flex items-center gap-1.5 bg-club-primary hover:bg-club-primary-hover text-white text-xs h-9 font-medium"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{t("actions.completeSession")}</span>
@@ -802,6 +820,18 @@ export function TestingSessionSheet({
                     <th className="px-4 py-3 text-start">{t("fields.bestTime")}</th>
                   </>
                 )}
+                {isFifaRSA && (
+                  <>
+                    {Array.from({ length: 6 }, (_, index) => (
+                      <th key={index} className="px-3 py-3 text-start whitespace-nowrap">
+                        {locale === "ar" ? `العدوة ${index + 1}` : `Sprint ${index + 1}`}
+                      </th>
+                    ))}
+                    <th className="px-3 py-3 text-start whitespace-nowrap">{t("fields.bestTime")}</th>
+                    <th className="px-3 py-3 text-start whitespace-nowrap">{locale === "ar" ? "المتوسط" : "Moyenne"}</th>
+                    <th className="px-3 py-3 text-start whitespace-nowrap">{locale === "ar" ? "مؤشر الإجهاد" : "Fatigue"}</th>
+                  </>
+                )}
                 {isJump && (
                   <>
                     <th className="px-4 py-3 text-start">{t("fields.heightAttempt1")}</th>
@@ -819,6 +849,14 @@ export function TestingSessionSheet({
                 const curLevel = Number(p.measurements.level || (isYoYoIR2 ? 11 : 5));
                 const curShuttle = Number(p.measurements.shuttle || 1);
                 const levelInfo = yoYoLevels.find((l) => l.level === curLevel) || yoYoLevels[0]!;
+                const fifaTimes = isFifaRSA
+                  ? Array.from({ length: 6 }, (_, index) => Number(p.measurements[`sprint_${index + 1}`])).filter((time) => Number.isFinite(time) && time > 0)
+                  : [];
+                const fifaBest = fifaTimes.length ? Math.min(...fifaTimes) : null;
+                const fifaMean = fifaTimes.length ? fifaTimes.reduce((sum, time) => sum + time, 0) / fifaTimes.length : null;
+                const fifaFatigue = fifaTimes.length === 6 && fifaBest
+                  ? Number(p.secondaryScore ?? Math.max(0, Math.round(((fifaTimes.reduce((sum, time) => sum + time, 0) / (fifaBest * 6) - 1) * 100) * 10) / 10))
+                  : null;
 
                 return (
                   <tr key={p.id} className="hover:bg-muted/10 transition-colors">
@@ -873,16 +911,20 @@ export function TestingSessionSheet({
                     <td className="px-4 py-3">
                       {sessionStatus === "DRAFT" ? (
                         <>
-                          <select
+                          <MasterFilterSelect
                             value={p.status}
-                            onChange={(e) => handleStatusChange(p.id, e.target.value as any)}
-                            className="print:hidden rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-hidden"
-                          >
-                            <option value="VALID">{t("status.valid")}</option>
-                            <option value="INCOMPLETE">{t("status.incomplete")}</option>
-                            <option value="DISQUALIFIED">{t("status.disqualified")}</option>
-                            <option value="ABSENT">{t("status.absent")}</option>
-                          </select>
+                            onChange={(value) => handleStatusChange(p.id, value as SessionPlayerData["status"])}
+                            options={[
+                              { id: "VALID", label: t("status.valid") },
+                              { id: "INCOMPLETE", label: t("status.incomplete") },
+                              { id: "DISQUALIFIED", label: t("status.disqualified") },
+                              { id: "ABSENT", label: t("status.absent") }
+                            ]}
+                            locale={locale === "fr" ? "fr" : "ar"}
+                            headerTitle={t("table.status")}
+                            size="sm"
+                            className="print:hidden w-36 [&>button]:w-full"
+                          />
                           <span className="hidden print:inline text-xs font-semibold text-black">
                             {t(`status.${p.status.toLowerCase()}` as any)}
                           </span>
@@ -900,17 +942,18 @@ export function TestingSessionSheet({
                         <td className="px-4 py-3">
                           {sessionStatus === "DRAFT" && (p.status === "VALID" || p.status === "INCOMPLETE") ? (
                             <>
-                              <select
-                                value={curLevel}
-                                onChange={(e) => handleYoYoChange(p.id, "level", Number(e.target.value))}
-                                className="print:hidden rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-hidden"
-                              >
-                                {yoYoLevels.map((lvl) => (
-                                  <option key={lvl.level} value={lvl.level}>
-                                    {locale === "ar" ? `المستوى ${lvl.level} (${lvl.speedKmh} كم/س)` : `Niveau ${lvl.level} (${lvl.speedKmh} km/h)`}
-                                  </option>
-                                ))}
-                              </select>
+                              <MasterFilterSelect
+                                value={String(curLevel)}
+                                onChange={(value) => handleYoYoChange(p.id, "level", Number(value))}
+                                options={yoYoLevels.map((lvl) => ({
+                                  id: String(lvl.level),
+                                  label: locale === "ar" ? `المستوى ${lvl.level} (${lvl.speedKmh} كم/س)` : `Niveau ${lvl.level} (${lvl.speedKmh} km/h)`
+                                }))}
+                                locale={locale === "fr" ? "fr" : "ar"}
+                                headerTitle={t("fields.level")}
+                                size="sm"
+                                className="print:hidden w-44 [&>button]:w-full"
+                              />
                               <span className="hidden print:inline font-bold text-xs text-black">
                                 {locale === "ar" ? `المستوى ${curLevel}` : `Niveau ${curLevel}`}
                               </span>
@@ -925,17 +968,18 @@ export function TestingSessionSheet({
                         <td className="px-4 py-3">
                           {sessionStatus === "DRAFT" && (p.status === "VALID" || p.status === "INCOMPLETE") ? (
                             <>
-                              <select
-                                value={curShuttle}
-                                onChange={(e) => handleYoYoChange(p.id, "shuttle", Number(e.target.value))}
-                                className="print:hidden rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-hidden"
-                              >
-                                {Array.from({ length: levelInfo.shuttlesInLevel }, (_, i) => i + 1).map((s) => (
-                                  <option key={s} value={s}>
-                                    Shuttle {s} / {levelInfo.shuttlesInLevel}
-                                  </option>
-                                ))}
-                              </select>
+                              <MasterFilterSelect
+                                value={String(curShuttle)}
+                                onChange={(value) => handleYoYoChange(p.id, "shuttle", Number(value))}
+                                options={Array.from({ length: levelInfo.shuttlesInLevel }, (_, i) => i + 1).map((shuttle) => ({
+                                  id: String(shuttle),
+                                  label: locale === "ar" ? `ذهاب وإياب ${shuttle} / ${levelInfo.shuttlesInLevel}` : `Navette ${shuttle} / ${levelInfo.shuttlesInLevel}`
+                                }))}
+                                locale={locale === "fr" ? "fr" : "ar"}
+                                headerTitle={t("fields.shuttle")}
+                                size="sm"
+                                className="print:hidden w-40 [&>button]:w-full"
+                              />
                               <span className="hidden print:inline font-bold text-xs text-black">
                                 {locale === "ar" ? `ذهاب وإياب ${curShuttle}` : `Navette ${curShuttle}`}
                               </span>
@@ -972,14 +1016,7 @@ export function TestingSessionSheet({
                         <td className="px-4 py-3">
                           {sessionStatus === "DRAFT" ? (
                             <>
-                              <input
-                                type="number"
-                                step="0.01"
-                                placeholder="4.15"
-                                value={p.measurements.time_1 ?? ""}
-                                onChange={(e) => handleGenericChange(p.id, "time_1", e.target.value)}
-                                className="w-20 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono print:hidden"
-                              />
+                              <StopwatchMeasurementInput value={p.measurements.time_1} locale={locale} onChange={(value) => handleGenericChange(p.id, "time_1", value)} />
                               <span className="hidden print:inline font-mono text-xs">{formatMeasurement(p.measurements.time_1, "s")}</span>
                             </>
                           ) : (
@@ -989,14 +1026,7 @@ export function TestingSessionSheet({
                         <td className="px-4 py-3">
                           {sessionStatus === "DRAFT" ? (
                             <>
-                              <input
-                                type="number"
-                                step="0.01"
-                                placeholder="4.08"
-                                value={p.measurements.time_2 ?? ""}
-                                onChange={(e) => handleGenericChange(p.id, "time_2", e.target.value)}
-                                className="w-20 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono print:hidden"
-                              />
+                              <StopwatchMeasurementInput value={p.measurements.time_2} locale={locale} onChange={(value) => handleGenericChange(p.id, "time_2", value)} />
                               <span className="hidden print:inline font-mono text-xs">{formatMeasurement(p.measurements.time_2, "s")}</span>
                             </>
                           ) : (
@@ -1005,6 +1035,36 @@ export function TestingSessionSheet({
                         </td>
                         <td className="px-4 py-3 font-mono font-bold text-emerald-600 text-xs">
                           {formatMeasurement(p.summaryScore, "s")}
+                        </td>
+                      </>
+                    )}
+
+                    {isFifaRSA && (
+                      <>
+                        {Array.from({ length: 6 }, (_, index) => {
+                          const key = `sprint_${index + 1}`;
+                          const attempt = p.measurements[key];
+                          return (
+                            <td key={key} className="px-3 py-3">
+                              {sessionStatus === "DRAFT" ? (
+                                <>
+                                  <StopwatchMeasurementInput value={attempt} locale={locale} onChange={(value) => handleGenericChange(p.id, key, value)} />
+                                  <span className="hidden print:inline font-mono text-xs">{formatMeasurement(attempt, "s")}</span>
+                                </>
+                              ) : (
+                                <span className="font-mono text-xs tabular-nums">{formatMeasurement(attempt, "s")}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-3 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatMeasurement(p.measurements.best_time ?? fifaBest, "s")}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs tabular-nums text-foreground">
+                          {formatMeasurement(p.measurements.mean_time ?? fifaMean, "s")}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs tabular-nums text-amber-700 dark:text-amber-400">
+                          {fifaFatigue == null ? "—" : `${fifaFatigue}%`}
                         </td>
                       </>
                     )}
@@ -1093,37 +1153,36 @@ export function TestingSessionSheet({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-foreground mb-1 block">{t("fields.level")}</label>
-                  <select
-                    value={correctionMeasurements.level || (isYoYoIR2 ? 11 : 5)}
-                    onChange={(e) =>
+                  <MasterFilterSelect
+                    value={String(correctionMeasurements.level || (isYoYoIR2 ? 11 : 5))}
+                    onChange={(value) =>
                       setCorrectionMeasurements((m) => {
-                        const level = Number(e.target.value);
+                        const level = Number(value);
                         const maxShuttle = yoYoLevels.find((item) => item.level === level)?.shuttlesInLevel ?? 1;
                         return { ...m, level, shuttle: Math.min(Number(m.shuttle || 1), maxShuttle) };
                       })
                     }
-                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground"
-                  >
-                    {yoYoLevels.map((lvl) => (
-                      <option key={lvl.level} value={lvl.level}>
-                        {locale === "ar" ? `المستوى ${lvl.level} (${lvl.speedKmh} كم/س)` : `Niveau ${lvl.level} (${lvl.speedKmh} km/h)`}
-                      </option>
-                    ))}
-                  </select>
+                    options={yoYoLevels.map((lvl) => ({
+                      id: String(lvl.level),
+                      label: locale === "ar" ? `المستوى ${lvl.level} (${lvl.speedKmh} كم/س)` : `Niveau ${lvl.level} (${lvl.speedKmh} km/h)`
+                    }))}
+                    locale={locale === "fr" ? "fr" : "ar"}
+                    headerTitle={t("fields.level")}
+                    className="w-full [&>button]:w-full"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-foreground mb-1 block">{t("fields.shuttle")}</label>
-                  <select
-                    value={correctionMeasurements.shuttle || 1}
-                    onChange={(e) =>
-                      setCorrectionMeasurements((m) => ({ ...m, shuttle: Number(e.target.value) }))
+                  <MasterFilterSelect
+                    value={String(correctionMeasurements.shuttle || 1)}
+                    onChange={(value) =>
+                      setCorrectionMeasurements((m) => ({ ...m, shuttle: Number(value) }))
                     }
-                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground font-mono"
-                  >
-                    {Array.from({ length: yoYoLevels.find((item) => item.level === Number(correctionMeasurements.level || (isYoYoIR2 ? 11 : 5)))?.shuttlesInLevel ?? 1 }, (_, index) => index + 1).map((shuttle) => (
-                      <option key={shuttle} value={shuttle}>{shuttle}</option>
-                    ))}
-                  </select>
+                    options={Array.from({ length: yoYoLevels.find((item) => item.level === Number(correctionMeasurements.level || (isYoYoIR2 ? 11 : 5)))?.shuttlesInLevel ?? 1 }, (_, index) => index + 1).map((shuttle) => ({ id: String(shuttle), label: String(shuttle) }))}
+                    locale={locale === "fr" ? "fr" : "ar"}
+                    headerTitle={t("fields.shuttle")}
+                    className="w-full [&>button]:w-full"
+                  />
                 </div>
               </div>
             )}
@@ -1158,7 +1217,7 @@ export function TestingSessionSheet({
                 size="sm"
                 onClick={submitCorrection}
                 disabled={isPending}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                className="bg-club-primary hover:bg-club-primary-hover text-white font-medium"
               >
                 {t("actions.saveCorrection")}
               </Button>
@@ -1180,9 +1239,7 @@ export function TestingSessionSheet({
                   <h3 className="text-base font-bold text-foreground">
                     {locale === "ar" ? "المساعد الذكي للمدرب في الجوانب الرياضية والبدنية" : "Assistant IA du staff technique"}
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {sessionTitle} — {protocolName}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{protocolName}</p>
                 </div>
               </div>
               <Button
@@ -1301,23 +1358,23 @@ export function TestingSessionSheet({
 
       {/* Official printable signature block (visible only when printing) */}
       <div
-        className="hidden print:grid grid-cols-3 text-[14px] sm:text-[15px] pt-8 mt-10 text-black"
+        className="document-signatures document-signatures-multiple hidden print:grid grid-cols-3 pt-8 mt-10 text-black"
         style={{ fontFamily: "'Traditional Arabic', 'Arabic Typesetting', serif" }}
       >
         <div>
-          <p className="font-bold text-[14px] sm:text-[15px]">
+          <p className="font-bold">
             {locale === "ar" ? "المعد البدني" : "Le Préparateur Physique"}
           </p>
           <div className="h-16" />
         </div>
         <div className="text-center">
-          <p className="font-bold text-[14px] sm:text-[15px]">
+          <p className="font-bold">
             {locale === "ar" ? "طبيب النادي / الطاقم الطبي" : "Le Médecin du Club"}
           </p>
           <div className="h-16" />
         </div>
         <div className="text-end">
-          <p className="font-bold text-[14px] sm:text-[15px]">
+          <p className="font-bold">
             {locale === "ar" ? "المدير الفني / المدرب الرئيسي" : "L'Entraîneur Principal / DTN"}
           </p>
           <div className="h-16" />

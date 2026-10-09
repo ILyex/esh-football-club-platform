@@ -19,6 +19,7 @@ export const clubSettingsSchema = z.object({
   defaultLocale: z.enum(["ar", "fr"]).default("ar"),
   facebookUrl: z.string().url().max(300).optional().or(z.literal("")),
   instagramUrl: z.string().url().max(300).optional().or(z.literal("")),
+  tiktokUrl: z.string().url().max(300).optional().or(z.literal("")),
   websiteUrl: z.string().url().max(300).optional().or(z.literal(""))
 });
 export type ClubSettingsInput = z.infer<typeof clubSettingsSchema>;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { getLocalPublicFilePath, getPublicFileObject, isLocalStorageMode, isPublicStorageConfigured } from "@/lib/storage";
+import { getLocalPublicFilePath, getPublicFileObject, isDatabaseStorageMode, isLocalStorageMode, isPublicStorageConfigured } from "@/lib/storage";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       ".jpeg": "image/jpeg",
       ".png": "image/png",
       ".webp": "image/webp",
+      ".gif": "image/gif",
       ".mp4": "video/mp4",
       ".webm": "video/webm",
       ".mov": "video/quicktime"
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Access denied: unapproved public file type" }, { status: 403 });
     }
 
-    if (isPublicStorageConfigured()) {
+    if (isPublicStorageConfigured() || isDatabaseStorageMode()) {
       const rangeHeader = req.headers.get("range");
       const object = await getPublicFileObject(key, mimeType.startsWith("video/") ? rangeHeader : null);
       const partial = Boolean(object.contentRange);
@@ -49,17 +50,6 @@ export async function GET(req: NextRequest) {
 
     const filePath = getLocalPublicFilePath(key);
     if (!fs.existsSync(filePath)) {
-      const fallbackPath = path.resolve(process.cwd(), "public", "branding", "esh-logo-256.png");
-      if (fs.existsSync(fallbackPath)) {
-        const fallbackBuffer = await fs.promises.readFile(fallbackPath);
-        return new Response(fallbackBuffer, {
-          status: 200,
-          headers: {
-            "Content-Type": "image/png",
-            "Cache-Control": "public, max-age=3600"
-          }
-        });
-      }
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
@@ -113,17 +103,8 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch {
-    const fallbackPath = path.resolve(process.cwd(), "public", "branding", "esh-logo-256.png");
-    if (fs.existsSync(fallbackPath)) {
-      const fallbackBuffer = fs.readFileSync(fallbackPath);
-      return new Response(fallbackBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type": "image/png",
-          "Cache-Control": "public, max-age=3600"
-        }
-      });
-    }
-    return NextResponse.json({ error: "Invalid key or file access error" }, { status: 400 });
+    // Never return the club logo for a missing media file. Doing so makes a
+    // broken video look like a valid image and hides the real storage issue.
+    return NextResponse.json({ error: "Invalid key or file access error" }, { status: 404 });
   }
 }

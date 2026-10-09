@@ -11,7 +11,7 @@ import { InsuranceListPreviewModal } from "@/components/insurance/insurance-list
 import { InsuranceCategorySelect } from "@/components/insurance/insurance-category-select";
 import { evaluatePlayerInsurance, parseInsuranceMetadata, formatInsuranceDate } from "@/lib/documents/insurance-helper";
 import { getPlayerDisplayName } from "@/lib/utils";
-import { frenchNationality } from "@/lib/public/locale-text";
+import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -503,7 +503,7 @@ export default async function InsurancePage({
                                   {getPlayerDisplayName(p, locale)}
                                 </Link>
                                 <span className="block text-[10px] text-muted-foreground">
-                                  {locale === "ar" ? p.nationality : frenchNationality(p.nationality)}
+                                  {locale === "ar" ? arabicNationality(p.nationality) : frenchNationality(p.nationality)}
                                 </span>
                               </div>
                             </div>

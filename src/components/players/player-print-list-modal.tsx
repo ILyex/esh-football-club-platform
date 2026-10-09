@@ -45,6 +45,16 @@ export function PlayerPrintListModal({
   const [isOpen, setIsOpen] = useState(false);
   const isAr = locale === "ar";
   const elementId = "official-players-list-printable";
+  // Keep the screen preview paginated like the printed A4 document. The
+  // roster table uses compact, fixed-height rows, so 15 entries leave room
+  // for its repeated heading and the final signature on the last sheet.
+  const pageSize = 15;
+  const playerPages = players.length > 0
+    ? Array.from({ length: Math.ceil(players.length / pageSize) }, (_, pageIndex) => ({
+      pageIndex,
+      players: players.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+    }))
+    : [{ pageIndex: 0, players: [] as PrintablePlayer[] }];
 
   const handlePrint = () => {
     printDocumentElement(
@@ -96,40 +106,46 @@ export function PlayerPrintListModal({
             </div>
 
             {/* Modal Body / Scrollable Document Preview */}
-            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex justify-center">
+            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex items-start justify-center">
               <div
                 id={elementId}
-                className="printable-document player-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-zinc-900 p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col"
+                className="printable-document player-list-document mx-auto flex w-[210mm] shrink-0 flex-col gap-6 text-start text-zinc-900"
                 style={{
                   fontFamily: ESH_DOCUMENT_FONT_FAMILY,
                   direction: isAr ? "rtl" : "ltr"
                 }}
               >
-                {/* Security watermark */}
-                <div
-                  className="pointer-events-none absolute inset-0 z-0 esh-document-watermark select-none print:hidden"
-                  style={{
-                    backgroundImage: ESH_WATERMARK_CSS_URL,
-                    backgroundSize: "100px 50px",
-                    backgroundRepeat: "repeat"
-                  }}
-                  aria-hidden="true"
-                />
-
-                <div
-                  className="relative z-10 w-[190mm] min-w-[190mm] max-w-[190mm]"
-                  style={{ width: "190mm", minWidth: "190mm", maxWidth: "190mm" }}
+                {playerPages.map(({ pageIndex, players: pagePlayers }) => {
+                  const isLastPage = pageIndex === playerPages.length - 1;
+                  const firstPlayerNumber = pageIndex * pageSize;
+                  return (
+                <section
+                  key={pageIndex}
+                  className={`print-preview-sheet relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col border border-zinc-200 bg-white p-[10mm] shadow-xl ${isLastPage ? "" : "print-preview-sheet-break"}`}
+                  style={{ backgroundColor: "white", boxSizing: "border-box" }}
                 >
-                  {/* Official Institutional Header */}
-                  <OfficialDocumentHeader
-                    badgeText={isAr ? "قائمة اللاعبين" : "LISTE JOUEURS"}
-                    documentTitle={isAr ? "قائمة اللاعبين" : "LISTE DES JOUEURS"}
-                    locale={locale}
+                  <div
+                    className="pointer-events-none absolute inset-0 z-0 esh-document-watermark select-none print:hidden"
+                    style={{
+                      backgroundImage: ESH_WATERMARK_CSS_URL,
+                      backgroundSize: "100px 50px",
+                      backgroundRepeat: "repeat"
+                    }}
+                    aria-hidden="true"
                   />
+                  <div className="relative z-10 w-full">
+                  {/* The official masthead belongs to the first sheet only. */}
+                  {pageIndex === 0 && (
+                    <OfficialDocumentHeader
+                      badgeText={isAr ? "قائمة اللاعبين" : "LISTE JOUEURS"}
+                      documentTitle={isAr ? "قائمة اللاعبين" : "LISTE DES JOUEURS"}
+                      locale={locale}
+                    />
+                  )}
 
                   {/* Optional category context; the redundant season/date line
                       was removed so the table follows the document title. */}
-                  {teamCategoryName && (
+                  {pageIndex === 0 && teamCategoryName && (
                     <div className="my-3 text-center">
                       <p className="mt-1 text-base font-bold text-zinc-800">
                         {isAr ? `الفئة الرياضية: ${teamCategoryName}` : `Catégorie: ${teamCategoryName}`}
@@ -140,29 +156,31 @@ export function PlayerPrintListModal({
                   {/* Clean Institutional Table */}
                   <div className="mt-5 w-full" style={{ width: "100%", maxWidth: "none" }}>
                       <table className="w-full border-collapse border border-zinc-300 text-[18px] leading-relaxed" style={{ width: "100%", maxWidth: "none", tableLayout: "fixed" }}>
-                      <thead>
-                        <tr className="bg-zinc-100 text-zinc-900 font-bold">
-                          <th className="py-2.5 px-3 border border-zinc-300 text-center w-12">#</th>
-                          <th className="py-2.5 px-4 border border-zinc-300 text-start">
-                            {isAr ? "اسم ولقب اللاعب" : "Nom et prénom du joueur"}
-                          </th>
-                          <th className="py-2.5 px-4 border border-zinc-300 text-center w-40">
-                            {isAr ? "تاريخ الميلاد" : "Date de naissance"}
-                          </th>
-                          <th className="py-2.5 px-4 border border-zinc-300 text-center w-44">
-                            {isAr ? "رقم الرخصة" : "N° de licence"}
-                          </th>
-                        </tr>
-                      </thead>
+                      {pageIndex === 0 && (
+                        <thead>
+                          <tr className="bg-zinc-100 text-zinc-900 font-bold">
+                            <th className="py-2.5 px-3 border border-zinc-300 text-center w-12">#</th>
+                            <th className="py-2.5 px-4 border border-zinc-300 text-start">
+                              {isAr ? "اسم ولقب اللاعب" : "Nom et prénom du joueur"}
+                            </th>
+                            <th className="py-2.5 px-4 border border-zinc-300 text-center w-40">
+                              {isAr ? "تاريخ الميلاد" : "Date de naissance"}
+                            </th>
+                            <th className="py-2.5 px-4 border border-zinc-300 text-center w-44">
+                              {isAr ? "رقم الرخصة" : "N° de licence"}
+                            </th>
+                          </tr>
+                        </thead>
+                      )}
                       <tbody>
-                        {players.length === 0 ? (
+                        {pagePlayers.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="py-8 text-center text-zinc-500">
                               {isAr ? "لا توجد أسماء مسجلة في القائمة" : "Aucun joueur dans la liste"}
                             </td>
                           </tr>
                         ) : (
-                          players.map((p, idx) => {
+                          pagePlayers.map((p, idx) => {
                             const displayName = getPlayerDisplayName(p, locale);
                             const dob = formatDateDMY(p.dateOfBirth);
                             const licence = p.licenceNumber?.trim() || "—";
@@ -172,7 +190,7 @@ export function PlayerPrintListModal({
                                 className={`border-b border-zinc-300 ${idx % 2 === 1 ? "bg-zinc-50/60" : "bg-white"}`}
                               >
                                 <td className="py-2 px-3 border border-zinc-300 text-center font-medium">
-                                  {idx + 1}
+                                  {firstPlayerNumber + idx + 1}
                                 </td>
                                 <td className="py-2 px-4 border border-zinc-300 font-bold text-zinc-900">
                                   {displayName}
@@ -187,23 +205,32 @@ export function PlayerPrintListModal({
                             );
                           })
                         )}
+                        {isLastPage && (
+                          <tr className="bg-zinc-100 font-bold text-zinc-900">
+                            <td className="border border-zinc-300 px-1 py-2 text-center text-xl leading-tight">
+                              {isAr ? "الإجمالي" : "Total"}
+                            </td>
+                            <td colSpan={3} className="print-document-total-count border border-zinc-300 px-4 py-2 text-start font-bold font-mono tabular-nums">
+                              {players.length}
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
-
-                  <div className="mt-3 flex justify-between px-2 text-sm text-zinc-600">
-                    <span>{isAr ? `إجمالي اللاعبين المسجلين: ${players.length} لاعب` : `Total des joueurs: ${players.length}`}</span>
                   </div>
-                </div>
 
                 {/* The players department is approved by the association president. */}
-                <div className="relative z-10 mt-6 flex shrink-0 justify-center px-4 pt-4 text-center text-sm text-zinc-700">
-                  <div>
-                    <p className="font-bold text-sm text-zinc-900 mb-1">{isAr ? "رئيس الجمعية" : "Le Président de l'association"}</p>
-                    <p className="text-[11px] text-zinc-500">{isAr ? "الختم والتوقيع" : "Cachet et signature"}</p>
+                {isLastPage && <div className="document-signatures relative z-10 mt-6 flex shrink-0 justify-end px-4 pt-4 text-right text-zinc-700">
+                  <div className="text-right">
+                    <p className="mb-1 font-bold text-zinc-900">{isAr ? "رئيس الجمعية" : "Le Président de l'association"}</p>
+                    <p className="text-zinc-500">{isAr ? "الختم والتوقيع" : "Cachet et signature"}</p>
                     <div className="h-16"></div>
                   </div>
-                </div>
+                </div>}
+                </section>
+                  );
+                })}
               </div>
             </div>
 

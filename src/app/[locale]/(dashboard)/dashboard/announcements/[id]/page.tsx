@@ -6,6 +6,7 @@ import { updateAnnouncementAction, setAnnouncementStatusAction, deleteAnnounceme
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { actionControlClass } from "@/components/shared/action-controls";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
 import { DateInput } from "@/components/ui/date-input";
 import { Save, Trash2, Eye, EyeOff } from "lucide-react";
@@ -73,7 +74,7 @@ export default async function AnnouncementEditPage({ params }: { params: Promise
                   type="submit"
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-xs text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                  className={actionControlClass("hide")}
                 >
                   <EyeOff className="h-3.5 w-3.5" />
                   <span>{locale === "ar" ? "إخفاء الإعلان" : "Masquer"}</span>
@@ -85,7 +86,7 @@ export default async function AnnouncementEditPage({ params }: { params: Promise
                   type="submit"
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                  className={actionControlClass("publish")}
                 >
                   <Eye className="h-3.5 w-3.5" />
                   <span>{locale === "ar" ? "إظهار / نشر" : "Publier"}</span>
@@ -157,6 +158,7 @@ export default async function AnnouncementEditPage({ params }: { params: Promise
         </div>
 
         <label className="flex items-center gap-2 text-sm">
+          <input type="hidden" name="homepageVisibility" value="false" disabled={!canManage} />
           <input name="homepageVisibility" type="checkbox" defaultChecked={announcement.homepageVisibility} disabled={!canManage} />
           {t("fields.homepageVisibility")}
         </label>
@@ -190,7 +192,7 @@ export default async function AnnouncementEditPage({ params }: { params: Promise
           {canManage && (
             <Button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs"
+              className="bg-club-primary hover:bg-club-primary-hover text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs"
             >
               <Save className="h-4 w-4" />
               <span>{tCommon("save")}</span>

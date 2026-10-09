@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { OfficialDocumentHeader } from "@/components/documents/official-document-header";
 import { printDocumentElement } from "@/lib/documents/print-helper";
 import { getPlayerDisplayName } from "@/lib/utils";
-import { frenchNationality } from "@/lib/public/locale-text";
 import { ESH_DOCUMENT_FONT_FAMILY, ESH_WATERMARK_CSS_URL } from "@/lib/documents/watermark";
 
 export interface OfficialPlayerAttestationModalProps {
@@ -156,19 +155,20 @@ export function OfficialPlayerAttestationModal({
                 <div className="relative z-10 space-y-5">
                   {/* Official Institutional Header */}
                   <OfficialDocumentHeader
-                    referenceNumber={`ESH-LIC-${player.id.slice(-6).toUpperCase()}`}
+                    referenceNumber=""
                     date={new Date()}
                     badgeText={isAr ? "شهادة إنتساب" : "ATTESTATION"}
                     documentTitle={isAr ? "شهادة إنتساب" : "ATTESTATION DU JOUEUR"}
+                    authorityFontSize={18}
                     locale={locale}
                   />
 
                   {/* Main Attestation Body - Clean, direct, no underlines or decorative boxes */}
                   <div
                     className="mt-5 space-y-5 text-justify text-black"
-                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "20px", lineHeight: "1.75" }}
+                    style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "20px", lineHeight: "1.65" }}
                   >
-                    <p className="mb-4 text-center text-[20px] font-bold leading-relaxed">
+                    <p className="mb-4 text-center text-xl font-bold leading-relaxed">
                       {isAr
                         ? "رئيس الجمعية الرياضية أمل سيدي حسني لكرة القدم"
                         : "Le Président de l'Association Sportive Espoir Sidi Hosni de Football"}
@@ -178,27 +178,21 @@ export function OfficialPlayerAttestationModal({
                       {isAr ? (
                         <>
                           يشهد رئيس <strong>الجمعية الرياضية أمل سيدي حسني لكرة القدم</strong> أن اللاعب:{" "}
-                          <strong className="font-black text-[20px]">
+                          <strong className="font-black text-xl">
                             {getPlayerDisplayName(player, "ar")}
                           </strong>
-                          {player.firstNameFr && player.lastNameFr && (player.firstName || player.lastName) && (
-                            <span className="font-mono text-[20px] text-zinc-800">
-                              {" "}({player.firstNameFr} {player.lastNameFr})
-                            </span>
-                          )}
                           ، المولود بتاريخ:{" "}
                           <strong className="font-mono font-bold">{birthDateFormatted}</strong>{" "}
-                          بـ: <strong className="font-bold">تيارت</strong>، من جنسية:{" "}
-                          <strong className="font-bold">{player.nationality || "جزائرية"}</strong>.
+                          بـ: <strong className="font-bold">تيارت</strong>.
                         </>
                       ) : (
                         <>
                           Le Président de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> atteste que le joueur :{" "}
-                          <strong className="font-black text-[20px]">
+                          <strong className="font-black text-xl">
                             {getPlayerDisplayName(player, "fr")}
                           </strong>
                           , né le : <strong className="font-mono">{birthDateFormatted}</strong> à{" "}
-                          <strong>Tiaret</strong>, de nationalité : <strong>{frenchNationality(player.nationality)}</strong>.
+                          <strong>Tiaret</strong>.
                         </>
                       )}
                     </p>
@@ -207,7 +201,7 @@ export function OfficialPlayerAttestationModal({
                       {isAr ? (
                         <>
                           والحامل للرخصة الرياضية رقم:{" "}
-                          <strong className="font-mono text-[20px] font-black tracking-wider">
+                          <strong className="font-mono text-xl font-black tracking-wider">
                             {licenceNo}
                           </strong>
                           ، هو لاعب مسجل رسمياً وبصفة قانونية ضمن صفوف{" "}
@@ -216,20 +210,12 @@ export function OfficialPlayerAttestationModal({
                             {player.teamCategory || player.teamName || "الأكابر"}
                           </strong>{" "}
                           منذ تاريخ:{" "}
-                          <strong className="font-mono font-bold">{joiningDateFormatted}</strong>
-                          {player.shirtNumber ? (
-                            <>
-                              {" "}ويحمل القميص رقم:{" "}
-                              <strong className="font-mono font-black">({player.shirtNumber})</strong>.
-                            </>
-                          ) : (
-                            "."
-                          )}
+                          <strong className="font-mono font-bold">{joiningDateFormatted}</strong>.
                         </>
                       ) : (
                         <>
                           Titulaire de la licence sportive n° :{" "}
-                          <strong className="font-mono text-[20px] font-black">
+                          <strong className="font-mono text-xl font-black">
                             {licenceNo}
                           </strong>
                           , est qualifié et enregistré au sein de l&apos;association <strong>Association Sportive Espoir Sidi Hosni de Football</strong> dans la catégorie :{" "}
@@ -258,12 +244,12 @@ export function OfficialPlayerAttestationModal({
                   className="esh-attestation-footer relative z-10 mt-8 pt-6"
                   style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid", pageBreakInside: "avoid" }}
                 >
-                  <div className="flex justify-center text-center text-black text-[13px]">
-                    <div className="min-w-[220px] space-y-2">
-                      <p className="esh-attestation-signature text-[15px] font-black">
+                  <div className="document-signatures flex justify-end text-right text-black">
+                    <div className="min-w-[220px] space-y-2 text-right">
+                      <p className="esh-attestation-signature font-black">
                         {isAr ? "رئيس الجمعية" : "Le Président de l'association"}
                       </p>
-                      <div className="esh-attestation-stamp mx-auto flex h-20 w-40 items-center justify-center text-[13px] text-zinc-400 select-none">
+                      <div className="esh-attestation-stamp flex h-20 w-40 items-center justify-center text-zinc-400 select-none">
                         {isAr ? "الختم والتوقيع" : "Cachet et signature"}
                       </div>
                     </div>

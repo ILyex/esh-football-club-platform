@@ -141,6 +141,7 @@ export async function setAttendanceAction(sessionId: string, formData: FormData)
 
   const player = await db.player.findUniqueOrThrow({ where: { id: parsed.playerId } });
   assertTeamScope(scopeContext, player.teamId, "Player");
+  if (player.status !== "ACTIVE") throw new Error("playerNotActive");
 
   await db.trainingAttendance.upsert({
     where: { trainingId_playerId: { trainingId: sessionId, playerId: parsed.playerId } },
@@ -331,4 +332,3 @@ export async function deleteTrainingScannedSheetAction(sessionId: string, docume
   revalidatePath(`/[locale]/dashboard/training/${sessionId}`, "page");
   return { success: true };
 }
-

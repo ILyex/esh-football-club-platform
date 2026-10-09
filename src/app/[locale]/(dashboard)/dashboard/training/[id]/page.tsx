@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { updateTrainingSessionAction, deleteTrainingSessionAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +11,15 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { TrainingAttendanceSheet, type AttendanceStatus } from "@/components/training/training-attendance-sheet";
 import { getPlayerDisplayName } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
-import { TimeInput } from "@/components/ui/time-input";
-import { Save,  Calendar, Users, MapPin, Clock } from "lucide-react";
+import { TrainingTimeFields } from "@/components/training/training-time-fields";
+import { Save, Calendar, Users, MapPin, Clock, Trash2, ClipboardCheck } from "lucide-react";
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
-export default async function TrainingDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function TrainingDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ view?: string }> }) {
   const { locale, id } = await params;
+  const { view } = await searchParams;
+  const attendanceOnly = view === "attendance";
   const user = await requirePagePermission("training.view", locale);
   const t = await getTranslations("training");
   const tTeams = await getTranslations("teams");
@@ -45,7 +48,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
     db.player.findMany({
       where: {
         ...(session.teamId ? { teamId: session.teamId } : {}),
-        status: { not: "ARCHIVED" }
+        status: "ACTIVE"
       },
       orderBy: [{ shirtNumber: "asc" }, { lastName: "asc" }]
     }),
@@ -103,7 +106,20 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6">
-      {/* Top Header Bar */}
+      {attendanceOnly ? (
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{isAr ? "كشف الحضور" : "Feuille de présence"}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {teamLabel} · {new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(session.date)} · {hhmm(session.startTime)}–{hhmm(session.endTime)}
+            </p>
+          </div>
+          <Link href={`/${locale}/dashboard/training/${id}`} className="text-sm font-semibold text-club-primary hover:underline">
+            {isAr ? "العودة إلى تفاصيل الحصة" : "Retour aux détails de la séance"}
+          </Link>
+        </div>
+      ) : (
+      /* Top Header Bar */
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-3">
@@ -131,11 +147,22 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
             )}
           </div>
         </div>
+        {canManage && (
+          <Link
+            href={`/${locale}/dashboard/training/${id}?view=attendance`}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-club-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-club-primary/90"
+          >
+            <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+            {isAr ? "تسجيل الحضور" : "Saisir les présences"}
+          </Link>
+        )}
       </div>
+      )}
 
       {/* Side-by-side Grid: Training Programming (5 cols) & Attendance List (7 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className={`grid grid-cols-1 ${attendanceOnly ? "" : "lg:grid-cols-12"} gap-6 items-start`}>
         {/* Left / Column 1: Training Session Details Form (5 cols) */}
+        {!attendanceOnly && (
         <div className="lg:col-span-5 rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h2 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -172,26 +199,14 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t("fields.startTime")}</label>
-                <TimeInput
-                  name="startTime"
-                  defaultValue={hhmm(session.startTime)}
-                  disabled={!canManage}
-                  locale={locale}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t("fields.endTime")}</label>
-                <TimeInput
-                  name="endTime"
-                  defaultValue={hhmm(session.endTime)}
-                  disabled={!canManage}
-                  locale={locale}
-                />
-              </div>
-            </div>
+            <TrainingTimeFields
+              locale={locale}
+              startLabel={t("fields.startTime")}
+              endLabel={t("fields.endTime")}
+              defaultStart={hhmm(session.startTime)}
+              defaultEnd={hhmm(session.endTime)}
+              disabled={!canManage}
+            />
 
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t("fields.coach")}</label>
@@ -250,29 +265,32 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
               />
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-border">
+            <div className="flex items-center justify-start gap-2 pt-3 border-t border-border">
               {canManage && (
-                <Button type="submit" size="sm" className="font-semibold gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
+                <Button type="submit" size="sm" className="min-w-20 justify-center font-semibold gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
               )}
               {canManage && (
                 <ConfirmDialog onConfirm={remove}>
-                  <Button type="button" variant="destructive" size="sm">
-                    {tCommon("delete")}
+                  <Button type="button" variant="destructive" size="sm" className="min-w-20 justify-center gap-1.5 rounded-xl font-bold">
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{tCommon("delete")}</span>
                   </Button>
                 </ConfirmDialog>
               )}
             </div>
           </form>
         </div>
+        )}
 
         {/* Right / Column 2: Training Attendance Sheet (7 cols) */}
-        <div className="lg:col-span-7 rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+        <div className={`${attendanceOnly ? "w-full" : "lg:col-span-7"} rounded-xl border border-border bg-card p-5 sm:p-6 shadow-xs`}>
           <TrainingAttendanceSheet
             sessionId={session.id}
             session={sessionData}
             players={rosterPlayers}
             canManage={canManage}
             locale={locale}
+            printOnly={!attendanceOnly}
             scannedDocument={
               scannedDoc
                 ? {

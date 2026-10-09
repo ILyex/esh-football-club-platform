@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { AlbumCategory } from "@prisma/client";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 // ============================================================================
 // PUBLIC GALLERY DATA ACCESS
@@ -62,11 +63,11 @@ export async function getPublicAlbums(): Promise<PublicAlbumItem[]> {
     id: a.id,
     name: a.name,
     description: a.description,
-    coverImageUrl: a.coverImageUrl || a.media[0]?.url || "/branding/esh-logo-256.png",
+    coverImageUrl: normalizePublicMediaUrl(a.coverImageUrl || a.media[0]?.url) || "/branding/esh-logo-256.png",
     category: a.category,
     createdAt: a.createdAt,
     photoCount: a._count.media,
-    samplePhotos: a.media
+    samplePhotos: a.media.map((media) => ({ ...media, url: normalizePublicMediaUrl(media.url) || "/branding/esh-logo-256.png" }))
   }));
 }
 
@@ -104,11 +105,11 @@ export async function getPublicAlbumDetail(id: string): Promise<PublicAlbumDetai
     id: album.id,
     name: album.name,
     description: album.description,
-    coverImageUrl: album.coverImageUrl || album.media[0]?.url || null,
+    coverImageUrl: normalizePublicMediaUrl(album.coverImageUrl || album.media[0]?.url),
     category: album.category,
     createdAt: album.createdAt,
     photoCount: album._count.media,
-    samplePhotos: album.media.slice(0, 4),
-    photos: album.media
+    samplePhotos: album.media.slice(0, 4).map((media) => ({ ...media, url: normalizePublicMediaUrl(media.url) || "/branding/esh-logo-256.png" })),
+    photos: album.media.map((media) => ({ ...media, url: normalizePublicMediaUrl(media.url) || "/branding/esh-logo-256.png" }))
   };
 }

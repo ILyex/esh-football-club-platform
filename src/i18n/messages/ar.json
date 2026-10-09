@@ -25,7 +25,7 @@
   },
   "nav": {
     "home": "الرئيسية",
-    "club": "النادي",
+    "club": "عن الجمعية",
     "team": "الفريق",
     "players": "اللاعبون",
     "matches": "المباريات",
@@ -64,12 +64,15 @@
       "inventory": "العتاد والجرد",
       "news": "الأخبار",
       "website": "إدارة الموقع العام",
+      "websiteReels": "إدارة الريلز",
+      "websiteImages": "صور الموقع",
+      "websiteAnalytics": "إحصائيات الموقع",
       "announcements": "الإعلانات",
       "gallery": "المعرض",
       "documents": "أرشيف الوثائق",
       "contracts": "العقود والاتفاقيات",
       "insurance": "التأمين الرياضي",
-      "correspondence": "المراسلات الرسمية",
+      "correspondence": "المراسلات والطعون",
       "meetingMinutes": "محاضر الاجتماعات",
       "reports": "التقارير",
       "dataQuality": "جودة البيانات",
@@ -249,9 +252,9 @@
     },
     "categories": {
       "SENIOR": "الأكابر",
-      "U20": "أواسط (U20)",
-      "U17": "أشبال (U17)",
-      "U15": "أصاغر (U15)"
+      "U20": "U20",
+      "U17": "U17",
+      "U15": "U15"
     },
     "birthYearWarning": "تحذير: سنة ميلاد اللاعب لا تطابق الفئة العمرية المختارة",
     "errors": {
@@ -285,6 +288,7 @@
   },
   "matches": {
     "title": "المباريات",
+    "manage": "إدارة المباراة",
     "addMatch": "إضافة مباراة",
     "fields": {
       "competition": "المسابقة",
@@ -303,7 +307,7 @@
       "LIVE": "مباشر",
       "FINISHED": "انتهت",
       "POSTPONED": "مؤجلة",
-      "CANCELLED": "ملغاة"
+      "CANCELLED": "مؤجلة"
     },
     "events": {
       "title": "أحداث المباراة",
@@ -312,6 +316,8 @@
       "player": "اللاعب",
       "type": "النوع",
       "GOAL": "هدف",
+      "PENALTY_GOAL": "هدف من ضربة جزاء",
+      "PENALTY_MISSED": "ركلة جزاء ضائعة",
       "OWN_GOAL": "هدف في المرمى الذاتي",
       "ASSIST": "تمريرة حاسمة",
       "YELLOW_CARD": "بطاقة صفراء",
@@ -321,7 +327,7 @@
     },
     "lineup": {
       "title": "التشكيلة",
-      "addPlayer": "إضافة لاعب للتشكيلة",
+      "addPlayer": "إضافة اللاعب",
       "starting": "أساسي",
       "substitute": "احتياطي",
       "position": "المركز"
@@ -447,7 +453,7 @@
     }
   },
   "correspondence": {
-    "title": "المراسلات",
+    "title": "المراسلات والطعون",
     "addCorrespondence": "إضافة مراسلة",
     "incoming": "واردة",
     "outgoing": "صادرة",
@@ -756,10 +762,15 @@
   },
   "notices": {
     "calendarEventCreated": "تمت إضافة الموعد إلى الرزنامة بنجاح",
+    "playerSaved": "تم حفظ بيانات اللاعب بنجاح",
+    "teamSaved": "تم حفظ بيانات الفئة بنجاح",
     "mappingSaved": "تم حفظ ربط الحقول",
+    "albumSaved": "تم حفظ الألبوم بنجاح",
     "activated": "تم تفعيل هذه النسخة من القالب",
     "errors": {
-      "activationBlocked": "تم الحفظ، لكن لا يمكن التفعيل قبل ربط جميع الحقول المكتشفة بشكل صحيح"
+      "activationBlocked": "تم الحفظ، لكن لا يمكن التفعيل قبل ربط جميع الحقول المكتشفة بشكل صحيح",
+      "playerSaveFailed": "تعذر حفظ بيانات اللاعب",
+      "teamSaveFailed": "تعذر حفظ بيانات الفئة"
     }
   },
   "insights": {
@@ -1228,12 +1239,12 @@
       "type": "النوع"
     },
     "gallery": {
-      "title": "معرض الصور",
+      "title": "المعرض",
       "subtitle": "ألبوم ذكريات ولحظات أمل سيدي حسني",
       "photoCount": "{count} صورة",
-      "noAlbums": "لا توجد ألبومات صور منشورة حالياً",
+      "noAlbums": "لا توجد ألبومات منشورة حالياً",
       "backToGallery": "العودة إلى المعرض",
-      "emptyAlbum": "لا توجد صور في هذا الألبوم"
+      "emptyAlbum": "لا توجد ميديا حاليا"
     },
     "positions": {
       "GOALKEEPER": "حارس مرمى",
@@ -1249,15 +1260,17 @@
     "matchStatus": {
       "SCHEDULED": "مبرمجة",
       "IN_PROGRESS": "جارية الآن",
-      "LIVE": "جارية الآن",
+      "LIVE": "مباشر",
       "COMPLETED": "انتهت",
       "FINISHED": "انتهت",
       "POSTPONED": "مؤجلة",
-      "CANCELLED": "ملغاة"
+      "CANCELLED": "مؤجلة"
     },
     "eventTypes": {
       "GOAL": "هدف",
       "PENALTY": "ضربة جزاء",
+      "PENALTY_GOAL": "هدف من ضربة جزاء",
+      "PENALTY_MISSED": "ركلة جزاء ضائعة",
       "OWN_GOAL": "هدف عكسي",
       "YELLOW_CARD": "بطاقة صفراء",
       "RED_CARD": "بطاقة حمراء",

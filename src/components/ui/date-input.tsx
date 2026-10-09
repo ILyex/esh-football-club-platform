@@ -16,6 +16,7 @@ import {
   parseISOToDMY,
   getDaysInMonth
 } from "@/lib/date-utils";
+import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
 
 export interface DateInputProps {
   name?: string;
@@ -126,7 +127,10 @@ export function DateInput({
   const popoverRef = useRef<HTMLDivElement>(null);
   const monthYearRef = useRef<HTMLDivElement>(null);
   const dateMenuRef = useRef<HTMLDivElement>(null);
+  const calendarPanelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const calendarPlacement = useAutoPopoverPlacement(isOpen, popoverRef, calendarPanelRef, 380);
+  const dateMenuPlacement = useAutoPopoverPlacement(openDateMenu !== null, monthYearRef, dateMenuRef, 224);
 
   useEffect(() => {
     if (!openDateMenu) return;
@@ -137,8 +141,8 @@ export function DateInput({
 
   // Sync when controlled value changes
   useEffect(() => {
-    if (isControlled && value !== undefined) {
-      const formatted = parseISOToDMY(value);
+    if (isControlled && value !== undefined || !isControlled && defaultValue !== undefined) {
+      const formatted = parseISOToDMY(isControlled ? value! : defaultValue!);
       setDisplayValue(formatted);
       if (isValidDMY(formatted)) {
         const parts = formatted.split("/");
@@ -146,7 +150,7 @@ export function DateInput({
         setCalendarYear(parseInt(parts[2]!, 10));
       }
     }
-  }, [isControlled, value]);
+  }, [isControlled, value, defaultValue]);
 
   // Close calendar popover on outside click
   useEffect(() => {
@@ -259,7 +263,20 @@ export function DateInput({
   };
 
   const isoValue = isValidDMY(displayValue) ? parseDMYToISO(displayValue) : "";
-  const isInvalid = displayValue.length >= 8 && !isValidDMY(displayValue);
+  // Do not show an error while the user is still typing. Validate only after
+  // the complete DD/MM/YYYY shape is present and the calendar date is invalid.
+  const hasCompleteDateShape = /^\d{2}\/\d{2}\/\d{4}$/.test(displayValue);
+  const isInvalid = hasCompleteDateShape && !isValidDMY(displayValue);
+  const invalidDateMessage = isAr
+    ? "أدخل تاريخاً صحيحاً بصيغة DD/MM/YYYY، مثل 05/10/2026."
+    : "Saisissez une date valide au format JJ/MM/AAAA, par exemple 05/10/2026.";
+
+  // Keep invalid calendar dates inside the form. The browser blocks submit and
+  // the inline warning is shown beside this field instead of rendering the
+  // dashboard error page after a server-side validation exception.
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(isInvalid ? invalidDateMessage : "");
+  }, [isInvalid, invalidDateMessage]);
 
   // Month navigation
   const prevMonth = (e: React.MouseEvent) => {
@@ -323,7 +340,8 @@ export function DateInput({
             id={`date-${menu}-${uniqueId}`}
             role="listbox"
             aria-label={isMonth ? (isAr ? "الشهر" : "Mois") : (isAr ? "السنة" : "Année")}
-            className={`absolute ${isAr ? "end-0" : "start-0"} top-full z-[60] mt-1 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1 text-foreground shadow-xl ring-1 ring-black/5 ${
+            style={popoverPlacementStyle(dateMenuPlacement, "0.25rem")}
+            className={`absolute ${isAr ? "end-0" : "start-0"} z-[60] max-h-56 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1 text-foreground shadow-xl ring-1 ring-black/5 ${
               isMonth ? "min-w-36" : "min-w-24"
             }`}
           >
@@ -340,7 +358,7 @@ export function DateInput({
                     else setCalendarYear(option.value);
                     setOpenDateMenu(null);
                   }}
-                  className={`flex min-h-8 w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-start text-xs transition-colors ${
+                  className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-start text-xs transition-colors ${
                     selected
                       ? "bg-club-primary/10 font-bold text-club-primary"
                       : "text-foreground hover:bg-muted hover:text-club-primary"
@@ -388,6 +406,7 @@ export function DateInput({
           onBlur={onBlur}
           disabled={disabled}
           required={required}
+          aria-invalid={isInvalid || Boolean(error)}
           className={`w-full rounded-xl border bg-background pl-3 pr-16 py-2 text-sm font-mono tracking-wider text-foreground placeholder:text-muted-foreground/60 transition-colors shadow-2xs outline-none focus:outline-none focus:ring-1 focus:ring-club-primary disabled:cursor-not-allowed disabled:opacity-60 ${
             isInvalid || error
               ? "border-red-500/80 focus:border-red-500 focus:ring-red-500/20"
@@ -453,8 +472,10 @@ export function DateInput({
       {/* Interactive Calendar Dropdown / Popover */}
       {isOpen && !disabled && (
         <div
+          ref={calendarPanelRef}
           dir={isAr ? "rtl" : "ltr"}
-          className="absolute start-0 top-full z-50 mt-1.5 w-72 rounded-2xl border border-border bg-card p-4 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 select-none"
+          style={popoverPlacementStyle(calendarPlacement, "0.375rem")}
+          className="absolute start-0 z-50 w-72 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-4 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 select-none"
         >
           {/* Calendar Header: Month, Year, and Navigation Arrows */}
           <div className="flex items-center justify-between pb-3 border-b border-border/60 gap-1">

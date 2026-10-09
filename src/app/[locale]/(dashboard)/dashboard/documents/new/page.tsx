@@ -6,6 +6,7 @@ import { uploadDocumentAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
+import { localizedClubName } from "@/lib/public/locale-text";
 
 export default async function NewDocumentPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -19,7 +20,7 @@ export default async function NewDocumentPage({ params }: { params: Promise<{ lo
   const [categories, teams, players, staff, matches, currentTeamId] = await Promise.all([
     db.documentCategory.findMany({ orderBy: { name: "asc" } }),
     getAuthorizedTeams(),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" }, teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
+    db.player.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
     db.staff.findMany({ where: { status: "ACTIVE", teamId: { in: authorizedTeamIds } }, orderBy: { lastName: "asc" } }),
     db.match.findMany({ where: { teamId: { in: authorizedTeamIds } }, orderBy: { matchDate: "desc" }, take: 30 }),
     getCurrentTeamId()
@@ -111,7 +112,7 @@ export default async function NewDocumentPage({ params }: { params: Promise<{ lo
             <option value="">—</option>
             {matches.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.homeTeamName} – {m.awayTeamName}
+                {localizedClubName(m.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – {localizedClubName(m.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")}
               </option>
             ))}
           </select>

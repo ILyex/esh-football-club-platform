@@ -87,6 +87,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
         </div>
 
         <label className="flex items-center gap-2 text-sm">
+          <input type="hidden" name="homepageVisibility" value="false" />
           <input name="homepageVisibility" type="checkbox" defaultChecked /> {t("fields.homepageVisibility")}
         </label>
         <div>
@@ -108,7 +109,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
         </div>
 
         <div className="col-span-2 pt-2 border-t border-border flex items-center gap-3">
-          <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs">
+          <Button type="submit" className="bg-club-primary hover:bg-club-primary-hover text-white font-medium flex items-center gap-2 px-5 py-2 rounded-lg transition-colors shadow-xs">
             <Save className="h-4 w-4" />
             <span>{tCommon("save")}</span>
           </Button>

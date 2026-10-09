@@ -1,0 +1,35 @@
+"use client";
+
+import { useRef } from "react";
+
+/** Adds horizontal touch navigation without blocking vertical page scrolling. */
+export function useSwipeCarousel(onNext: () => void, onPrevious: () => void, threshold = 45) {
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+
+  return {
+    onTouchStart: (event: React.TouchEvent<HTMLElement>) => {
+      startX.current = event.touches[0]?.clientX ?? null;
+      startY.current = event.touches[0]?.clientY ?? null;
+    },
+    onTouchEnd: (event: React.TouchEvent<HTMLElement>) => {
+      if (startX.current == null || startY.current == null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      const endY = event.changedTouches[0]?.clientY;
+      const distance = endX == null ? 0 : endX - startX.current;
+      const verticalDistance = endY == null ? 0 : endY - startY.current;
+      startX.current = null;
+      startY.current = null;
+      // Let normal vertical scrolling win when the gesture is mostly vertical.
+      if (Math.abs(verticalDistance) > Math.abs(distance)) return;
+      if (Math.abs(distance) < threshold) return;
+      if (distance < 0) onNext();
+      else onPrevious();
+    },
+    onTouchCancel: () => {
+      startX.current = null;
+      startY.current = null;
+    },
+    style: { touchAction: "pan-y" as const }
+  };
+}

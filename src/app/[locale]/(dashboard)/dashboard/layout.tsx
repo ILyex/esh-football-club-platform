@@ -23,6 +23,7 @@ import { DASHBOARD_NAV_GROUPS } from "@/lib/dashboard-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { SafeImage } from "@/components/shared/safe-image";
+import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
 
 export default async function DashboardLayout({
   children,
@@ -45,10 +46,9 @@ export default async function DashboardLayout({
     items: group.items.filter((item) => !item.requiredPermission || hasPermission(user, item.requiredPermission))
   })).filter((group) => group.items.length > 0);
 
-  const [teamCtx, t, tSearch, tNotif, tInsights, unreadNotifications, recentNotifications, userAccount, clubSettings] = await Promise.all([
+  const [teamCtx, t, tNotif, tInsights, unreadNotifications, recentNotifications, userAccount, clubSettings] = await Promise.all([
     resolveUserTeamContext(),
     getTranslations("teams"),
-    getTranslations("search"),
     getTranslations("notifications"),
     getTranslations("insights"),
     db.notification.count({ where: { userId: user.id, isRead: false } }),
@@ -89,17 +89,17 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-background antialiased" style={getClubBrandStyle(clubSettings?.primaryColor ?? "#DC2626", clubSettings?.secondaryColor ?? "#111214")}>
       <DashboardPresenceHeartbeat />
+      <DashboardMailNotifier locale={locale} enabled={hasPermission(user, "mail.view")} />
       {/* Institutional Left/Right Resizable Sidebar (Locked Spec A.3: Right in RTL, Left in LTR) */}
       <ResizableSidebar locale={locale} defaultWidth={264} minWidth={220} maxWidth={400}>
         {/* Official Club Branding Header (Spec A.3 & Concept Image) */}
         <div className="hidden border-b border-border p-4 md:flex flex-col gap-2.5 bg-muted/20 dark:bg-black/30 shrink-0">
           <Link href={`/${locale}/dashboard`} className="flex items-center gap-3 group min-w-0">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <SafeImage src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
             </div>
             <div className="min-w-0">
-              <p className="line-clamp-3 whitespace-normal text-sm font-bold leading-tight tracking-tight text-foreground group-hover:text-club-primary transition-colors">
+              <p className="club-name line-clamp-3 whitespace-normal text-sm font-bold leading-tight tracking-tight text-foreground group-hover:text-club-primary transition-colors">
                 {locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -145,9 +145,9 @@ export default async function DashboardLayout({
       </ResizableSidebar>
 
       {/* Main Content Workspace */}
-      <main className="min-w-0 w-full flex-1 bg-muted/30 p-3 sm:p-4 md:p-6 print:bg-white print:p-0 flex flex-col">
+      <main data-dashboard-main className="min-w-0 w-full flex-1 bg-muted/30 p-3 sm:p-4 md:p-6 print:bg-white print:p-0 flex flex-col">
         {/* Top Control Bar (Concept Image media_1790973628860.png Alignment) */}
-        <div className="mb-6 grid grid-cols-1 items-center gap-3 print:hidden lg:grid-cols-[minmax(18rem,1fr)_auto]">
+        <div className="mb-6 grid grid-cols-1 items-center gap-3 print:hidden lg:grid-cols-[minmax(18rem,30rem)_auto] lg:justify-between">
           {/* Quick Search Trigger (Ctrl+K) & Optional Team Switcher */}
           <div className="flex w-full min-w-0 items-center gap-2.5 lg:min-w-0">
             <div className="min-w-0 flex-1">

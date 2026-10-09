@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { DateInput } from "@/components/ui/date-input";
+import { localizedClubName } from "@/lib/public/locale-text";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 const CATEGORIES = ["FOOD", "TRANSPORT", "LODGING", "EQUIPMENT", "MEDICAL", "ADMINISTRATION", "TRAINING", "MATCH", "TRAVEL", "OTHER"] as const;
 const METHODS = ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] as const;
@@ -60,24 +62,11 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-        <select name="category" required defaultValue={defaults.category} className={`${inputClass} finance-select`}>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {t(`categories.${c}` as any)}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="category" defaultValue={defaults.category} options={CATEGORIES.map((c) => ({ value: c, label: t(`categories.${c}` as any) }))} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.paymentMethod")}</label>
-        <select name="paymentMethod" defaultValue={defaults.paymentMethod ?? ""} className={`${inputClass} finance-select`}>
-          <option value="">—</option>
-          {METHODS.map((m) => (
-            <option key={m} value={m}>
-              {t(`paymentMethods.${m}` as any)}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="paymentMethod" defaultValue={defaults.paymentMethod ?? ""} options={[{ value: "", label: "—" }, ...METHODS.map((m) => ({ value: m, label: t(`paymentMethods.${m}` as any) }))]} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.payeeName")}</label>
@@ -85,57 +74,23 @@ export async function ExpenseFormFields({ locale, defaults, options }: { locale:
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{tTeams("title")}</label>
-        <select name="teamId" defaultValue={defaults.teamId ?? ""} className={`${inputClass} finance-select`}>
-          <option value="">{t("clubWide")}</option>
-          {options.teams.map((tm) => (
-            <option key={tm.id} value={tm.id}>
-              {tTeams(`categories.${tm.category}` as any)}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="teamId" defaultValue={defaults.teamId ?? ""} options={[{ value: "", label: t("clubWide") }, ...options.teams.map((tm) => ({ value: tm.id, label: tTeams(`categories.${tm.category}` as any) }))]} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.season")}</label>
-        <select name="seasonId" required defaultValue={defaults.seasonId} className={`${inputClass} finance-select`}>
-          {options.seasons.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="seasonId" defaultValue={defaults.seasonId} options={options.seasons.map((s) => ({ value: s.id, label: s.label }))} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.budget")}</label>
-        <select name="budgetId" defaultValue={defaults.budgetId ?? ""} className={`${inputClass} finance-select`}>
-          <option value="">—</option>
-          {options.budgets.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.season.label} — {b.team ? tTeams(`categories.${b.team.category}` as any) : t("clubWide")} ({b.allocatedAmount.toLocaleString(locale)})
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="budgetId" defaultValue={defaults.budgetId ?? ""} options={[{ value: "", label: "—" }, ...options.budgets.map((b) => ({ value: b.id, label: `${b.season.label} — ${b.team ? tTeams(`categories.${b.team.category}` as any) : t("clubWide")} (${b.allocatedAmount.toLocaleString(locale)})` }))]} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.relatedMatch")}</label>
-        <select name="relatedMatchId" defaultValue={defaults.relatedMatchId ?? ""} className={`${inputClass} finance-select`}>
-          <option value="">—</option>
-          {options.matches.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.homeTeamName} – {m.awayTeamName}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="relatedMatchId" defaultValue={defaults.relatedMatchId ?? ""} options={[{ value: "", label: "—" }, ...options.matches.map((m) => ({ value: m.id, label: `${localizedClubName(m.homeTeamName, locale, locale === "ar" ? "الفريق" : "Club")} – ${localizedClubName(m.awayTeamName, locale, locale === "ar" ? "الفريق" : "Club")}` }))]} />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{t("fields.relatedTraining")}</label>
-        <select name="relatedTrainingId" defaultValue={defaults.relatedTrainingId ?? ""} className={`${inputClass} finance-select`}>
-          <option value="">—</option>
-          {options.trainingSessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {new Intl.DateTimeFormat(locale).format(s.date)}
-            </option>
-          ))}
-        </select>
+        <StyledSelect name="relatedTrainingId" defaultValue={defaults.relatedTrainingId ?? ""} options={[{ value: "", label: "—" }, ...options.trainingSessions.map((s) => ({ value: s.id, label: new Intl.DateTimeFormat(locale).format(s.date) }))]} />
       </div>
       <div className="col-span-2">
         <label className="mb-1 block text-sm font-medium">{t("fields.notes")}</label>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, ChevronRight, Save } from "lucide-react";
+import { Plus, ChevronRight, Save, Trash2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
@@ -107,7 +107,10 @@ export default async function CalendarEventDetailPage({ params }: { params: Prom
       {canManage && (
         <div className="mt-4 flex justify-end">
           <ConfirmDialog onConfirm={remove}>
-            <Button variant="destructive">{tCommon("delete")}</Button>
+            <Button variant="destructive" className="gap-2 rounded-xl font-bold">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span>{tCommon("delete")}</span>
+            </Button>
           </ConfirmDialog>
         </div>
       )}

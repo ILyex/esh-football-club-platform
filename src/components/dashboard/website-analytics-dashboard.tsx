@@ -43,6 +43,31 @@ interface WebsiteAnalyticsDashboardProps {
   } | null;
 }
 
+function getReadablePageName(path: string, isRtl: boolean) {
+  let decoded = path;
+  try { decoded = decodeURIComponent(path); } catch { /* keep the original path */ }
+  const cleanPath = decoded.replace(/^\/(?:ar|fr)(?=\/|$)/i, "") || "/";
+  const labels = isRtl
+    ? { home: "الصفحة الرئيسية", matches: "المباريات والنتائج", match: "تفاصيل المباراة", news: "الأخبار ومستجدات النادي", team: "قائمة الفرق واللاعبين", senior: "فئة الأكابر", u20: "فئة الأواسط U20", u17: "فئة الأشبال U17", u15: "فئة الأصاغر U15", players: "قائمة لاعبي الفئة", gallery: "معرض الصور والألبومات", competitions: "المسابقات والبطولات", club: "عن الجمعية" }
+    : { home: "Accueil", matches: "Matchs & Résultats", match: "Détail du match", news: "Actualités", team: "Équipes & Effectif", senior: "Équipe Senior", u20: "Équipe U20", u17: "Équipe U17", u15: "Équipe U15", players: "Joueurs de la catégorie", gallery: "Galerie Photo", competitions: "Compétitions", club: "À propos" };
+  if (cleanPath === "/") return labels.home;
+  if (cleanPath === "/club") return labels.club;
+  if (cleanPath === "/matches") return labels.matches;
+  if (cleanPath.startsWith("/matches/")) return labels.match;
+  if (cleanPath === "/news" || cleanPath.startsWith("/news/")) return labels.news;
+  if (cleanPath === "/gallery" || cleanPath.startsWith("/gallery/")) return labels.gallery;
+  if (cleanPath === "/competitions") return labels.competitions;
+  if (cleanPath.includes("/players/")) return labels.players;
+  if (cleanPath === "/team" || cleanPath.startsWith("/team/")) {
+    if (cleanPath.includes("senior")) return labels.senior;
+    if (cleanPath.includes("u20")) return labels.u20;
+    if (cleanPath.includes("u17")) return labels.u17;
+    if (cleanPath.includes("u15")) return labels.u15;
+    return labels.team;
+  }
+  return decoded.replace(/^\/+/, "").replace(/\/$/, "") || labels.home;
+}
+
 export function WebsiteAnalyticsDashboard({
   locale,
   analytics,
@@ -403,7 +428,9 @@ export function WebsiteAnalyticsDashboard({
                 "/matches": isRtl ? "المباريات والنتائج" : "Matchs & Résultats",
                 "/news": isRtl ? "الأخبار ومستجدات النادي" : "Actualités",
                 "/team": isRtl ? "قائمة الفرق واللاعبين" : "Équipes & Effectif",
-                "/gallery": isRtl ? "معرض الصور والألبومات" : "Galerie Photo"
+                "/gallery": isRtl ? "معرض الصور والألبومات" : "Galerie Photo",
+                "/club": isRtl ? "عن الجمعية" : "À propos",
+                "/competitions": isRtl ? "المسابقات والبطولات" : "Compétitions"
               };
 
               return (
@@ -411,7 +438,7 @@ export function WebsiteAnalyticsDashboard({
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="text-foreground flex items-center gap-1.5 truncate">
                       <span className="font-mono text-muted-foreground w-4">#{idx + 1}</span>
-                      <span>{labelMap[page.path] || page.path}</span>
+                      <span>{labelMap[page.path] || getReadablePageName(page.path, isRtl)}</span>
                     </span>
                     <div className="flex items-center gap-3 shrink-0 font-mono">
                       <span className="text-purple-600 dark:text-purple-400">

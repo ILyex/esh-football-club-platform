@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { updatePlayerAction, archivePlayerAction, restorePlayerAction, hardDeletePlayerAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { NoticeToast } from "@/components/shared/notice-toast";
 import { birthYearMismatch } from "@/lib/utils";
 
 import { resolveUserTeamContext } from "@/lib/team-context";
@@ -21,13 +22,20 @@ import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
 import { Save, Trash2, Archive, RotateCcw, ShieldCheck, ShieldAlert, Clock, XCircle, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
-import { frenchNationality } from "@/lib/public/locale-text";
+import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 
 const POSITIONS = ["GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"] as const;
 const STATUSES = ["ACTIVE", "INJURED", "SUSPENDED", "ON_LOAN", "ARCHIVED"] as const;
 
-export default async function PlayerDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function PlayerDetailPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams?: Promise<{ notice?: string }>;
+}) {
   const { locale, id } = await params;
+  const { notice } = (await searchParams) ?? {};
   const user = await requirePagePermission("players.view", locale);
   const t = await getTranslations("players");
   const tTeams = await getTranslations("teams");
@@ -203,7 +211,12 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
 
   async function update(formData: FormData) {
     "use server";
-    await updatePlayerAction(id, formData);
+    try {
+      await updatePlayerAction(id, formData);
+    } catch {
+      redirect(`/${locale}/dashboard/players/${id}?notice=errors.playerSaveFailed`);
+    }
+    redirect(`/${locale}/dashboard/players/${id}?notice=playerSaved`);
   }
   async function archive() {
     "use server";
@@ -221,6 +234,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
 
   return (
     <div className="w-full space-y-6">
+      <NoticeToast notice={notice} />
       {/* ── Top Player Identity Header Card ── */}
       <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -274,7 +288,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ l
                 <span>•</span>
                 <span>{calculatedAge} {isAr ? "سنة" : "ans"}</span>
                 <span>•</span>
-                <span>{locale === "ar" ? player.nationality : frenchNationality(player.nationality)}</span>
+                <span>{locale === "ar" ? arabicNationality(player.nationality) : frenchNationality(player.nationality)}</span>
                 {player.height && (
                   <>
                     <span>•</span>

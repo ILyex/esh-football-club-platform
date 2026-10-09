@@ -86,6 +86,7 @@ export interface GmailSyncResult {
   connectionId: string;
   emailAddress: string;
   newMessagesCount: number;
+  recentMessagesCount: number;
   historyId: string | null;
   syncedAt: Date;
   errors?: string[];

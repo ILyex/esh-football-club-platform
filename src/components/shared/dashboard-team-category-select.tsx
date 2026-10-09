@@ -2,7 +2,6 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
-import { Layers } from "lucide-react";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 
 export interface DashboardTeamCategorySelectProps {
@@ -39,7 +38,7 @@ export function DashboardTeamCategorySelect({ value, options, allLabel, locale, 
         options={[...(canSelectAll ? [{ id: "ALL", label: allLabel }] : []), ...options]}
         disabled={!canSelectAll && options.length === 0}
         onChange={handleChange}
-        icon={Layers}
+        hideIcon
         headerTitle={locale === "ar" ? "اختيار الفئة الرياضية" : "Filtrer par catégorie"}
         placeholder={allLabel}
         align="end"

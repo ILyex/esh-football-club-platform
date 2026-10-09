@@ -70,6 +70,7 @@ export function TeamSwitcher({
         label={locale === "ar" ? "الفئة:" : "Catégorie :"}
         locale={locale === "ar" ? "ar" : "fr"}
         value={currentTeamId ?? (allTeamsLabel ? "ALL" : (teams[0]?.id ?? ""))}
+        hideIcon
         options={[
           ...(allTeamsLabel ? [{ id: "ALL", label: allTeamsLabel }] : []),
           ...teams,

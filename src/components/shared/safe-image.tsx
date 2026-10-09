@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ImgHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type ImgHTMLAttributes } from "react";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc: string;
@@ -11,11 +12,8 @@ type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
  * broken-image icon. The fallback is local and bundled with every release.
  */
 export function SafeImage({ fallbackSrc, src, alt = "", onError, ...props }: SafeImageProps) {
-  const normalizedSrc = typeof src === "string" && (
-    src.startsWith("data:image/") ||
-    src.startsWith("/") ||
-    /^https?:\/\//i.test(src)
-  ) ? src : undefined;
+  const imageRef = useRef<HTMLImageElement>(null);
+  const normalizedSrc = normalizePublicMediaUrl(typeof src === "string" ? src : null) ?? undefined;
   const [imageSrc, setImageSrc] = useState<string | undefined>(normalizedSrc);
 
   // Server data can change after a settings/profile update without remounting
@@ -23,11 +21,20 @@ export function SafeImage({ fallbackSrc, src, alt = "", onError, ...props }: Saf
   // previously failed or unrelated image URL.
   useEffect(() => {
     setImageSrc(normalizedSrc);
-  }, [normalizedSrc]);
+    // An image can fail before React hydrates, so the browser's original error
+    // event is missed. Detect that settled failure after mounting as well.
+    const image = imageRef.current;
+    const expectedSrc = normalizedSrc ? new URL(normalizedSrc, window.location.href).href : undefined;
+    if (expectedSrc && image?.currentSrc === expectedSrc && image.complete && image.naturalWidth === 0) {
+      setImageSrc(fallbackSrc);
+    }
+  }, [fallbackSrc, normalizedSrc]);
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- requires legacy URL normalization and runtime fallback.
     <img
       {...props}
+      ref={imageRef}
       src={imageSrc || fallbackSrc}
       alt={alt}
       draggable={false}

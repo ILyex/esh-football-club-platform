@@ -6,7 +6,7 @@ import NextAuth from "next-auth";
 // not pull Node-only authentication code into every request.
 export const { auth: edgeAuth } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [],
   callbacks: {

@@ -1,8 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-
-/** Promote scheduled matches as soon as their kickoff time is reached. */
+/** Start scheduled matches at kickoff. A match is finished only by an operator. */
 export async function promoteDueMatchesToLive(now = new Date()): Promise<number> {
   const result = await db.match.updateMany({
     where: { status: "SCHEDULED", matchDate: { lte: now } },

@@ -182,6 +182,18 @@ async function extractText(
   return null; // unsupported MIME — cannot read
 }
 
+/** Extracts readable text for server-side document workflows that need to
+ * interpret a non-sensitive uploaded form (for example a match sheet). */
+export async function extractDocumentText(buffer: Buffer, mimeType: string): Promise<string | null> {
+  try {
+    const text = await extractText(buffer, mimeType);
+    return isReadable(text) ? text : null;
+  } catch (err) {
+    console.error("[DocumentVerifier] Document text extraction failed:", err);
+    return null;
+  }
+}
+
 // ---- AI arbiter (only called when needsArbiter=true) -----------------------
 
 async function callAIArbiter(

@@ -323,7 +323,23 @@ export async function setThreadReadState(
   const addLabels = isRead ? [] : ["UNREAD"];
   const removeLabels = isRead ? ["UNREAD"] : [];
 
+  // Read state belongs to the shared mailbox. When one authorized user reads
+  // a thread, close the corresponding incoming-mail notifications for everyone
+  // so another user is not alerted about an already-read email.
+  const thread = isRead ? await client.getThread(accessToken, threadId) : null;
   await client.modifyThreadLabels(accessToken, threadId, addLabels, removeLabels);
+
+  if (thread?.messages.length) {
+    await db.notification.updateMany({
+      where: {
+        isRead: false,
+        OR: thread.messages.map((message) => ({
+          dedupKey: { startsWith: `NEW_CORRESPONDENCE:gmail-msg-${message.id}:` }
+        }))
+      },
+      data: { isRead: true }
+    });
+  }
 
   await writeAuditLog({
     userId: user.id,
@@ -504,6 +520,7 @@ export async function syncGmailInbox(initiatorUserId?: string | null): Promise<G
   const client = getGmailClient();
 
   let newMessagesCount = 0;
+  let recentMessagesCount = 0;
   let newHistoryId: string | null = connection.lastHistoryId;
 
   const notifyIncomingMessages = async (messageIds: string[]) => {
@@ -521,6 +538,7 @@ export async function syncGmailInbox(initiatorUserId?: string | null): Promise<G
           throw error;
         }
         if (!msg.isUnread || (!msg.labels.includes("INBOX") && !msg.labels.includes("SPAM"))) return;
+        if (Date.now() - msg.receivedAt.getTime() <= 30 * 60 * 1000) recentMessagesCount += 1;
         const isSpam = msg.labels.includes("SPAM");
         await dispatchNotification(db, {
           type: "NEW_CORRESPONDENCE",
@@ -599,6 +617,7 @@ export async function syncGmailInbox(initiatorUserId?: string | null): Promise<G
     connectionId: connection.id,
     emailAddress: connection.emailAddress,
     newMessagesCount,
+    recentMessagesCount,
     historyId: newHistoryId,
     syncedAt: now
   };

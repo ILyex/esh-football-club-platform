@@ -10,6 +10,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { nanoid } from "nanoid";
 import { signLocalDownload } from "@/lib/storage-signing";
+import { db } from "@/lib/db";
 
 async function detectFileType(buffer: Buffer) {
   const { fileTypeFromBuffer } = await import("file-type");
@@ -34,17 +35,20 @@ export function isStorageConfigured(): boolean {
   return Boolean(process.env.STORAGE_PRIVATE_BUCKET?.trim());
 }
 
-/**
- * Allows isolated local storage when explicitly selected or when no S3 bucket
- * is configured. This is required for the self-hosted club package: a
- * missing optional S3 setting must not make profile/media uploads crash the
- * production Server Component.
- */
+/** Private files remain local unless private S3 storage is configured. */
 export function isLocalStorageMode(): boolean {
   const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
   if (driver === "local") return true;
   if (driver === "s3") return false;
   return !isStorageConfigured();
+}
+
+/** Public uploads default to the database, never the host PC's local disk. */
+export function isDatabaseStorageMode(): boolean {
+  const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  if (driver === "database" || driver === "db") return true;
+  if (driver === "local" || driver === "s3") return false;
+  return !isPublicStorageConfigured();
 }
 
 let cachedS3Client: S3Client | null = null;
@@ -118,11 +122,27 @@ export function getLocalPublicFilePath(key: string): string {
   if (!key.startsWith("public/") || key.includes("..")) {
     throw new Error("Invalid storage key: access restricted to public assets.");
   }
-  return resolveStoragePath("public", key);
+  const currentPath = resolveStoragePath("public", key);
+  if (fs.existsSync(currentPath)) return currentPath;
+
+  // Earlier local releases kept uploads beside the app in `.storage`. Newer
+  // Windows releases keep durable uploads under LOCALAPPDATA. Read from the
+  // legacy location when an existing asset has not yet been migrated, so
+  // database URLs saved by older releases continue to work after an update.
+  if (process.env.NODE_ENV === "production" && process.env.LOCALAPPDATA) {
+    const legacyPath = path.resolve(path.join(process.cwd(), ".storage", "public", key));
+    const relative = path.relative(path.resolve(path.join(process.cwd(), ".storage", "public")), legacyPath);
+    if (relative && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative) && fs.existsSync(legacyPath)) {
+      return legacyPath;
+    }
+  }
+
+  return currentPath;
 }
 
 export function isPublicStorageConfigured(): boolean {
-  return process.env.STORAGE_DRIVER?.trim().toLowerCase() !== "local"
+  const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  return driver !== "local" && driver !== "database" && driver !== "db"
     && Boolean(process.env.STORAGE_PUBLIC_BUCKET?.trim());
 }
 
@@ -225,7 +245,7 @@ export function extractPublicStorageKey(urlOrKey: string): string | null {
   return urlOrKey;
 }
 
-/** Uploads to the PUBLIC bucket (or local storage if unconfigured) and returns the resulting public URL. Never used for Document rows. */
+/** Stores public media in S3 when configured, otherwise in the database. */
 export async function uploadPublicFile(params: { key: string; buffer: Buffer; mimeType: string }): Promise<string> {
   if (isPublicStorageConfigured()) {
     try {
@@ -255,12 +275,31 @@ export async function uploadPublicFile(params: { key: string; buffer: Buffer; mi
     }
   }
 
+  if (isDatabaseStorageMode()) {
+    const databaseBytes = Uint8Array.from(params.buffer);
+    await db.publicAsset.upsert({
+      where: { key: params.key },
+      create: {
+        key: params.key,
+        mimeType: params.mimeType,
+        sizeBytes: params.buffer.byteLength,
+        data: databaseBytes
+      },
+      update: {
+        mimeType: params.mimeType,
+        sizeBytes: params.buffer.byteLength,
+        data: databaseBytes
+      }
+    });
+    return `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
+  }
+
   if (!isLocalStorageMode()) {
     throw new StorageConfigurationError("Public storage bucket is not configured.");
   }
 
-  // Local storage mode for public media (works out of the box in development and self-hosted environments)
-  const targetPath = getLocalPublicFilePath(params.key);
+  // Explicit local mode is retained for development and opt-in deployments.
+  const targetPath = resolveStoragePath("public", params.key);
   await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.promises.writeFile(targetPath, params.buffer);
   return `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
@@ -278,7 +317,14 @@ export async function deletePublicFile(urlOrKey: string): Promise<void> {
     return;
   }
 
-  if (!isLocalStorageMode()) {
+  if (isDatabaseStorageMode()) {
+    const deleted = await db.publicAsset.deleteMany({ where: { key } });
+    if (deleted.count > 0) return;
+    // Existing files from releases before database media remain readable and
+    // deletable through the legacy local path during migration.
+  }
+
+  if (!isLocalStorageMode() && !isDatabaseStorageMode()) {
     throw new StorageConfigurationError("Public storage bucket is not configured.");
   }
 
@@ -298,12 +344,50 @@ export async function getPublicFileObject(key: string, range?: string | null): P
   contentRange?: string;
   contentLength?: number;
 }> {
-  if (!isPublicStorageConfigured()) {
-    throw new StorageConfigurationError("Public storage bucket is not configured.");
-  }
   if (!key.startsWith("public/") || key.includes("..")) {
     throw new Error("Invalid storage key: access restricted to public assets.");
   }
+
+  if (isDatabaseStorageMode()) {
+    const asset = await db.publicAsset.findUnique({
+      where: { key },
+      select: { sizeBytes: true }
+    });
+    if (asset) {
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        if (match && (match[1] || match[2]) && asset.sizeBytes > 0) {
+          const start = match[1] ? Number(match[1]) : Math.max(0, asset.sizeBytes - Number(match[2]));
+          const end = match[1] && match[2] ? Number(match[2]) : asset.sizeBytes - 1;
+          if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && start >= 0 && end >= start && start < asset.sizeBytes) {
+            const boundedEnd = Math.min(end, asset.sizeBytes - 1);
+            const length = boundedEnd - start + 1;
+            const [rangeAsset] = process.env.DATABASE_PROVIDER === "mysql"
+              ? await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT SUBSTRING(data, ${start + 1}, ${length}) AS data FROM PublicAsset WHERE \`key\` = ${key}`
+              : await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT substring("data" FROM ${start + 1} FOR ${length}) AS "data" FROM "PublicAsset" WHERE "key" = ${key}`;
+            if (!rangeAsset?.data) throw new Error("Public media range was not found.");
+            const body = Buffer.from(rangeAsset.data);
+            return {
+              body,
+              contentRange: `bytes ${start}-${boundedEnd}/${asset.sizeBytes}`,
+              contentLength: body.byteLength
+            };
+          }
+        }
+      }
+      const fullAsset = await db.publicAsset.findUnique({ where: { key }, select: { data: true } });
+      if (!fullAsset) throw new Error("Public asset was not found.");
+      return { body: Buffer.from(fullAsset.data), contentLength: asset.sizeBytes };
+    }
+
+    // Preserve access to files uploaded before the database migration. New
+    // uploads cannot use this path; it is only a compatibility read fallback.
+    // If absent in the DB, continue to the old on-disk path for migration-era assets.
+  } else if (!isPublicStorageConfigured() && !isLocalStorageMode()) {
+    throw new StorageConfigurationError("Public storage is not configured.");
+  }
+
+  if (isPublicStorageConfigured()) {
   const response = await getS3Client().send(new GetObjectCommand({
     Bucket: PUBLIC_BUCKET,
     Key: key,
@@ -316,6 +400,26 @@ export async function getPublicFileObject(key: string, range?: string | null): P
     contentRange: response.ContentRange,
     contentLength: response.ContentLength
   };
+  }
+
+  if (!isLocalStorageMode() && !isDatabaseStorageMode()) throw new Error("Public asset was not found.");
+  const filePath = getLocalPublicFilePath(key);
+  if (!fs.existsSync(filePath)) throw new Error("Public asset was not found.");
+  const stat = await fs.promises.stat(filePath);
+  const body = await fs.promises.readFile(filePath);
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (match && (match[1] || match[2]) && stat.size > 0) {
+      const start = match[1] ? Number(match[1]) : Math.max(0, stat.size - Number(match[2]));
+      const end = match[1] && match[2] ? Number(match[2]) : stat.size - 1;
+      if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && start >= 0 && end >= start && start < stat.size) {
+        const boundedEnd = Math.min(end, stat.size - 1);
+        const part = body.subarray(start, boundedEnd + 1);
+        return { body: part, contentRange: `bytes ${start}-${boundedEnd}/${stat.size}`, contentLength: part.byteLength };
+      }
+    }
+  }
+  return { body, contentLength: stat.size };
 }
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = [

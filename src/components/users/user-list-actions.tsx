@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Check, Loader2, LogOut, Pencil, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { deleteUserAction, terminateSessionAction } from "@/app/[locale]/(dashboard)/dashboard/users/actions";
 import { userDetailsHref } from "@/lib/user-route";
 
@@ -63,10 +64,12 @@ export function UserListActions({
     try {
       if (confirmation === "delete") await deleteUserAction(userId);
       else await terminateSessionAction(userId);
+      toast.success(confirmation === "delete" ? (locale === "ar" ? "تم الحذف بنجاح" : "Supprimé avec succès") : (locale === "ar" ? "تم إنهاء الجلسة" : "Session terminée"));
       setConfirmation(null);
       router.refresh();
     } catch {
       setError(true);
+      toast.error(locale === "ar" ? "لم يتم الحذف" : "La suppression a échoué");
     } finally {
       setPending(false);
     }

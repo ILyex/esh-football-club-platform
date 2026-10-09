@@ -66,6 +66,7 @@ interface TrainingAttendanceSheetProps {
   players: AttendancePlayerData[];
   canManage: boolean;
   locale: string;
+  printOnly?: boolean;
   session?: TrainingSessionMetadata;
   scannedDocument?: ScannedDocumentInfo | null;
 }
@@ -89,6 +90,7 @@ export function TrainingAttendanceSheet({
   players,
   canManage,
   locale,
+  printOnly = false,
   session,
   scannedDocument
 }: TrainingAttendanceSheetProps) {
@@ -218,6 +220,32 @@ export function TrainingAttendanceSheet({
 
   return (
     <div className="space-y-4">
+      {printOnly ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+              <Printer className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">{isAr ? "قائمة حضور الحصة" : "Feuille de présence"}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{isAr ? "اطبع قائمة اللاعبين للحصة التدريبية." : "Imprimez la liste des joueurs pour la séance."}</p>
+            </div>
+          </div>
+          {session && canManage && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPrintModalOpen(true)}
+              className="shrink-0 border-emerald-600/50 font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300"
+            >
+              <Printer className="h-4 w-4" aria-hidden="true" />
+              <span>{isAr ? "طباعة قائمة الحضور" : "Imprimer la feuille"}</span>
+            </Button>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Feedback banner */}
       {feedback && (
         <div
@@ -372,7 +400,7 @@ export function TrainingAttendanceSheet({
               size="sm"
               onClick={handleSave}
               disabled={isPending}
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1.5"
+              className="h-8 text-xs bg-club-primary hover:bg-club-primary-hover text-white font-medium flex items-center gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
               <span>{isPending ? tCommon("loading") : t("attendance.save")}</span>
@@ -443,6 +471,8 @@ export function TrainingAttendanceSheet({
           );
         })}
       </ul>
+      </>
+      )}
 
       {/* Official Printable Coach Attendance Sheet Modal */}
       {session && (

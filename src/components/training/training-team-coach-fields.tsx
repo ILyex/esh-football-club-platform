@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UsersRound } from "lucide-react";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 
@@ -30,6 +30,7 @@ export function TrainingTeamCoachFields({
   coachHeader: string;
 }) {
   const [teamId, setTeamId] = useState(initialTeamId);
+  useEffect(() => setTeamId(initialTeamId), [initialTeamId]);
   const filteredCoaches = useMemo(
     () => teamId ? coaches.filter((coach) => coach.teamIds.includes(teamId)) : coaches,
     [coaches, teamId]

@@ -6,6 +6,8 @@ import Link from "next/link";
 import {
   Activity,
   Award,
+  CircleDot,
+  CircleX,
   Flame,
   ExternalLink,
   Target,
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { getPlayerDisplayName } from "@/lib/utils";
-import { frenchNationality } from "@/lib/public/locale-text";
+import { localizedNationality } from "@/lib/public/locale-text";
 import { OfficialPlayerAttestationModal } from "./official-player-attestation-modal";
 
 export interface SerializedPlayerOverview {
@@ -213,7 +215,7 @@ export function PlayerOverviewModal({
                       )}
                     </div>
                     <p className="text-xs text-white/80 mt-0.5">
-                      {posLabel} • {catLabel} • {isAr ? player.nationality : frenchNationality(player.nationality)}
+                      {posLabel} • {catLabel} • {localizedNationality(player.nationality, locale)}
                     </p>
                     <div className="flex items-center gap-3 text-[11px] text-white/70 mt-1">
                       <span>{age} {isAr ? "سنة" : "ans"}</span>
@@ -379,12 +381,17 @@ export function PlayerOverviewModal({
                 {player.recentMatchEvents.length > 0 ? (
                   <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
                     {player.recentMatchEvents.map((evt) => {
-                      const isGoal = evt.type === "GOAL";
+                      const isGoal = evt.type === "GOAL" || evt.type === "PENALTY_GOAL";
+                      const isMissedPenalty = evt.type === "PENALTY_MISSED";
                       const isYellow = evt.type === "YELLOW_CARD";
                       const isRed = evt.type === "RED_CARD";
                       const isAssist = evt.type === "ASSIST";
 
-                      const badgeLabel = isGoal
+                      const badgeLabel = evt.type === "PENALTY_GOAL"
+                        ? isAr ? `هدف من ركلة جزاء (دقيقة ${evt.minute}')` : `Penalty marqué (${evt.minute}')`
+                        : isMissedPenalty
+                        ? isAr ? `ركلة جزاء ضائعة (دقيقة ${evt.minute}')` : `Penalty manqué (${evt.minute}')`
+                        : isGoal
                         ? isAr ? `هدف (دقيقة ${evt.minute}')` : `But (${evt.minute}')`
                         : isYellow
                         ? isAr ? `بطاقة صفراء (دقيقة ${evt.minute}')` : `Carton jaune (${evt.minute}')`
@@ -412,7 +419,9 @@ export function PlayerOverviewModal({
 
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold font-mono ${
-                              isGoal
+                              isMissedPenalty
+                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                : isGoal
                                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                                 : isYellow
                                 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
@@ -421,7 +430,9 @@ export function PlayerOverviewModal({
                                 : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
                             }`}
                           >
-                            {isGoal && <Target className="h-3 w-3 shrink-0" />}
+                            {evt.type === "PENALTY_GOAL" && <CircleDot className="h-3 w-3 shrink-0" />}
+                            {evt.type === "GOAL" && <Target className="h-3 w-3 shrink-0" />}
+                            {isMissedPenalty && <CircleX className="h-3 w-3 shrink-0" />}
                             {isYellow && <span className="inline-block w-2.5 h-3.5 rounded-2xs bg-amber-400 border border-amber-500 shadow-2xs shrink-0" />}
                             {isRed && <span className="inline-block w-2.5 h-3.5 rounded-2xs bg-red-500 border border-red-600 shadow-2xs shrink-0" />}
                             {isAssist && <Zap className="h-3 w-3 shrink-0" />}

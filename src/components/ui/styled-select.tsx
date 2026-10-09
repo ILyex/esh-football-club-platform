@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
 
 type Option = { value: string; label: string };
 type SelectTone = "default" | "emerald" | "amber";
@@ -23,7 +24,9 @@ export function StyledSelect({
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(defaultValue);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
+  const placement = useAutoPopoverPlacement(open, ref, panelRef, 320);
   const toneStyles = {
     default: {
       button: "border-border hover:border-club-primary/60 focus:ring-club-primary/25",
@@ -71,7 +74,7 @@ export function StyledSelect({
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div role="listbox" className={cn("absolute inset-x-0 top-[calc(100%+0.35rem)] z-50 overflow-hidden rounded-lg border bg-card p-1 shadow-xl shadow-black/25", toneStyles.menu)}>
+        <div ref={panelRef} role="listbox" style={popoverPlacementStyle(placement, "0.35rem")} className={cn("absolute inset-x-0 z-50 overflow-y-auto overscroll-contain rounded-lg border bg-card p-1 shadow-xl shadow-black/25", toneStyles.menu)}>
           {options.map((option) => {
             const active = option.value === value;
             return (
@@ -85,7 +88,7 @@ export function StyledSelect({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-foreground transition-colors",
+                  "flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-sm text-foreground transition-colors",
                   active ? toneStyles.active : "hover:bg-muted"
                 )}
               >

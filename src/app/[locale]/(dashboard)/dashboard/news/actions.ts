@@ -111,7 +111,9 @@ export async function updateNewsAction(newsId: string, formData: FormData) {
       status: parsed.status,
       featuredImageUrl: newFeaturedImageUrl,
       imageUrls: combinedImageUrls,
-      publishedAt: parsed.status === "PUBLISHED" ? (before.publishedAt ?? new Date()) : before.publishedAt,
+      // Publishing is an explicit action: always stamp the current time so a
+      // stale/future date from an earlier schedule cannot hide the article.
+      publishedAt: parsed.status === "PUBLISHED" ? new Date() : null,
       scheduledFor: parsed.status === "SCHEDULED" ? parsed.scheduledFor : null,
       translations: {
         upsert: [
@@ -145,7 +147,7 @@ export async function setNewsStatusAction(newsId: string, status: "PUBLISHED" | 
 
   const news = await db.news.update({
     where: { id: newsId },
-    data: { status, publishedAt: status === "PUBLISHED" ? (before.publishedAt ?? new Date()) : before.publishedAt }
+    data: { status, publishedAt: status === "PUBLISHED" ? new Date() : null }
   });
 
   await writeAuditLog({ userId: user.id, action: `news.${status.toLowerCase()}`, entityType: "News", entityId: news.id });

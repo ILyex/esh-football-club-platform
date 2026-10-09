@@ -34,7 +34,7 @@ export default async function NewMeetingMinutePage({ params, searchParams }: { p
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <header className="text-center">
-        <h1 className="inline-flex items-center justify-center gap-2 text-xl font-bold tracking-tight text-foreground">
+        <h1 className="inline-flex items-center justify-center gap-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
           <FileText className="h-5 w-5 shrink-0 text-club-primary" aria-hidden="true" />
           {t("addMeeting")}
         </h1>

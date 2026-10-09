@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import { InventoryPreviewModal } from "@/components/inventory/inventory-preview-modal";
 import { deleteInventoryItemAction } from "./actions";
-import { Package, Plus, Search, Shirt, CircleDot, AlertTriangle } from "lucide-react";
+import { Package, Plus, Search, Shirt, CircleDot, AlertTriangle, Trash2 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 
 const CONDITION_TONE: Record<string, "success" | "neutral" | "warning" | "danger"> = {
@@ -280,8 +280,9 @@ export default async function InventoryListPage({
                       </Link>
                       {canManage && (
                         <ConfirmDialog onConfirm={remove}>
-                          <button type="button" className="text-xs text-destructive hover:underline">
-                            {tCommon("delete")}
+                          <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white">
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{tCommon("delete")}</span>
                           </button>
                         </ConfirmDialog>
                       )}

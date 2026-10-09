@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { TeamCategory } from "@prisma/client";
-import { Users, Shield, User } from "lucide-react";
+import { StaffRole, TeamCategory } from "@prisma/client";
+import { Users, UserRound, CalendarDays, UsersRound } from "lucide-react";
 import { getPublicTeams, getPublicTeamByCategory } from "@/lib/public/teams";
-import { PlayerCard } from "@/components/public/player-card";
+import { PositionGroupsCarousel } from "@/components/public/position-groups-carousel";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function TeamCategoryPage({
   params
@@ -34,6 +35,7 @@ export default async function TeamCategoryPage({
 
   const { playersByPosition, staff } = teamDetail;
   const categorySlug = rawCategory.toLowerCase();
+  const categoryDisplayName = tTeams(`categories.${teamDetail.category}` as any) || teamDetail.category;
 
   const positionGroups = [
     {
@@ -67,6 +69,9 @@ export default async function TeamCategoryPage({
     yearsOld: tPublic("player.years"),
     viewProfile: tPublic("player.profile")
   };
+  const staffRoleLabels = Object.fromEntries(
+    Object.values(StaffRole).map((role) => [role, tStaff(`roles.${role}` as any)])
+  );
 
   const categoryImages: Record<string, string> = {
     senior: "/branding/teams/team-senior.png",
@@ -77,137 +82,96 @@ export default async function TeamCategoryPage({
   const catImg = categoryImages[categorySlug];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
       {/* Category Switcher Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border/80 pb-6">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/60 p-2 shadow-xs">
         {allTeams.map((t) => {
           const isActive = t.category === categoryUpper;
           return (
             <Link
               key={t.id}
               href={`/${locale}/team/${t.category.toLowerCase()}`}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+              className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
                 isActive
-                  ? "bg-club-primary text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  ? "border-club-primary bg-club-primary text-white shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:border-club-primary/50 hover:text-foreground"
               }`}
             >
-              {locale === "ar" ? t.name : frenchPublicText(t.name, tTeams(`categories.${t.category}` as any))}
+              <UsersRound className="me-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="sm:hidden">
+                {t.category === "SENIOR" ? (locale === "ar" ? "الأكابر" : "Senior") : t.category}
+              </span>
+              <span className="hidden sm:inline">
+                {tTeams(`categories.${t.category}` as any) || t.category}
+              </span>
             </Link>
           );
         })}
       </div>
 
+      <PublicPageHeading
+        locale={locale}
+        backHref={`/${locale}/team`}
+        backLabel={locale === "ar" ? "كل الفئات" : "Toutes les catégories"}
+        icon={<Users />}
+        eyebrow={locale === "ar" ? "فئة النادي" : "Catégorie du club"}
+        title={categoryDisplayName}
+        description={locale === "ar" ? teamDetail.description : frenchPublicText(teamDetail.description, "")}
+        className="mt-6"
+      />
+
       {/* Category Banner Hero */}
       {catImg && (
-        <div className="mt-6 relative aspect-[1024/280] max-h-56 w-full overflow-hidden rounded-2xl border border-border/80 shadow-md">
+        <div className="group relative mx-auto mt-6 aspect-[2/1] w-full max-w-5xl overflow-hidden rounded-3xl border border-border/80 shadow-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={catImg}
-            alt={teamDetail.name}
-            className="h-full w-full object-cover"
+            alt={categoryDisplayName}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
           />
         </div>
       )}
 
       {/* Team Header */}
-      <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-club-primary">
-            <Users className="h-4 w-4" />
-            {tTeams(`categories.${teamDetail.category}` as any) || teamDetail.category}
-          </span>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-            {locale === "ar" ? teamDetail.name : frenchPublicText(teamDetail.name, tTeams(`categories.${teamDetail.category}` as any))}
-          </h1>
-          {(locale === "ar" ? teamDetail.description : frenchPublicText(teamDetail.description, "")) && (
-            <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-              {locale === "ar" ? teamDetail.description : frenchPublicText(teamDetail.description, "")}
-            </p>
+      <div className="mt-4 grid gap-2.5 rounded-xl border border-border bg-card p-2.5 shadow-sm sm:mt-6 sm:gap-5 sm:rounded-2xl sm:p-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-2">
+          <div className="rounded-xl border border-club-primary/15 bg-gradient-to-b from-club-primary/10 to-muted/20 px-2.5 py-2 text-center shadow-xs sm:rounded-xl sm:px-4 sm:py-3">
+            <span className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-club-primary/15 text-club-primary sm:h-7 sm:w-7">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </span>
+            <p className="text-xl font-black leading-none text-foreground sm:text-xl">{teamDetail.totalPlayers}</p>
+            <p className="mt-1 text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">{locale === "ar" ? "اللاعبون" : "Joueurs"}</p>
+          </div>
+          <div className="rounded-xl border border-blue-500/15 bg-gradient-to-b from-blue-500/10 to-muted/20 px-2.5 py-2 text-center shadow-xs sm:rounded-xl sm:px-4 sm:py-3">
+            <span className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 sm:h-7 sm:w-7">
+              <UserRound className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </span>
+            <p className="text-xl font-black leading-none text-foreground sm:text-xl">{staff.length}</p>
+            <p className="mt-1 text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">{locale === "ar" ? "الطاقم" : "Staff"}</p>
+          </div>
+          {(teamDetail.birthYearFrom != null || teamDetail.birthYearTo != null) && (
+            <div className="hidden rounded-xl border border-border bg-muted/20 px-4 py-3 text-center sm:block">
+            <CalendarDays className="mx-auto mb-1 h-4 w-4 text-club-primary" />
+              <p className="text-xl font-black text-foreground">
+                {teamDetail.birthYearFrom ?? "—"}{teamDetail.birthYearTo != null ? `–${teamDetail.birthYearTo}` : ""}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{locale === "ar" ? "سنوات الميلاد" : "Années de naissance"}</p>
+            </div>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3 text-center sm:text-end">
-          <p className="text-2xl font-bold text-club-primary">{teamDetail.totalPlayers}</p>
-          <p className="text-xs font-medium text-muted-foreground">
-            {locale === "ar" ? "إجمالي اللاعبين" : "Joueurs dans l'effectif"}
-          </p>
-        </div>
       </div>
 
-      {/* Technical Staff Section (if any active staff) */}
-      {staff.length > 0 && (
-        <section className="mt-12 space-y-4">
-          <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Shield className="h-4 w-4 text-club-primary" />
-            <span>{locale === "ar" ? "الطاقم الفني والإداري" : "Staff Technique & Administratif"}</span>
-          </h2>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {staff.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
-                  {member.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={member.photoUrl}
-                      alt={`${member.firstName} ${member.lastName}`}
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-6 w-6" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    {locale === "ar"
-                      ? `${member.firstName} ${member.lastName}`
-                      : frenchPublicText(`${member.firstName} ${member.lastName}`, "Membre du staff")}
-                  </h3>
-                  <p className="text-xs font-semibold text-club-primary">
-                    {tStaff(`roles.${member.role}` as any) || (locale === "ar" ? member.role : frenchPublicText(member.role, "Staff technique"))}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Players By Position Groups */}
-      <div className="mt-12 space-y-12">
-        {positionGroups.map((group) => (
-          <section key={group.key} className="space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <h2 className="text-xl font-bold text-foreground">{group.title}</h2>
-              <span className="text-xs font-semibold text-muted-foreground">
-                {group.players.length} {locale === "ar" ? "لاعب" : "joueurs"}
-              </span>
-            </div>
-
-            {group.players.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {group.players.map((player) => (
-                  <PlayerCard
-                    key={player.id}
-                    player={player}
-                    locale={locale}
-                    categorySlug={categorySlug}
-                    positionLabel={group.positionLabel}
-                    labels={playerCardLabels}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="py-4 text-xs italic text-muted-foreground">
-                {tPublic("teams.noPlayers")}
-              </p>
-            )}
-          </section>
-        ))}
-      </div>
+      <PositionGroupsCarousel
+        groups={positionGroups}
+        locale={locale}
+        categorySlug={categorySlug}
+        labels={playerCardLabels}
+        emptyLabel={tPublic("teams.noPlayers")}
+        playerLabel={locale === "ar" ? "لاعب" : "joueurs"}
+        staff={staff}
+        staffTitle={locale === "ar" ? "الطاقم الفني" : "Staff Technique"}
+        staffRoleLabels={staffRoleLabels}
+      />
     </div>
   );
 }
