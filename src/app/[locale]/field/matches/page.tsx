@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { CalendarDays, CalendarClock, Check, CheckCircle2, Clock3, ExternalLink, Flag, Globe2, Layers3, Pencil, Play, Radio, RotateCcw, Save, Trash2, Trophy } from "lucide-react";
 import { db } from "@/lib/db";
 import { hasPermission, requirePagePermission } from "@/lib/permissions";
@@ -13,6 +14,11 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
 
 const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15";
+
+export const metadata: Metadata = {
+  title: "إدارة المباريات الميدانية",
+  robots: { index: false, follow: false, noarchive: true }
+};
 
 function SelectField({ label, name, defaultValue, options, locale }: { label: string; name: string; defaultValue: string; options: Array<{ value: string; label: string }>; locale: string }) {
   return <label className="block min-w-0 text-[10px] font-semibold text-muted-foreground">
