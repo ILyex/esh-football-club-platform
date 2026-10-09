@@ -44,6 +44,19 @@ export default function LoginPage() {
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
   const publicSiteUrl = getPublicSiteUrl(locale);
 
+  // On phones, a login page may have been opened from a protected route.
+  // Give the browser back button a local history entry so it can return to
+  // the public site instead of bouncing through the protected route/login.
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+
+    window.history.pushState({ ...window.history.state, loginBackGuard: true }, "", window.location.href);
+    const handlePopState = () => window.location.replace(publicSiteUrl);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [publicSiteUrl]);
+
   return (
     <div className="min-h-screen w-full flex flex-col justify-between overflow-x-hidden bg-background text-foreground selection:bg-club-primary selection:text-white">
 
