@@ -47,7 +47,7 @@ export function PlayerCard({
         {player.photoUrl ? (
           <SafeImage
             src={player.photoUrl}
-            fallbackSrc="/branding/esh-logo-128.png"
+            fallbackSrc="/branding/person-placeholder.svg"
             alt={`${player.firstName} ${player.lastName}`}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />

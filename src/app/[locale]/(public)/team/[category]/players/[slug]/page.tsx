@@ -59,7 +59,7 @@ export default async function PublicPlayerProfilePage({
             {player.photoUrl ? (
               <SafeImage
                 src={player.photoUrl}
-                fallbackSrc="/branding/esh-logo-256.png"
+                fallbackSrc="/branding/person-placeholder.svg"
                 alt={playerName}
                 className="h-full w-full object-cover"
               />

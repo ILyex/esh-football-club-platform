@@ -128,7 +128,7 @@ export function PositionGroupsCarousel({
             {activeGroup.staff.map((member) => (
               <div key={member.id} className="group flex min-w-0 items-center gap-2 rounded-xl border border-border bg-background/40 p-2 transition-all hover:-translate-y-0.5 hover:border-club-primary/40 hover:shadow-md sm:gap-3 sm:rounded-2xl sm:p-4">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/70 text-muted-foreground sm:h-12 sm:w-12">
-                  {member.photoUrl ? <SafeImage src={member.photoUrl} fallbackSrc="/branding/esh-logo-64.png" alt={`${member.firstName} ${member.lastName}`} className="h-full w-full object-cover" /> : <UserRound className="h-4 w-4 sm:h-6 sm:w-6" />}
+                  {member.photoUrl ? <SafeImage src={member.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={`${member.firstName} ${member.lastName}`} className="h-full w-full object-cover" /> : <UserRound className="h-4 w-4 sm:h-6 sm:w-6" />}
                 </div>
                 <div className="min-w-0">
                   <h3 className="truncate text-[11px] font-bold text-foreground group-hover:text-club-primary sm:text-sm">{member.firstName} {member.lastName}</h3>

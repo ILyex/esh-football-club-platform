@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { SafeImage } from "@/components/shared/safe-image";
 import { audioEngine } from "@/lib/testing/audio-engine";
 import {
   deriveConductorState,
@@ -1018,8 +1019,7 @@ export function YoYoConductor({
                     <div className="relative h-10 w-10 shrink-0 overflow-visible">
                       <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xs font-bold text-muted-foreground">
                         {runner.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={runner.photoUrl} alt="" className="h-full w-full object-cover" />
+                          <SafeImage src={runner.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={`${runner.firstName} ${runner.lastName}`} className="h-full w-full object-cover" />
                         ) : `${runner.firstName.charAt(0)}${runner.lastName.charAt(0)}`}
                       </div>
                       {runner.shirtNumber != null && <span className="absolute -bottom-1 -end-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border border-card bg-club-primary px-1 text-[8px] font-black leading-none text-white shadow-sm ring-1 ring-club-primary/30">{runner.shirtNumber}</span>}

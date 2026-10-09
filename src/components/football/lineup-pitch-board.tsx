@@ -4,6 +4,7 @@ import { useMemo, useState, type DragEvent } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { SafeImage } from "@/components/shared/safe-image";
 
 export interface PitchPlayer {
   playerId: string;
@@ -169,10 +170,7 @@ export function TacticalPitch({
           const contents = <>
             <span className="relative flex h-12 w-full items-center justify-center sm:h-[3.7rem]">
               {player ? <span className="absolute bottom-0 z-10 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-club-primary to-zinc-800 text-[11px] font-black text-white shadow-lg ring-2 ring-black/50 sm:h-11 sm:w-11">
-                {player.photoUrl ? <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={player.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover object-center" />
-                </> : displayName?.trim().charAt(0) || "?"}
+                {player.photoUrl ? <SafeImage src={player.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={displayName ?? ""} loading="lazy" className="h-full w-full object-cover object-center" /> : displayName?.trim().charAt(0) || "?"}
               </span> : <span className="absolute bottom-1 z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-zinc-900 bg-white text-zinc-950 shadow-lg transition-transform group-hover/slot:scale-110 sm:h-10 sm:w-10"><Plus className="h-4 w-4" strokeWidth={2.8} aria-hidden="true" /></span>}
               {player?.shirtNumber != null && <span className="absolute bottom-0 end-[5%] z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-club-primary px-1 font-mono text-[8px] font-black text-white shadow">{player.shirtNumber}</span>}
               {player?.isCaptain && <span className="absolute start-[7%] top-0 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-zinc-950">C</span>}

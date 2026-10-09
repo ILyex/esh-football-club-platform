@@ -338,47 +338,56 @@ export async function deletePublicFile(urlOrKey: string): Promise<void> {
   }
 }
 
-/** Read a public object from the configured bucket, optionally using an HTTP byte range. */
-export async function getPublicFileObject(key: string, range?: string | null): Promise<{
+type PublicFileObject = {
   body: Buffer;
   contentRange?: string;
   contentLength?: number;
-}> {
+};
+
+/** Read a public media object retained in the database during storage migrations. */
+async function getDatabasePublicFileObject(key: string, range?: string | null): Promise<PublicFileObject | null> {
+  const asset = await db.publicAsset.findUnique({
+    where: { key },
+    select: { sizeBytes: true }
+  });
+  if (!asset) return null;
+
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (match && (match[1] || match[2]) && asset.sizeBytes > 0) {
+      const start = match[1] ? Number(match[1]) : Math.max(0, asset.sizeBytes - Number(match[2]));
+      const end = match[1] && match[2] ? Number(match[2]) : asset.sizeBytes - 1;
+      if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && start >= 0 && end >= start && start < asset.sizeBytes) {
+        const boundedEnd = Math.min(end, asset.sizeBytes - 1);
+        const length = boundedEnd - start + 1;
+        const [rangeAsset] = process.env.DATABASE_PROVIDER === "mysql"
+          ? await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT SUBSTRING(data, ${start + 1}, ${length}) AS data FROM PublicAsset WHERE \`key\` = ${key}`
+          : await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT substring("data" FROM ${start + 1} FOR ${length}) AS "data" FROM "PublicAsset" WHERE "key" = ${key}`;
+        if (!rangeAsset?.data) throw new Error("Public media range was not found.");
+        const body = Buffer.from(rangeAsset.data);
+        return {
+          body,
+          contentRange: `bytes ${start}-${boundedEnd}/${asset.sizeBytes}`,
+          contentLength: body.byteLength
+        };
+      }
+    }
+  }
+
+  const fullAsset = await db.publicAsset.findUnique({ where: { key }, select: { data: true } });
+  if (!fullAsset) throw new Error("Public asset was not found.");
+  return { body: Buffer.from(fullAsset.data), contentLength: asset.sizeBytes };
+}
+
+/** Read a public object from the configured bucket, optionally using an HTTP byte range. */
+export async function getPublicFileObject(key: string, range?: string | null): Promise<PublicFileObject> {
   if (!key.startsWith("public/") || key.includes("..")) {
     throw new Error("Invalid storage key: access restricted to public assets.");
   }
 
   if (isDatabaseStorageMode()) {
-    const asset = await db.publicAsset.findUnique({
-      where: { key },
-      select: { sizeBytes: true }
-    });
-    if (asset) {
-      if (range) {
-        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-        if (match && (match[1] || match[2]) && asset.sizeBytes > 0) {
-          const start = match[1] ? Number(match[1]) : Math.max(0, asset.sizeBytes - Number(match[2]));
-          const end = match[1] && match[2] ? Number(match[2]) : asset.sizeBytes - 1;
-          if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && start >= 0 && end >= start && start < asset.sizeBytes) {
-            const boundedEnd = Math.min(end, asset.sizeBytes - 1);
-            const length = boundedEnd - start + 1;
-            const [rangeAsset] = process.env.DATABASE_PROVIDER === "mysql"
-              ? await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT SUBSTRING(data, ${start + 1}, ${length}) AS data FROM PublicAsset WHERE \`key\` = ${key}`
-              : await db.$queryRaw<Array<{ data: Uint8Array }>>`SELECT substring("data" FROM ${start + 1} FOR ${length}) AS "data" FROM "PublicAsset" WHERE "key" = ${key}`;
-            if (!rangeAsset?.data) throw new Error("Public media range was not found.");
-            const body = Buffer.from(rangeAsset.data);
-            return {
-              body,
-              contentRange: `bytes ${start}-${boundedEnd}/${asset.sizeBytes}`,
-              contentLength: body.byteLength
-            };
-          }
-        }
-      }
-      const fullAsset = await db.publicAsset.findUnique({ where: { key }, select: { data: true } });
-      if (!fullAsset) throw new Error("Public asset was not found.");
-      return { body: Buffer.from(fullAsset.data), contentLength: asset.sizeBytes };
-    }
+    const asset = await getDatabasePublicFileObject(key, range);
+    if (asset) return asset;
 
     // Preserve access to files uploaded before the database migration. New
     // uploads cannot use this path; it is only a compatibility read fallback.
@@ -388,18 +397,26 @@ export async function getPublicFileObject(key: string, range?: string | null): P
   }
 
   if (isPublicStorageConfigured()) {
-  const response = await getS3Client().send(new GetObjectCommand({
-    Bucket: PUBLIC_BUCKET,
-    Key: key,
-    Range: range || undefined
-  }));
-  const byteArray = await response.Body?.transformToByteArray();
-  if (!byteArray) throw new Error("Public object was not found.");
-  return {
-    body: Buffer.from(byteArray),
-    contentRange: response.ContentRange,
-    contentLength: response.ContentLength
-  };
+    try {
+      const response = await getS3Client().send(new GetObjectCommand({
+        Bucket: PUBLIC_BUCKET,
+        Key: key,
+        Range: range || undefined
+      }));
+      const byteArray = await response.Body?.transformToByteArray();
+      if (byteArray) {
+        return {
+          body: Buffer.from(byteArray),
+          contentRange: response.ContentRange,
+          contentLength: response.ContentLength
+        };
+      }
+    } catch {
+      // Public uploads created before the S3 migration may still live in the DB.
+    }
+
+    const migratedAsset = await getDatabasePublicFileObject(key, range);
+    if (migratedAsset) return migratedAsset;
   }
 
   if (!isLocalStorageMode() && !isDatabaseStorageMode()) throw new Error("Public asset was not found.");

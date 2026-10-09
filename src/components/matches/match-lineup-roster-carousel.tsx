@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 import { localizedFootballPosition } from "@/lib/public/locale-text";
+import { SafeImage } from "@/components/shared/safe-image";
 
 const PAGE_SIZE = 8;
 
@@ -92,8 +93,7 @@ export function MatchLineupRosterCarousel({
               <div className="relative mb-2">
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-club-primary/25 bg-muted/60 text-muted-foreground shadow-sm sm:h-[72px] sm:w-[72px]">
                   {player.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={player.photoUrl} alt={fullName} loading="lazy" className="h-full w-full object-cover" />
+                    <SafeImage src={player.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={fullName} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center bg-club-primary/5 text-sm font-bold text-club-primary" aria-label={fullName}>
                       {player.firstName.slice(0, 1)}{player.lastName.slice(0, 1)}

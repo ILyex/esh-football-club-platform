@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { TacticalPitch } from "@/components/football/lineup-pitch-board";
 import { Badge } from "@/components/ui/badge";
 import { frenchPublicPersonName, localizedFootballPosition } from "@/lib/public/locale-text";
+import { SafeImage } from "@/components/shared/safe-image";
 
 type RosterPlayer = {
   id: string;
@@ -357,8 +358,7 @@ export function MatchLineupWorkspace({
                 <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-visible rounded-full bg-muted text-xs font-bold text-muted-foreground">
                   <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted sm:border">
                     {player.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={player.photoUrl} alt="" className="h-full w-full object-cover" />
+                      <SafeImage src={player.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={`${player.firstName} ${player.lastName}`} className="h-full w-full object-cover" />
                     ) : `${displayName.charAt(0)}${displayName.split(/\s+/u).at(-1)?.charAt(0) ?? ""}`}
                   </span>
                   {player.shirtNumber != null && <span className="absolute -bottom-1 -end-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border border-card bg-club-primary px-1 text-[9px] font-black leading-none text-white shadow-sm ring-1 ring-club-primary/30">{player.shirtNumber}</span>}
@@ -517,8 +517,7 @@ export function MatchLineupWorkspace({
           >
             <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-muted">
               {draggedPlayer.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={draggedPlayer.photoUrl} alt="" className="h-full w-full object-cover" />
+                <SafeImage src={draggedPlayer.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={`${draggedPlayer.firstName} ${draggedPlayer.lastName}`} className="h-full w-full object-cover" />
               ) : playerDisplayName(draggedPlayer, locale).charAt(0)}
             </span>
             <span className="max-w-36 truncate">{playerDisplayName(draggedPlayer, locale)}</span>
@@ -546,8 +545,7 @@ function PlayerToken({ player, locale, canEdit, busy, onDragStart, onRemove, onS
       <button type="button" draggable={canEdit} aria-pressed={selected} onClick={(event) => { event.stopPropagation(); if (canEdit) onSelect(); }} onDragStart={onDragStart} title={`${playerDisplayName(player, locale)} — ${localizedFootballPosition(player.position, locale)}`} className={`touch-manipulation inline-flex min-h-11 min-w-0 items-center gap-1.5 text-start ${canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}>
         <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[9px] font-bold text-muted-foreground ${compact ? "h-7 w-7" : "h-9 w-9"}`}>
           {player.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={player.photoUrl} alt="" className="h-full w-full object-cover" />
+            <SafeImage src={player.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={`${player.firstName} ${player.lastName}`} className="h-full w-full object-cover" />
           ) : `${playerDisplayName(player, locale).charAt(0)}${playerDisplayName(player, locale).split(/\s+/u).at(-1)?.charAt(0) ?? ""}`}
         </span>
         <span className="max-w-32 truncate text-[10px] font-semibold">{playerDisplayName(player, locale)}</span>

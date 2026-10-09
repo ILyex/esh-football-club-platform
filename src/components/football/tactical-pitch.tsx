@@ -3,6 +3,7 @@
 import { useMemo, useState, type DragEvent } from "react";
 import { cn } from "@/lib/utils";
 import { frenchPublicText, localizedFootballPosition } from "@/lib/public/locale-text";
+import { SafeImage } from "@/components/shared/safe-image";
 
 export interface PitchPlayer {
   playerId: string;
@@ -212,8 +213,7 @@ export function TacticalPitch({
                 selectedPlayerId === p.playerId && "ring-4 ring-amber-300"
               )}>
                 {p.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.photoUrl} alt={displayName} loading="lazy" className="h-full w-full object-cover" />
+                  <SafeImage src={p.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={displayName} loading="lazy" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-800 to-zinc-900 text-sm font-bold text-emerald-100">
                     {displayName.trim().charAt(0) || "?"}

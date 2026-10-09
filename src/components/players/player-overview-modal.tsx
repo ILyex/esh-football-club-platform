@@ -18,6 +18,7 @@ import {
 import { getPlayerDisplayName } from "@/lib/utils";
 import { localizedNationality } from "@/lib/public/locale-text";
 import { OfficialPlayerAttestationModal } from "./official-player-attestation-modal";
+import { SafeImage } from "@/components/shared/safe-image";
 
 export interface SerializedPlayerOverview {
   id: string;
@@ -176,9 +177,9 @@ export function PlayerOverviewModal({
                 <div className="flex items-center gap-4">
                   <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/20 bg-black/20 shadow-lg">
                     {player.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <SafeImage
                         src={player.photoUrl}
+                        fallbackSrc="/branding/person-placeholder.svg"
                         alt={`${player.firstName} ${player.lastName}`}
                         className="h-full w-full object-cover"
                       />

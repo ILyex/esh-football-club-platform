@@ -116,7 +116,7 @@ function PositionCarousel({
                   >
                     <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm font-bold text-foreground sm:h-10 sm:w-10">
                       {player.photoUrl ? (
-                        <SafeImage src={player.photoUrl} fallbackSrc="/branding/esh-logo-64.png" alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                        <SafeImage src={player.photoUrl} fallbackSrc="/branding/person-placeholder.svg" alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                       ) : name.trim().charAt(0)}
                     </span>
                     <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 px-1.5 font-mono text-xs font-black text-club-primary">
