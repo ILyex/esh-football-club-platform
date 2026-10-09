@@ -7,9 +7,11 @@ import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Settings2, Trash2 } from "lucide-react";
 import { MatchDocumentPreviewButton } from "@/components/matches/match-document-preview-button";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { deleteMatchAction } from "./actions";
 import { resolveMatchResult } from "@/lib/matches/result";
 import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
@@ -28,6 +30,7 @@ export default async function MatchesListPage({
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
   const canCreate = hasPermission(user, "matches.create");
+  const canDelete = hasPermission(user, "matches.delete");
   await promoteDueMatchesToLive();
 
   const pageSize = 20;
@@ -196,9 +199,35 @@ export default async function MatchesListPage({
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <Link href={`/${locale}/dashboard/matches/${m.id}`} className="text-sm text-club-primary underline">
-                      {t("manage")}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/${locale}/dashboard/matches/${m.id}`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:border-club-primary/40 hover:bg-club-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
+                        aria-label={t("manage")}
+                        title={t("manage")}
+                      >
+                        <Settings2 className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                      {canDelete && (
+                        <ConfirmDialog
+                          onConfirm={() => deleteMatchAction(m.id)}
+                          title={locale === "ar" ? "حذف المباراة؟" : "Supprimer le match ?"}
+                          body={locale === "ar" ? `سيتم حذف مباراة ${matchTitle} نهائياً.` : `Le match ${matchTitle} sera supprimé définitivement.`}
+                          successMessage={locale === "ar" ? "تم حذف المباراة بنجاح" : "Match supprimé avec succès"}
+                          errorMessage={locale === "ar" ? "تعذر حذف المباراة" : "Impossible de supprimer le match"}
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-9 w-9 rounded-lg border border-border p-0 text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
+                            title={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </ConfirmDialog>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
