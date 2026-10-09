@@ -91,8 +91,8 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
 
   return <main className="min-h-screen bg-muted/30 px-3 py-4 text-foreground sm:px-6 sm:py-6" dir={isAr ? "rtl" : "ltr"}>
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <header className="relative rounded-2xl border border-border bg-card shadow-xs">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-px top-px h-1 rounded-t-[calc(1rem-1px)] bg-club-primary" />
+      <header className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-club-primary" />
         <div className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
