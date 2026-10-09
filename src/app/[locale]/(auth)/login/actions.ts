@@ -2,6 +2,8 @@
 
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { sanitizeReturnTo } from "@/lib/team-switcher-security";
 import { loginSchema } from "@/lib/validations/auth";
 
@@ -12,6 +14,7 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
   const password = String(formData.get("password") ?? "");
   const rawCallbackUrl = String(formData.get("callbackUrl") ?? "/dashboard");
   const callbackUrl = sanitizeReturnTo(rawCallbackUrl, "/dashboard");
+  const rememberMe = formData.get("rememberMe") === "on";
 
   const parsed = loginSchema.safeParse({ email, password });
   if (!parsed.success) {
@@ -20,7 +23,28 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
   }
 
   try {
-    await signIn("credentials", { email, password, redirectTo: callbackUrl });
+    const redirectUrl = await signIn("credentials", {
+      email,
+      password,
+      rememberMe: String(rememberMe),
+      redirect: false,
+      redirectTo: callbackUrl
+    });
+
+    if (!rememberMe) {
+      const cookieStore = await cookies();
+      for (const cookie of cookieStore.getAll()) {
+        if (!/^(?:__Secure-)?authjs\.session-token(?:\.\d+)?$/.test(cookie.name)) continue;
+        cookieStore.set(cookie.name, cookie.value, {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: cookie.name.startsWith("__Secure-")
+        });
+      }
+    }
+
+    redirect(redirectUrl);
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.type === "CredentialsSignin") {

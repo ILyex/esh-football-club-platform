@@ -22,6 +22,7 @@ export const { auth: edgeAuth } = NextAuth({
         return session;
       }
       session.user.id = token.userId as string;
+      (session as any).rememberMe = token.rememberMe === true;
       (session.user as any).roleKey = token.roleKey;
       (session.user as any).roleName = token.roleName;
       const permissions = Array.isArray(token.permissions)

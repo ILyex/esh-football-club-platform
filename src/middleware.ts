@@ -11,7 +11,7 @@ const intlMiddleware = createMiddleware(routing);
 // document, etc.) happen server-side in the Server Action / Route Handler
 // itself via requirePermission() — see src/lib/permissions.ts and spec
 // section 41. Never rely on middleware alone for authorization.
-export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
+function handleRequest(req: NextRequest & { auth?: unknown }) {
   const { pathname } = req.nextUrl;
   const publicSiteOnly = process.env.PUBLIC_SITE_ONLY === "true" || process.env.PUBLIC_SITE_ONLY === "1";
 
@@ -66,7 +66,43 @@ export default edgeAuth((req: NextRequest & { auth?: unknown }) => {
   }
 
   return intlMiddleware(req);
+}
+
+const rememberCookieModeHeader = "x-internal-auth-cookie-mode";
+const authMiddleware = edgeAuth((req: NextRequest & { auth?: unknown }) => {
+  const response = handleRequest(req);
+  const session = req.auth as { user?: { id?: unknown } | null; invalid?: unknown; rememberMe?: unknown } | null;
+  const hasValidSession = Boolean(session?.user) && typeof session?.user?.id === "string" && session.user.id.length > 0 && session.invalid !== true;
+  response.headers.set(rememberCookieModeHeader, hasValidSession ? (session?.rememberMe === true ? "persistent" : "session") : "none");
+  return response;
 }) as any;
+
+export default async function middleware(req: NextRequest) {
+  const response = await authMiddleware(req) as NextResponse;
+  const cookieMode = response.headers.get(rememberCookieModeHeader);
+  response.headers.delete(rememberCookieModeHeader);
+
+  // Auth.js refreshes JWT cookies on every request and normally adds an
+  // expiry date. Keep unremembered logins as browser-session cookies even
+  // after those refreshes, while preserving the 30-day cookie when requested.
+  const isSignOutRequest = /\/api\/auth\/signout\/?$/i.test(req.nextUrl.pathname);
+  if (cookieMode === "session" && !isSignOutRequest) {
+    const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+    const setCookies = headers.getSetCookie?.() ?? [];
+    if (setCookies.length > 0) {
+      headers.delete("set-cookie");
+      for (const setCookie of setCookies) {
+        const sessionCookie = setCookie.match(/^(?:__Secure-)?authjs\.session-token(?:\.\d+)?=([^;]*)/i);
+        const isSessionCookie = Boolean(sessionCookie?.[1]) && !/;\s*max-age=0(?:;|$)/i.test(setCookie);
+        headers.append("set-cookie", isSessionCookie
+          ? setCookie.replace(/;\s*(?:expires|max-age)=[^;]*/gi, "")
+          : setCookie);
+      }
+    }
+  }
+
+  return response;
+}
 
 export const config = {
   matcher: ["/api/:path*", "/((?!trpc|_next|_vercel|.*\\..*).*)"]

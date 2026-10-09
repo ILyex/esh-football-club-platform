@@ -31,9 +31,9 @@ import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   trustHost: true,
-  // Keep administrators signed in across normal working periods. User status
-  // and tokenVersion are still checked on every server request for revocation.
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 }, // 30 days
+  // The JWT remains valid for up to 30 days, while the login action makes the
+  // browser cookie session-only unless the user explicitly selects remember me.
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: {
     signIn: "/login"
   },
@@ -41,7 +41,8 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        rememberMe: { label: "Remember me", type: "text" }
       },
       async authorize(raw, request) {
         const parsed = loginSchema.safeParse(raw);
@@ -114,6 +115,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
           roleKey: user.role.key,
           roleName: user.role.name,
           tokenVersion: user.tokenVersion,
+          rememberMe: raw?.rememberMe === "true" || raw?.rememberMe === true,
           permissions: user.role.permissions
             .map((rp) => rp.permission.key)
             .filter((key) => key !== "*" || user.role.key === "super_admin")
@@ -130,6 +132,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         token.roleName = (user as any).roleName;
         token.permissions = (user as any).permissions;
         token.tokenVersion = (user as any).tokenVersion;
+        token.rememberMe = (user as any).rememberMe === true;
       } else if (token.userId) {
         // Skip DB check if running in Edge Runtime (Middleware) because PrismaClient is Node.js only.
         // Full permission and revocation checks will execute on the Node.js server component / route handler.
@@ -169,6 +172,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         return session;
       }
       session.user.id = token.userId as string;
+      (session as any).rememberMe = token.rememberMe === true;
       (session.user as any).roleKey = token.roleKey;
       (session.user as any).roleName = token.roleName;
       const permissions = Array.isArray(token.permissions)
