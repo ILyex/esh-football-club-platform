@@ -53,10 +53,12 @@ export default function LoginPage() {
           {/* Link back to public site */}
           <Link
             href={publicSiteUrl}
-            className="group inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card/70 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground shadow-2xs transition-all hover:border-club-primary/40 hover:bg-card hover:text-foreground"
+            aria-label={isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}
+            title={isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}
+            className="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 px-0 py-0 text-xs font-semibold text-muted-foreground shadow-2xs transition-all hover:border-club-primary/40 hover:bg-card hover:text-foreground sm:h-auto sm:w-auto sm:justify-start sm:gap-2 sm:px-3.5 sm:py-1.5"
           >
             <ArrowIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5" />
-            <span>{isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}</span>
+            <span className="hidden sm:inline">{isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}</span>
           </Link>
 
           {/* Controls: Theme Toggle & Language Switcher */}
