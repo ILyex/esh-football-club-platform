@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   updateMatchAction,
   deleteMatchAction,
@@ -149,6 +149,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   async function remove() {
     "use server";
     await deleteMatchAction(id);
+    redirect(`/${locale}/dashboard/matches`);
   }
   async function addEvent(formData: FormData) {
     "use server";
