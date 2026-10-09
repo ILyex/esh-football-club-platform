@@ -6,7 +6,9 @@ import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { deleteTrainingSessionAction } from "./actions";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   SCHEDULED: "neutral",
@@ -81,7 +83,13 @@ export default async function TrainingListPage({
             </tr>
           </thead>
           <tbody>
-            {sessions.map((s) => (
+            {sessions.map((s) => {
+              async function removeSession() {
+                "use server";
+                await deleteTrainingSessionAction(s.id);
+              }
+
+              return (
               <tr key={s.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-2">{new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(s.date)}</td>
                 <td className="px-4 py-2">{s.team ? tTeams(`categories.${s.team.category}` as any) : "—"}</td>
@@ -91,12 +99,38 @@ export default async function TrainingListPage({
                   <Badge tone={STATUS_TONE[s.status]}>{t(`statuses.${s.status}` as any)}</Badge>
                 </td>
                 <td className="px-4 py-2">
-                  <Link href={`/${locale}/dashboard/training/${s.id}`} className="text-sm text-club-primary underline">
-                    {tCommon("edit")}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`/${locale}/dashboard/training/${s.id}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-club-primary/30 bg-club-primary/5 text-club-primary transition hover:border-club-primary/60 hover:bg-club-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/30"
+                      aria-label={locale === "ar" ? "تعديل التدريب" : "Modifier la séance"}
+                      title={locale === "ar" ? "تعديل التدريب" : "Modifier la séance"}
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                    {canManage && (
+                      <ConfirmDialog
+                        onConfirm={removeSession}
+                        title={locale === "ar" ? "حذف التدريب؟" : "Supprimer la séance ?"}
+                        body={locale === "ar" ? "سيتم حذف هذه الحصة وسجل الحضور المرتبط بها." : "Cette séance et sa feuille de présence seront supprimées."}
+                        successMessage={locale === "ar" ? "تم حذف التدريب" : "Séance supprimée"}
+                        errorMessage={locale === "ar" ? "تعذر حذف التدريب" : "Impossible de supprimer la séance"}
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/5 text-red-600 transition hover:border-red-500/60 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:text-red-400"
+                          aria-label={locale === "ar" ? "حذف التدريب" : "Supprimer la séance"}
+                          title={locale === "ar" ? "حذف التدريب" : "Supprimer la séance"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </ConfirmDialog>
+                    )}
+                  </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {sessions.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
