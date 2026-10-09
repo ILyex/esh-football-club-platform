@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Monitor, Smartphone } from "lucide-react";
 
 type ThemeMode = "light" | "dark" | "system";
+type SystemIconBreakpoint = "sm" | "md" | "lg" | "xl";
 let themeTransitionTimer: number | undefined;
 
 function setDocumentTheme(isDark: boolean, animate: boolean) {
@@ -37,6 +38,7 @@ interface ThemeToggleProps {
   locale: string;
   className?: string;
   showLabels?: boolean;
+  systemIconBreakpoint?: SystemIconBreakpoint;
 }
 
 function SunModernIcon({ className }: { className?: string }) {
@@ -61,16 +63,18 @@ function MoonModernIcon({ className }: { className?: string }) {
   );
 }
 
-function SystemModernIcon({ className }: { className?: string }) {
+function SystemModernIcon({ className, breakpoint = "sm" }: { className?: string; breakpoint?: SystemIconBreakpoint }) {
+  const monitorVisibility = { sm: "hidden sm:block", md: "hidden md:block", lg: "hidden lg:block", xl: "hidden xl:block" }[breakpoint];
+  const phoneVisibility = { sm: "sm:hidden", md: "md:hidden", lg: "lg:hidden", xl: "xl:hidden" }[breakpoint];
   return (
     <>
-      <Monitor className={cn(className, "hidden sm:block")} aria-hidden="true" />
-      <Smartphone className={cn(className, "sm:hidden")} aria-hidden="true" />
+      <Monitor className={cn(className, monitorVisibility)} aria-hidden="true" />
+      <Smartphone className={cn(className, phoneVisibility)} aria-hidden="true" />
     </>
   );
 }
 
-export function ThemeToggle({ locale, className, showLabels = false }: ThemeToggleProps) {
+export function ThemeToggle({ locale, className, showLabels = false, systemIconBreakpoint = "sm" }: ThemeToggleProps) {
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [mounted, setMounted] = useState(false);
 
@@ -182,7 +186,7 @@ export function ThemeToggle({ locale, className, showLabels = false }: ThemeTogg
             : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <SystemModernIcon className="h-4 w-4" />
+        <SystemModernIcon className="h-4 w-4" breakpoint={systemIconBreakpoint} />
         {showLabels && <span>{labels.system}</span>}
       </button>
     </div>

@@ -124,7 +124,7 @@ export function PublicHeader({
         {/* Right Actions: Theme Toggle & Language Switcher */}
         <div className="hidden shrink-0 xl:flex xl:items-center xl:gap-2">
           {/* Theme Toggle */}
-          <ThemeToggle locale={locale} />
+          <ThemeToggle locale={locale} systemIconBreakpoint="xl" />
 
           {/* Language Switcher */}
           <Link
@@ -192,7 +192,7 @@ export function PublicHeader({
             })}
             <div className="pt-2 border-t border-border mt-2 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{locale === "ar" ? "المظهر" : "Thème"}</span>
-              <ThemeToggle locale={locale} />
+              <ThemeToggle locale={locale} systemIconBreakpoint="xl" />
             </div>
           </nav>
       </div>
