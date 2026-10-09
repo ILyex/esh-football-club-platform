@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { CalendarDays, CalendarClock, Check, CheckCircle2, Clock3, ExternalLink, Flag, Globe2, Layers3, Pencil, Play, Radio, RotateCcw, Save, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, CalendarClock, Check, CheckCircle2, Clock3, ExternalLink, Flag, Globe2, Layers3, Pencil, Play, Radio, RotateCcw, Save, SlidersHorizontal, Trash2, Trophy } from "lucide-react";
 import { db } from "@/lib/db";
 import { hasPermission, requirePagePermission } from "@/lib/permissions";
 import { getMutationScopeContext } from "@/lib/mutation-guards";
@@ -9,6 +9,7 @@ import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions/types";
 import { FormSelect } from "@/components/ui/form-select";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { LogoutButton } from "@/components/shared/logout-button";
 import { MatchEventEntryForm } from "../match-event-entry-form";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
@@ -98,14 +99,28 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary"><Radio className="h-5 w-5" /></span>
               <div className="min-w-0"><p className="text-[10px] font-bold tracking-wide text-club-primary">{isAr ? "إدارة ميدانية" : "GESTION TERRAIN"}</p><h1 className="mt-0.5 text-lg font-black leading-tight">{isAr ? "المباريات" : "Matchs"}</h1><p className="mt-0.5 text-[10px] text-muted-foreground">{isAr ? "إدارة النتائج وأحداث المباريات مباشرة" : "Gérez les scores et événements en direct"}</p></div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span title={isAr ? "متصل" : "En ligne"} aria-label={isAr ? "متصل" : "En ligne"} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-bold"><CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "متصل" : "En ligne"}</span></span>
-              <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} title={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-semibold"><ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "الموقع" : "Site"}</span></Link>
-              <ThemeToggle locale={locale} className="[&_button]:h-7 [&_button]:w-7 [&_button]:p-0 sm:[&_button]:h-8 sm:[&_button]:w-8" />
-              <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border bg-background p-0.5 sm:h-9 sm:gap-1 sm:p-1" aria-label={isAr ? "تغيير اللغة" : "Changer de langue"}>
-                <Globe2 className="mx-1 hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
-                {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 min-w-8 items-center justify-center rounded-md px-2 text-[10px] font-bold transition ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
+            <div className="flex w-full flex-nowrap items-center justify-end gap-1.5 sm:w-auto sm:flex-wrap sm:gap-2">
+              <span title={isAr ? "متصل" : "En ligne"} aria-label={isAr ? "متصل" : "En ligne"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-bold"><CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "متصل" : "En ligne"}</span></span>
+              <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} title={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-semibold"><ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "الموقع" : "Site"}</span></Link>
+              <details className="group relative shrink-0 sm:hidden">
+                <summary aria-label={isAr ? "إعدادات اللغة والمظهر" : "Langue et apparence"} title={isAr ? "إعدادات اللغة والمظهر" : "Langue et apparence"} className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground [&::-webkit-details-marker]:hidden"><SlidersHorizontal className="h-4 w-4" /></summary>
+                <div className={`absolute ${isAr ? "end-0" : "start-0"} top-[calc(100%+0.5rem)] z-[100] w-56 rounded-xl border border-border bg-card p-3 text-foreground shadow-xl`}>
+                  <p className="text-[10px] font-bold text-muted-foreground">{isAr ? "اللغة" : "Langue"}</p>
+                  <div className="mt-1.5 flex gap-1 rounded-lg bg-muted/60 p-1">
+                    {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 flex-1 items-center justify-center rounded-md px-2 text-[10px] font-bold transition ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
+                  </div>
+                  <p className="mb-1.5 mt-3 text-[10px] font-bold text-muted-foreground">{isAr ? "المظهر" : "Thème"}</p>
+                  <ThemeToggle locale={locale} className="w-full justify-around [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" />
+                </div>
+              </details>
+              <div className="hidden items-center gap-2 sm:flex">
+                <ThemeToggle locale={locale} />
+                <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-background p-1" aria-label={isAr ? "تغيير اللغة" : "Changer de langue"}>
+                  <Globe2 className="mx-1 h-3.5 w-3.5 text-muted-foreground" />
+                  {(["ar", "fr"] as const).map((targetLocale) => <Link key={targetLocale} href={`/${targetLocale}/field/matches${selectedCategory ? `?category=${selectedCategory}` : ""}`} lang={targetLocale} aria-current={activeLocale === targetLocale ? "page" : undefined} className={`inline-flex h-7 min-w-8 items-center justify-center rounded-md px-2 text-[10px] font-bold transition ${activeLocale === targetLocale ? "bg-club-primary text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{targetLocale.toUpperCase()}</Link>)}
+                </div>
               </div>
+              <LogoutButton locale={locale} variant="icon" className="!h-8 !w-8 !shrink-0 !rounded-lg !p-0 sm:hidden" />
             </div>
           </div>
           <div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
