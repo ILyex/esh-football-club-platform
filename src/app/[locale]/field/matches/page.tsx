@@ -110,20 +110,21 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                 </div>
               </div>
               <LogoutButton locale={locale} variant="icon" className="!order-last !h-8 !w-8 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:hidden" />
+              <LogoutButton locale={locale} variant="icon" className="hidden !h-9 !w-9 !shrink-0 !rounded-lg !border-destructive/40 !bg-destructive/10 !p-0 !text-destructive hover:!border-destructive hover:!bg-destructive hover:!text-white sm:inline-flex" />
             </div>
           </div>
-          <div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <form method="get" aria-label={isAr ? "تصفية المباريات حسب الفئة" : "Filtrer les matchs par catégorie"} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2.5 rounded-xl border border-border/70 bg-muted/20 p-2.5 sm:max-w-lg">
+          <div className="mt-4 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-2 sm:items-stretch">
+            <form method="get" aria-label={isAr ? "تصفية المباريات حسب الفئة" : "Filtrer les matchs par catégorie"} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2.5 rounded-xl border border-border/70 bg-muted/20 p-2.5 sm:max-w-none">
               <label className="min-w-0 text-[10px] font-bold text-muted-foreground">
                 <span className="mb-1.5 flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded-md bg-club-primary/10 text-club-primary"><Layers3 className="h-3 w-3" aria-hidden="true" /></span>{isAr ? "الفئة" : "Catégorie"}</span>
                 <FormSelect name="category" defaultValue={selectedCategory ?? "ALL"} locale={locale} compact ariaLabel={isAr ? "اختيار فئة الفريق" : "Choisir une catégorie"} triggerClassName="!h-9 !rounded-lg !text-xs !font-semibold" options={[{ value: "ALL", label: isAr ? "كل الفئات" : "Toutes les catégories" }, ...teams.map((team) => ({ value: team.category, label: OFFICIAL_CATEGORY_NAMES[team.category][activeLocale] }))]} />
               </label>
               <button type="submit" className="inline-flex !h-9 !min-h-9 items-center justify-center gap-1.5 rounded-lg bg-club-primary px-3 !py-0 text-[10px] font-bold leading-none text-white shadow-sm transition hover:-translate-y-px hover:bg-club-primary-hover">{isAr ? "تطبيق" : "Appliquer"}</button>
             </form>
-            <div className="grid grid-cols-3 gap-1.5 sm:min-w-[260px] sm:gap-2">
-              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-muted/40 px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "المعروضة" : "Affichés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums">{matches.length}</p></div>
-              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-rose-500/[0.045] px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "مباشرة" : "En direct"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-rose-500">{matches.filter((match) => match.status === "LIVE").length}</p></div>
-              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-amber-500/[0.045] px-2 py-1"><p className="truncate text-[8px] leading-3 text-muted-foreground">{isAr ? "المؤجلة" : "Reportés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-amber-600 dark:text-amber-400">{matches.filter((match) => match.status === "POSTPONED").length}</p></div>
+            <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
+              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-muted/40 px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "المعروضة" : "Affichés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums sm:text-base sm:leading-5">{matches.length}</p></div>
+              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-rose-500/[0.045] px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "مباشرة" : "En direct"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-rose-500 sm:text-base sm:leading-5">{matches.filter((match) => match.status === "LIVE").length}</p></div>
+              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-amber-500/[0.045] px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "المؤجلة" : "Reportés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-amber-600 dark:text-amber-400 sm:text-base sm:leading-5">{matches.filter((match) => match.status === "POSTPONED").length}</p></div>
             </div>
           </div>
         </div>
