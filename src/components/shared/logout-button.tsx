@@ -2,8 +2,9 @@
 
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { clearPresenceAction } from "@/app/[locale]/(dashboard)/dashboard/presence-actions";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export interface LogoutButtonProps {
   locale: string;
@@ -15,6 +16,7 @@ export function LogoutButton({ locale, className = "", variant = "pill" }: Logou
   const [loading, setLoading] = useState(false);
   const isAr = locale === "ar";
   const label = isAr ? "إنهاء الجلسة" : "Déconnexion";
+  const confirmation = isAr ? "هل أنت متأكد أنك تريد تسجيل الخروج؟" : "Voulez-vous vraiment vous déconnecter ?";
 
   const handleLogout = async () => {
     try {
@@ -27,11 +29,22 @@ export function LogoutButton({ locale, className = "", variant = "pill" }: Logou
     }
   };
 
+  const confirmLogout = (button: ReactNode) => (
+    <ConfirmDialog
+      title={isAr ? "تأكيد تسجيل الخروج" : "Confirmer la déconnexion"}
+      body={confirmation}
+      successMessage={isAr ? "تم تسجيل الخروج" : "Déconnexion réussie"}
+      errorMessage={isAr ? "تعذر تسجيل الخروج" : "La déconnexion a échoué"}
+      onConfirm={handleLogout}
+    >
+      {button}
+    </ConfirmDialog>
+  );
+
   if (variant === "icon") {
-    return (
+    return confirmLogout(
       <button
         type="button"
-        onClick={handleLogout}
         disabled={loading}
         title={label}
         aria-label={label}
@@ -43,10 +56,9 @@ export function LogoutButton({ locale, className = "", variant = "pill" }: Logou
   }
 
   if (variant === "menuItem") {
-    return (
+    return confirmLogout(
       <button
         type="button"
-        onClick={handleLogout}
         disabled={loading}
         className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors cursor-pointer ${className}`}
       >
@@ -56,10 +68,9 @@ export function LogoutButton({ locale, className = "", variant = "pill" }: Logou
     );
   }
 
-  return (
+  return confirmLogout(
     <button
       type="button"
-      onClick={handleLogout}
       disabled={loading}
       title={label}
       aria-label={label}

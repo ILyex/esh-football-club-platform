@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Monitor, Smartphone } from "lucide-react";
 
 type ThemeMode = "light" | "dark" | "system";
 let themeTransitionTimer: number | undefined;
@@ -62,10 +63,10 @@ function MoonModernIcon({ className }: { className?: string }) {
 
 function SystemModernIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="3.5" width="19" height="13" rx="2.5" />
-      <path d="M8 20.5h8M12 16.5v4" />
-    </svg>
+    <>
+      <Monitor className={cn(className, "hidden sm:block")} aria-hidden="true" />
+      <Smartphone className={cn(className, "sm:hidden")} aria-hidden="true" />
+    </>
   );
 }
 
