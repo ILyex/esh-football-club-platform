@@ -47,7 +47,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isDashboardNavHrefActive } from "@/lib/dashboard-navigation";
-import { SafeImage } from "@/components/shared/safe-image";
+import { ClubLogo } from "@/components/shared/club-logo";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
@@ -250,7 +250,7 @@ export function SidebarNav({
       {/* Mobile: a top bar with a menu toggle replaces the always-visible desktop sidebar. */}
       <div className="dashboard-mobile-nav flex min-w-0 items-center justify-between gap-3 border-b border-border bg-card/95 p-3 shadow-sm backdrop-blur md:hidden">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
+          <ClubLogo src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
           <span className="min-w-0 truncate text-sm font-bold tracking-tight">
             <span className="club-name block truncate leading-tight">{clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")}</span>
           </span>
@@ -273,7 +273,7 @@ export function SidebarNav({
           <div className="h-full w-[min(20rem,calc(100vw-3.5rem))] overflow-y-auto overscroll-contain border-e border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-2xl">
             <div className="flex items-center justify-between border-b border-border p-4 bg-muted/30">
               <div className="flex items-center gap-2">
-                <SafeImage src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
+                <ClubLogo src={clubLogoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={clubName || (locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")} className="h-7 w-7 object-contain" />
                 <span className="text-sm font-bold tracking-tight">{tGroups("navigation")}</span>
               </div>
               <button

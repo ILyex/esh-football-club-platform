@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Shield, Globe, Home, Users, CalendarDays, Trophy, Newspaper, Images, Landmark } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { SafeImage } from "@/components/shared/safe-image";
+import { ClubLogo } from "@/components/shared/club-logo";
 
 interface PublicHeaderProps {
   locale: string;
@@ -83,7 +83,7 @@ export function PublicHeader({
         <Link href={`/${locale}`} className={`group flex min-w-0 shrink-0 items-center gap-2.5 sm:gap-3 md:ml-auto ${isFrench ? "basis-[210px] sm:basis-[320px]" : "basis-[230px] sm:basis-[280px]"}`}>
           <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/80 bg-card p-0.5 shadow-sm transition-transform group-hover:scale-105 ${isFrench ? "h-11 w-11 sm:h-14 sm:w-14" : "h-9 w-9 sm:h-12 sm:w-12"}`}>
             {logoUrl ? (
-              <SafeImage src={logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubName} className="h-full w-full rounded-full object-contain" />
+              <ClubLogo src={logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubName} className="h-full w-full rounded-full object-contain" />
             ) : (
               <Shield className="h-5 w-5 text-club-primary" />
             )}

@@ -25,6 +25,7 @@ import { ClubPhotosCarousel } from "@/components/public/club-photos-carousel";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { SocialReelsSection } from "@/components/public/social-reels-section";
 import { SafeImage } from "@/components/shared/safe-image";
+import { ClubLogo } from "@/components/shared/club-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -402,8 +403,7 @@ export default async function HomePage({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/20 to-black/40" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/branding/esh-logo-128.png" alt={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"} className="relative z-10 h-14 w-14 shrink-0 object-contain drop-shadow-md sm:h-16 sm:w-16" />
+                <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"} className="relative z-10 h-14 w-14 shrink-0 object-contain drop-shadow-md sm:h-16 sm:w-16" />
                 <div className="relative z-10 min-w-0 flex-1">
                   <h4 className="club-name line-clamp-2 text-xs font-extrabold leading-5 text-white sm:text-sm">{locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}</h4>
                   <p dir="ltr" className="mt-2 inline-flex rounded-md bg-black/55 px-2 py-1 text-[10px] font-semibold tracking-wide text-white sm:text-[11px]">

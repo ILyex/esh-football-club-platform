@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { loginAction } from "./actions";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { ClubLogo } from "@/components/shared/club-logo";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 
 export default function LoginPage() {
@@ -111,8 +112,7 @@ export default function LoginPage() {
           <aside className="order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border bg-muted/60 p-8 text-foreground shadow-sm md:flex md:flex-col md:justify-between lg:p-10">
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card p-2.5 shadow-xs">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/branding/esh-logo-128.png" alt="ESH" className="h-full w-full object-contain" />
+                <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt="ESH" className="h-full w-full object-contain" />
               </div>
               <div>
                 <p className="text-xs font-semibold tracking-wide text-club-primary">ESH · SIDI HOSNI</p>
@@ -143,8 +143,7 @@ export default function LoginPage() {
             <div className="mb-6 border-b border-border/70 pb-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background p-1.5 md:hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/branding/esh-logo-128.png" alt="ESH" className="h-full w-full object-contain" />
+                  <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt="ESH" className="h-full w-full object-contain" />
                 </div>
                 <div>
                   <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Shield, MapPin, Mail, Phone, Youtube, Globe2, Home, Users, CalendarDays, Trophy, Newspaper, Images, Landmark } from "lucide-react";
 import { PublicClubSettings } from "@/lib/public/club";
 import { FacebookBrandIcon, InstagramBrandIcon, TikTokBrandIcon } from "@/components/public/social-brand-icons";
-import { SafeImage } from "@/components/shared/safe-image";
+import { ClubLogo } from "@/components/shared/club-logo";
 
 interface PublicFooterProps {
   locale: string;
@@ -33,7 +33,7 @@ export function PublicFooter({ locale, club, clubDisplayName, labels }: PublicFo
             <div className={`flex w-full min-w-0 items-center gap-3 ${locale === "ar" ? "justify-end" : "justify-start"}`} dir={locale === "ar" ? "rtl" : "ltr"}>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm sm:h-12 sm:w-12">
                 {club.logoUrl ? (
-                  <SafeImage src={club.logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} className="h-full w-full object-cover" />
+                  <ClubLogo src={club.logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} className="h-full w-full object-cover" />
                 ) : (
                   <Shield className="h-6 w-6 text-club-primary" />
                 )}

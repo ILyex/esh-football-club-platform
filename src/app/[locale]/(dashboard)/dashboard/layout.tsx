@@ -23,6 +23,7 @@ import { DASHBOARD_NAV_GROUPS } from "@/lib/dashboard-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { SafeImage } from "@/components/shared/safe-image";
+import { ClubLogo } from "@/components/shared/club-logo";
 import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
 
 export default async function DashboardLayout({
@@ -95,8 +96,8 @@ export default async function DashboardLayout({
         {/* Official Club Branding Header (Spec A.3 & Concept Image) */}
         <div className="hidden border-b border-border p-4 md:flex flex-col gap-2.5 bg-muted/20 dark:bg-black/30 shrink-0">
           <Link href={`/${locale}/dashboard`} className="flex items-center gap-3 group min-w-0">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105">
-              <SafeImage src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105 dark:bg-background">
+              <ClubLogo src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
             </div>
             <div className="min-w-0">
               <p className="club-name line-clamp-3 whitespace-normal text-sm font-bold leading-tight tracking-tight text-foreground group-hover:text-club-primary transition-colors">
