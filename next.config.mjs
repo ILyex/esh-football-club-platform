@@ -12,6 +12,7 @@ if (process.env.OPENNEXT_DEV === "true") {
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const isProduction = process.env.NODE_ENV === "production";
+const lowMemoryBuild = process.env.OPENNEXT_LOW_MEMORY_BUILD === "true";
 const imageRemotePatterns = isProduction ? [] : [
   { protocol: "http", hostname: "localhost", port: "3000", pathname: "/**" },
   { protocol: "http", hostname: "127.0.0.1", port: "3000", pathname: "/**" }
@@ -42,6 +43,12 @@ const nextConfig = {
   reactStrictMode: true,
   // Hide Next.js development indicator from the application UI.
   devIndicators: false,
+  // On low-memory Windows build hosts, run the verified lint/typecheck steps
+  // separately and keep Next from spawning additional checker workers.
+  ...(lowMemoryBuild ? {
+    eslint: { ignoreDuringBuilds: true },
+    typescript: { ignoreBuildErrors: true }
+  } : {}),
   webpack(config) {
     // The development compiler otherwise keeps every visited route's module
     // graph in memory. That is convenient on a workstation but causes the
@@ -60,6 +67,7 @@ const nextConfig = {
     remotePatterns: imageRemotePatterns
   },
   experimental: {
+    ...(lowMemoryBuild ? { cpus: 1 } : {}),
     serverActions: {
       bodySizeLimit: "25mb" // allow larger uploads via server actions where used
     }
