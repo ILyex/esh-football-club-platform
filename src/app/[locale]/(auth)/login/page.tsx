@@ -34,7 +34,6 @@ export default function LoginPage() {
       const savedEmail = localStorage.getItem("esh_remembered_email");
       if (savedEmail) {
         setEmail(savedEmail.trim());
-        setRememberMe(true);
       }
     } catch {
       // Ignore localStorage unavailable
