@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { getFAFConfig } from "./config";
 import { getFafEmsClient } from "./ems-client";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
+import { RetryableError } from "@/lib/jobs/types";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -13,6 +14,7 @@ export interface FafMatchSyncResult {
   refereeName?: string;
   matchSheetDocId?: string;
   refereeReportDocId?: string;
+  warnings?: string[];
 }
 
 function normalize(value: unknown): string {
@@ -89,26 +91,38 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   if (!actorId) throw new Error("A platform user is required to attach imported FAF documents.");
   const externalId = Number(remote.id);
   const api = getFafEmsClient();
-  const [details, firstReport, finalReport] = await Promise.all([
+  const [detailsResult, firstReportResult, finalReportResult] = await Promise.allSettled([
     api.matchInfo(externalId),
     api.report(externalId, "first-report-ar"),
     api.report(externalId, "final-report-ar")
   ]);
-  const official = details.match;
-  const category = await db.documentCategory.findUnique({ where: { key: "report" } });
-  if (!category) throw new Error("Document category 'Reports' is missing; run the platform seed/migration first.");
+  if (detailsResult.status === "rejected") throw detailsResult.reason;
+  const official = detailsResult.value.match;
+  const reportResults = [firstReportResult, finalReportResult];
+  const temporaryReportFailure = reportResults.find((result) => result.status === "rejected" && result.reason instanceof RetryableError);
+  if (temporaryReportFailure?.status === "rejected") {
+    throw new RetryableError("FAF EMS temporarily failed to return a report document; the complete import will retry safely.", temporaryReportFailure.reason);
+  }
 
   const { validateUploadedFile, uploadPrivateFile, generateStorageKey } = await import("@/lib/storage");
   const documentSpecs = [
-    { kind: "PRE_MATCH_SHEET" as const, label: "first-report-ar", title: "وثيقة بداية المباراة", bytes: firstReport },
-    { kind: "REFEREE_REPORT" as const, label: "final-report-ar", title: "تقرير المباراة النهائي", bytes: finalReport }
+    { kind: "PRE_MATCH_SHEET" as const, label: "first-report-ar", title: "وثيقة بداية المباراة", bytes: firstReportResult.status === "fulfilled" ? firstReportResult.value : null },
+    { kind: "REFEREE_REPORT" as const, label: "final-report-ar", title: "تقرير المباراة النهائي", bytes: finalReportResult.status === "fulfilled" ? finalReportResult.value : null }
   ];
-  const documentIds: string[] = [];
+  const warnings: string[] = [];
+  if (firstReportResult.status === "rejected") warnings.push(`تعذر جلب وثيقة بداية المباراة: ${firstReportResult.reason instanceof Error ? firstReportResult.reason.message : "خطأ غير معروف"}`);
+  if (finalReportResult.status === "rejected") warnings.push(`تعذر جلب التقرير النهائي: ${finalReportResult.reason instanceof Error ? finalReportResult.reason.message : "خطأ غير معروف"}`);
+  const category = documentSpecs.some((item) => item.bytes)
+    ? await db.documentCategory.findUnique({ where: { key: "report" } })
+    : null;
+  if (documentSpecs.some((item) => item.bytes) && !category) throw new Error("Document category 'Reports' is missing; run the platform seed/migration first.");
+  const documentIdsByKind = new Map<string, string>();
   let importedDocuments = 0;
   for (const item of documentSpecs) {
     const originalName = `FAF-EMS-${externalId}-${item.label}.pdf`;
     const existing = await db.document.findFirst({ where: { relatedMatchId: local.id, originalName }, select: { id: true } });
-    if (existing) { documentIds.push(existing.id); continue; }
+    if (existing) { documentIdsByKind.set(item.kind, existing.id); continue; }
+    if (!item.bytes || !category) continue;
     const validation = await validateUploadedFile(item.bytes);
     const storageKey = generateStorageKey("faf-ems", validation.ext);
     await uploadPrivateFile({ key: storageKey, buffer: item.bytes, mimeType: validation.mime });
@@ -131,13 +145,14 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
         teamId: local.teamId
       }
     });
-    documentIds.push(created.id);
+    documentIdsByKind.set(item.kind, created.id);
     importedDocuments++;
   }
 
   let analysisMessage = "";
-  if (finalReport.byteLength > 0 && documentIds[1]) {
-    await enqueueRefereeReportAnalysis(db, { matchId: local.id, documentId: documentIds[1], userId: actorId });
+  const refereeReportDocumentId = documentIdsByKind.get("REFEREE_REPORT");
+  if (refereeReportDocumentId) {
+    await enqueueRefereeReportAnalysis(db, { matchId: local.id, documentId: refereeReportDocumentId, userId: actorId });
     analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";
   }
 
@@ -162,13 +177,14 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     create: { key: `faf-ems-match-${externalId}`, value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) },
     update: { value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) }
   });
-  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length } });
+  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length, warnings } });
   return {
     success: true,
     matchId: local.id,
-    message: `تمت مزامنة تفاصيل المباراة من FAF EMS وحفظ ${importedDocuments} مستندات جديدة في المنصة.${analysisMessage}`,
+    message: `تمت مزامنة تفاصيل المباراة من FAF EMS وحفظ ${importedDocuments} مستندات جديدة في المنصة.${analysisMessage}${warnings.length ? ` ${warnings.join(" ")}` : ""}`,
     refereeName: referee || undefined,
-    matchSheetDocId: documentIds[0],
-    refereeReportDocId: documentIds[1]
+    matchSheetDocId: documentIdsByKind.get("PRE_MATCH_SHEET"),
+    refereeReportDocId: refereeReportDocumentId,
+    warnings
   };
 }

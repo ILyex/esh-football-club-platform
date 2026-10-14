@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Sparkles, Bot, CheckCircle2, AlertCircle, Loader2, X, Info, Target, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { analyzeRefereeReportWithAIAction } from "@/app/[locale]/(dashboard)/dashboard/matches/actions";
+import { analyzeRefereeReportWithAIAction, getMatchBackgroundJobStatusAction } from "@/app/[locale]/(dashboard)/dashboard/matches/actions";
 
 interface RefereeReportAiModalProps {
   matchId: string;
@@ -22,6 +23,10 @@ export function RefereeReportAiModal({
   const [isOpen, setIsOpen] = useState(false);
   const [reportText, setReportText] = useState(defaultText);
   const [isPending, startTransition] = useTransition();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobMessage, setJobMessage] = useState<string | null>(null);
+  const router = useRouter();
   const [result, setResult] = useState<{
     success: boolean;
     eventsCreated: number;
@@ -39,6 +44,40 @@ export function RefereeReportAiModal({
   const [error, setError] = useState<string | null>(null);
 
   const isAr = locale === "ar";
+  const isProcessing = isPending || Boolean(jobId);
+
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const state = await getMatchBackgroundJobStatusAction(jobId, matchId, locale);
+        if (cancelled) return;
+        setJobStatus(state.status);
+        setJobMessage(state.error ? `${state.message} ${state.error}` : state.message);
+        if (state.status === "SUCCEEDED") {
+          if (state.analysis) {
+            setResult({ success: true, ...state.analysis, events: state.analysis.events.map((event) => ({ ...event, matchedPlayerName: event.playerName })) });
+          }
+          setJobId(null);
+          router.refresh();
+        } else if (["FAILED", "CANCELLED"].includes(state.status)) {
+          setJobId(null);
+          setError(state.error ? `${state.message} ${state.error}` : state.message);
+        } else {
+          timer = setTimeout(poll, 2500);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setJobId(null);
+        setJobStatus("FAILED");
+        setError(err instanceof Error ? err.message : (isAr ? "تعذر متابعة حالة التحليل." : "Impossible de suivre l’analyse."));
+      }
+    };
+    void poll();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [jobId, matchId, locale, router, isAr]);
 
   function handleAnalyze() {
     setError(null);
@@ -56,7 +95,9 @@ export function RefereeReportAiModal({
           formData.append("reportText", reportText);
         }
         const res = await analyzeRefereeReportWithAIAction(matchId, formData, locale);
-        setResult(res);
+        setJobStatus("QUEUED");
+        setJobMessage(res.message);
+        setJobId(res.jobId);
       } catch (err: any) {
         setError(err.message || (isAr ? "فشل تحليل التقرير بالذكاء الاصطناعي" : "Échec de l'analyse IA"));
       }
@@ -153,6 +194,12 @@ export function RefereeReportAiModal({
             </div>
 
             {/* Error Message */}
+            {isProcessing && (
+              <div role="status" className={`flex items-center gap-2 rounded-xl border p-3 text-xs ${jobStatus === "RETRYING" ? "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200" : "border-purple-500/25 bg-purple-500/5 text-purple-800 dark:text-purple-200"}`}>
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                <span>{jobMessage || (isAr ? "أُضيف التحليل إلى قائمة التنفيذ…" : "Analyse ajoutée à la file d’attente…")}</span>
+              </div>
+            )}
             {error && (
               <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive border border-destructive/20">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -224,7 +271,7 @@ export function RefereeReportAiModal({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsOpen(false)}
-                disabled={isPending}
+                disabled={isProcessing}
               >
                 {isAr ? "إغلاق" : "Fermer"}
               </Button>
@@ -233,13 +280,13 @@ export function RefereeReportAiModal({
                 type="button"
                 size="sm"
                 onClick={handleAnalyze}
-                disabled={isPending || (!reportText.trim() && !hasAttachedReport)}
+                disabled={isProcessing || (!reportText.trim() && !hasAttachedReport)}
                 className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold"
               >
-                {isPending ? (
+                {isProcessing ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>{isAr ? "جاري التحليل الذكي..." : "Analyse en cours..."}</span>
+                    <span>{isAr ? "التحليل قيد التنفيذ..." : "Analyse en cours..."}</span>
                   </>
                 ) : (
                   <>

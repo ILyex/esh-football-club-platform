@@ -912,10 +912,13 @@ export async function syncFAFMatchDocumentsAction(matchId: string, locale = "ar"
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
 
-  const job = await enqueueJob(db, {
+  const baseKey = `faf-match-sync-manual-${matchId}`;
+  const previousJob = await db.backgroundJob.findUnique({ where: { idempotencyKey: baseKey }, select: { id: true, status: true } });
+  const hasActiveJob = previousJob && ["QUEUED", "RUNNING", "RETRYING"].includes(previousJob.status);
+  const job = hasActiveJob ? previousJob : await enqueueJob(db, {
     type: "faf.match_sync",
     payload: { matchId, userId: user.id },
-    idempotencyKey: `faf-match-sync-manual-${matchId}-${Date.now()}`,
+    idempotencyKey: previousJob ? `${baseKey}-retry-${Date.now()}` : baseKey,
     createdById: user.id,
     priority: "HIGH",
     maxAttempts: 2
@@ -936,22 +939,137 @@ export async function analyzeRefereeReportWithAIAction(matchId: string, formData
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
 
-  const reportText = formData ? (formData.get("reportText") as string) : undefined;
-  const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
+  const reportText = String(formData?.get("reportText") ?? "").trim();
+  if (reportText.length > 5000) {
+    throw new Error(locale === "fr" ? "Le rapport ne peut pas dépasser 5 000 caractères." : "نص التقرير يتجاوز الحد المسموح (5000 حرف). قلّص النص ثم أعد المحاولة.");
+  }
 
-  try {
-    return await parseAndApplyRefereeReportWithAI({ matchId, reportText, userId: user.id });
-  } catch (error) {
-    console.error("[RefereeReportAI] Analysis failed", { matchId, error });
-    return {
-      success: false,
-      eventsCreated: 0,
-      events: [],
-      summary: locale === "fr"
-        ? "Impossible d’analyser le rapport pour le moment. Les données du match sont conservées ; réessayez plus tard."
-        : "تعذر تحليل التقرير الآن. حُفظت بيانات المباراة كما هي؛ أعد المحاولة لاحقًا.",
-      aiProviderUsed: "INTELLIGENT_NLP_ENGINE" as const,
-      aiFallback: "unavailable" as const
+  const reportDocument = reportText ? null : await db.document.findFirst({
+    where: { relatedMatchId: matchId, matchDocumentType: "REFEREE_REPORT" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true }
+  });
+  if (!reportText && !reportDocument) {
+    throw new Error(locale === "fr" ? "Joignez d’abord le rapport final de l’arbitre ou collez son texte." : "أرفق التقرير النهائي للحكم أو الصق نصه قبل بدء التحليل.");
+  }
+
+  const job = await enqueueRefereeReportAnalysis(db, {
+    matchId,
+    ...(reportText ? { reportText } : { documentId: reportDocument!.id }),
+    userId: user.id
+  }, { allowRerun: true });
+  return {
+    success: true,
+    jobId: job.id,
+    message: locale === "fr"
+      ? "L’analyse a été mise en file d’attente. Vous verrez son état ici sans garder la page bloquée."
+      : "أُضيف التحليل إلى قائمة التنفيذ. ستظهر حالته هنا دون تجميد الصفحة."
+  };
+}
+
+export async function getMatchBackgroundJobStatusAction(jobId: string, matchId: string, locale = "ar") {
+  const user = await requirePermission("matches.report");
+  const scopeContext = await getMutationScopeContext();
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, select: { id: true, teamId: true } });
+  assertTeamScope(scopeContext, match.teamId, "Match");
+
+  const job = await db.backgroundJob.findUnique({
+    where: { id: jobId },
+    select: { id: true, type: true, status: true, payload: true, createdById: true, createdAt: true, startedAt: true, lastError: true }
+  });
+  if (!job || !["faf.match_sync", "match.referee_report_analysis"].includes(job.type)) {
+    throw new Error(locale === "fr" ? "Tâche introuvable." : "لم يتم العثور على المهمة.");
+  }
+  const payload = job.payload as { matchId?: unknown };
+  if (payload.matchId !== match.id) {
+    throw new Error(locale === "fr" ? "Vous n’avez pas accès à cette tâche." : "لا تملك صلاحية متابعة هذه المهمة.");
+  }
+
+  const labels = locale === "fr"
+    ? { QUEUED: "En attente de traitement…", RUNNING: "Traitement en cours…", RETRYING: "Nouvelle tentative en cours…", SUCCEEDED: "Terminé avec succès.", FAILED: "Échec du traitement.", CANCELLED: "Tâche annulée." }
+    : { QUEUED: "بانتظار بدء التنفيذ…", RUNNING: "يجري تنفيذ الطلب…", RETRYING: "تعاد المحاولة تلقائيًا…", SUCCEEDED: "اكتملت العملية بنجاح.", FAILED: "تعذر إكمال العملية.", CANCELLED: "أُلغيت المهمة." };
+  const status = job.status as keyof typeof labels;
+  const result: {
+    jobId: string;
+    type: string;
+    status: string;
+    message: string;
+    error?: string;
+    warning?: string;
+    followUpJobId?: string;
+    analysis?: { eventsCreated: number; events: Array<{ playerName: string; type: string; minute: number }>; aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE"; aiFallback?: "quota" | "unavailable" | null; summary: string };
+  } = {
+    jobId: job.id,
+    type: job.type,
+    status: job.status,
+    message: labels[status] ?? labels.FAILED
+  };
+
+  if (job.status === "FAILED") {
+    result.error = (job.lastError || labels.FAILED).replace(/[\r\n]+/g, " ").slice(0, 240);
+  }
+
+  if (job.type === "faf.match_sync" && job.status === "SUCCEEDED") {
+    const syncLog = await db.auditLog.findFirst({
+      where: {
+        action: "FAF_MATCH_SYNC_COMPLETED",
+        entityType: "Match",
+        entityId: match.id,
+        userId: job.createdById ?? user.id,
+        createdAt: { gte: job.startedAt ?? job.createdAt }
+      },
+      orderBy: { createdAt: "desc" },
+      select: { changes: true }
+    });
+    const syncChanges = syncLog?.changes as { warnings?: string[] } | null;
+    if (syncChanges?.warnings?.length) result.warning = syncChanges.warnings.join(" ").slice(0, 400);
+
+    const analysisJobs = await db.backgroundJob.findMany({
+      where: {
+        type: "match.referee_report_analysis",
+        createdById: job.createdById ?? user.id,
+        createdAt: { gte: job.createdAt }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, payload: true }
+    });
+    const analysisJob = analysisJobs.find((candidate) => (candidate.payload as { matchId?: unknown }).matchId === match.id);
+    if (analysisJob) result.followUpJobId = analysisJob.id;
+  }
+
+  if (job.type === "match.referee_report_analysis" && job.status === "SUCCEEDED") {
+    const audit = await db.auditLog.findFirst({
+      where: {
+        action: "match.referee_report_ai_analyzed",
+        entityType: "Match",
+        entityId: match.id,
+        userId: job.createdById ?? user.id,
+        createdAt: { gte: job.startedAt ?? job.createdAt }
+      },
+      orderBy: { createdAt: "desc" },
+      select: { changes: true }
+    });
+    const changes = audit?.changes as {
+      eventsCreatedCount?: number;
+      aiProviderUsed?: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
+      aiFallback?: "quota" | "unavailable" | null;
+      events?: Array<{ playerName?: string | null; type?: string; minute?: number }>;
+    } | null;
+    result.analysis = {
+      eventsCreated: changes?.eventsCreatedCount ?? 0,
+      events: (changes?.events ?? []).map((event) => ({ playerName: event.playerName || "لاعب", type: event.type || "GOAL", minute: event.minute ?? 0 })),
+      aiProviderUsed: changes?.aiProviderUsed ?? "INTELLIGENT_NLP_ENGINE",
+      aiFallback: changes?.aiFallback ?? null,
+      summary: (changes?.eventsCreatedCount ?? 0) > 0
+        ? locale === "fr"
+          ? `${changes?.eventsCreatedCount} événement(s) ont été ajoutés au match et aux dossiers des joueurs.`
+          : `تمت إضافة ${changes?.eventsCreatedCount} حدث إلى المباراة وملفات اللاعبين.`
+        : locale === "fr"
+          ? "L’analyse est terminée. Aucun nouvel événement attribuable n’a été ajouté."
+          : "اكتمل التحليل ولم يُضف حدث جديد منسوب للاعب؛ راجع الأحداث المسجلة لتجنب التكرار."
     };
   }
+
+  return result;
 }

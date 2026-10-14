@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { registerJobHandler, hasJobHandler } from "@/lib/jobs/registry";
@@ -7,17 +8,30 @@ import { enqueueJob, type DbOrTx } from "@/lib/jobs/queue";
 
 export const refereeReportAnalysisSchema = z.object({
   matchId: z.string(),
-  documentId: z.string(),
+  documentId: z.string().optional(),
+  reportText: z.string().trim().max(5000).optional(),
   userId: z.string()
+}).refine((value) => Boolean(value.documentId || value.reportText), {
+  message: "A report document or report text is required."
 });
 
 export async function enqueueRefereeReportAnalysis(
   client: DbOrTx,
-  input: z.infer<typeof refereeReportAnalysisSchema>
+  input: z.infer<typeof refereeReportAnalysisSchema>,
+  options?: { allowRerun?: boolean }
 ) {
-  const baseKey = `referee-report-analysis-${input.documentId}`;
+  const reportHash = input.reportText
+    ? createHash("sha256").update(input.reportText.trim()).digest("hex").slice(0, 24)
+    : null;
+  const documentKey = input.documentId || `text-${input.matchId}-${reportHash}`;
+  const baseKey = `referee-report-analysis-${documentKey}`;
   const prior = await client.backgroundJob.findUnique({ where: { idempotencyKey: baseKey }, select: { status: true } });
-  const idempotencyKey = prior && (prior.status === "FAILED" || prior.status === "CANCELLED")
+  const shouldRetry = prior && (
+    prior.status === "FAILED" ||
+    prior.status === "CANCELLED" ||
+    (options?.allowRerun && prior.status === "SUCCEEDED")
+  );
+  const idempotencyKey = shouldRetry
     ? `${baseKey}-retry-${Date.now()}`
     : baseKey;
   return enqueueJob(client, {
@@ -37,21 +51,24 @@ export function registerRefereeReportAnalysisJob(): void {
     schema: refereeReportAnalysisSchema,
     defaultPriority: "HIGH",
     defaultMaxAttempts: 2,
-    handler: async ({ matchId, documentId, userId }) => {
-      const doc = await db.document.findFirst({
-        where: { id: documentId, relatedMatchId: matchId, matchDocumentType: "REFEREE_REPORT" },
-        select: { storageKey: true, mimeType: true }
-      });
-      if (!doc) throw new Error("Referee report document not found");
+    handler: async ({ matchId, documentId, reportText, userId }) => {
+      let sourceText = reportText?.trim() || "";
+      if (!sourceText && documentId) {
+        const doc = await db.document.findFirst({
+          where: { id: documentId, relatedMatchId: matchId, matchDocumentType: "REFEREE_REPORT" },
+          select: { storageKey: true, mimeType: true }
+        });
+        if (!doc) throw new Error("Referee report document not found");
 
-      const { getPrivateFileBuffer } = await import("@/lib/storage");
-      const { extractDocumentText } = await import("@/lib/ai/document-verifier");
-      const buffer = await getPrivateFileBuffer(doc.storageKey);
-      const reportText = await extractDocumentText(buffer, doc.mimeType || "application/pdf");
-      if (!reportText?.trim()) throw new Error("Could not extract readable text from referee report");
+        const { getPrivateFileBuffer } = await import("@/lib/storage");
+        const { extractDocumentText } = await import("@/lib/ai/document-verifier");
+        const buffer = await getPrivateFileBuffer(doc.storageKey);
+        sourceText = (await extractDocumentText(buffer, doc.mimeType || "application/pdf"))?.trim() || "";
+      }
+      if (!sourceText) throw new Error("Could not extract readable text from referee report");
 
       const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
-      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText, userId });
+      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, userId });
       if (!result.success) throw new Error(result.summary || "Referee report analysis failed");
       return { eventsCreated: result.eventsCreated, provider: result.aiProviderUsed };
     }

@@ -2,6 +2,7 @@ import "server-only";
 
 import { getFAFConfig } from "./config";
 import { FAFSessionManager } from "./session-manager";
+import { RetryableError } from "@/lib/jobs/types";
 
 type JsonRecord = Record<string, any>;
 
@@ -12,6 +13,18 @@ function cookiePair(raw: string | null): string | null {
 }
 
 export class FafEmsClient {
+  private async fetchRemote(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "";
+      const message = name === "TimeoutError"
+        ? "FAF EMS request timed out; retrying may succeed."
+        : "FAF EMS could not be reached; retrying may succeed.";
+      throw new RetryableError(message, error);
+    }
+  }
+
   private async login(): Promise<string> {
     const config = getFAFConfig();
     const username = process.env.FAF_USERNAME?.trim();
@@ -21,11 +34,14 @@ export class FafEmsClient {
     const form = new FormData();
     form.set("user", username);
     form.set("password", password);
-    const response = await fetch(`${config.portalUrl}/api/login`, {
+    const response = await this.fetchRemote(`${config.portalUrl}/api/login`, {
       method: "POST", body: form, redirect: "manual",
       headers: { "User-Agent": config.userAgent },
       signal: AbortSignal.timeout(config.timeoutMs)
     });
+    if (response.status === 429 || response.status >= 500) {
+      throw new RetryableError(`FAF EMS login temporarily returned HTTP ${response.status}.`);
+    }
     const cookie = cookiePair(response.headers.get("set-cookie"));
     if (!response.ok || !cookie) throw new Error("FAF EMS login failed. Check the account credentials and access to the club account.");
     const body = await response.json().catch(() => null) as JsonRecord | null;
@@ -37,7 +53,7 @@ export class FafEmsClient {
   private async cookie(): Promise<string> {
     const stored = await FAFSessionManager.getSession();
     if (stored) {
-      const check = await fetch(`${getFAFConfig().portalUrl}/api/filters`, {
+      const check = await this.fetchRemote(`${getFAFConfig().portalUrl}/api/filters`, {
         headers: { Cookie: stored, "User-Agent": getFAFConfig().userAgent },
         signal: AbortSignal.timeout(Math.min(getFAFConfig().timeoutMs, 10000))
       }).catch(() => null);
@@ -48,25 +64,40 @@ export class FafEmsClient {
 
   private async request(path: string): Promise<Response> {
     const config = getFAFConfig();
-    const cookie = await this.cookie();
-    const response = await fetch(`${config.portalUrl}${path}`, {
+    const send = (cookie: string) => this.fetchRemote(`${config.portalUrl}${path}`, {
       headers: { Cookie: cookie, "User-Agent": config.userAgent, Accept: "application/json, application/pdf" },
       signal: AbortSignal.timeout(config.timeoutMs),
       redirect: "manual"
     });
+    let response = await send(await this.cookie());
     if (response.status === 401 || response.status === 403 || response.status === 302) {
       await FAFSessionManager.invalidateSession();
-      throw new Error("FAF EMS session expired or lacks access to this match. Retry to reconnect.");
+      response = await send(await this.login());
+      if (response.status === 401 || response.status === 403 || response.status === 302) {
+        await FAFSessionManager.invalidateSession();
+        throw new Error("FAF EMS account lacks access to the requested match or document.");
+      }
+    }
+    if (response.status === 429 || response.status >= 500) {
+      throw new RetryableError(`FAF EMS temporarily returned HTTP ${response.status}.`);
     }
     if (!response.ok) throw new Error(`FAF EMS returned HTTP ${response.status}.`);
     return response;
+  }
+
+  private async json(response: Response, label: string): Promise<JsonRecord> {
+    try {
+      return await response.json() as JsonRecord;
+    } catch {
+      throw new RetryableError(`FAF EMS returned an unreadable ${label} response.`);
+    }
   }
 
   async history(): Promise<JsonRecord[]> {
     const output: JsonRecord[] = [];
     for (let page = 0; page < 30; page++) {
       const response = await this.request(`/api/rencontres/history?page=${page}&pageSize=50`);
-      const json = await response.json() as JsonRecord;
+      const json = await this.json(response, "match history");
       if (!Array.isArray(json.content)) throw new Error("Unexpected FAF EMS match history response.");
       output.push(...json.content);
       if (!json.hasNext || json.content.length === 0) break;
@@ -76,7 +107,7 @@ export class FafEmsClient {
 
   async matchInfo(externalId: number): Promise<JsonRecord> {
     const response = await this.request(`/api/rencontres/match-info?matchId=${encodeURIComponent(externalId)}`);
-    const json = await response.json() as JsonRecord;
+    const json = await this.json(response, "match details");
     if (!json.match || Number(json.match.id) !== externalId) throw new Error("FAF EMS match details do not match the requested match.");
     return json;
   }
