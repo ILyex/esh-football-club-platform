@@ -17,9 +17,11 @@ export default async function PublicMatchesPage({
   searchParams: Promise<{ tab?: string; category?: string }>;
 }) {
   const { locale } = await params;
-  const { tab = "UPCOMING", category } = await searchParams;
+  // Show the full fixture history by default so finished games are not hidden
+  // behind the upcoming-only filter when visitors open the matches page.
+  const { tab = "ALL", category } = await searchParams;
 
-  const activeTab = tab === "RESULTS" ? "RESULTS" : tab === "ALL" ? "ALL" : "UPCOMING";
+  const activeTab = tab === "RESULTS" ? "RESULTS" : tab === "UPCOMING" ? "UPCOMING" : "ALL";
   const validCategory = category && Object.values(TeamCategory).includes(category.toUpperCase() as TeamCategory)
     ? (category.toUpperCase() as TeamCategory)
     : undefined;
