@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Shield, MapPin, Mail, Phone, Youtube, Globe2, Home, Users, CalendarDays, Trophy, Newspaper, Images, Landmark } from "lucide-react";
+import { MapPin, Mail, Phone, Youtube, Globe2, Home, Users, CalendarDays, Trophy, Newspaper, Images, Landmark } from "lucide-react";
 import { PublicClubSettings } from "@/lib/public/club";
 import { FacebookBrandIcon, InstagramBrandIcon, TikTokBrandIcon } from "@/components/public/social-brand-icons";
 import { ClubLogo } from "@/components/shared/club-logo";
@@ -32,11 +32,7 @@ export function PublicFooter({ locale, club, clubDisplayName, labels }: PublicFo
           <div className="order-1 min-w-0 space-y-3 text-start md:order-1 md:space-y-4">
             <div className={`flex w-full min-w-0 items-center gap-3 ${locale === "ar" ? "justify-end" : "justify-start"}`} dir={locale === "ar" ? "rtl" : "ltr"}>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#111214] shadow-sm sm:h-12 sm:w-12">
-                {club.logoUrl ? (
-                  <ClubLogo src={club.logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} animated className="h-full w-full object-cover" />
-                ) : (
-                  <Shield className="h-6 w-6 text-club-primary" />
-                )}
+                <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} animated className="h-full w-full object-contain" />
               </div>
               <div className="min-w-0 flex-1 text-start md:text-start">
                 <h3 className={`club-name text-[14px] font-extrabold leading-snug tracking-tight text-foreground transition-colors sm:text-sm ${locale === "fr" ? "line-clamp-2 whitespace-normal break-words sm:line-clamp-none sm:whitespace-nowrap" : "whitespace-nowrap"}`}>

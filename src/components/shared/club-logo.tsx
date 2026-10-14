@@ -10,7 +10,7 @@ type ClubLogoProps = ImgHTMLAttributes<HTMLImageElement> & {
 
 const DEFAULT_CREST = /^\/branding\/esh-logo(?:-(?:32|64|128|256))?\.png$/;
 
-/** Keep the crest static by default; only explicitly selected dark brand surfaces animate it. */
+/** Keep the crest static by default; explicitly selected logo placements may animate it. */
 export function ClubLogo({ fallbackSrc, src, animated = false, onError, ...props }: ClubLogoProps) {
   const [canAnimate, setCanAnimate] = useState(false);
   const logoPath = typeof src === "string" ? src.split(/[?#]/, 1)[0] ?? "" : "";
@@ -18,17 +18,12 @@ export function ClubLogo({ fallbackSrc, src, animated = false, onError, ...props
   useEffect(() => {
     if (!animated || !DEFAULT_CREST.test(logoPath)) return;
 
-    const root = document.documentElement;
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setCanAnimate(root.classList.contains("dark") && !motionPreference.matches);
-    const themeObserver = new MutationObserver(update);
-
-    themeObserver.observe(root, { attributes: true, attributeFilter: ["class"] });
+    const update = () => setCanAnimate(!motionPreference.matches);
     motionPreference.addEventListener("change", update);
     update();
 
     return () => {
-      themeObserver.disconnect();
       motionPreference.removeEventListener("change", update);
     };
   }, [animated, logoPath]);
@@ -47,6 +42,10 @@ export function ClubLogo({ fallbackSrc, src, animated = false, onError, ...props
         }}
       />
     );
+  }
+
+  if (animated && DEFAULT_CREST.test(logoPath)) {
+    return <SafeImage {...props} src="/branding/esh-logo-footer-static.png" fallbackSrc={fallbackSrc} onError={onError} />;
   }
 
   return <SafeImage {...props} src={src} fallbackSrc={fallbackSrc} onError={onError} />;
