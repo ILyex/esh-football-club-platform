@@ -15,7 +15,8 @@ export type AIErrorCode =
   | "AI_MODEL_NOT_FOUND"
   | "AI_BAD_REQUEST"
   | "AI_PARSE_ERROR"
-  | "AI_RESPONSE_TOO_LARGE";
+  | "AI_RESPONSE_TOO_LARGE"
+  | "AI_QUOTA_EXHAUSTED";
 
 export class AIError extends Error {
   constructor(

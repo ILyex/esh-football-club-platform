@@ -157,6 +157,13 @@ export default async function GenerateFromVersionPage({
             {aiAllowedForType && !aiAvailable && manualMappings.some((m) => m.sourceType === "AI_ASSISTED") && (
               <p className="text-xs text-muted-foreground">{t("aiUnavailable")}</p>
             )}
+            {sp.aiFallback && (
+              <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                {locale === "ar"
+                  ? sp.aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ أبقينا النص كما أدخلته ويمكنك متابعة إنشاء الوثيقة." : "تعذر الوصول إلى الذكاء الاصطناعي؛ أبقينا النص كما أدخلته ويمكنك متابعة إنشاء الوثيقة."
+                  : sp.aiFallback === "quota" ? "Le quota quotidien de l’IA est épuisé ; le texte original est conservé et vous pouvez continuer." : "L’IA est indisponible ; le texte original est conservé et vous pouvez continuer."}
+              </p>
+            )}
             <div className="space-y-4">
               {manualMappings.map((m) => (
                 <div key={m.placeholder}>

@@ -814,11 +814,12 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   });
 
   let lineupsAdded = 0;
+  let aiFallback: "quota" | "unavailable" | undefined;
   const shouldExtractLineup = sheetType === "PRE_MATCH_SHEET" && formData.getAll("autoLineup").includes("true");
   if (shouldExtractLineup && match.teamId) {
     try {
       const { extractDocumentText } = await import("@/lib/ai/document-verifier");
-      const extractedText = await extractDocumentText(buffer, validated.mime);
+      const extractedText = await extractDocumentText(buffer, validated.mime, (reason) => { aiFallback = reason; });
       if (extractedText) {
         const roster = await db.player.findMany({
           where: { teamId: match.teamId, status: { not: "ARCHIVED" } },
@@ -850,7 +851,14 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath("/[locale]/dashboard/matches", "page");
-  return { success: true, documentId: doc.id, lineupsAdded };
+  return {
+    success: true,
+    documentId: doc.id,
+    lineupsAdded,
+    ...(aiFallback ? { warning: locale === "ar"
+      ? aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ تم حفظ الورقة ويمكن إدخال التشكيلة يدوياً." : "الذكاء الاصطناعي غير متاح؛ تم حفظ الورقة ويمكن إدخال التشكيلة يدوياً."
+      : aiFallback === "quota" ? "Quota IA épuisé aujourd’hui ; la feuille est enregistrée et la composition peut être saisie manuellement." : "IA indisponible ; la feuille est enregistrée et la composition peut être saisie manuellement." } : {})
+  };
 }
 
 export async function syncFAFMatchDocumentsAction(matchId: string) {

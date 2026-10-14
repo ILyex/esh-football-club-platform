@@ -33,7 +33,8 @@ export function RefereeReportAiModal({
       notes?: string;
       matchedPlayerName?: string;
     }>;
-    aiProviderUsed: "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
+    aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
+    aiFallback?: "quota" | "unavailable" | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,8 +170,11 @@ export function RefereeReportAiModal({
 
                 <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-muted-foreground">
                   <span className="rounded-full bg-emerald-500/10 px-2.5 py-1">{isAr ? `تمت إضافة ${result.eventsCreated} حدث` : `${result.eventsCreated} événement(s) ajouté(s)`}</span>
-                  <span className="rounded-full bg-muted px-2.5 py-1">{result.aiProviderUsed === "LOCAL_OLLAMA" ? "Ollama AI" : (isAr ? "محرك التحليل الذكي" : "Moteur NLP")}</span>
+                  <span className="rounded-full bg-muted px-2.5 py-1">{result.aiProviderUsed === "CLOUDFLARE_WORKERS_AI" ? "Cloudflare AI" : result.aiProviderUsed === "LOCAL_OLLAMA" ? "Ollama AI" : (isAr ? "محرك التحليل الذكي" : "Moteur NLP")}</span>
                 </div>
+                {result.aiFallback && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                  {isAr ? result.aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ أكملنا تحليل التقرير بالمحرك الاحتياطي." : "الذكاء الاصطناعي غير متاح؛ أكملنا تحليل التقرير بالمحرك الاحتياطي." : result.aiFallback === "quota" ? "Quota IA épuisé aujourd’hui ; l’analyse a continué avec le moteur de secours." : "IA indisponible ; l’analyse a continué avec le moteur de secours."}
+                </p>}
 
                 {result.events.length > 0 && (
                   <div className="space-y-1.5 pt-1">

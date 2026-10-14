@@ -83,6 +83,7 @@ export function WebsiteAnalyticsDashboard({
   const [mounted, setMounted] = useState(false);
   const [trafficMetric, setTrafficMetric] = useState<"visitors" | "pageViews" | "clicks">("visitors");
   const [aiSummary, setAiSummary] = useState("");
+  const [aiFallback, setAiFallback] = useState<"quota" | "unavailable" | null>(null);
   const [aiError, setAiError] = useState("");
   const [isAiPending, startAiTransition] = useTransition();
 
@@ -154,8 +155,12 @@ export function WebsiteAnalyticsDashboard({
             disabled={isAiPending || !analytics.hasData}
             onClick={() => startAiTransition(async () => {
               setAiError("");
+              setAiFallback(null);
               const result = await summarizeWebsiteAnalytics();
-              if (result.ok) setAiSummary(result.summary);
+              if (result.ok) {
+                setAiSummary(result.summary);
+                setAiFallback(result.aiFallback ?? null);
+              }
               else setAiError(result.error);
             })}
             className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -164,6 +169,9 @@ export function WebsiteAnalyticsDashboard({
           </button>
         </div>
         {aiSummary && <p className="mt-4 whitespace-pre-line rounded-xl bg-muted/40 p-4 text-sm leading-7">{aiSummary}</p>}
+        {aiFallback && <p role="status" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          {isRtl ? aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ عرضنا الأرقام المسجلة مباشرة ويمكنك متابعة العمل." : "الذكاء الاصطناعي غير متاح؛ عرضنا الأرقام المسجلة مباشرة ويمكنك متابعة العمل." : aiFallback === "quota" ? "Quota IA épuisé aujourd’hui ; les données enregistrées restent disponibles." : "IA indisponible ; les données enregistrées restent disponibles."}
+        </p>}
         {aiError && <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">{aiError}</p>}
       </section>}
 

@@ -16,8 +16,11 @@
 	"vars": {
 		"DEPLOY_TARGET": "cloudflare",
 		"PUBLIC_SITE_ONLY": "false",
-		"AI_ENABLED": "false",
-		"NEXT_PUBLIC_AI_ENABLED": "false",
+		"AI_ENABLED": "true",
+		"AI_PROVIDER": "cloudflare",
+		"AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+		"AI_VISION_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+		"NEXT_PUBLIC_AI_ENABLED": "true",
 		"FAF_ENABLED": "false",
 		"AUTH_URL": "https://esh-football-platform.football-club-platform.workers.dev",
 		"NEXTAUTH_URL": "https://esh-football-platform.football-club-platform.workers.dev",
@@ -36,6 +39,9 @@
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
+	},
+	"ai": {
+		"binding": "AI"
 	},
 	"observability": {
 		"enabled": true

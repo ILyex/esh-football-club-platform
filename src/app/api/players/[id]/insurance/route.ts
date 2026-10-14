@@ -59,9 +59,11 @@ export async function POST(
       otherPlayers
     });
 
-    // Insurance status is derived from the presence of this document. Only an
-    // explicit ACCEPT may be stored; REJECT and UNVERIFIED both fail closed.
-    if (verification.verdict !== "ACCEPT") {
+    // If AI alone is unavailable, keep the upload usable but route it to human
+    // review. Deterministic REJECT and unreadable documents without an AI
+    // outage still fail closed.
+    const pendingManualReview = verification.verdict === "UNVERIFIED" && Boolean(verification.aiFallback);
+    if (verification.verdict !== "ACCEPT" && !pendingManualReview) {
       const findingCodes = new Set(verification.findings.map((finding) => finding.code));
       const reason = findingCodes.has("OTHER_PLAYER")
         ? "الوثيقة غير مطابقة لمعلومات اللاعب؛ الاسم الظاهر يعود إلى لاعب آخر."
@@ -77,7 +79,8 @@ export async function POST(
           error: `${reason} لم تُحفظ الوثيقة ولم تتغير حالة التأمين للاعب.`,
           verdict: verification.verdict,
           findings: verification.findings,
-          aiUsed: verification.aiUsed
+          aiUsed: verification.aiUsed,
+          aiFallback: verification.aiFallback
         },
         { status: 422 }
       );
@@ -132,7 +135,8 @@ export async function POST(
           mimeType: mime,
           sizeBytes: buffer.byteLength,
           originalName: file.name,
-          uploadedById: user.id
+          uploadedById: user.id,
+          status: pendingManualReview ? "PENDING_REVIEW" : "APPROVED"
         }
       });
     } else {
@@ -151,7 +155,7 @@ export async function POST(
           relatedPlayerId: player.id,
           teamId: player.teamId,
           classification: "RESTRICTED",
-          status: "APPROVED"
+          status: pendingManualReview ? "PENDING_REVIEW" : "APPROVED"
         }
       });
     }
@@ -169,7 +173,7 @@ export async function POST(
     revalidatePath(`/[locale]/dashboard/players/${player.id}`, "page");
     revalidatePath("/[locale]/dashboard/documents", "page");
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, pendingReview: pendingManualReview, aiFallback: verification.aiFallback });
   } catch (err: any) {
     const authResponse = toHttpErrorResponse(err);
     if (authResponse) return authResponse;

@@ -11,7 +11,7 @@
     "predev": "prisma generate",
     "build": "next build && node scripts/prepare-cpanel.mjs",
     "prebuild": "prisma generate",
-    "build:cloudflare": "npm run db:generate && node scripts/clean-build-output.mjs && opennextjs-cloudflare build && node scripts/prepare-cpanel.mjs && node scripts/prepare-cloudflare-wasm.mjs",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "preview:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare preview",
     "build:cpanel": "node scripts/clean-build-output.mjs && npm run build",
     "package:cpanel": "node scripts/package-cpanel.mjs",

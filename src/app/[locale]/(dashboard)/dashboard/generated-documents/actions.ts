@@ -15,7 +15,7 @@ import {
   type DocumentLanguage
 } from "@/lib/documents/entity-data-resolvers";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
-import { isAIConfigured, formalizeText } from "@/lib/ai/document-ai-service";
+import { isAIConfigured, formalizeTextWithStatus } from "@/lib/ai/document-ai-service";
 
 function documentLanguage(language: string): DocumentLanguage {
   return language === "ar" ? "ar" : "fr";
@@ -80,12 +80,17 @@ export async function improveFieldAction(locale: string, versionId: string, targ
   const { values, aiTouched } = collectFieldState(formData, manualPlaceholders);
 
   // Financial documents never go through AI (aiAssistAllowed: false in the registry).
+  let aiFallback: "quota" | "unavailable" | null = null;
   if (resolver.aiAssistAllowed !== false && isAIConfigured() && values[targetPlaceholder]?.trim()) {
-    values[targetPlaceholder] = await formalizeText(values[targetPlaceholder]);
-    aiTouched[targetPlaceholder] = true; // the only place this flag is ever set to true
+    const result = await formalizeTextWithStatus(values[targetPlaceholder]);
+    values[targetPlaceholder] = result.text;
+    aiFallback = result.fallback;
+    if (!aiFallback) aiTouched[targetPlaceholder] = true; // only mark text that AI actually changed
   }
 
-  redirect(`/${locale}/dashboard/generated-documents/new/${versionId}?${buildQueryString(entityId, values, aiTouched)}`);
+  const query = new URLSearchParams(buildQueryString(entityId, values, aiTouched));
+  if (aiFallback) query.set("aiFallback", aiFallback);
+  redirect(`/${locale}/dashboard/generated-documents/new/${versionId}?${query.toString()}`);
 }
 
 export async function generateDocumentAction(locale: string, versionId: string, formData: FormData) {

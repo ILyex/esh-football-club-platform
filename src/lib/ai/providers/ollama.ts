@@ -103,7 +103,9 @@ export class OllamaProvider implements AIProvider {
         num_predict: maxTokens
       }
     };
-    if (params.images && params.images.length > 0) requestBody.images = params.images;
+    if (params.images && params.images.length > 0) {
+      requestBody.images = params.images.map((image) => image.replace(/^data:image\/[a-z0-9.+-]+;base64,/i, ""));
+    }
 
     let response: Response;
     try {

@@ -180,7 +180,8 @@ export function TestingSessionSheet({
   const [aiReport, setAiReport] = useState<{
     summary: string; executiveDiagnosis: string; keyFindings: string[]; coachRecommendations: string[];
     metrics: { label: string; unit: string; count: number; average: number | null; minimum: number | null; maximum: number | null }[];
-    aiProviderUsed: "LOCAL_OLLAMA" | "DETERMINISTIC_SPORTS_SCIENCE";
+    aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "DETERMINISTIC_SPORTS_SCIENCE";
+    aiFallback?: "quota" | "unavailable" | null;
   } | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -1271,9 +1272,12 @@ export function TestingSessionSheet({
                     <span>{aiReport.summary}</span>
                   </div>
                   <Badge tone="neutral" className="text-[10px] font-mono">
-                    {aiReport.aiProviderUsed === "LOCAL_OLLAMA" ? "Ollama Local AI" : (locale === "ar" ? "ملخص آلي وصفي" : "Résumé descriptif automatique")}
+                    {aiReport.aiProviderUsed === "CLOUDFLARE_WORKERS_AI" ? "Cloudflare AI" : aiReport.aiProviderUsed === "LOCAL_OLLAMA" ? "Ollama Local AI" : (locale === "ar" ? "ملخص آلي وصفي" : "Résumé descriptif automatique")}
                   </Badge>
                 </div>
+                {aiReport.aiFallback && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                  {locale === "ar" ? aiReport.aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ استمر التقرير بملخص وصفي من البيانات المسجلة." : "الذكاء الاصطناعي غير متاح؛ استمر التقرير بملخص وصفي من البيانات المسجلة." : aiReport.aiFallback === "quota" ? "Quota IA épuisé aujourd’hui ; le rapport descriptif a été généré à partir des données enregistrées." : "IA indisponible ; le rapport descriptif a été généré à partir des données enregistrées."}
+                </p>}
 
                 <section className="rounded-xl border border-border bg-background p-4 space-y-3">
                   <h4 className="font-bold text-foreground">{locale === "ar" ? "ملخص القياسات الصالحة" : "Synthèse des mesures valides"}</h4>

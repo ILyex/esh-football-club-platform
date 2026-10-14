@@ -18,6 +18,9 @@ import { AIError } from "./types";
 
 export { isAIConfigured };
 
+export type AIFallbackStatus = "quota" | "unavailable" | null;
+export interface AIAssistResult { text: string; fallback: AIFallbackStatus }
+
 const NEVER_INVENT_RULE =
   "You are a document-drafting assistant for a football club's administrative system. " +
   "You may improve wording, structure, grammar, and formality, and you may translate between Arabic and French. " +
@@ -28,9 +31,9 @@ const NEVER_INVENT_RULE =
 
 const MAX_INPUT_CHARS = 8000;
 
-async function assist(instruction: string, rawInput: string, maxTokens = 1024): Promise<string> {
+async function assistWithStatus(instruction: string, rawInput: string, maxTokens = 1024): Promise<AIAssistResult> {
   const input = (rawInput || "").trim();
-  if (!input) return rawInput;
+  if (!input) return { text: rawInput, fallback: null };
 
   // Bound input size to prevent memory exhaustion / resource starvation
   const boundedInput = input.length > MAX_INPUT_CHARS ? input.slice(0, MAX_INPUT_CHARS) : input;
@@ -47,7 +50,7 @@ async function assist(instruction: string, rawInput: string, maxTokens = 1024): 
 
     // Strip any residual delimiter tags if echoed by the model
     const cleaned = result.replace(/<\/?input_text>/gi, "").trim();
-    return cleaned || input;
+    return { text: cleaned || input, fallback: null };
   } catch (err) {
     // Graceful degradation: If local Ollama is offline, unreachable, or times out,
     // log operational error and return the user's original text safely.
@@ -56,13 +59,21 @@ async function assist(instruction: string, rawInput: string, maxTokens = 1024): 
     } else {
       console.warn("[AI Engine] Unexpected error during completion. Gracefully falling back to original input.");
     }
-    return input;
+    return { text: input, fallback: err instanceof AIError && err.code === "AI_QUOTA_EXHAUSTED" ? "quota" : "unavailable" };
   }
+}
+
+async function assist(instruction: string, rawInput: string, maxTokens = 1024): Promise<string> {
+  return (await assistWithStatus(instruction, rawInput, maxTokens)).text;
 }
 
 /** Converts informal notes into formal administrative language, in the same language as the input. */
 export function formalizeText(notes: string): Promise<string> {
   return assist("Rewrite the text inside <input_text> in formal, professional administrative language, keeping the same language and every fact exactly as given.", notes);
+}
+
+export function formalizeTextWithStatus(notes: string): Promise<AIAssistResult> {
+  return assistWithStatus("Rewrite the text inside <input_text> in formal, professional administrative language, keeping the same language and every fact exactly as given.", notes);
 }
 
 /** Improves grammar/clarity/flow without changing meaning or adding content. */

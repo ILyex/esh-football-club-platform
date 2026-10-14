@@ -1,5 +1,6 @@
 import "server-only";
 import { runAICompletion, checkAIAvailability } from "./provider";
+import { AIError } from "./types";
 
 export interface CoachSessionPlayerContext {
   id: string;
@@ -32,7 +33,8 @@ export interface CoachInsightReport {
   keyFindings: string[];
   coachRecommendations: string[];
   metrics: { label: string; unit: string; count: number; average: number | null; minimum: number | null; maximum: number | null }[];
-  aiProviderUsed: "LOCAL_OLLAMA" | "DETERMINISTIC_SPORTS_SCIENCE";
+  aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "DETERMINISTIC_SPORTS_SCIENCE";
+  aiFallback?: "quota" | "unavailable" | null;
 }
 
 const COACH_AI_SYSTEM_PROMPT =
@@ -64,6 +66,7 @@ export async function generateCoachTestingInsights(ctx: CoachSessionContext): Pr
     "Summarize only observable values and variation in this dataset. Do not apply external norms, tiers, rankings beyond the values shown, or prescribe training loads. State that the coach should verify conditions, protocol completion, and context before interpretation.";
 
   const availability = await checkAIAvailability();
+  let aiFallback: "quota" | "unavailable" | null = availability.available ? null : "unavailable";
   if (availability.available) {
     try {
       const completion = await runAICompletion({
@@ -85,10 +88,12 @@ export async function generateCoachTestingInsights(ctx: CoachSessionContext): Pr
             isArabic ? "تحقق من اكتمال البروتوكول وظروف القياس قبل اعتماد النتائج." : "Vérifiez le protocole et les conditions de mesure avant de retenir les résultats.",
             isArabic ? "قارن اللاعب بنفس البروتوكول وظروف متقاربة، وفسّر النتائج ضمن العمر والمركز والحالة الصحية." : "Comparez chaque joueur avec le même protocole et des conditions similaires, en tenant compte de son contexte."
           ],
-          aiProviderUsed: "LOCAL_OLLAMA"
+          aiProviderUsed: process.env.AI_PROVIDER === "cloudflare" || process.env.DEPLOY_TARGET === "cloudflare" ? "CLOUDFLARE_WORKERS_AI" : "LOCAL_OLLAMA",
+          aiFallback: null
         };
       }
     } catch (err) {
+      aiFallback = err instanceof AIError && err.code === "AI_QUOTA_EXHAUSTED" ? "quota" : "unavailable";
       console.warn("[Coach AI Assistant] Local model unavailable; returning a descriptive fallback.", err);
     }
   }
@@ -108,6 +113,7 @@ export async function generateCoachTestingInsights(ctx: CoachSessionContext): Pr
       isArabic ? "تحقق من اكتمال البروتوكول وظروف القياس قبل اعتماد النتائج." : "Vérifiez le protocole et les conditions de mesure avant de retenir les résultats.",
       isArabic ? "قارن النتائج عبر الزمن باستخدام البروتوكول نفسه، وفسّرها ضمن السياق الفردي." : "Comparez les résultats dans le temps avec le même protocole et interprétez-les dans leur contexte individuel."
     ],
-    aiProviderUsed: "DETERMINISTIC_SPORTS_SCIENCE"
+    aiProviderUsed: "DETERMINISTIC_SPORTS_SCIENCE",
+    aiFallback
   };
 }

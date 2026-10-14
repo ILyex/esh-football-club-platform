@@ -65,6 +65,9 @@ export function ActionFeedbackForm({
           return;
         }
         toast.success(successMessage);
+        if (result && typeof result === "object" && "warning" in result && typeof (result as { warning?: unknown }).warning === "string") {
+          toast.warning((result as { warning: string }).warning, { duration: 7000 });
+        }
         if (resetOnSuccess) formRef.current?.reset();
         if (refreshOnSuccess) router.refresh();
       } catch (error) {

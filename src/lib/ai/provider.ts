@@ -1,6 +1,7 @@
 import "server-only";
 import { AIProvider, AIAvailabilityResult } from "./types";
 import { OllamaProvider } from "./providers/ollama";
+import { CloudflareWorkersAIProvider } from "./providers/cloudflare-workers-ai";
 
 // ============================================================================
 // AI PROVIDER REGISTRY & COMPATIBILITY LAYER
@@ -9,7 +10,11 @@ import { OllamaProvider } from "./providers/ollama";
 // call into this facade.
 // ============================================================================
 
-let activeProvider: AIProvider = new OllamaProvider();
+const useCloudflare = process.env.AI_PROVIDER === "cloudflare" ||
+  (!process.env.AI_PROVIDER && process.env.DEPLOY_TARGET === "cloudflare");
+const activeProvider: AIProvider = !useCloudflare
+  ? new OllamaProvider()
+  : new CloudflareWorkersAIProvider();
 
 /**
  * Returns the currently active AI provider instance.

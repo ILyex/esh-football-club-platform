@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { runAICompletion, checkAIAvailability } from "./provider";
 import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { AIError } from "./types";
 
 export interface ParsedEventItem {
   playerId: string | null;
@@ -20,7 +21,8 @@ export interface RefereeReportAnalysisResult {
   events: ParsedEventItem[];
   summary: string;
   detectedScore?: { home: number; away: number } | null;
-  aiProviderUsed: "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
+  aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
+  aiFallback?: "quota" | "unavailable" | null;
 }
 
 /**
@@ -232,7 +234,8 @@ export async function parseAndApplyRefereeReportWithAI(params: {
 
   let parsedEvents: ParsedEventItem[] = [];
   let detectedScore: { home: number; away: number } | null = null;
-  let aiProviderUsed: "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE" = "INTELLIGENT_NLP_ENGINE";
+  let aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE" = "INTELLIGENT_NLP_ENGINE";
+  let aiFallback: "quota" | "unavailable" | null = null;
 
   // Squad list formatting for AI prompt
   const squadRoster = squad
@@ -267,6 +270,7 @@ ${squadRoster}
 }`;
 
   const availability = await checkAIAvailability();
+  if (!availability.available) aiFallback = "unavailable";
   if (availability.available) {
     try {
       const aiResponse = await runAICompletion({
@@ -299,10 +303,11 @@ ${squadRoster}
           if (parsed.homeScore !== undefined && parsed.awayScore !== undefined) {
             detectedScore = { home: Number(parsed.homeScore), away: Number(parsed.awayScore) };
           }
-          aiProviderUsed = "LOCAL_OLLAMA";
+          aiProviderUsed = process.env.AI_PROVIDER === "cloudflare" || process.env.DEPLOY_TARGET === "cloudflare" ? "CLOUDFLARE_WORKERS_AI" : "LOCAL_OLLAMA";
         }
       }
     } catch (err) {
+      aiFallback = err instanceof AIError && err.code === "AI_QUOTA_EXHAUSTED" ? "quota" : "unavailable";
       console.warn("[AI Referee Report] Fallback to deterministic NLP engine due to error:", err);
     }
   }
@@ -359,6 +364,7 @@ ${squadRoster}
     changes: {
       eventsCreatedCount: newEventsToCreate.length,
       aiProviderUsed,
+      aiFallback,
       events: newEventsToCreate.map((e) => ({
         type: e.type,
         playerId: e.playerId,
@@ -386,6 +392,7 @@ ${squadRoster}
     events: parsedEvents,
     summary,
     detectedScore,
-    aiProviderUsed
+    aiProviderUsed,
+    aiFallback
   };
 }

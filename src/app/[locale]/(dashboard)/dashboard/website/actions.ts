@@ -3,6 +3,7 @@
 import { requirePermission } from "@/lib/permissions";
 import { getWebsiteAnalytics } from "@/lib/analytics";
 import { isAIConfigured, runAICompletion } from "@/lib/ai/provider";
+import { AIError } from "@/lib/ai/types";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { generatePublicStorageKey, uploadPublicFile, validateUploadedImage, validateUploadedBannerImage } from "@/lib/storage";
@@ -232,9 +233,9 @@ export async function updateDashboardWelcomeBannerAction(formData: FormData): Pr
   }
 }
 
-export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: string } | { ok: false; error: string }> {
+export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: string; aiFallback?: "quota" | "unavailable" } | { ok: false; error: string }> {
   await requirePermission("news.view");
-  if (!isAIConfigured()) return { ok: false, error: "الذكاء المحلي غير مهيأ حالياً." };
+  if (!isAIConfigured()) return { ok: false, error: "الذكاء الاصطناعي غير متاح حالياً." };
   const analytics = await getWebsiteAnalytics();
   if (!analytics.hasData) return { ok: false, error: "لا توجد أحداث مسجلة لتحليلها بعد." };
 
@@ -259,10 +260,11 @@ export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: 
     });
     return { ok: true, summary };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message.toLowerCase().includes("timed out") || message.toLowerCase().includes("timeout")) {
-      return { ok: false, error: "استغرق التحليل وقتًا أطول من المتوقع. أعد المحاولة بعد لحظات؛ الأرقام المسجلة ما زالت متاحة." };
-    }
-    return { ok: false, error: "تعذر تشغيل التحليل المحلي. تأكد من تشغيل Ollama والنموذج المحدد؛ الأرقام المسجلة ما زالت متاحة." };
+    const fallbackSummary = `خلال آخر 14 يوماً: ${analytics.totalVisitors} زائراً فريداً، و${analytics.totalPageViews} مشاهدة صفحة، و${analytics.totalClicks} نقرة. هذه أرقام مسجلة مباشرة؛ لا يتوفر تحليل إضافي حالياً.`;
+    return {
+      ok: true,
+      summary: fallbackSummary,
+      aiFallback: error instanceof AIError && error.code === "AI_QUOTA_EXHAUSTED" ? "quota" : "unavailable"
+    };
   }
 }

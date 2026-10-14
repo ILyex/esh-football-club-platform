@@ -28,6 +28,7 @@ export function QuickInsuranceUploadModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [pendingReview, setPendingReview] = useState(false);
 
   const isAr = locale === "ar";
 
@@ -109,18 +110,25 @@ export function QuickInsuranceUploadModal({
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         if ((data.verdict === "REJECT" || data.verdict === "UNVERIFIED") && Array.isArray(data.findings)) {
-          setError(getVerificationMessage(data.verdict, data.findings));
+          const fallbackNote = data.aiFallback
+            ? isAr
+              ? data.aiFallback === "quota" ? " انتهت حصة الذكاء الاصطناعي اليوم؛ الوثيقة تحتاج إلى مراجعة يدوية." : " الذكاء الاصطناعي غير متاح؛ الوثيقة تحتاج إلى مراجعة يدوية."
+              : data.aiFallback === "quota" ? " Quota IA épuisé aujourd’hui ; le document doit être vérifié manuellement." : " IA indisponible ; le document doit être vérifié manuellement."
+            : "";
+          setError(`${getVerificationMessage(data.verdict, data.findings)}${fallbackNote}`);
         } else {
           throw new Error(data.error || (isAr ? "فشل رفع وثيقة التأمين" : "Échec du téléversement"));
         }
         return;
       }
 
+      const data = await response.json().catch(() => ({}));
+      setPendingReview(Boolean(data.pendingReview));
       setSuccess(true);
       setTimeout(() => {
         setIsOpen(false);
         window.location.reload();
-      }, 1200);
+      }, data.pendingReview ? 3000 : 1200);
     } catch (err: any) {
       setError(err.message || (isAr ? "حدث خطأ أثناء الرفع" : "Une erreur est survenue"));
     } finally {
@@ -185,8 +193,13 @@ export function QuickInsuranceUploadModal({
               <div className="py-8 text-center space-y-2">
                 <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto animate-bounce" />
                 <p className="text-sm font-bold text-foreground">
-                  {isAr ? "تم حفظ وثيقة التأمين وتحديث وضعية اللاعب بنجاح!" : "Document d'assurance enregistré avec succès !"}
+                  {pendingReview
+                    ? isAr ? "تم حفظ الوثيقة وهي بانتظار المراجعة." : "Document enregistré en attente de vérification."
+                    : isAr ? "تم حفظ وثيقة التأمين وتحديث وضعية اللاعب بنجاح!" : "Document d'assurance enregistré avec succès !"}
                 </p>
+                {pendingReview && <p role="status" className="mx-auto max-w-sm text-xs text-amber-700 dark:text-amber-300">
+                  {isAr ? "انتهت حصة الذكاء الاصطناعي أو تعذر الوصول إليه؛ تم حفظ الوثيقة للمراجعة اليدوية دون اعتمادها تلقائياً." : "L’IA est indisponible ; le document a été enregistré pour vérification manuelle sans approbation automatique."}
+                </p>}
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="mt-4 space-y-4">

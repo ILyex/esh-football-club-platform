@@ -16,6 +16,7 @@ import "server-only";
 // ============================================================================
 
 import { runAICompletion, isAIConfigured } from "./provider";
+import { AIError } from "./types";
 import { getAIConfig } from "./config";
 import {
   checkPlayerDocument,
@@ -71,6 +72,7 @@ export interface DocumentVerificationResult {
   findings: VerificationFinding[];
   extractedText: string | null;
   aiUsed: boolean;
+  aiFallback?: "quota" | "unavailable";
   /** Advisory only; an AI suggestion never overrides deterministic verification. */
   aiRecommendation?: "ACCEPT" | "REJECT" | "UNVERIFIED";
 }
@@ -109,7 +111,11 @@ const MAX_TEXT_FOR_ARBITER = 6000; // characters — keeps prompt lean
 
 // ---- Text extraction --------------------------------------------------------
 
-async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
+function reportAIFailure(callback: ((reason: "quota" | "unavailable") => void) | undefined, error: unknown) {
+  callback?.(error instanceof AIError && error.code === "AI_QUOTA_EXHAUSTED" ? "quota" : "unavailable");
+}
+
+async function extractTextFromPDF(buffer: Buffer, onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
   let dispose: (() => Promise<void>) | undefined;
   try {
     // Dynamic import keeps unpdf out of the client bundle
@@ -136,7 +142,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
       });
       images.push(Buffer.from(rendered));
     }
-    const ocrText = await extractTextFromImages(images);
+    const ocrText = await extractTextFromImages(images, "image/png", onAIFailure);
     return ocrText || extracted || null;
   } catch (err) {
     console.error("[DocumentVerifier] PDF extraction failed:", err);
@@ -146,16 +152,16 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
   }
 }
 
-async function extractTextFromImage(buffer: Buffer): Promise<string | null> {
+async function extractTextFromImage(buffer: Buffer, mimeType: string, onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
   if (!isAIConfigured()) return null;
-  return extractTextFromImages([buffer]);
+  return extractTextFromImages([buffer], mimeType, onAIFailure);
 }
 
-async function extractTextFromImages(images: Buffer[]): Promise<string | null> {
+async function extractTextFromImages(images: Buffer[], mimeType = "image/png", onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
   if (!isAIConfigured() || images.length === 0) return null;
   try {
-    const visionModel = getAIConfig().ollama.visionModel;
-    const base64Images = images.map((image) => image.toString("base64"));
+    const visionModel = process.env.AI_VISION_MODEL || process.env.AI_MODEL || getAIConfig().ollama.visionModel;
+    const base64Images = images.map((image) => `data:${mimeType};base64,${image.toString("base64")}`);
     const text = await runAICompletion({
       system:
         "أنت مساعد OCR. استخرج كل النص العربي والفرنسي المرئي في صورة الوثيقة. " +
@@ -168,25 +174,27 @@ async function extractTextFromImages(images: Buffer[]): Promise<string | null> {
     return text || null;
   } catch (err) {
     console.error("[DocumentVerifier] Vision OCR failed:", err);
+    reportAIFailure(onAIFailure, err);
     return null;
   }
 }
 
 async function extractText(
   buffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  onAIFailure?: (reason: "quota" | "unavailable") => void
 ): Promise<string | null> {
   const mime = mimeType.toLowerCase();
-  if (mime === "application/pdf") return extractTextFromPDF(buffer);
-  if (mime.startsWith("image/")) return extractTextFromImage(buffer);
+  if (mime === "application/pdf") return extractTextFromPDF(buffer, onAIFailure);
+  if (mime.startsWith("image/")) return extractTextFromImage(buffer, mime, onAIFailure);
   return null; // unsupported MIME — cannot read
 }
 
 /** Extracts readable text for server-side document workflows that need to
  * interpret a non-sensitive uploaded form (for example a match sheet). */
-export async function extractDocumentText(buffer: Buffer, mimeType: string): Promise<string | null> {
+export async function extractDocumentText(buffer: Buffer, mimeType: string, onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
   try {
-    const text = await extractText(buffer, mimeType);
+    const text = await extractText(buffer, mimeType, onAIFailure);
     return isReadable(text) ? text : null;
   } catch (err) {
     console.error("[DocumentVerifier] Document text extraction failed:", err);
@@ -199,7 +207,8 @@ export async function extractDocumentText(buffer: Buffer, mimeType: string): Pro
 async function callAIArbiter(
   text: string,
   finding: VerificationFinding,
-  context: VerificationContext
+  context: VerificationContext,
+  onAIFailure?: (reason: "quota" | "unavailable") => void
 ): Promise<"ACCEPT" | "REJECT" | "UNVERIFIED"> {
   if (!isAIConfigured()) return "UNVERIFIED";
 
@@ -246,6 +255,7 @@ async function callAIArbiter(
     return "UNVERIFIED";
   } catch (err) {
     console.error("[DocumentVerifier] AI arbiter failed:", err);
+    reportAIFailure(onAIFailure, err);
     return "UNVERIFIED";
   }
 }
@@ -268,15 +278,17 @@ export async function verifyDocument(
 ): Promise<DocumentVerificationResult> {
   // Step 1: Extract text from the document
   let extractedText: string | null = null;
+  let aiFallback: "quota" | "unavailable" | undefined;
+  const markAIFailure = (reason: "quota" | "unavailable") => { aiFallback = reason; };
   try {
-    extractedText = await extractText(buffer, mimeType);
+    extractedText = await extractText(buffer, mimeType, markAIFailure);
   } catch (err) {
     console.error("[DocumentVerifier] Text extraction error:", err);
   }
 
   if (!isReadable(extractedText)) {
     // Cannot read the document — don't block upload, just mark as unverified
-    return UNVERIFIED_RESULT;
+    return { ...UNVERIFIED_RESULT, aiFallback };
   }
 
   // Step 2: Run deterministic rules
@@ -348,7 +360,8 @@ export async function verifyDocument(
       const aiRecommendation = await callAIArbiter(
         extractedText!,
         ambiguousFinding,
-        context
+        context,
+        markAIFailure
       );
 
       return {
@@ -357,6 +370,7 @@ export async function verifyDocument(
         extractedText,
         aiUsed: true,
         aiRecommendation,
+        aiFallback,
       };
     }
   }
@@ -367,5 +381,6 @@ export async function verifyDocument(
     findings: ruleResult.findings,
     extractedText,
     aiUsed: false,
+    aiFallback,
   };
 }

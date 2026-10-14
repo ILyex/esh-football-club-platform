@@ -169,7 +169,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   }
   async function attachSheet(formData: FormData) {
     "use server";
-    await attachMatchSheetAction(id, formData);
+    return await attachMatchSheetAction(id, formData);
   }
   async function addShootoutKick(formData: FormData) {
     "use server";
