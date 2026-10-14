@@ -15,7 +15,7 @@ export interface LogoutButtonProps {
 export function LogoutButton({ locale, className = "", variant = "pill" }: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
   const isAr = locale === "ar";
-  const label = isAr ? "إنهاء الجلسة" : "Déconnexion";
+  const label = isAr ? "تسجيل الخروج" : "Déconnexion";
   const confirmation = isAr ? "هل أنت متأكد أنك تريد تسجيل الخروج؟" : "Voulez-vous vraiment vous déconnecter ?";
 
   const handleLogout = async () => {
