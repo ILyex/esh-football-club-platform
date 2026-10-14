@@ -1270,13 +1270,16 @@
     },
     "eventTypes": {
       "GOAL": "But",
+      "ASSIST": "Passe décisive",
       "PENALTY": "Penalty",
       "PENALTY_GOAL": "But sur penalty",
       "PENALTY_MISSED": "Penalty manqué",
       "OWN_GOAL": "Contre son camp",
       "YELLOW_CARD": "Carton jaune",
       "RED_CARD": "Carton rouge",
-      "SUBSTITUTION": "Changement"
+      "SUBSTITUTION": "Changement",
+      "SUBSTITUTION_IN": "Entrée d’un joueur",
+      "SUBSTITUTION_OUT": "Sortie d’un joueur"
     }
   },
   "mail": {

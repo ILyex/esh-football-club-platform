@@ -31,13 +31,16 @@ export interface RefereeReportAnalysisResult {
 function normalizeName(str: string): string {
   if (!str) return "";
   return str
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[أإآء]/g, "ا")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f\u064B-\u065F\u0670ـ]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
     .replace(/[ة]/g, "ه")
     .replace(/[ى]/g, "ي")
-    .replace(/^(ال)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 type SquadPlayer = {
@@ -57,34 +60,36 @@ function findBestPlayerMatch(
   squad: SquadPlayer[]
 ): SquadPlayer | null {
   if (queryNumber) {
-    const byNumber = squad.find((p) => p.shirtNumber === queryNumber);
-    if (byNumber) {
-      return byNumber;
-    }
+    const byNumber = squad.filter((p) => p.shirtNumber === queryNumber);
+    if (byNumber.length === 1) return byNumber[0]!;
   }
 
   const normQuery = normalizeName(queryName);
   if (!normQuery) return null;
+  const queryTokens = new Set(normQuery.split(" "));
+  const ranked = squad.map((player) => {
+    const first = normalizeName(player.firstName);
+    const last = normalizeName(player.lastName);
+    const firstTokens = first.split(" ").filter(Boolean);
+    const lastTokens = last.split(" ").filter(Boolean);
+    const full = [...firstTokens, ...lastTokens];
+    const fullReverse = [...lastTokens, ...firstTokens];
+    const hasAll = (tokens: string[]) => tokens.length > 0 && tokens.every((token) => queryTokens.has(token));
 
-  for (const p of squad) {
-    const normFirst = normalizeName(p.firstName);
-    const normLast = normalizeName(p.lastName);
-    const normFull = `${normFirst} ${normLast}`;
-    const normRev = `${normLast} ${normFirst}`;
-
-    if (
-      normQuery === normFull ||
-      normQuery === normRev ||
-      normQuery === normLast ||
-      normQuery.includes(normLast) ||
-      normLast.includes(normQuery) ||
-      (normFirst.length > 2 && normQuery.includes(normFirst))
-    ) {
-      return p;
+    let score = 0;
+    if (normQuery === [...firstTokens, ...lastTokens].join(" ") || normQuery === [...lastTokens, ...firstTokens].join(" ")) score = 100;
+    else if (hasAll(full) || hasAll(fullReverse)) score = 90;
+    else {
+      const distinctiveTokens = [...firstTokens, ...lastTokens].filter((token) => token.length >= 4);
+      const matchedTokens = distinctiveTokens.filter((token) => queryTokens.has(token));
+      if (matchedTokens.length) score = 70 + Math.min(20, matchedTokens.length * 5);
     }
-  }
+    return { player, score };
+  }).filter((candidate) => candidate.score > 0).sort((a, b) => b.score - a.score);
 
-  return null;
+  if (!ranked.length || ranked[0]!.score < 70) return null;
+  if (ranked.length > 1 && ranked[0]!.score === ranked[1]!.score) return null;
+  return ranked[0]!.player;
 }
 
 /**
@@ -296,9 +301,9 @@ ${squadRoster}
         const parsed = JSON.parse(jsonMatch[0]);
         if (Array.isArray(parsed.events)) {
           parsedEvents = parsed.events.map((e: any) => {
-            const matched = e.playerId
-              ? squad.find((p) => p.id === e.playerId)
-              : findBestPlayerMatch(e.playerName || "", e.shirtNumber, squad);
+            const matchedByName = findBestPlayerMatch(e.playerName || "", e.shirtNumber, squad);
+            const matchedById = e.playerId ? squad.find((p) => p.id === e.playerId) : undefined;
+            const matched = matchedByName || matchedById;
 
             return {
               playerId: matched?.id || null,
@@ -336,12 +341,16 @@ ${squadRoster}
 
   // Avoid creating exact duplicate events already present in this match
   const existingEvents = match.events;
-  const newEventsToCreate = validEvents.filter(
-    (ve) =>
-      !existingEvents.some(
-        (ee) => ee.playerId === ve.playerId && ee.type === ve.type && Math.abs(ee.minute - ve.minute) <= 2
-      )
-  );
+  const newEventsToCreate: ParsedEventItem[] = [];
+  for (const candidate of validEvents) {
+    const alreadyRecorded = existingEvents.some(
+      (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
+    );
+    const duplicatedInReport = newEventsToCreate.some(
+      (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
+    );
+    if (!alreadyRecorded && !duplicatedInReport) newEventsToCreate.push(candidate);
+  }
 
   // Persist into database
   for (const item of newEventsToCreate) {

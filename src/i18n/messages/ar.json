@@ -1270,13 +1270,16 @@
     },
     "eventTypes": {
       "GOAL": "هدف",
+      "ASSIST": "تمريرة حاسمة",
       "PENALTY": "ضربة جزاء",
       "PENALTY_GOAL": "هدف من ضربة جزاء",
       "PENALTY_MISSED": "ركلة جزاء ضائعة",
       "OWN_GOAL": "هدف عكسي",
       "YELLOW_CARD": "بطاقة صفراء",
       "RED_CARD": "بطاقة حمراء",
-      "SUBSTITUTION": "تبديل"
+      "SUBSTITUTION": "تبديل",
+      "SUBSTITUTION_IN": "دخول لاعب",
+      "SUBSTITUTION_OUT": "خروج لاعب"
     }
   },
   "mail": {

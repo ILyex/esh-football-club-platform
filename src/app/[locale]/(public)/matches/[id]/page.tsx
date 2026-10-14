@@ -145,10 +145,10 @@ export default async function PublicMatchDetailPage({
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1 text-center sm:gap-x-4">
             {/* Home Team */}
             <div className="flex min-w-0 self-start flex-col items-center px-1 sm:px-2">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background shadow-xs sm:h-20 sm:w-20">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-transparent shadow-xs sm:h-20 sm:w-20">
                 {homeLogoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={homeLogoUrl} alt={homeTeamName} className="h-full w-full object-contain p-1.5" />
+                  <img src={homeLogoUrl} alt={homeTeamName} className="h-full w-full rounded-full object-contain p-1.5" />
                 ) : (
                   <Shield className="h-8 w-8 text-club-primary sm:h-10 sm:w-10" />
                 )}
@@ -201,10 +201,10 @@ export default async function PublicMatchDetailPage({
 
             {/* Away Team */}
             <div className="flex min-w-0 self-start flex-col items-center px-1 sm:px-2">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background shadow-xs sm:h-20 sm:w-20">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-transparent shadow-xs sm:h-20 sm:w-20">
                 {awayLogoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={awayLogoUrl} alt={awayTeamName} className="h-full w-full object-contain p-1.5" />
+                  <img src={awayLogoUrl} alt={awayTeamName} className="h-full w-full rounded-full object-contain p-1.5" />
                 ) : (
                   <Shield className="h-8 w-8 text-muted-foreground/60 sm:h-10 sm:w-10" />
                 )}
@@ -330,16 +330,16 @@ export default async function PublicMatchDetailPage({
               return (
                 <article
                   key={event.id}
-                  className={cn(
-                    "flex min-w-0 flex-row items-center justify-between gap-2 rounded-2xl border border-border/60 bg-background/60 p-3.5 text-sm shadow-2xs transition-colors hover:border-club-primary/30 hover:bg-muted/30 sm:gap-3",
-                    isOpponentEvent ? "flex-row-reverse sm:flex-row-reverse" : "sm:flex-row"
-                  )}
+                  dir={isOpponentEvent
+                    ? (locale === "ar" ? "ltr" : "rtl")
+                    : (locale === "ar" ? "rtl" : "ltr")}
+                  className="flex min-w-0 flex-row items-center justify-between gap-2 rounded-2xl border border-border/60 bg-background/60 p-3.5 text-sm shadow-2xs transition-colors hover:border-club-primary/30 hover:bg-muted/30 sm:gap-3"
                 >
-                  <div className={cn("flex min-w-0 flex-1 items-center gap-2 sm:gap-3", isOpponentEvent && "flex-row-reverse")}>
+                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/5 font-mono text-xs font-black text-club-primary">
                       {event.minute}&apos;
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 text-start">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="inline-flex min-h-9 max-w-full items-center break-words font-bold leading-tight text-foreground">{eventPersonName}</span>
                         <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold", eventTypeTone(event.type))}>
@@ -355,7 +355,7 @@ export default async function PublicMatchDetailPage({
                   <span
                     aria-label={eventTeamName}
                     title={eventTeamName}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full border border-border/70 bg-muted/40 p-0 text-[11px] font-semibold text-muted-foreground sm:h-auto sm:w-auto sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center overflow-hidden rounded-full border border-border/70 bg-transparent p-0 text-[11px] font-semibold text-muted-foreground sm:h-auto sm:w-auto sm:gap-1.5 sm:rounded-full sm:px-2.5 sm:py-1.5"
                   >
                     {eventTeamLogo ? (
                       // eslint-disable-next-line @next/next/no-img-element

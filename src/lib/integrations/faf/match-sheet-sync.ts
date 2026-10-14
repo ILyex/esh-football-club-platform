@@ -104,7 +104,6 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   ];
   const documentIds: string[] = [];
   let importedDocuments = 0;
-  let refereeReportAdded = false;
   for (const item of documentSpecs) {
     const originalName = `FAF-EMS-${externalId}-${item.label}.pdf`;
     const existing = await db.document.findFirst({ where: { relatedMatchId: local.id, originalName }, select: { id: true } });
@@ -133,12 +132,13 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     });
     documentIds.push(created.id);
     importedDocuments++;
-    if (item.kind === "REFEREE_REPORT") refereeReportAdded = true;
   }
 
   let analysisMessage = "";
   try {
-    if (refereeReportAdded) {
+    // Re-run the idempotent event analysis whenever EMS returns a referee report,
+    // including when the PDF was already imported during an earlier sync.
+    if (finalReport.byteLength > 0) {
     const { extractDocumentText } = await import("@/lib/ai/document-verifier");
     const reportText = await extractDocumentText(finalReport, "application/pdf");
     if (reportText) {
