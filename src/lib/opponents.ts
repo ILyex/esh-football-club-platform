@@ -12,10 +12,25 @@ export interface OpponentClub {
 }
 
 const LEGACY_OPPONENTS_FILE = path.resolve(process.cwd(), ".storage", "opponents.json");
+const OPPONENT_MAP_CACHE_MS = 30_000;
 let legacyImport: Promise<void> | undefined;
+let opponentsMapCache: { promise: Promise<Record<string, OpponentClub>>; expiresAt: number } | undefined;
+const opponentIndexes = new WeakMap<object, Map<string, string>>();
 
 export function normalizeOpponentName(name: string): string {
   return name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+function opponentNameVariants(value: string): Set<string> {
+  const result = new Set<string>();
+  const add = (part: string) => {
+    const normalized = normalizeOpponentName(part);
+    if (normalized) result.add(normalized);
+  };
+  add(value);
+  for (const part of value.split(/[\/|]/u)) add(part);
+  for (const part of value.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) add(part);
+  return result;
 }
 
 /** Resolve opponent names consistently across Arabic, French, and bilingual fixture names. */
@@ -23,23 +38,23 @@ export function findOpponentLogo(
   opponents: Record<string, Pick<OpponentClub, "name" | "logoUrl">>,
   name: string
 ): string | null {
-  const variants = (value: string) => {
-    const result = new Set<string>();
-    const add = (part: string) => {
-      const normalized = normalizeOpponentName(part);
-      if (normalized) result.add(normalized);
-    };
-    add(value);
-    for (const part of value.split(/[\/|]/u)) add(part);
-    for (const part of value.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) add(part);
-    return result;
-  };
+  let index = opponentIndexes.get(opponents);
+  if (!index) {
+    index = new Map<string, string>();
+    for (const [key, opponent] of Object.entries(opponents)) {
+      const logoUrl = opponent.logoUrl;
+      for (const variant of opponentNameVariants(opponent.name)) {
+        if (logoUrl && !index.has(variant)) index.set(variant, logoUrl);
+      }
+      const normalizedKey = normalizeOpponentName(key);
+      if (normalizedKey && logoUrl && !index.has(normalizedKey)) index.set(normalizedKey, logoUrl);
+    }
+    opponentIndexes.set(opponents, index);
+  }
 
-  const requested = variants(name);
-  for (const [key, opponent] of Object.entries(opponents)) {
-    const candidate = variants(opponent.name);
-    candidate.add(normalizeOpponentName(key));
-    if ([...requested].some((variant) => candidate.has(variant))) return opponent.logoUrl || null;
+  for (const variant of opponentNameVariants(name)) {
+    const logoUrl = index.get(variant);
+    if (logoUrl) return logoUrl;
   }
   return null;
 }
@@ -94,13 +109,20 @@ export async function getOpponentLogo(name: string): Promise<string | null> {
 /** Compatibility map used by public match and competition logo resolvers. */
 export async function getOpponentsMap(): Promise<Record<string, OpponentClub>> {
   await importLegacyOpponentCache();
-  const opponents = await db.opponentClub.findMany();
-  return Object.fromEntries(opponents.map((opponent) => [opponent.normalizedName, {
+  if (opponentsMapCache && opponentsMapCache.expiresAt > Date.now()) return opponentsMapCache.promise;
+  const promise = db.opponentClub.findMany().then((opponents) => Object.fromEntries(opponents.map((opponent) => [opponent.normalizedName, {
     name: opponent.name,
     logoUrl: normalizePublicMediaUrl(opponent.logoUrl) ?? opponent.logoUrl,
     stadium: opponent.stadium ?? undefined,
     updatedAt: opponent.updatedAt.toISOString()
-  }]));
+  }])));
+  opponentsMapCache = { promise, expiresAt: Date.now() + OPPONENT_MAP_CACHE_MS };
+  try {
+    return await promise;
+  } catch (error) {
+    if (opponentsMapCache?.promise === promise) opponentsMapCache = undefined;
+    throw error;
+  }
 }
 
 /** Saves or replaces an opponent crest for reuse in all later fixtures. */
@@ -124,6 +146,7 @@ export async function saveOpponentClub(name: string, logoUrl: string, stadium?: 
       ...(stadium?.trim() ? { stadium: stadium.trim() } : {})
     }
   });
+  opponentsMapCache = undefined;
 }
 
 /** Returns cached opponents in display order for fast selection in match forms. */
