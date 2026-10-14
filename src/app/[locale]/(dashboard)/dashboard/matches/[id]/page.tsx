@@ -491,7 +491,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-bold text-foreground">{t("lineup.title")}</h2>
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{locale === "ar" ? "أضف اللاعبين وحدد الأساسيين والاحتياط وحالة كل لاعب." : "Ajoutez les joueurs et définissez les titulaires, les remplaçants et le statut de chacun."}</p>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{locale === "ar" ? "تُملأ القائمة من وثيقة FAF: الأساسيون والاحتياط، والباقون غير مدعوين. حدّد المصابين يدويًا؛ ويُحسب الإيقاف من البطاقة الحمراء في آخر مباراة سابقة ضمن المسابقة نفسها." : "La feuille FAF renseigne les titulaires et les remplaçants ; les autres joueurs sont non convoqués. Saisissez les blessures manuellement. Une expulsion au dernier match précédent de cette compétition entraîne une suspension."}</p>
             </div>
           </div>
           <span className="flex shrink-0 items-center gap-2">

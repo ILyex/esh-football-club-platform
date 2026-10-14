@@ -13,6 +13,7 @@ import { getFAFConfig } from "@/lib/integrations/faf/config";
 import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
+import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 
 async function enqueueAutomaticFafMatchSync(matchId: string, userId: string) {
   const config = getFAFConfig();
@@ -22,33 +23,6 @@ async function enqueueAutomaticFafMatchSync(matchId: string, userId: string) {
   } catch (error) {
     console.error("Could not queue the FAF EMS match import:", error instanceof Error ? error.message : "unknown error");
   }
-}
-
-function normalizeSheetText(value: string): string {
-  return value.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
-}
-
-function detectLineupFromSheet(text: string, players: Array<{ id: string; firstName: string; lastName: string; shirtNumber: number | null }>) {
-  const lines = text.split(/[\r\n]+/).map((line) => normalizeSheetText(line)).filter(Boolean);
-  const startingTerms = /اساسي|التشكيله الاساسيه|starting|titulaire|onze de depart/;
-  const substituteTerms = /احتياط|بديل|دكه|substitut|remplacant|remplaçant|banc/;
-  const found = new Map<string, boolean>();
-
-  for (const player of players) {
-    const first = normalizeSheetText(player.firstName);
-    const last = normalizeSheetText(player.lastName);
-    const number = player.shirtNumber == null ? null : String(player.shirtNumber);
-    const line = lines.find((candidate) =>
-      (last.length > 2 && candidate.includes(last)) ||
-      (first.length > 2 && candidate.includes(first)) ||
-      (number && new RegExp(`(?:رقم|n°|#)\\s*${number}(?:\\D|$)`, "i").test(candidate))
-    );
-    if (!line) continue;
-    if (substituteTerms.test(line)) found.set(player.id, false);
-    else if (startingTerms.test(line)) found.set(player.id, true);
-  }
-
-  return Array.from(found, ([playerId, isStarting]) => ({ playerId, isStarting }));
 }
 
 async function wasRedCardedInPreviousMatch(
@@ -837,6 +811,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   });
 
   let lineupsAdded = 0;
+  let lineupSummary: Awaited<ReturnType<typeof applyMatchSheetLineup>> | undefined;
   let aiFallback: "quota" | "unavailable" | undefined;
   let refereeAnalysisWarning: string | undefined;
   const shouldExtractLineup = sheetType === "PRE_MATCH_SHEET" && formData.getAll("autoLineup").includes("true");
@@ -845,18 +820,8 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
       const { extractDocumentText } = await import("@/lib/ai/document-verifier");
       const extractedText = await extractDocumentText(buffer, validated.mime, (reason) => { aiFallback = reason; });
       if (extractedText) {
-        const roster = await db.player.findMany({
-          where: { teamId: match.teamId, status: { not: "ARCHIVED" } },
-          select: { id: true, firstName: true, lastName: true, shirtNumber: true }
-        });
-        const detectedLineups = detectLineupFromSheet(extractedText, roster);
-        if (detectedLineups.length > 0) {
-          const result = await db.matchLineup.createMany({
-            data: detectedLineups.map((entry) => ({ matchId: match.id, ...entry })),
-            skipDuplicates: true
-          });
-          lineupsAdded = result.count;
-        }
+        lineupSummary = await applyMatchSheetLineup(match.id, match.teamId, extractedText);
+        lineupsAdded = lineupSummary.applied ? lineupSummary.starters + lineupSummary.substitutes + lineupSummary.notCalled + lineupSummary.injured + lineupSummary.suspended : 0;
       }
     } catch (error) {
       // Uploading the official sheet must still succeed when OCR/text
@@ -887,7 +852,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
     action: "match.sheet_attached",
     entityType: "Match",
     entityId: match.id,
-    changes: { documentId: doc.id, filename: file.name, sheetType, reviewStatus: doc.status, lineupsAdded, refereeAnalysisAttempted: sheetType === "REFEREE_REPORT" }
+    changes: { documentId: doc.id, filename: file.name, sheetType, reviewStatus: doc.status, lineupsAdded, lineupSummary, refereeAnalysisAttempted: sheetType === "REFEREE_REPORT" }
   });
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");

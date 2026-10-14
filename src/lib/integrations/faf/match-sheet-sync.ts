@@ -6,6 +6,8 @@ import { getFAFConfig } from "./config";
 import { getFafEmsClient } from "./ems-client";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { RetryableError } from "@/lib/jobs/types";
+import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
+import { extractDocumentText } from "@/lib/ai/document-verifier";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -149,6 +151,25 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     importedDocuments++;
   }
 
+  let lineupSummary: Awaited<ReturnType<typeof applyMatchSheetLineup>> | undefined;
+  const matchSheet = documentSpecs.find((item) => item.kind === "PRE_MATCH_SHEET");
+  if (matchSheet?.bytes && local.teamId) {
+    try {
+      const sheetText = await extractDocumentText(matchSheet.bytes, "application/pdf");
+      if (sheetText) {
+        lineupSummary = await applyMatchSheetLineup(local.id, local.teamId, sheetText);
+        if (!lineupSummary.applied) {
+          warnings.push("حُفظت وثيقة المباراة، لكن لم تكن بيانات التشكيلة المقروءة كافية لتعديل قائمة اللاعبين.");
+        }
+      } else {
+        warnings.push("حُفظت وثيقة المباراة، لكن تعذرت قراءة الأسماء تلقائياً؛ لم يتم تغيير قائمة اللاعبين.");
+      }
+    } catch (error) {
+      console.warn("[FAF EMS] Match sheet lineup extraction failed", error);
+      warnings.push("حُفظت وثيقة المباراة، لكن تعذر استخراج قائمة اللاعبين منها؛ لم يتم تغيير القائمة.");
+    }
+  }
+
   let analysisMessage = "";
   const refereeReportDocumentId = documentIdsByKind.get("REFEREE_REPORT");
   if (refereeReportDocumentId) {
@@ -177,11 +198,14 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     create: { key: `faf-ems-match-${externalId}`, value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) },
     update: { value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) }
   });
-  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length, warnings } });
+  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length, lineupSummary, warnings } });
+  const lineupMessage = lineupSummary?.applied
+    ? ` تم تحديث قائمة المباراة تلقائياً: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مدعو، ${lineupSummary.injured} مصاب يدوياً، ${lineupSummary.suspended} موقوف.`
+    : "";
   return {
     success: true,
     matchId: local.id,
-    message: `تمت مزامنة تفاصيل المباراة من FAF EMS وحفظ ${importedDocuments} مستندات جديدة في المنصة.${analysisMessage}${warnings.length ? ` ${warnings.join(" ")}` : ""}`,
+    message: `تمت مزامنة تفاصيل المباراة من FAF EMS وحفظ ${importedDocuments} مستندات جديدة في المنصة.${lineupMessage}${analysisMessage}${warnings.length ? ` ${warnings.join(" ")}` : ""}`,
     refereeName: referee || undefined,
     matchSheetDocId: documentIdsByKind.get("PRE_MATCH_SHEET"),
     refereeReportDocId: refereeReportDocumentId,
