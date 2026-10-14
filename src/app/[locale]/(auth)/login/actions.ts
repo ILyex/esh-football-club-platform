@@ -15,9 +15,12 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
   const localeValue = String(formData.get("locale") ?? "ar");
   const locale = localeValue === "fr" ? "fr" : "ar";
   const publicSiteOnly = process.env.PUBLIC_SITE_ONLY === "true" || process.env.PUBLIC_SITE_ONLY === "1";
-  // A bare login entry is intended for match operators. Dashboard visits
-  // still retain their explicit callbackUrl from the protected-route gate.
-  const defaultDestination = `/${locale}/field/matches`;
+  // The platform and field-match console have distinct entry URLs. Direct
+  // login defaults to the platform; a protected field URL supplies its own
+  // callbackUrl and returns the operator to the field console after login.
+  const defaultDestination = publicSiteOnly
+    ? `/${locale}/field/matches`
+    : `/${locale}/dashboard`;
   const rawCallbackUrl = String(formData.get("callbackUrl") ?? "").trim();
   const callbackTargetsHiddenDashboard = publicSiteOnly && /^\/(?:(?:ar|fr)\/)?dashboard(?:\/|$)/.test(rawCallbackUrl);
   const callbackUrl = callbackTargetsHiddenDashboard
