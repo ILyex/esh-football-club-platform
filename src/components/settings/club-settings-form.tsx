@@ -52,7 +52,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
   // Form interactive preview states
   const [clubName, setClubName] = useState(settings.name || "أمل سيدي حسني");
   const [shortName, setShortName] = useState(settings.shortName || "ESH");
-  const [stadium, setStadium] = useState(settings.stadium || (isAr ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"));
+  const [stadium, setStadium] = useState(settings.stadium || (isAr ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"));
   const [primaryColor, setPrimaryColor] = useState(settings.primaryColor || "#15803d");
   const [secondaryColor, setSecondaryColor] = useState(settings.secondaryColor || "#111827");
   const [logoPreview, setLogoPreview] = useState<string | null>(settings.logoUrl || "/branding/esh-logo-128.png");
@@ -267,7 +267,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
                 name="stadium"
                 value={stadium}
                 onChange={(e) => setStadium(e.target.value)}
-                placeholder={isAr ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"}
+                placeholder={isAr ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"}
                 className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>

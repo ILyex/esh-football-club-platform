@@ -43,7 +43,7 @@ export function PublicFooter({ locale, club, clubDisplayName, labels }: PublicFo
                 </span>
                 <div className="mt-2 flex items-start gap-1.5 text-start text-[11px] leading-5 text-muted-foreground sm:text-xs">
                   <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-club-primary" />
-                  <span>{locale === "ar" ? "الملعب البلدي لبلدية سيدي حسني" : "Stade communal de Sidi Hosni"}</span>
+                  <span>{locale === "ar" ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"}</span>
                 </div>
               </div>
             </div>

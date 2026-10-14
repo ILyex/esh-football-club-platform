@@ -17,12 +17,12 @@ export function MatchEditFixtureFields({
   stadiumLabel: string;
 }) {
   const isAr = locale === "ar";
-  const homeStadium = "الملعب البلدي بسيدي حسني";
+  const homeStadium = "الملعب البلدي طاهري حسني – سيدي حسني";
   const [isHome, setIsHome] = useState(initialIsHome);
   const [stadium, setStadium] = useState(initialStadium || (initialIsHome ? homeStadium : ""));
   const awayStadium = useRef(initialIsHome ? "" : initialStadium);
   const displayedStadium = !isAr && hasArabicScript(stadium)
-    ? (isHome ? "Stade municipal de Sidi Hosni" : "Stade à confirmer")
+    ? (isHome ? "Stade communal Taheri Hosni – Sidi Hosni" : "Stade à confirmer")
     : stadium;
 
   useEffect(() => {

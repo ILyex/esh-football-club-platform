@@ -114,8 +114,8 @@ export default async function HomePage({
         }).format(session.endTime)
       : null,
     location: locale === "ar"
-      ? (session.location || "الملعب البلدي سيدي حسني")
-      : frenchPublicText(session.location, "Stade Municipal Sidi Hosni"),
+      ? (session.location || "الملعب البلدي طاهري حسني – سيدي حسني")
+      : frenchPublicText(session.location, "Stade communal Taheri Hosni – Sidi Hosni"),
     notes: session.notes
   }));
 

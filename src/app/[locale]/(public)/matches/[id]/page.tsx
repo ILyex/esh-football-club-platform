@@ -230,7 +230,7 @@ export default async function PublicMatchDetailPage({
           {match.stadium && (
             <div className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-club-primary" />
-              <span>{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade Municipal Sidi Hosni")}</span>
+              <span>{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
             </div>
           )}
           {splitRefereeNames(locale === "fr" ? match.refereeNameFr || match.refereeNameAr || match.refereeName : match.refereeNameAr || match.refereeNameFr || match.refereeName).map((referee, index) => (

@@ -360,8 +360,8 @@ export function UpcomingMatchesCarousel({
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-club-primary" />
                     <span className="truncate">
                       {locale === "ar"
-                        ? (m.stadium || "الملعب البلدي بسيدي حسني")
-                        : frenchPublicText(m.stadium, "Stade Municipal Sidi Hosni")}
+                        ? (m.stadium || "الملعب البلدي طاهري حسني – سيدي حسني")
+                        : frenchPublicText(m.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}
                     </span>
                   </div>
                 </div>
@@ -752,7 +752,7 @@ export function UpcomingTrainingsCarousel({
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     <span className="truncate">
                       {t.location ||
-                        (locale === "ar" ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni")}
+                        (locale === "ar" ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni")}
                     </span>
                   </div>
                 </div>
@@ -859,8 +859,8 @@ export function UpcomingTrainingsCarousel({
                       </span>
                       <h4 className="text-sm font-bold text-foreground">
                         {locale === "ar"
-                          ? (t.location || "الملعب البلدي بسيدي حسني")
-                          : frenchPublicText(t.location, "Stade Municipal Sidi Hosni")}
+                          ? (t.location || "الملعب البلدي طاهري حسني – سيدي حسني")
+                          : frenchPublicText(t.location, "Stade communal Taheri Hosni – Sidi Hosni")}
                       </h4>
                     </div>
                   </div>

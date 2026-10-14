@@ -51,13 +51,13 @@ async function main() {
           locale: "ar",
           title: "انتصار ثمين لأمل سيدي حسني في الديربي الجهوي وسط حضور جماهيري غفير",
           slug: "fawz-derby-regional-esh",
-          content: `حقق نادي أمل سيدي حسني فوزاً مستحقاً ومثيراً بنتيجة هدفين مقابل هدف (2-1) في مواجهة الديربي الجهوي، في لقاء شهد حضوراً جماهيرياً كبيراً غصت به مدرجات الملعب البلدي لسيدي حسني.\n\nوافتتح الفريق التسجيل في الدقيقة 34 من الشوط الأول بعد جملة تكتيكية منسقة، قبل أن يضاعف النتيجة مطلع الشوط الثاني. وقد أبان اللاعبون عن روح قتالية عالية وانضباط تكتيكي مميز نال إشادة الطاقم الفني والأنصار.\n\nبهذا الفوز، يواصل الفريق تسلق جدول الترتيب نحو المراتب الأولى بثبات وثقة.`
+          content: `حقق نادي أمل سيدي حسني فوزاً مستحقاً ومثيراً بنتيجة هدفين مقابل هدف (2-1) في مواجهة الديربي الجهوي، في لقاء شهد حضوراً جماهيرياً كبيراً غصت به مدرجات الملعب البلدي طاهري حسني – سيدي حسني.\n\nوافتتح الفريق التسجيل في الدقيقة 34 من الشوط الأول بعد جملة تكتيكية منسقة، قبل أن يضاعف النتيجة مطلع الشوط الثاني. وقد أبان اللاعبون عن روح قتالية عالية وانضباط تكتيكي مميز نال إشادة الطاقم الفني والأنصار.\n\nبهذا الفوز، يواصل الفريق تسلق جدول الترتيب نحو المراتب الأولى بثبات وثقة.`
         },
         {
           locale: "fr",
           title: "Victoire précieuse de l'Espoir Sidi Hosni lors du derby régional devant un public nombreux",
           slug: "victoire-derby-regional-esh",
-          content: `L'Espoir Sidi Hosni s'est imposé avec brio sur le score de deux buts à un (2-1) lors du derby régional très disputé au stade communal de Sidi Hosni.\n\nDans une ambiance festive et devant des tribunes combles, les rouge et blanc ont démontré une remarquable rigueur tactique et un engagement physique exemplaire. Les deux réalisations inscrites témoignent de la belle progression collective du groupe sous la houlette du staff technique.\n\nCette victoire capitale permet au club de consolider sa position en haut du classement.`
+          content: `L'Espoir Sidi Hosni s'est imposé avec brio sur le score de deux buts à un (2-1) lors du derby régional très disputé au Stade communal Taheri Hosni – Sidi Hosni.\n\nDans une ambiance festive et devant des tribunes combles, les rouge et blanc ont démontré une remarquable rigueur tactique et un engagement physique exemplaire. Les deux réalisations inscrites témoignent de la belle progression collective du groupe sous la houlette du staff technique.\n\nCette victoire capitale permet au club de consolider sa position en haut du classement.`
         }
       ]
     },
@@ -170,7 +170,7 @@ async function main() {
       translations: [
         {
           locale: "ar",
-          title: "مباراة القمة: انطلاق عملية بيع تذاكر لقاء الجمعة بالملعب البلدي سيدي حسني",
+          title: "مباراة القمة: انطلاق عملية بيع تذاكر لقاء الجمعة بالملعب البلدي طاهري حسني – سيدي حسني",
           content: "تعلن إدارة النادي أن عملية بيع التذاكر لمباراة أمل سيدي حسني ستنطلق صبيحة يوم الجمعة على مستوى شبابيك الملعب البلدي ابتداءً من الساعة 09:00 صباحاً. يُرجى من الجماهير الكريمة الحضور المبكر والتحلي بالروح الرياضية المعهودة."
         },
         {
@@ -250,7 +250,7 @@ async function main() {
       homeScore: 2,
       awayScore: 1,
       matchDate: new Date(Date.now() - 4 * 24 * 3600 * 1000),
-      stadium: "الملعب البلدي سيدي حسني (Stade Communal)",
+      stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
       refereeName: "محمد بوجمعة (حكم رابطة وهران)",
       status: "FINISHED",
       matchReport: "مباراة قوية وتنافسية تمكن خلالها أمل سيدي حسني من السيطرة على مجريات اللعب وحصد النقاط الثلاث بجدارة واستحقاق."
@@ -360,7 +360,7 @@ async function main() {
       awayTeamName: "شباب دحموني (CRB Dahmouni)",
       isHomeFixture: true,
       matchDate: new Date(Date.now() + 4 * 24 * 3600 * 1000),
-      stadium: "الملعب البلدي سيدي حسني",
+      stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
       refereeName: "سفيان زروقي (حكم رئيسي)",
       status: "SCHEDULED"
     }
@@ -412,7 +412,7 @@ async function main() {
   const album2 = await db.album.create({
     data: {
       name: "الحصص التدريبية والتحضيرات الميدانية",
-      description: "لقطات من التدريبات الفنية والبدنية للاعبي الفريق الأول بالملعب البلدي لسيدي حسني",
+      description: "لقطات من التدريبات الفنية والبدنية للاعبي الفريق الأول بالملعب البلدي طاهري حسني – سيدي حسني",
       category: "TRAINING",
       teamId: seniorTeam.id,
       published: true,

@@ -146,7 +146,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
           {match.stadium && (
             <div className="hidden min-w-0 items-center gap-1.5 truncate sm:flex">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade Municipal Sidi Hosni")}</span>
+              <span className="truncate">{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
             </div>
           )}
         </div>

@@ -87,7 +87,7 @@ export function MatchFormClient({
   const [opponentNameFr, setOpponentNameFr] = useState("");
   const displayOpponent = localizedClubName(opponent, locale, isRtl ? "الفريق الخصم" : "Nom du club adverse");
   const [isHomeFixture, setIsHomeFixture] = useState(true);
-  const [stadium, setStadium] = useState(isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni");
+  const [stadium, setStadium] = useState(isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni");
   const [status, setStatus] = useState("SCHEDULED");
   const [matchDate, setMatchDate] = useState(() => {
     const d = new Date();
@@ -175,7 +175,7 @@ export function MatchFormClient({
   const handleFixtureChange = (home: boolean) => {
     setIsHomeFixture(home);
     if (home) {
-      setStadium(isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni");
+      setStadium(isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni");
     } else {
       const matched = savedOpponents.find(
         (o) => o.name.trim().toLowerCase() === opponent.trim().toLowerCase()
@@ -503,7 +503,7 @@ export function MatchFormClient({
               value={stadium}
               onChange={(e) => setStadium(e.target.value)}
               readOnly={isHomeFixture}
-              placeholder={isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"}
+              placeholder={isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"}
               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 read-only:cursor-not-allowed read-only:opacity-70"
             />
           </div>

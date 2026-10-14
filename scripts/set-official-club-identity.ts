@@ -7,8 +7,8 @@ async function main() {
       name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
       shortName: "ESH",
       description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
-      stadium: "الملعب البلدي لبلدية سيدي حسني",
-      address: "الملعب البلدي لبلدية سيدي حسني، بلدية سيدي حسني، ولاية تيارت، الجزائر"
+      stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
+      address: "بلدية سيدي حسني، ولاية تيارت، الجزائر"
     }
   });
   if (result.count !== 1) throw new Error("Expected exactly one singleton ClubSettings row.");

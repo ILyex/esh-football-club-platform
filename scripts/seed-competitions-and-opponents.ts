@@ -26,7 +26,7 @@ const SEED_OPPONENTS: Record<string, { name: string; logoUrl: string; stadium?: 
   "js sidi hosni": {
     name: "شبيبة سيدي حسني (JS Sidi Hosni)",
     logoUrl: "/branding/opponents/js-sidi-hosni.svg",
-    stadium: "الملعب البلدي سيدي حسني",
+    stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
     updatedAt: new Date().toISOString()
   },
   "om mahdia": {

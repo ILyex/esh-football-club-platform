@@ -78,7 +78,7 @@ export function NewSessionForm({
 
   const [title, setTitle] = useState(defaultTitle);
   const [location, setLocation] = useState(
-    isAr ? "الملعب البلدي - سيدي حسني (العشب الطبيعي)" : "Stade Municipal — Sidi Hosni (Gazon Naturel)"
+    isAr ? "الملعب البلدي طاهري حسني – سيدي حسني (العشب الطبيعي)" : "Stade communal Taheri Hosni – Sidi Hosni (Gazon Naturel)"
   );
   const [date, setDate] = useState(defaultDate);
   const [notes, setNotes] = useState("");

@@ -95,7 +95,7 @@ export function WebsiteCmsClient({
       ? new Date(selectedMatch.matchDate).toISOString().slice(0, 16)
       : new Date().toISOString().slice(0, 16)
   );
-  const [stadium, setStadium] = useState(selectedMatch?.stadium || (isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"));
+  const [stadium, setStadium] = useState(selectedMatch?.stadium || (isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"));
   const [refereeName, setRefereeName] = useState(selectedMatch?.refereeName || "");
   const [status, setStatus] = useState<string>(selectedMatch?.status === "CANCELLED" ? "POSTPONED" : selectedMatch?.status || "SCHEDULED");
   const [homeScore, setHomeScore] = useState<string>(selectedMatch?.homeScore?.toString() || "");
@@ -142,7 +142,7 @@ export function WebsiteCmsClient({
       setOpponent("");
       setIsHomeFixture(true);
       setMatchDate(new Date().toISOString().slice(0, 16));
-      setStadium(isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni");
+      setStadium(isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni");
       setRefereeName("");
       setStatus("SCHEDULED");
       setHomeScore("");
@@ -606,7 +606,7 @@ export function WebsiteCmsClient({
                   required
                   value={stadium}
                   onChange={(e) => setStadium(e.target.value)}
-                  placeholder={isRtl ? "الملعب البلدي بسيدي حسني" : "Stade Municipal Sidi Hosni"}
+                  placeholder={isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"}
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>

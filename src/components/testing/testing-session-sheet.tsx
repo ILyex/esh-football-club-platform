@@ -1393,7 +1393,7 @@ export function TestingSessionSheet({
           id: sessionId,
           title: sessionTitle,
           date: date || new Date(),
-          location: location || "الملعب البلدي - سيدي حسني",
+          location: location || "الملعب البلدي طاهري حسني – سيدي حسني",
           protocolName,
           protocolCode,
           teamName: teamName || "الفريق",

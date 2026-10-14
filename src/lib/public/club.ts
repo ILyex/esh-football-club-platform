@@ -55,10 +55,10 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
       primaryColor: "#B31B1B",
       secondaryColor: "#111111",
       description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
-      stadium: "الملعب البلدي لبلدية سيدي حسني",
+      stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
       contactEmail: null,
       contactPhone: null,
-      address: "الملعب البلدي لبلدية سيدي حسني",
+      address: "الملعب البلدي طاهري حسني – سيدي حسني",
       socialLinks: null,
       socialReels: [],
       defaultLocale: "ar"

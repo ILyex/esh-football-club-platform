@@ -200,7 +200,7 @@ export function OfficialAttendanceSheetModal({
                     {isAr ? "مكان الحصة:" : "Lieu d'entraînement :"}
                   </span>
                   <span className="font-bold text-black text-[18px]">
-                    {session.location || (isAr ? "الملعب البلدي - سيدي حسني" : "Stade Municipal Sidi Hosni")}
+                    {session.location || (isAr ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni")}
                   </span>
                 </div>
                 <div>
