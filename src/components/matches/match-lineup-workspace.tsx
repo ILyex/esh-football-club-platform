@@ -42,20 +42,20 @@ function initialEntries(players: RosterPlayer[], entries: LineupEntry[], autoSus
   return players.flatMap((player) => {
     const entry = existing.get(player.id);
     if (entry) {
-      const isUnavailable = autoSuspended.has(player.id) || player.status === "INJURED" || player.status === "SUSPENDED";
+      const isUnavailable = autoSuspended.has(player.id) || player.status === "INJURED";
       return [{
         ...entry,
-        selectionStatus: autoSuspended.has(player.id) || player.status === "SUSPENDED"
+        selectionStatus: autoSuspended.has(player.id)
           ? "SUSPENDED"
-          : player.status === "INJURED" ? "INJURED" : entry.selectionStatus,
+          : player.status === "INJURED" ? "INJURED" : entry.selectionStatus === "SUSPENDED" ? "NOT_CALLED" : entry.selectionStatus,
         isStarting: isUnavailable ? false : entry.isStarting
       }];
     }
-    if (autoSuspended.has(player.id) || player.status === "INJURED" || player.status === "SUSPENDED") {
+    if (autoSuspended.has(player.id) || player.status === "INJURED") {
       return [{
         playerId: player.id,
         isStarting: false,
-        selectionStatus: autoSuspended.has(player.id) || player.status === "SUSPENDED" ? "SUSPENDED" : "INJURED",
+        selectionStatus: autoSuspended.has(player.id) ? "SUSPENDED" : "INJURED",
         position: player.position
       }];
     }
@@ -160,10 +160,6 @@ export function MatchLineupWorkspace({
     if (!player) return;
     if (player.status === "INJURED" && selectionStatus !== "INJURED") {
       toast.error(isAr ? "اللاعب مصاب ويجب أن يبقى في قائمة المصابين." : "Ce joueur est blessé et doit rester dans la liste des blessés.");
-      return;
-    }
-    if (player.status === "SUSPENDED" && selectionStatus !== "SUSPENDED") {
-      toast.error(isAr ? "اللاعب موقوف ويجب أن يبقى في قائمة الموقوفين." : "Ce joueur est suspendu et doit rester dans la liste des suspendus.");
       return;
     }
     const current = entryById.get(playerId);
@@ -495,7 +491,7 @@ export function MatchLineupWorkspace({
                   {groupEntries.map((entry) => {
                     const player = playerById.get(entry.playerId);
                     if (!player) return null;
-                    const locked = autoSuspended.has(player.id) || player.status === "INJURED" || player.status === "SUSPENDED";
+                    const locked = autoSuspended.has(player.id) || player.status === "INJURED";
                     return <PlayerToken key={entry.playerId} player={player} locale={locale} canEdit={canEdit && !locked} busy={savingPlayerId === player.id} selected={selectedPlayerId === player.id} onDragStart={(event) => event.dataTransfer.setData("text/plain", player.id)} onRemove={() => void removeFromMatch(player.id)} onSelect={() => { if (!locked) setSelectedPlayerId(player.id); }} compact />;
                   })}
                   {groupEntries.length === 0 && <p className="w-full text-center text-[10px] text-muted-foreground">{canEdit ? (isAr ? "أسقط اللاعب هنا" : "Déposez ici") : "—"}</p>}

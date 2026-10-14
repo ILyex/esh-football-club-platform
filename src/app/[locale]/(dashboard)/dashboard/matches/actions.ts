@@ -633,7 +633,6 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
   assertTeamScope(scopeContext, player.teamId, "Player");
 
   if (player.status === "INJURED" && parsed.selectionStatus !== "INJURED") throw new Error("lineupPlayerInjured");
-  if (player.status === "SUSPENDED" && parsed.selectionStatus !== "SUSPENDED") throw new Error("lineupPlayerSuspended");
 
   if (parsed.selectionStatus === "STARTING") {
     const currentStarters = await db.matchLineup.count({
@@ -718,7 +717,6 @@ export async function removeLineupEntryAction(matchId: string, playerId: string)
   assertTeamScope(scopeContext, match.teamId, "Match");
   const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, select: { status: true } });
   if (player.status === "INJURED") throw new Error("lineupPlayerInjured");
-  if (player.status === "SUSPENDED") throw new Error("lineupPlayerSuspended");
   if (await wasRedCardedInPreviousMatch(match, playerId)) throw new Error("lineupPlayerSuspended");
 
   await db.matchLineup.delete({ where: { matchId_playerId: { matchId, playerId } } });
