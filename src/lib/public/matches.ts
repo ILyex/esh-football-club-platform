@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { MatchStatus, TeamCategory } from "@prisma/client";
-import { getOpponentLogo, getOpponentsMap } from "@/lib/opponents";
+import { findOpponentLogo, getOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 import { frenchPublicPersonName, splitClubNameVariants } from "@/lib/public/locale-text";
 import { resolveMatchResult, type MatchSide } from "@/lib/matches/result";
 import type { MatchAddedTimeSettings } from "@/lib/matches/clock";
@@ -111,7 +111,7 @@ export async function getPublicNextMatch(): Promise<PublicMatchItem | null> {
 
   const opponents = await getOpponentsMap();
   const opponentName = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
-  const opponentLogo = opponents[opponentName.toLowerCase()]?.logoUrl || null;
+  const opponentLogo = findOpponentLogo(opponents, opponentName);
   const result = resolveMatchResult({
     status: match.status,
     homeScore: match.homeScore,
@@ -187,7 +187,7 @@ export async function getPublicUpcomingMatches(limit: number = 6): Promise<Publi
 
   return matches.map((m) => {
     const opponentName = m.isHomeFixture ? m.awayTeamName : m.homeTeamName;
-    const opponentLogo = opponents[opponentName.toLowerCase()]?.logoUrl || null;
+    const opponentLogo = findOpponentLogo(opponents, opponentName);
     const result = resolveMatchResult({
       status: m.status,
       homeScore: m.homeScore,
@@ -258,7 +258,7 @@ export async function getPublicLatestResult(): Promise<PublicMatchItem | null> {
 
   const opponents = await getOpponentsMap();
   const opponentName = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
-  const opponentLogo = opponents[opponentName.toLowerCase()]?.logoUrl || null;
+  const opponentLogo = findOpponentLogo(opponents, opponentName);
   const result = resolveMatchResult({
     status: match.status,
     homeScore: match.homeScore,
@@ -341,6 +341,8 @@ export async function getPublicMatches(options?: {
     take: options?.limit ?? 50
   });
 
+  const opponents = await getOpponentsMap();
+
   return matches.map((m) => {
     const result = resolveMatchResult({
       status: m.status,
@@ -373,7 +375,8 @@ export async function getPublicMatches(options?: {
       decidedByPenalties: result.decidedByPenalties,
       competitionName: m.competition.name,
       teamCategory: m.team?.category ?? null,
-      teamName: m.team?.name ?? null
+      teamName: m.team?.name ?? null,
+      opponentLogo: findOpponentLogo(opponents, m.isHomeFixture ? m.awayTeamName : m.homeTeamName)
     };
   });
 }

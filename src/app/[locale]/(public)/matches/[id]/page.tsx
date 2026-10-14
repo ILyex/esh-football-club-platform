@@ -5,7 +5,7 @@ import { getPublicMatchDetail } from "@/lib/public/matches";
 import { getPublicClubSettings } from "@/lib/public/club";
 import { TacticalPitch } from "@/components/football/lineup-pitch-board";
 import { cn } from "@/lib/utils";
-import { frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
@@ -105,7 +105,7 @@ export default async function PublicMatchDetailPage({
         icon={<Trophy />}
         eyebrow={locale === "ar" ? "تفاصيل المباراة" : "Détails du match"}
         title={`${homeTeamName} vs ${awayTeamName}`}
-        description={`${locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")} · ${formattedDate} · ${formattedTime}`}
+        description={`${locale === "ar" ? match.competitionName : frenchCompetitionName(match.competitionName)} · ${formattedDate} · ${formattedTime}`}
       />
       {/* Main Scoreboard Header */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -113,7 +113,7 @@ export default async function PublicMatchDetailPage({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/40 px-4 py-3 text-xs sm:px-6">
           <div className="flex items-center gap-2 font-semibold text-foreground">
             <Trophy className="h-4 w-4 text-club-primary" />
-            <span>{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
+            <span>{locale === "ar" ? match.competitionName : frenchCompetitionName(match.competitionName)}</span>
             {match.teamCategory && (
               <span className="rounded-md bg-club-primary/10 px-2 py-0.5 font-mono text-[11px] text-club-primary">
                 {categoryLabel}

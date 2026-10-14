@@ -18,6 +18,32 @@ export function normalizeOpponentName(name: string): string {
   return name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
+/** Resolve opponent names consistently across Arabic, French, and bilingual fixture names. */
+export function findOpponentLogo(
+  opponents: Record<string, Pick<OpponentClub, "name" | "logoUrl">>,
+  name: string
+): string | null {
+  const variants = (value: string) => {
+    const result = new Set<string>();
+    const add = (part: string) => {
+      const normalized = normalizeOpponentName(part);
+      if (normalized) result.add(normalized);
+    };
+    add(value);
+    for (const part of value.split(/[\/|]/u)) add(part);
+    for (const part of value.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) add(part);
+    return result;
+  };
+
+  const requested = variants(name);
+  for (const [key, opponent] of Object.entries(opponents)) {
+    const candidate = variants(opponent.name);
+    candidate.add(normalizeOpponentName(key));
+    if ([...requested].some((variant) => candidate.has(variant))) return opponent.logoUrl || null;
+  }
+  return null;
+}
+
 /** Move logos from older local JSON installs to the shared database once. */
 async function importLegacyOpponentCache(): Promise<void> {
   // Cloudflare Workers have no durable project filesystem; on that runtime the
@@ -61,29 +87,8 @@ async function importLegacyOpponentCache(): Promise<void> {
 
 /** Retrieves one previously saved opponent logo from the shared club library. */
 export async function getOpponentLogo(name: string): Promise<string | null> {
-  const normalizedName = normalizeOpponentName(name);
-  if (!normalizedName) return null;
-  await importLegacyOpponentCache();
-  const opponent = await db.opponentClub.findUnique({ where: { normalizedName }, select: { logoUrl: true } });
-  if (opponent?.logoUrl) return normalizePublicMediaUrl(opponent.logoUrl);
-
-  // Existing fixtures may store only the Arabic name while the opponent
-  // library keys a bilingual name (or its French alias). Match either half.
-  const nameVariants = new Set([normalizedName]);
-  for (const part of name.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) {
-    const normalizedPart = normalizeOpponentName(part);
-    if (normalizedPart) nameVariants.add(normalizedPart);
-  }
-  const opponents = await db.opponentClub.findMany({ select: { name: true, logoUrl: true } });
-  const matchedOpponent = opponents.find((candidate) => {
-    const candidateVariants = new Set([normalizeOpponentName(candidate.name)]);
-    for (const part of candidate.name.match(/^(.*?)\s*\(([^()]*)\)\s*$/u)?.slice(1) ?? []) {
-      const normalizedPart = normalizeOpponentName(part);
-      if (normalizedPart) candidateVariants.add(normalizedPart);
-    }
-    return [...nameVariants].some((variant) => candidateVariants.has(variant));
-  });
-  return normalizePublicMediaUrl(matchedOpponent?.logoUrl);
+  if (!normalizeOpponentName(name)) return null;
+  return findOpponentLogo(await getOpponentsMap(), name);
 }
 
 /** Compatibility map used by public match and competition logo resolvers. */

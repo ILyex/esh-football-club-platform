@@ -23,6 +23,14 @@ export function frenchPublicText(value: string | null | undefined, fallback: str
   return fallback;
 }
 
+/** Translate known competition names stored in Arabic before using a generic fallback. */
+export function frenchCompetitionName(value: string | null | undefined): string {
+  const name = value?.trim();
+  if (!name) return "Compétition officielle";
+  if (/الشرفي/u.test(name)) return "Championnat d'honneur";
+  return frenchPublicText(name, "Compétition officielle");
+}
+
 /** Display club/team names in the active UI language without changing stored data. */
 export function localizedClubName(value: string | null | undefined, locale: string, fallback: string): string {
   const name = value?.trim();

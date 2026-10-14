@@ -8,7 +8,7 @@ import {
   getCompetitionDisplayData
 } from "@/lib/competitions";
 import { db } from "@/lib/db";
-import { frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function PublicCompetitionsPage({
@@ -67,7 +67,7 @@ export default async function PublicCompetitionsPage({
     };
     return {
       id: c.id,
-      name: isAr ? c.name : frenchPublicText(c.name, "Compétition officielle"),
+      name: isAr ? c.name : frenchCompetitionName(c.name),
       type: c.type,
       logoUrl: c.logoUrl,
       organization: c.organization?.trim()

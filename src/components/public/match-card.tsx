@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, Trophy, Shield } from "lucide-react";
 import { PublicMatchItem } from "@/lib/public/matches";
-import { frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 
 interface MatchCardProps {
@@ -50,7 +50,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2 font-bold text-foreground">
             <Trophy className="h-3.5 w-3.5 shrink-0 text-club-secondary" />
-            <span className="truncate">{locale === "ar" ? match.competitionName : frenchPublicText(match.competitionName, "Compétition officielle")}</span>
+            <span className="truncate">{locale === "ar" ? match.competitionName : frenchCompetitionName(match.competitionName)}</span>
             {match.teamCategory && (
               <span className="inline-flex shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
               {categoryLabel}
@@ -77,7 +77,13 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
         {/* Home Team */}
         <div className="col-span-1 flex min-w-0 flex-col items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-club-primary/20 bg-club-primary/10 shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
-            <Shield className="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />
+            {match.isHomeFixture ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
+            ) : match.opponentLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={match.opponentLogo} alt="" className="h-full w-full object-contain p-1.5" />
+            ) : <Shield className="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />}
           </div>
           <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">
             {localizedClubName(match.homeTeamName, locale, match.isHomeFixture ? (locale === "fr" ? "Club Espoir Sidi Hosni" : "نادي أمل سيدي حسني") : (locale === "fr" ? "Nom du club adverse" : "الفريق المنافس"))}
@@ -114,7 +120,13 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
         {/* Away Team */}
         <div className="col-span-1 flex min-w-0 flex-col items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
-            <Shield className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
+            {!match.isHomeFixture ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
+            ) : match.opponentLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={match.opponentLogo} alt="" className="h-full w-full object-contain p-1.5" />
+            ) : <Shield className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />}
           </div>
           <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">
             {localizedClubName(match.awayTeamName, locale, match.isHomeFixture ? (locale === "fr" ? "Nom du club adverse" : "الفريق المنافس") : (locale === "fr" ? "Club Espoir Sidi Hosni" : "نادي أمل سيدي حسني"))}

@@ -129,7 +129,7 @@ export function PublicHeader({
             title={labels.switchLocale}
           >
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>{otherLocale === "ar" ? "AR" : "Français"}</span>
+            <span>{otherLocale === "ar" ? "AR" : "FR"}</span>
           </Link>
         </div>
 
