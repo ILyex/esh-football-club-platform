@@ -125,65 +125,62 @@ async function savePlayerAttachedDocument(params: {
   const storageKey = generateStorageKey(`players/${params.type.toLowerCase()}`, ext);
   await uploadPrivateFile({ key: storageKey, buffer, mimeType: mime });
 
-  // Replace previous document of the same type for this player
-  const existing = await db.document.findFirst({
-    where: {
-      relatedPlayerId: params.playerId,
-      name: { startsWith: docPrefix }
-    }
-  });
-
-  if (existing) {
-    const updated = await db.document.update({
-      where: { id: existing.id },
-      data: {
-        name: docName,
-        documentDate: new Date(),
-        ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
-        storageKey,
-        mimeType: mime,
-        sizeBytes: buffer.byteLength,
-        originalName: params.file.name,
-        uploadedById: params.userId,
-        status: verificationStatus
+  try {
+    // Replace previous document of the same type for this player
+    const existing = await db.document.findFirst({
+      where: {
+        relatedPlayerId: params.playerId,
+        name: { startsWith: docPrefix }
       }
     });
+
+    const document = existing
+      ? await db.document.update({
+          where: { id: existing.id },
+          data: {
+            name: docName,
+            documentDate: new Date(),
+            ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
+            storageKey,
+            mimeType: mime,
+            sizeBytes: buffer.byteLength,
+            originalName: params.file.name,
+            uploadedById: params.userId,
+            status: verificationStatus
+          }
+        })
+      : await db.document.create({
+          data: {
+            name: docName,
+            categoryId: category.id,
+            documentDate: new Date(),
+            ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
+            storageKey,
+            mimeType: mime,
+            sizeBytes: buffer.byteLength,
+            originalName: params.file.name,
+            ownerId: params.userId,
+            uploadedById: params.userId,
+            relatedPlayerId: params.playerId,
+            teamId: params.teamId,
+            classification: "RESTRICTED",
+            status: verificationStatus
+          }
+        });
     if (positiveDrugTest) await writeAuditLog({
       userId: params.userId,
       action: "document.drug_test_positive_detected",
       entityType: "Document",
-      entityId: updated.id,
+      entityId: document.id,
       changes: { status: "PENDING_REVIEW", relatedPlayerId: params.playerId }
-    });
+    }).catch(() => {});
     return positiveDrugTest;
+  } catch (error) {
+    // Storage is outside the database transaction: remove the uploaded object
+    // if its document row could not be saved, while preserving the player.
+    await deletePrivateFile(storageKey).catch(() => {});
+    throw error;
   }
-
-  const created = await db.document.create({
-    data: {
-      name: docName,
-      categoryId: category.id,
-      documentDate: new Date(),
-      ...(positiveDrugTest ? { description: "verification:DRUG_TEST_POSITIVE" } : {}),
-      storageKey,
-      mimeType: mime,
-      sizeBytes: buffer.byteLength,
-      originalName: params.file.name,
-      ownerId: params.userId,
-      uploadedById: params.userId,
-      relatedPlayerId: params.playerId,
-      teamId: params.teamId,
-      classification: "RESTRICTED",
-      status: verificationStatus
-    }
-  });
-  if (positiveDrugTest) await writeAuditLog({
-    userId: params.userId,
-    action: "document.drug_test_positive_detected",
-    entityType: "Document",
-    entityId: created.id,
-    changes: { status: "PENDING_REVIEW", relatedPlayerId: params.playerId }
-  });
-  return positiveDrugTest;
 }
 
 export async function createPlayerAction(formData: FormData) {
@@ -250,66 +247,31 @@ export async function createPlayerAction(formData: FormData) {
   });
 
   let positiveDrugTestDetected = false;
-  try {
-  const cniFile = formData.get("cniFile");
-  if (cniFile instanceof File && cniFile.size > 0) {
-    positiveDrugTestDetected = (await savePlayerAttachedDocument({
-      playerId: player.id,
-      teamId: player.teamId,
-      file: cniFile,
-      type: "CNI",
-      playerName: `${player.firstName} ${player.lastName}`,
-      userId: user.id
-    })) || positiveDrugTestDetected;
-  }
+  const attachmentFailures: string[] = [];
+  const attachments = [
+    { field: "cniFile", type: "CNI" as const },
+    { field: "contractFile", type: "CONTRACT" as const },
+    { field: "birthCertificateFile", type: "BIRTH_CERTIFICATE" as const },
+    { field: "drugTestFile", type: "DRUG_TEST" as const }
+  ];
 
-  const contractFile = formData.get("contractFile");
-  if (contractFile instanceof File && contractFile.size > 0) {
-    positiveDrugTestDetected = (await savePlayerAttachedDocument({
-      playerId: player.id,
-      teamId: player.teamId,
-      file: contractFile,
-      type: "CONTRACT",
-      playerName: `${player.firstName} ${player.lastName}`,
-      userId: user.id
-    })) || positiveDrugTestDetected;
-  }
-
-  const birthCertificateFile = formData.get("birthCertificateFile");
-  if (birthCertificateFile instanceof File && birthCertificateFile.size > 0) {
-    positiveDrugTestDetected = (await savePlayerAttachedDocument({
-      playerId: player.id,
-      teamId: player.teamId,
-      file: birthCertificateFile,
-      type: "BIRTH_CERTIFICATE",
-      playerName: `${player.firstName} ${player.lastName}`,
-      userId: user.id
-    })) || positiveDrugTestDetected;
-  }
-
-  const drugTestFile = formData.get("drugTestFile");
-  if (drugTestFile instanceof File && drugTestFile.size > 0) {
-    positiveDrugTestDetected = (await savePlayerAttachedDocument({
-      playerId: player.id,
-      teamId: player.teamId,
-      file: drugTestFile,
-      type: "DRUG_TEST",
-      playerName: `${player.firstName} ${player.lastName}`,
-      userId: user.id
-    })) || positiveDrugTestDetected;
-  }
-  } catch (error) {
-    // A rejected attachment must not leave a newly created player profile or
-    // orphan private files behind.
-    const attachedDocuments = await db.document.findMany({
-      where: { relatedPlayerId: player.id },
-      select: { id: true, storageKey: true }
-    });
-    await Promise.allSettled(attachedDocuments.map((document) => deletePrivateFile(document.storageKey)));
-    await db.document.deleteMany({ where: { relatedPlayerId: player.id } });
-    await db.player.delete({ where: { id: player.id } });
-    if (photoUrl) await deletePublicFile(photoUrl).catch(() => {});
-    throw error;
+  for (const attachment of attachments) {
+    const file = formData.get(attachment.field);
+    if (!(file instanceof File) || file.size === 0) continue;
+    try {
+      positiveDrugTestDetected = (await savePlayerAttachedDocument({
+        playerId: player.id,
+        teamId: player.teamId,
+        file,
+        type: attachment.type,
+        playerName: `${player.firstName} ${player.lastName}`,
+        userId: user.id
+      })) || positiveDrugTestDetected;
+    } catch {
+      // Player creation is the primary operation. A rejected or temporarily
+      // unavailable attachment must not roll back a valid player profile.
+      attachmentFailures.push(attachment.field);
+    }
   }
 
   await writeAuditLog({
@@ -318,7 +280,7 @@ export async function createPlayerAction(formData: FormData) {
     entityType: "Player",
     entityId: player.id,
     changes: { after: parsed }
-  });
+  }).catch(() => {});
 
   const categorySlug = player.team?.category?.toLowerCase();
   revalidatePath("/[locale]/dashboard/players", "page");
@@ -328,7 +290,7 @@ export async function createPlayerAction(formData: FormData) {
     revalidatePath(`/[locale]/team/${categorySlug}`, "page");
     revalidatePath(`/[locale]/team/${categorySlug}/players/${player.slug}`, "page");
   }
-  return { id: player.id, positiveDrugTestDetected };
+  return { id: player.id, positiveDrugTestDetected, attachmentFailures };
 }
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {

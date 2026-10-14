@@ -16,7 +16,7 @@ interface TeamItem {
 
 interface NewPlayerFormProps {
   locale: string;
-  createAction: (formData: FormData) => Promise<{ id: string; positiveDrugTestDetected?: boolean }>;
+  createAction: (formData: FormData) => Promise<{ id: string; positiveDrugTestDetected?: boolean; attachmentFailures?: string[] }>;
   teams: TeamItem[];
   currentTeamId: string | null;
   translations: {
@@ -69,6 +69,20 @@ export function NewPlayerForm({
     try {
       const res = await createAction(formData);
       toast.success(isAr ? "تمت إضافة اللاعب بنجاح" : "Joueur ajouté avec succès");
+      if (res.attachmentFailures?.length) {
+        const labels: Record<string, { ar: string; fr: string }> = {
+          cniFile: { ar: "بطاقة التعريف", fr: "la pièce d’identité" },
+          contractFile: { ar: "العقد", fr: "le contrat" },
+          birthCertificateFile: { ar: "شهادة الميلاد", fr: "l’acte de naissance" },
+          drugTestFile: { ar: "وثيقة الفحص", fr: "le document médical" }
+        };
+        const failed = res.attachmentFailures.map((field) => labels[field]?.[isAr ? "ar" : "fr"] ?? field);
+        toast.warning(
+          isAr
+            ? `تم حفظ اللاعب، لكن تعذر حفظ بعض الوثائق (${failed.join("، ")}). يمكنك رفعها لاحقًا من ملف اللاعب.`
+            : `Le joueur est enregistré, mais certains documents n’ont pas pu être ajoutés (${failed.join(", ")}). Vous pourrez les téléverser depuis son dossier.`
+        );
+      }
       if (res.positiveDrugTestDetected) {
         toast.warning(
           isAr

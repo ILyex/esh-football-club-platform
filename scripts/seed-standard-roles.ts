@@ -116,6 +116,7 @@ async function main() {
       teamScoped: true,
       permissionKeys: [
         "players.view",
+        "players.create",
         "players.update",
         "matches.view",
         "matches.report",

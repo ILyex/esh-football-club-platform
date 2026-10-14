@@ -125,7 +125,7 @@ const ROLE_DEFINITIONS: {
     key: "president",
     name: "Club President",
     description: "High-level oversight across the club",
-    permissions: [...ALL_VIEW_PERMS, "documents.view.restricted", "settings.manage", "reports.view", "teams.manage", "finance.manage", "finance.approve"]
+    permissions: [...ALL_VIEW_PERMS, "players.create", "players.update", "documents.view.restricted", "settings.manage", "reports.view", "teams.manage", "finance.manage", "finance.approve"]
   },
   {
     key: "director",
@@ -179,7 +179,7 @@ const ROLE_DEFINITIONS: {
     name: "Coach",
     description: "Sporting information only — no access to sensitive administrative documents",
     permissions: [
-      "players.view", "matches.view", "matches.report",
+      "players.view", "players.create", "players.update", "matches.view", "matches.report",
       "training.view", "training.manage", "testing.view", "testing.manage",
       "calendar.view", "documents.generate"
     ]
