@@ -544,8 +544,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </div>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
                 {locale === "ar"
-                  ? "يمكن رفع ورقة التشكيل وتقرير الحكم يدوياً. لا يتوفر حالياً استيراد آلي موثق من FAF Connect."
-                  : "Vous pouvez téléverser la feuille de composition et le rapport d'arbitrage. L'import automatisé depuis FAF Connect n'est pas disponible."}
+                  ? "وثائق قسم Historique في FAF EMS لا تنتقل تلقائياً حالياً. نزّل الوثيقة من FAF وارفعها هنا؛ سيُحفظ تقرير الحكم وتبدأ محاولة تحليله تلقائياً."
+                  : "Les documents de l’Historique FAF EMS ne sont pas synchronisés automatiquement. Téléchargez le document depuis FAF puis déposez-le ici ; le rapport sera enregistré et son analyse démarrera automatiquement."}
               </p>
             </div>
           </div>

@@ -815,6 +815,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
 
   let lineupsAdded = 0;
   let aiFallback: "quota" | "unavailable" | undefined;
+  let refereeAnalysisWarning: string | undefined;
   const shouldExtractLineup = sheetType === "PRE_MATCH_SHEET" && formData.getAll("autoLineup").includes("true");
   if (shouldExtractLineup && match.teamId) {
     try {
@@ -841,23 +842,62 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
     }
   }
 
+  // A referee report should be analyzed as soon as it is uploaded. The
+  // document stays saved if OCR/AI is unavailable; no synthetic text from the
+  // filename is passed to the analyzer.
+  if (sheetType === "REFEREE_REPORT") {
+    try {
+      const { extractDocumentText } = await import("@/lib/ai/document-verifier");
+      const reportText = await extractDocumentText(buffer, validated.mime, (reason) => { aiFallback = reason; });
+      if (reportText) {
+        const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
+        const analysis = await parseAndApplyRefereeReportWithAI({ matchId: match.id, reportText, userId: user.id });
+        if (!analysis.success) {
+          refereeAnalysisWarning = analysis.summary;
+        } else if (analysis.eventsCreated > 0) {
+          refereeAnalysisWarning = locale === "ar"
+            ? `تم تحليل التقرير وإضافة ${analysis.eventsCreated} حدث للمباراة.`
+            : `Rapport analysé : ${analysis.eventsCreated} événement(s) ajouté(s).`;
+        } else {
+          refereeAnalysisWarning = locale === "ar"
+            ? "تم فحص التقرير، ولم تُكتشف أحداث جديدة مؤكدة للاعبي الفريق. راجع النتيجة يدويًا."
+            : "Rapport analysé ; aucun nouvel événement confirmé pour l’équipe. Vérifiez le résultat manuellement.";
+        }
+        if (analysis.aiFallback) aiFallback = analysis.aiFallback;
+      } else {
+        refereeAnalysisWarning = locale === "ar"
+          ? "حُفظ التقرير، لكن تعذر استخراج نص مقروء منه؛ لم يتم تحليل الأحداث. جرّب نسخة PDF نصية أو أوضح."
+          : "Rapport enregistré, mais son texte est illisible ; les événements n’ont pas été analysés. Essayez un PDF texte ou une copie plus nette.";
+      }
+    } catch (error) {
+      console.error("[MatchSheet] Automatic referee report analysis failed", error);
+      refereeAnalysisWarning = locale === "ar"
+        ? "حُفظ التقرير، لكن تعذر إكمال تحليله. يمكنك تشغيل التحليل من صفحة المباراة."
+        : "Rapport enregistré, mais l’analyse a échoué. Vous pouvez la relancer depuis la page du match.";
+    }
+  }
+
   await writeAuditLog({
     userId: user.id,
     action: "match.sheet_attached",
     entityType: "Match",
     entityId: match.id,
-    changes: { documentId: doc.id, filename: file.name, sheetType, reviewStatus: doc.status, lineupsAdded }
+    changes: { documentId: doc.id, filename: file.name, sheetType, reviewStatus: doc.status, lineupsAdded, refereeAnalysisAttempted: sheetType === "REFEREE_REPORT" }
   });
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath("/[locale]/dashboard/matches", "page");
+  const aiFallbackWarning = aiFallback
+    ? locale === "ar"
+      ? aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي؛ استُخدم التحليل الاحتياطي عند الإمكان." : "الذكاء الاصطناعي غير متاح؛ استُخدم التحليل الاحتياطي عند الإمكان."
+      : aiFallback === "quota" ? "Quota IA épuisé ; le moteur de secours a été utilisé si possible." : "IA indisponible ; le moteur de secours a été utilisé si possible."
+    : undefined;
+  const warning = [refereeAnalysisWarning, aiFallbackWarning].filter(Boolean).join(" ");
   return {
     success: true,
     documentId: doc.id,
     lineupsAdded,
-    ...(aiFallback ? { warning: locale === "ar"
-      ? aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي اليوم؛ تم حفظ الورقة ويمكن إدخال التشكيلة يدوياً." : "الذكاء الاصطناعي غير متاح؛ تم حفظ الورقة ويمكن إدخال التشكيلة يدوياً."
-      : aiFallback === "quota" ? "Quota IA épuisé aujourd’hui ; la feuille est enregistrée et la composition peut être saisie manuellement." : "IA indisponible ; la feuille est enregistrée et la composition peut être saisie manuellement." } : {})
+    ...(warning ? { warning } : {})
   };
 }
 

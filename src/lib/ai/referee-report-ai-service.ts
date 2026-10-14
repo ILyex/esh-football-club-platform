@@ -200,7 +200,7 @@ export async function parseAndApplyRefereeReportWithAI(params: {
 
   // Pull all available club players or team players for recognition
   const squad = await db.player.findMany({
-    where: { status: { not: "ARCHIVED" } },
+    where: { teamId: match.teamId, status: { not: "ARCHIVED" } },
     select: { id: true, firstName: true, lastName: true, shirtNumber: true, teamId: true }
   });
 
@@ -210,15 +210,26 @@ export async function parseAndApplyRefereeReportWithAI(params: {
     textToAnalyze = match.matchReport || "";
   }
   if (!textToAnalyze) {
-    // If empty, look into attached referee report document metadata/names
+    // Read the actual attached report. A filename is not report content and
+    // must never be fed to the event parser as if it were evidence.
     const refDoc = match.documents.find(
       (d) =>
+        d.matchDocumentType === "REFEREE_REPORT" ||
         d.name.includes("تقرير حكم") ||
         d.name.toLowerCase().includes("rapport") ||
         d.originalName?.toLowerCase().includes("referee")
     );
     if (refDoc) {
-      textToAnalyze = `${refDoc.name} - ${refDoc.originalName || ""}`;
+      try {
+        const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
+          import("@/lib/storage"),
+          import("./document-verifier")
+        ]);
+        const buffer = await getPrivateFileBuffer(refDoc.storageKey);
+        textToAnalyze = (await extractDocumentText(buffer, refDoc.mimeType)) || "";
+      } catch (error) {
+        console.warn("[AI Referee Report] Could not read attached report", error);
+      }
     }
   }
 
@@ -227,7 +238,7 @@ export async function parseAndApplyRefereeReportWithAI(params: {
       success: false,
       eventsCreated: 0,
       events: [],
-      summary: "لم يتم العثور على نص أو وثيقة لتقرير الحكم لتحليلها.",
+      summary: "تعذر استخراج نص مقروء من تقرير الحكم. تحقق من أن الملف واضح ويحتوي على نص أو أعد رفع نسخة أوضح.",
       aiProviderUsed: "INTELLIGENT_NLP_ENGINE"
     };
   }
