@@ -23,6 +23,7 @@ export interface DashboardMatchItem {
   matchDate: Date | string;
   isHome: boolean;
   competitionName?: string | null;
+  opponentLogo?: string | null;
 }
 
 export interface DashboardTrainingItem {
@@ -145,8 +146,12 @@ export function DashboardEventsCarousel({
                     className="flex items-center justify-between py-2 sm:py-2.5 group hover:bg-muted/30 px-1.5 sm:px-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/branding/esh-logo-32.png" alt="ESH" className="h-6 w-6 object-contain shrink-0" />
+                      {m.opponentLogo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.opponentLogo} alt="" className="h-6 w-6 object-contain shrink-0" />
+                      ) : (
+                        <Trophy className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      )}
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-foreground group-hover:text-club-primary transition-colors truncate">
                           {localizedClubName(m.opponentName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")}

@@ -13,6 +13,7 @@ import {
   type ExpenseSlice
 } from "@/components/dashboard/dashboard-charts";
 import { DashboardEventsCarousel } from "@/components/dashboard/dashboard-events-carousel";
+import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 import { PlayersAndEquipmentCarousel } from "@/components/dashboard/players-and-equipment-carousel";
 import {
   Trophy,
@@ -199,6 +200,7 @@ export default async function DashboardHomePage({
       select: { dashboardWelcomeBannerUrl: true }
     })
   ]);
+  const opponentLogos = upcomingMatches.length > 0 ? await getOpponentsMap() : {};
 
   // Budgets & Expenses & Debt
   let totalAllocatedBudget = 0;
@@ -695,10 +697,11 @@ export default async function DashboardHomePage({
         <DashboardEventsCarousel
           matches={upcomingMatches.map((m) => ({
             id: m.id,
-            opponentName: m.awayTeamName,
+            opponentName: m.isHomeFixture ? m.awayTeamName : m.homeTeamName,
             matchDate: m.matchDate,
             isHome: m.isHomeFixture,
-            competitionName: m.competition?.name
+            competitionName: m.competition?.name,
+            opponentLogo: findOpponentLogo(opponentLogos, m.isHomeFixture ? m.awayTeamName : m.homeTeamName)
           }))}
           trainings={upcomingTrainings.map((tr) => ({
             id: tr.id,
