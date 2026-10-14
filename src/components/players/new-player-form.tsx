@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { User, Shield, Activity, FileText, Image as ImageIcon, AlertCircle, Loader2, Save, UploadCloud, ImagePlus } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
+import { BloodGroupField } from "@/components/players/blood-group-field";
 
 interface TeamItem {
   id: string;
@@ -21,6 +22,8 @@ interface NewPlayerFormProps {
   translations: {
     nationality: string;
     dateOfBirth: string;
+    placeOfBirth: string;
+    bloodGroup: string;
     birthCertificateNumber: string;
     team: string;
     position: string;
@@ -131,6 +134,8 @@ export function NewPlayerForm({
               locale={locale}
             />
           </div>
+          <Field label={translations.placeOfBirth} name="placeOfBirth" placeholder={isAr ? "مثال: وهران" : "ex. Oran"} />
+          <BloodGroupField label={translations.bloodGroup} locale={locale} />
           <div>
             <Field label={translations.birthCertificateNumber} name="birthCertificateNumber" placeholder={isAr ? "رقم عقد الميلاد" : "N° acte de naissance"} />
           </div>

@@ -144,6 +144,8 @@
       "position": "المركز",
       "nationality": "الجنسية",
       "dateOfBirth": "تاريخ الميلاد",
+      "placeOfBirth": "مكان الميلاد",
+      "bloodGroup": "زمرة الدم",
       "shirtNumber": "رقم القميص",
       "height": "الطول",
       "weight": "الوزن",

@@ -36,6 +36,8 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ loca
   const translations = {
     nationality: t("fields.nationality"),
     dateOfBirth: t("fields.dateOfBirth"),
+    placeOfBirth: t("fields.placeOfBirth"),
+    bloodGroup: t("fields.bloodGroup"),
     birthCertificateNumber: t("fields.birthCertificateNumber"),
     team: t("fields.team"),
     position: t("fields.position"),

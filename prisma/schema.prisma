@@ -325,6 +325,8 @@ model Player {
   lastNameFr             String?
   weight                 Float? // kg (e.g. 72.5)
   previousTeam           String? // Previous club / team of origin
+  placeOfBirth           String?
+  bloodGroup             String?
   birthCertificateNumber String? // Official birth certificate number
   licenceNumber          String? // Official player licence number
   testResults            TestResult[]

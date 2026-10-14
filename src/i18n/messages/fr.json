@@ -144,6 +144,8 @@
       "position": "Poste",
       "nationality": "Nationalité",
       "dateOfBirth": "Date de naissance",
+      "placeOfBirth": "Lieu de naissance",
+      "bloodGroup": "Groupe sanguin",
       "shirtNumber": "Numéro de maillot",
       "height": "Taille",
       "weight": "Poids",

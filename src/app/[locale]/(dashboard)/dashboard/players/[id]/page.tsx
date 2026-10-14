@@ -20,6 +20,7 @@ import { evaluatePlayerInsurance, parseInsuranceMetadata, formatInsuranceDate } 
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
+import { BloodGroupField } from "@/components/players/blood-group-field";
 import { Save, Trash2, Archive, RotateCcw, ShieldCheck, ShieldAlert, Clock, XCircle, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
@@ -438,6 +439,8 @@ export default async function PlayerDetailPage({
                   disabled={!canUpdate}
                   locale={locale}
                 />
+                <Field label={t("fields.placeOfBirth")} name="placeOfBirth" defaultValue={player.placeOfBirth ?? ""} disabled={!canUpdate} />
+                <BloodGroupField label={t("fields.bloodGroup")} locale={locale} defaultValue={player.bloodGroup} disabled={!canUpdate} />
 
                 <Field label={t("fields.shirtNumber")} name="shirtNumber" type="number" defaultValue={player.shirtNumber?.toString() ?? ""} disabled={!canUpdate} />
 
