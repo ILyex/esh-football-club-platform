@@ -5,7 +5,7 @@
  * deployment. Keeping the origin in one environment variable prevents local
  * links from accidentally pointing back to localhost.
  */
-const DEFAULT_PUBLIC_SITE_URL = "https://esh-football-platform.football-club-platform.workers.dev";
+const DEFAULT_PUBLIC_SITE_URL = "https://esh.football-club-platform.workers.dev";
 
 export function getPublicSiteUrl(locale?: string): string {
   const configured = process.env.NEXT_PUBLIC_PUBLIC_SITE_URL?.trim();

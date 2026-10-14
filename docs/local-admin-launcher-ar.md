@@ -12,7 +12,7 @@ PowerShell أو كتابة `npm run dev`.
 الإداري.
 
 ضع `NEXT_PUBLIC_PUBLIC_SITE_URL` في `.env.local` على عنوان الموقع العام المنشور
-(حالياً `https://esh-football-platform.football-club-platform.workers.dev`).
+(حالياً `https://esh.football-club-platform.workers.dev`).
 بهذا يفتح زر «العودة إلى الموقع الرسمي» الموقع العام مباشرة حتى عندما تعمل
 لوحة الإدارة على `http://localhost:3000`.
 

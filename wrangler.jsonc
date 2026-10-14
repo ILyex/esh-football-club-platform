@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "esh-football-platform",
+	"name": "esh",
 	"main": "cloudflare/worker.mjs",
 	"compatibility_date": "2026-10-06",
 	"compatibility_flags": [
@@ -24,8 +24,9 @@
 		"FAF_ENABLED": "true",
 		"FAF_PORTAL_URL": "https://ems.fafconnect.dz",
 		"FAF_CLUB_CODE": "14DLG9D",
-		"AUTH_URL": "https://esh-football-platform.football-club-platform.workers.dev",
-		"NEXTAUTH_URL": "https://esh-football-platform.football-club-platform.workers.dev",
+		"AUTH_URL": "https://esh.football-club-platform.workers.dev",
+		"NEXTAUTH_URL": "https://esh.football-club-platform.workers.dev",
+		"NEXT_PUBLIC_PUBLIC_SITE_URL": "https://esh.football-club-platform.workers.dev",
 		"STORAGE_DRIVER": "s3",
 		"STORAGE_ENDPOINT": "https://br-weathered-voice-b4xw8lji.storage.c-6.us-east-2.aws.neon.tech",
 		"STORAGE_REGION": "us-east-2",
