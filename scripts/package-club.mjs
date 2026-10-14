@@ -38,7 +38,7 @@ if (fs.existsSync(runtimeSource)) fs.cpSync(runtimeSource, path.join(internal, "
 
 for (const name of [
   "app.js", "Launch-ESH-Platform.bat", "Launch-ESH-Platform.vbs",
-  "Local-Platform-Supervisor.mjs", "Start-Local-Platform-Supervisor.ps1",
+  "Local-Platform-Supervisor.mjs", "Start-Local-Platform-Supervisor.ps1", "Start-Local-Platform-Supervisor.vbs",
   "Install-ESH-Platform.vbs", "Setup-ESH-Local-AI.ps1", "Setup-ESH-Local-AI.vbs",
   "Update-ESH-Platform.ps1", "Update-ESH-Platform.vbs"
 ]) {

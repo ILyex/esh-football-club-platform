@@ -31,9 +31,9 @@ export function PublicFooter({ locale, club, clubDisplayName, labels }: PublicFo
           {/* Club Info Column */}
           <div className="order-1 min-w-0 space-y-3 text-start md:order-1 md:space-y-4">
             <div className={`flex w-full min-w-0 items-center gap-3 ${locale === "ar" ? "justify-end" : "justify-start"}`} dir={locale === "ar" ? "rtl" : "ltr"}>
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm sm:h-12 sm:w-12">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#111214] shadow-sm sm:h-12 sm:w-12">
                 {club.logoUrl ? (
-                  <ClubLogo src={club.logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} className="h-full w-full object-cover" />
+                  <ClubLogo src={club.logoUrl} fallbackSrc="/branding/esh-logo-128.png" alt={clubDisplayName} animated className="h-full w-full object-cover" />
                 ) : (
                   <Shield className="h-6 w-6 text-club-primary" />
                 )}

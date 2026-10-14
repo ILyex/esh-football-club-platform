@@ -35,5 +35,10 @@ If nodeCheck <> 0 Then
   WScript.Quit 1
 End If
 
-' WindowStyle 0 = hidden, WaitOnReturn False = leave the browser/server running.
-shell.Run "cmd.exe /c """ & batPath & """", 0, False
+' Keep the command window hidden, but wait for the launcher to report success.
+shell.Environment("Process")("ESH_LAUNCH_FROM_VBS") = "1"
+Dim launchResult
+launchResult = shell.Run("cmd.exe /c """ & batPath & """", 0, True)
+If launchResult <> 0 Then
+  shell.Popup "تعذر تشغيل المنصة. راجع ملفات السجل المحلية لمعرفة التفاصيل.", 8, "منصة ESH", 16
+End If

@@ -4,18 +4,26 @@ $supervisor = Join-Path $root "Local-Platform-Supervisor.mjs"
 $nodePath = Join-Path $root "runtime\node.exe"
 if (-not (Test-Path -LiteralPath $nodePath)) { $nodePath = (Get-Command node.exe -ErrorAction SilentlyContinue).Source }
 $startupDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
+$startupLauncher = Join-Path $root "Start-Local-Platform-Supervisor.vbs"
 $alreadyRunning = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -and $_.CommandLine.Contains($supervisor) } | Select-Object -First 1
 
-if (Test-Path -LiteralPath $supervisor) {
+if ((Test-Path -LiteralPath $supervisor) -and (Test-Path -LiteralPath $startupLauncher)) {
   try {
     New-Item -ItemType Directory -Path $startupDirectory -Force | Out-Null
     $startupShortcutPath = Join-Path $startupDirectory "ESH Football Platform Server.lnk"
-    if (-not (Test-Path -LiteralPath $startupShortcutPath)) {
+    $targetPath = Join-Path $env:WINDIR "System32\wscript.exe"
+    $targetArguments = "`"$startupLauncher`""
+    $refreshShortcut = -not (Test-Path -LiteralPath $startupShortcutPath)
+    if (-not $refreshShortcut) {
+      $existingShortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($startupShortcutPath)
+      $refreshShortcut = $existingShortcut.TargetPath -ne $targetPath -or $existingShortcut.Arguments -ne $targetArguments
+    }
+    if ($refreshShortcut) {
       $shell = New-Object -ComObject WScript.Shell
       $shortcut = $shell.CreateShortcut($startupShortcutPath)
-      $shortcut.TargetPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-      $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+      $shortcut.TargetPath = $targetPath
+      $shortcut.Arguments = $targetArguments
       $shortcut.WorkingDirectory = $root
       $shortcut.Description = "Keep the ESH platform available to administrators"
       $shortcut.Save()
@@ -31,7 +39,7 @@ if (-not $alreadyRunning -and $nodePath -and (Test-Path -LiteralPath $supervisor
   # Stop the earlier PowerShell monitor during upgrade; it used substantially
   # more memory than this lightweight Node.js monitor.
   Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and $_.CommandLine.Contains((Join-Path $root "Local-Platform-Supervisor.ps1")) } |
+    Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains((Join-Path $root "Local-Platform-Supervisor.ps1")) } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
   # Adopt the app server only after a clean start so the monitor owns its PID

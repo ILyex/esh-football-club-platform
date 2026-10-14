@@ -109,7 +109,7 @@ const child = spawn(process.execPath, [nextBin, "dev", "--port", String(port)], 
   cwd: projectRoot,
   env: process.env,
   stdio: "inherit",
-  windowsHide: false
+  windowsHide: true
 });
 
 child.on("exit", (code, signal) => {
