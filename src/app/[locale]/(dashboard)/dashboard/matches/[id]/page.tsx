@@ -33,7 +33,6 @@ import { MatchEventForm } from "@/components/matches/match-event-form";
 import { MatchManagementTabs } from "@/components/matches/match-management-tabs";
 import { OpponentNameInputs } from "@/components/matches/opponent-name-inputs";
 import { getMatchClockState } from "@/lib/matches/clock";
-import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { ShootoutKickForm } from "@/components/matches/shootout-kick-form";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
@@ -50,7 +49,6 @@ const EVENT_TYPES = ["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSI
 export default async function MatchDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
   const user = await requirePagePermission("matches.view", locale);
-  await promoteDueMatchesToLive();
   const t = await getTranslations("matches");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

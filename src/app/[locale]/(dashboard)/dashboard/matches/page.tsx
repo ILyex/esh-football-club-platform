@@ -13,7 +13,6 @@ import { MatchOperationalStatus } from "@/components/matches/match-operational-s
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteMatchAction } from "./actions";
 import { resolveMatchResult } from "@/lib/matches/result";
-import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 
 export default async function MatchesListPage({
@@ -31,8 +30,6 @@ export default async function MatchesListPage({
   const tCommon = await getTranslations("common");
   const canCreate = hasPermission(user, "matches.create");
   const canDelete = hasPermission(user, "matches.delete");
-  await promoteDueMatchesToLive();
-
   const pageSize = 20;
   const page = Math.max(1, Number(sp.page ?? "1"));
   const effectiveTeamId = await getEffectiveTeamId(sp.team);

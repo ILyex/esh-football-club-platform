@@ -2,7 +2,6 @@ import "server-only";
 import { db } from "@/lib/db";
 import { MatchStatus, TeamCategory } from "@prisma/client";
 import { getOpponentLogo, getOpponentsMap } from "@/lib/opponents";
-import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { frenchPublicPersonName, splitClubNameVariants } from "@/lib/public/locale-text";
 import { resolveMatchResult, type MatchSide } from "@/lib/matches/result";
 import type { MatchAddedTimeSettings } from "@/lib/matches/clock";
@@ -77,7 +76,6 @@ export interface PublicMatchDetail extends PublicMatchItem {
 
 /** Fetches the current live match first, then the next scheduled match. */
 export async function getPublicNextMatch(): Promise<PublicMatchItem | null> {
-  await promoteDueMatchesToLive();
   const now = new Date();
   const match = await db.match.findFirst({
     where: {
@@ -153,7 +151,6 @@ export async function getPublicNextMatch(): Promise<PublicMatchItem | null> {
 
 /** Fetches live and upcoming scheduled matches across categories (seniors, U20, U17, etc.). */
 export async function getPublicUpcomingMatches(limit: number = 6): Promise<PublicMatchItem[]> {
-  await promoteDueMatchesToLive();
   const now = new Date();
   const matches = await db.match.findMany({
     where: {
@@ -305,7 +302,6 @@ export async function getPublicMatches(options?: {
   mode?: "UPCOMING" | "RESULTS" | "ALL";
   limit?: number;
 }): Promise<PublicMatchItem[]> {
-  await promoteDueMatchesToLive();
   const mode = options?.mode ?? "ALL";
   const where: any = {};
 
@@ -384,7 +380,6 @@ export async function getPublicMatches(options?: {
 
 /** Fetches full public match center details including authorized lineups and events. */
 export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetail | null> {
-  await promoteDueMatchesToLive();
   const match = await db.match.findUnique({
     where: { id },
     select: {
