@@ -334,7 +334,7 @@ export function MatchLineupWorkspace({
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-1">
           {pagedAvailablePlayers.map((player) => {
             const selected = selectedPlayerId === player.id;
-            const isPlayerUnavailable = player.status === "INJURED" || player.status === "SUSPENDED";
+            const isPlayerUnavailable = player.status === "INJURED";
             const displayName = playerDisplayName(player, locale);
             return (
               <button
