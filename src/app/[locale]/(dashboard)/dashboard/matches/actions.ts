@@ -11,6 +11,8 @@ import { resolveShootoutWinner } from "@/lib/matches/result";
 import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { getFAFConfig } from "@/lib/integrations/faf/config";
 import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
+import { enqueueJob } from "@/lib/jobs/queue";
+import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 
 async function enqueueAutomaticFafMatchSync(matchId: string, userId: string) {
   const config = getFAFConfig();
@@ -786,6 +788,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   }
 
   const { validateUploadedFile, uploadPrivateFile, generateStorageKey } = await import("@/lib/storage");
+  if (file.size > 25 * 1024 * 1024) throw new Error("حجم الملف يتجاوز الحد المسموح (25 MB).");
   const buffer = Buffer.from(await file.arrayBuffer());
   const validated = await validateUploadedFile(buffer);
 
@@ -867,33 +870,15 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   // filename is passed to the analyzer.
   if (sheetType === "REFEREE_REPORT") {
     try {
-      const { extractDocumentText } = await import("@/lib/ai/document-verifier");
-      const reportText = await extractDocumentText(buffer, validated.mime, (reason) => { aiFallback = reason; });
-      if (reportText) {
-        const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
-        const analysis = await parseAndApplyRefereeReportWithAI({ matchId: match.id, reportText, userId: user.id });
-        if (!analysis.success) {
-          refereeAnalysisWarning = analysis.summary;
-        } else if (analysis.eventsCreated > 0) {
-          refereeAnalysisWarning = locale === "ar"
-            ? `تم تحليل التقرير وإضافة ${analysis.eventsCreated} حدث للمباراة.`
-            : `Rapport analysé : ${analysis.eventsCreated} événement(s) ajouté(s).`;
-        } else {
-          refereeAnalysisWarning = locale === "ar"
-            ? "تم فحص التقرير، ولم تُكتشف أحداث جديدة مؤكدة للاعبي الفريق. راجع النتيجة يدويًا."
-            : "Rapport analysé ; aucun nouvel événement confirmé pour l’équipe. Vérifiez le résultat manuellement.";
-        }
-        if (analysis.aiFallback) aiFallback = analysis.aiFallback;
-      } else {
-        refereeAnalysisWarning = locale === "ar"
-          ? "حُفظ التقرير، لكن تعذر استخراج نص مقروء منه؛ لم يتم تحليل الأحداث. جرّب نسخة PDF نصية أو أوضح."
-          : "Rapport enregistré, mais son texte est illisible ; les événements n’ont pas été analysés. Essayez un PDF texte ou une copie plus nette.";
-      }
-    } catch (error) {
-      console.error("[MatchSheet] Automatic referee report analysis failed", error);
+      await enqueueRefereeReportAnalysis(db, { matchId: match.id, documentId: doc.id, userId: user.id });
       refereeAnalysisWarning = locale === "ar"
-        ? "حُفظ التقرير، لكن تعذر إكمال تحليله. يمكنك تشغيل التحليل من صفحة المباراة."
-        : "Rapport enregistré, mais l’analyse a échoué. Vous pouvez la relancer depuis la page du match.";
+        ? "حُفظ التقرير وبدأ تحليله في الخلفية؛ ستظهر الأحداث عند تحديث الصفحة."
+        : "Rapport enregistré ; l’analyse continue en arrière-plan. Actualisez la page pour voir les événements.";
+    } catch (error) {
+      console.error("[MatchSheet] Could not queue referee report analysis", error);
+      refereeAnalysisWarning = locale === "ar"
+        ? "حُفظ التقرير، لكن تعذر وضع التحليل في قائمة المهام. يمكنك تشغيل التحليل من صفحة المباراة."
+        : "Rapport enregistré, mais l’analyse n’a pas pu être mise en file. Vous pouvez la relancer depuis la page du match.";
     }
   }
 
@@ -921,18 +906,31 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   };
 }
 
-export async function syncFAFMatchDocumentsAction(matchId: string) {
+export async function syncFAFMatchDocumentsAction(matchId: string, locale = "ar") {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
 
-  const { syncFafMatchDocuments } = await import("@/lib/integrations/faf/match-sheet-sync");
-  const result = await syncFafMatchDocuments(matchId, user.id);
-  return result;
+  const job = await enqueueJob(db, {
+    type: "faf.match_sync",
+    payload: { matchId, userId: user.id },
+    idempotencyKey: `faf-match-sync-manual-${matchId}-${Date.now()}`,
+    createdById: user.id,
+    priority: "HIGH",
+    maxAttempts: 2
+  });
+  return {
+    success: true,
+    matchId,
+    jobId: job.id,
+    message: locale === "fr"
+      ? "L’import FAF EMS est en file d’attente. Les documents et événements seront traités en arrière-plan."
+      : "تمت إضافة استيراد FAF EMS إلى قائمة المهام. سيُحفظ التقرير وتُحلل أحداثه في الخلفية."
+  };
 }
 
-export async function analyzeRefereeReportWithAIAction(matchId: string, formData?: FormData) {
+export async function analyzeRefereeReportWithAIAction(matchId: string, formData?: FormData, locale = "ar") {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
@@ -941,9 +939,19 @@ export async function analyzeRefereeReportWithAIAction(matchId: string, formData
   const reportText = formData ? (formData.get("reportText") as string) : undefined;
   const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
 
-  return await parseAndApplyRefereeReportWithAI({
-    matchId,
-    reportText,
-    userId: user.id
-  });
+  try {
+    return await parseAndApplyRefereeReportWithAI({ matchId, reportText, userId: user.id });
+  } catch (error) {
+    console.error("[RefereeReportAI] Analysis failed", { matchId, error });
+    return {
+      success: false,
+      eventsCreated: 0,
+      events: [],
+      summary: locale === "fr"
+        ? "Impossible d’analyser le rapport pour le moment. Les données du match sont conservées ; réessayez plus tard."
+        : "تعذر تحليل التقرير الآن. حُفظت بيانات المباراة كما هي؛ أعد المحاولة لاحقًا.",
+      aiProviderUsed: "INTELLIGENT_NLP_ENGINE" as const,
+      aiFallback: "unavailable" as const
+    };
+  }
 }

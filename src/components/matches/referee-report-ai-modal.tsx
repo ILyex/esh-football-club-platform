@@ -55,7 +55,7 @@ export function RefereeReportAiModal({
         if (reportText) {
           formData.append("reportText", reportText);
         }
-        const res = await analyzeRefereeReportWithAIAction(matchId, formData);
+        const res = await analyzeRefereeReportWithAIAction(matchId, formData, locale);
         setResult(res);
       } catch (err: any) {
         setError(err.message || (isAr ? "فشل تحليل التقرير بالذكاء الاصطناعي" : "Échec de l'analyse IA"));

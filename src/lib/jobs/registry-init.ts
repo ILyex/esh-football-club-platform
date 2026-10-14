@@ -4,6 +4,7 @@ import { syncNotifications } from "@/lib/insights/notifications";
 import { dispatchNotification } from "@/lib/notifications/service";
 import { db } from "@/lib/db";
 import { registerFAFJobHandlers } from "@/lib/integrations/faf/job-handler";
+import { registerRefereeReportAnalysisJob } from "@/lib/ai/referee-report-job";
 
 // ============================================================================
 // P5 — BUILT-IN JOB HANDLERS REGISTRATION
@@ -18,6 +19,7 @@ import { registerGmailJobHandlers } from "@/lib/integrations/gmail/job-handler";
 export function initializeJobRegistry(): void {
   registerGmailJobHandlers();
   registerFAFJobHandlers();
+  registerRefereeReportAnalysisJob();
 
   if (!hasJobHandler("insights.sync")) {
     registerJobHandler({

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { getFAFConfig } from "./config";
 import { getFafEmsClient } from "./ems-client";
+import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -135,23 +136,9 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   }
 
   let analysisMessage = "";
-  try {
-    // Re-run the idempotent event analysis whenever EMS returns a referee report,
-    // including when the PDF was already imported during an earlier sync.
-    if (finalReport.byteLength > 0) {
-    const { extractDocumentText } = await import("@/lib/ai/document-verifier");
-    const reportText = await extractDocumentText(finalReport, "application/pdf");
-    if (reportText) {
-      const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
-      const analysis = await parseAndApplyRefereeReportWithAI({ matchId: local.id, reportText, userId: actorId });
-      analysisMessage = analysis.success
-        ? ` تم تحليل التقرير آليًا وإضافة ${analysis.eventsCreated} أحداث مؤكدة.`
-        : " حُفظ التقرير، والتحليل الآلي يحتاج مراجعة يدوية.";
-    }
-    }
-  } catch {
-    // Importing federation documents must succeed even if OCR or AI is unavailable.
-    analysisMessage = " حُفظ التقرير؛ التحليل الآلي غير متاح حاليًا.";
+  if (finalReport.byteLength > 0 && documentIds[1]) {
+    await enqueueRefereeReportAnalysis(db, { matchId: local.id, documentId: documentIds[1], userId: actorId });
+    analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";
   }
 
   const isLocalHome = String((local.isHomeFixture ? official.clubLoc : official.clubVis)?.fifaId || "").toUpperCase() === config.clubCode.toUpperCase();

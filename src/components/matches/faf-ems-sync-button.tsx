@@ -14,7 +14,7 @@ export function FafEmsSyncButton({ matchId, locale }: { matchId: string; locale:
   return <Button type="button" size="sm" variant="outline" disabled={pending} onClick={async () => {
     setPending(true);
     try {
-      const result = await syncFAFMatchDocumentsAction(matchId);
+      const result = await syncFAFMatchDocumentsAction(matchId, locale);
       if (!result.success) throw new Error(result.message);
       toast.success(result.message);
       router.refresh();

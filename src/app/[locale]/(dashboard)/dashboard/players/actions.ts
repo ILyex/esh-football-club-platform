@@ -513,11 +513,29 @@ export async function hardDeletePlayerAction(playerId: string) {
   const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
   assertTeamScope(scopeContext, player.teamId, "Player");
 
-  if (player.photoUrl) {
-    await deletePublicFile(player.photoUrl).catch(() => {});
-  }
+  // Preserve historical match events while removing the player's live profile.
+  // Explicitly detach restrictive foreign keys first so deletion cost and
+  // behavior do not depend on an implicit database cascade.
+  await db.$transaction(async (tx) => {
+    await tx.matchEvent.updateMany({
+      where: { playerId },
+      data: {
+        playerId: null,
+        playerName: `${player.firstName} ${player.lastName}`,
+        playerNameFr: [player.firstNameFr, player.lastNameFr].filter(Boolean).join(" ") || null
+      }
+    });
+    await tx.matchShootoutKick.updateMany({ where: { playerId }, data: { playerId: null } });
+    await tx.contract.updateMany({ where: { playerId }, data: { playerId: null } });
+    await tx.correspondence.updateMany({ where: { relatedPlayerId: playerId }, data: { relatedPlayerId: null } });
+    await tx.matchLineup.deleteMany({ where: { playerId } });
+    await tx.trainingAttendance.deleteMany({ where: { playerId } });
+    await tx.player.delete({ where: { id: playerId } });
+  }, { timeout: 15000 });
 
-  await db.player.delete({ where: { id: playerId } });
+  // Object storage is outside the database transaction. Delete it after the
+  // profile commit so a slow storage provider cannot prevent the UI action.
+  if (player.photoUrl) await deletePublicFile(player.photoUrl).catch(() => {});
 
   await writeAuditLog({ userId: user.id, action: "player.delete", entityType: "Player", entityId: playerId });
   const categorySlug = player.team?.category?.toLowerCase();
