@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/permissions";
-import { markNotificationReadAction, markAllNotificationsReadAction } from "./actions";
+import { markNotificationReadAction } from "./actions";
+import { MarkAllReadButton } from "./mark-all-read-button";
 import { NOTIFIABLE_TYPE_KEYS } from "@/lib/insights/notifications";
 import { resolveNotificationLink } from "@/lib/notifications/links";
 import { Badge } from "@/components/ui/badge";
@@ -105,11 +106,6 @@ export default async function NotificationsPage({
     return true;
   });
 
-  async function markAllRead() {
-    "use server";
-    await markAllNotificationsReadAction();
-  }
-
   const getCategoryMeta = (type: string, rawLink: string | null) => {
     const link = rawLink || "";
     if (type.includes("MATCH") || link.includes("/matches")) {
@@ -189,12 +185,10 @@ export default async function NotificationsPage({
         </div>
 
         {unreadCount > 0 && (
-          <form action={markAllRead} className="shrink-0">
-            <Button type="submit" variant="outline" className="gap-1.5 text-xs font-semibold">
-              <CheckCheck className="h-4 w-4 text-emerald-600" />
-              <span>{t("markAllRead")}</span>
-            </Button>
-          </form>
+          <MarkAllReadButton
+            label={t("markAllRead")}
+            errorLabel={locale === "ar" ? "تعذر تحديث الإشعارات. حاول مرة أخرى." : "Impossible de mettre à jour les notifications. Réessayez."}
+          />
         )}
       </div>
 
