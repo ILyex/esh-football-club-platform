@@ -78,6 +78,16 @@ const authMiddleware = edgeAuth((req: NextRequest & { auth?: unknown }) => {
 }) as any;
 
 export default async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  const needsAuthSession =
+    /^\/(?:ar|fr)\/(?:dashboard|field)(?:\/|$)/.test(pathname) ||
+    /^\/api\/auth(?:\/|$)/.test(pathname);
+
+  // Public pages and public APIs do not need Auth.js to decrypt a session JWT.
+  // Keep that CPU-heavy work only on operator routes and auth endpoints; this
+  // is particularly important on Cloudflare where middleware runs per request.
+  if (!needsAuthSession) return handleRequest(req as NextRequest & { auth?: unknown });
+
   const response = await authMiddleware(req) as NextResponse;
   const cookieMode = response.headers.get(rememberCookieModeHeader);
   response.headers.delete(rememberCookieModeHeader);

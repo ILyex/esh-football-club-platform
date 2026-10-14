@@ -11,6 +11,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { MatchEventEntryForm } from "../match-event-entry-form";
+import { CollapsibleMatchEvents } from "@/components/matches/collapsible-match-events";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
 
@@ -173,8 +174,12 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               </div>}
             </div>
 
-            {match.events.length > 0 && <div className="mt-3 space-y-2 border-t border-border/70 pt-2.5">
-              <p className="text-[10px] font-bold text-muted-foreground">{isAr ? "أحداث المباراة" : "Événements du match"}</p>
+            {match.events.length > 0 && <CollapsibleMatchEvents
+              defaultCollapsed={isFinished}
+              label={isAr ? "أحداث المباراة" : "Événements du match"}
+              showLabel={isAr ? "إظهار الأحداث" : "Afficher les événements"}
+              hideLabel={isAr ? "إخفاء الأحداث" : "Masquer les événements"}
+            >
               {match.events.map((event) => <details key={event.id} className="group relative rounded-lg border border-border/80 bg-background">
                 <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 pe-14 ps-2.5 text-[11px] font-semibold marker:hidden">
                   <span className="flex min-w-0 items-center gap-2"><span className={event.type === "RED_CARD" ? "text-rose-500" : event.type === "YELLOW_CARD" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>{event.type === "GOAL" || event.type === "PENALTY_GOAL" || event.type === "OWN_GOAL" ? "⚽" : event.type === "RED_CARD" ? "🟥" : event.type === "YELLOW_CARD" ? "🟨" : "•"}</span><span className="shrink-0 font-mono tabular-nums">{event.minute}{"'"}</span><span className="truncate">{event.playerName || (isAr ? "بدون اسم" : "Sans nom")}</span><span className="hidden text-[10px] font-normal text-muted-foreground sm:inline">{event.side === "HOME" ? names.homeTeamName : names.awayTeamName}</span></span>
@@ -201,7 +206,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                   <button type="submit" className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-club-primary px-3 text-[10px] font-bold text-white transition hover:bg-club-primary-hover sm:col-span-1"><Save className="h-3.5 w-3.5" />{isAr ? "حفظ" : "Enregistrer"}</button>
                 </form>}
               </details>)}
-            </div>}
+            </CollapsibleMatchEvents>}
 
             {canReport && isLive && <MatchEventEntryForm
               action={addEvent.bind(null, match.id)}
