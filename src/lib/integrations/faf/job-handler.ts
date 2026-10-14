@@ -66,6 +66,18 @@ export async function enqueueFAFKeepAliveJob(client: DbOrTx) {
   });
 }
 
+export async function enqueueFAFMatchSyncJob(client: DbOrTx, input: { matchId: string; userId: string }) {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  return enqueueJob(client, {
+    type: "faf.match_sync",
+    payload: input,
+    idempotencyKey: `faf-match-sync-${input.matchId}-${dayKey}`,
+    createdById: input.userId,
+    priority: "HIGH",
+    maxAttempts: 2
+  });
+}
+
 /**
  * Registers the FAF background sync job handler with the P5 worker registry.
  */

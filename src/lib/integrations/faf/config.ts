@@ -22,7 +22,7 @@ export interface FAFConfig {
 }
 
 function sanitizeUrl(rawUrl?: string): string {
-  const fallback = "https://www.fafconnect.dz";
+  const fallback = "https://ems.fafconnect.dz";
   if (!rawUrl || !rawUrl.trim()) return fallback;
   try {
     const parsed = new URL(rawUrl.trim());
@@ -44,7 +44,7 @@ function sanitizeUrl(rawUrl?: string): string {
 export function getFAFConfig(): FAFConfig {
   const isExplicitlyDisabled = process.env.FAF_ENABLED === "false" || process.env.FAF_ENABLED === "0";
   const portalUrl = sanitizeUrl(process.env.FAF_PORTAL_URL);
-  const clubCode = process.env.FAF_CLUB_CODE?.trim() || "ESH-26";
+  const clubCode = process.env.FAF_CLUB_CODE?.trim() || "14DLG9D";
   const username = process.env.FAF_USERNAME?.trim() || "";
   const password = process.env.FAF_PASSWORD?.trim() || "";
 

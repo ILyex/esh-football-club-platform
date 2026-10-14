@@ -247,7 +247,7 @@ export class FAFSessionManagerImpl {
    * Updates and persists an authenticated session from user handoff.
    */
   public async updateSession(newCookie: string, clubCode?: string): Promise<FAFSessionDTO> {
-    const cleanCookie = newCookie.trim().replace(/^PHPSESSID=/i, "");
+    const cleanCookie = newCookie.trim().replace(/^(?:authCookie|PHPSESSID)=/i, (prefix) => prefix.split("=")[0] + "=");
     if (!cleanCookie) {
       throw new Error("Cannot set empty FAF session cookie");
     }
@@ -289,10 +289,12 @@ export class FAFSessionManagerImpl {
     }
 
     const config = getFAFConfig();
-    const cookieHeader = `PHPSESSID=${record.sessionCookie}`;
+    const cookieHeader = /^(?:authCookie|PHPSESSID)=/i.test(record.sessionCookie)
+      ? record.sessionCookie
+      : `authCookie=${record.sessionCookie}`;
 
     try {
-      const res = await fetch(`${config.portalUrl}/index.php`, {
+      const res = await fetch(`${config.portalUrl}/api/filters`, {
         method: "GET",
         headers: {
           "User-Agent": config.userAgent,
@@ -304,18 +306,7 @@ export class FAFSessionManagerImpl {
 
       const location = res.headers.get("location") || "";
 
-      // Check for session rotation in Set-Cookie header
-      const setCookies = res.headers.get("set-cookie");
-      if (setCookies && setCookies.includes("PHPSESSID=")) {
-        const match = setCookies.match(/PHPSESSID=([^;]+)/i);
-        if (match && match[1] && match[1] !== record.sessionCookie) {
-          record.sessionCookie = match[1];
-          await this.saveSessionRecord(record);
-        }
-      }
-
-      // If FAF redirects to login.php, the session has expired
-      if (res.status === 302 && location.includes("login.php")) {
+      if (res.status === 302 || location.includes("/login")) {
         return {
           valid: false,
           status: "REAUTH_REQUIRED",
@@ -324,8 +315,7 @@ export class FAFSessionManagerImpl {
         };
       }
 
-      // If 302 redirects to clubs/index.php or returns 200, session is valid
-      if ((res.status === 302 && location.includes("clubs/index.php")) || res.status === 200) {
+      if (res.status === 200) {
         record.lastVerifiedAt = new Date().toISOString();
         record.lastActiveAt = new Date().toISOString();
         await this.saveSessionRecord(record);
@@ -366,11 +356,11 @@ export class FAFSessionManagerImpl {
 
     const config = getFAFConfig();
     try {
-      const res = await fetch(`${config.portalUrl}/clubs/index.php?id_club=3196`, {
+      const res = await fetch(`${config.portalUrl}/api/filters`, {
         method: "GET",
         headers: {
           "User-Agent": config.userAgent,
-          Cookie: `PHPSESSID=${record.sessionCookie}`
+          Cookie: /^(?:authCookie|PHPSESSID)=/i.test(record.sessionCookie) ? record.sessionCookie : `authCookie=${record.sessionCookie}`
         },
         redirect: "manual",
         signal: AbortSignal.timeout(Math.min(config.timeoutMs, 5000))

@@ -9,6 +9,18 @@ import { revalidatePath } from "next/cache";
 import { getMatchClockState, isShootoutDecided } from "@/lib/matches/clock";
 import { resolveShootoutWinner } from "@/lib/matches/result";
 import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
+import { getFAFConfig } from "@/lib/integrations/faf/config";
+import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
+
+async function enqueueAutomaticFafMatchSync(matchId: string, userId: string) {
+  const config = getFAFConfig();
+  if (!config.enabled || !config.hasCredentials) return;
+  try {
+    await enqueueFAFMatchSyncJob(db, { matchId, userId });
+  } catch (error) {
+    console.error("Could not queue the FAF EMS match import:", error instanceof Error ? error.message : "unknown error");
+  }
+}
 
 function normalizeSheetText(value: string): string {
   return value.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
@@ -275,6 +287,10 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
     }
   });
 
+  if (parsed.status === "FINISHED" && before.status !== "FINISHED") {
+    await enqueueAutomaticFafMatchSync(match.id, user.id);
+  }
+
   await syncCalendarEvent(match.id, `${homeTeamName} vs ${awayTeamName}`, parsed.matchDate, parsed.teamId, parsed.stadium || null);
 
   await writeAuditLog({
@@ -317,6 +333,10 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
       ...(nextStatus === "LIVE" && before.status !== "LIVE" ? { matchDate: new Date() } : {})
     }
   });
+
+  if (nextStatus === "FINISHED" && before.status !== "FINISHED") {
+    await enqueueAutomaticFafMatchSync(match.id, user.id);
+  }
 
   await writeAuditLog({
     userId: user.id,

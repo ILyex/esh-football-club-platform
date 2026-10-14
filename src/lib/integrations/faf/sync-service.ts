@@ -275,8 +275,8 @@ export async function getFAFIntegrationStatus() {
 
   return {
     configured,
-    dataSyncSupported: false,
-    dataSyncMessage: "No verified FAF data API is configured; synchronization is safely blocked until an authorized interface is available.",
+    dataSyncSupported: true,
+    dataSyncMessage: "FAF EMS history, match details and official Arabic reports are available for secure import from the match page.",
     connected: connection.connected,
     connectionMessage: connection.message,
     sessionStatus,

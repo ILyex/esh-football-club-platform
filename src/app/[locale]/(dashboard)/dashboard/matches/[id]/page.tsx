@@ -35,6 +35,7 @@ import { OpponentNameInputs } from "@/components/matches/opponent-name-inputs";
 import { getMatchClockState } from "@/lib/matches/clock";
 import { ShootoutKickForm } from "@/components/matches/shootout-kick-form";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
+import { FafEmsSyncButton } from "@/components/matches/faf-ems-sync-button";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
@@ -542,8 +543,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </div>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
                 {locale === "ar"
-                  ? "وثائق قسم Historique في FAF EMS لا تنتقل تلقائياً حالياً. نزّل الوثيقة من FAF وارفعها هنا؛ سيُحفظ تقرير الحكم وتبدأ محاولة تحليله تلقائياً."
-                  : "Les documents de l’Historique FAF EMS ne sont pas synchronisés automatiquement. Téléchargez le document depuis FAF puis déposez-le ici ; le rapport sera enregistré et son analyse démarrera automatiquement."}
+                  ? "اجلب وثيقة بداية المباراة والتقرير النهائي ومجريات اللقاء من سجل Historique في حساب النادي على FAF EMS مباشرة إلى المنصة."
+                  : "Importez ici la feuille de début, le rapport final et les événements depuis l’Historique FAF EMS du club."}
               </p>
             </div>
           </div>
@@ -552,6 +553,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
           </span>
         </summary>
+        {canReport && <div className="mb-4 flex justify-end"><FafEmsSyncButton matchId={match.id} locale={locale} /></div>}
         <div className="space-y-6">
 
         {/* 1. Pre-Match Lineup Sheet Card */}

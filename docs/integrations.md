@@ -21,24 +21,23 @@ The browser assistant controls are opt-in as well. Keep
 subsystem later, set both flags to `true`, provide a private Ollama endpoint,
 and rebuild the application.
 
-## FAF Connect
+## FAF EMS
 
-The authenticated FAF Connect and EMS websites are available as human-operated
-portals. This codebase does not have a verified, authorized FAF data API
-contract. The former player, staff, and fixture methods returned empty arrays,
-and match-document synchronization could fabricate official-looking sheets
-from local/demo values. Those paths now fail explicitly; the match-document
-operation records a blocked attempt in the audit log and makes no match or
-document changes.
+The match integration uses the same authenticated, read-only JSON and PDF routes
+used by the club's EMS web application. It imports the Arabic first-match sheet
+and final report from Historique into the private document store, and copies the
+official score, referee, stadium, referee report, and match events into the
+matching local fixture. It runs when a fixture is marked finished; users with
+`matches.report` can also start it from the match documents panel.
 
-Do not enable automatic import until the club has the federation's written
-integration contract or an official export format. Implement the approved
-adapter against that contract, validate all external records, preserve local
-field authority rules, retain source/provenance and sync timestamps, and audit
-created/updated/conflicting records. Never infer that a reachable login page
-means data synchronization works.
+Matching is restricted to the configured club FIFA ID, exact match date, and
+opponent name. If no unique fixture matches, import stops without changing
+records. Documents are private and marked for internal review. Imports are
+idempotent per EMS match/document; credentials and cookies stay server-side,
+and session cookies are encrypted in `IntegrationState` (using
+`FAF_SESSION_ENCRYPTION_KEY` or the `AUTH_SECRET` fallback).
 
-Store portal secrets only in the server environment. Set a separate random
-`FAF_SESSION_ENCRYPTION_KEY` of at least 32 characters to encrypt the persisted
-session cookie; `AUTH_SECRET` is accepted as a fallback. Do not expose either
-secret to browser code, client logs, or support screenshots.
+The EMS routes are application endpoints rather than a published developer
+contract, so changes made by FAF to its web application may require an adapter
+update. Keep the integration read-only on the EMS side and never expose club
+credentials, session cookies, or downloaded documents in client logs.
