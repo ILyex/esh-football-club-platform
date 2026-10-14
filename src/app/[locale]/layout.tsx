@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
@@ -5,6 +6,26 @@ import { notFound } from "next/navigation";
 import { routing, directionForLocale, type AppLocale } from "@/i18n/routing";
 import { PlatformToaster } from "@/components/shared/platform-toaster";
 import "@/app/globals.css";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const name = locale === "ar"
+    ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم"
+    : "Association Sportive Espoir Sidi Hosni de Football";
+
+  return {
+    title: name,
+    icons: {
+      icon: [
+        { url: "/branding/esh-logo-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/branding/esh-logo-128.png", sizes: "128x128", type: "image/png" },
+        { url: "/branding/esh-logo.ico", type: "image/x-icon" }
+      ],
+      shortcut: "/branding/esh-logo.ico",
+      apple: "/branding/esh-logo-128.png"
+    }
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

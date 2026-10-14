@@ -50,7 +50,7 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
     return {
       name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
       shortName: "ESH",
-      logoUrl: "/branding/esh-logo.jpg",
+      logoUrl: "/branding/esh-logo-128.png",
       homepageHeroImageUrl: null,
       primaryColor: "#B31B1B",
       secondaryColor: "#111111",
@@ -73,7 +73,8 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
   ));
   return {
     ...settings,
-    logoUrl: normalizePublicMediaUrl(settings.logoUrl),
+    // Keep the association crest identical across public pages, match cards and metadata.
+    logoUrl: "/branding/esh-logo-128.png",
     homepageHeroImageUrl: normalizePublicMediaUrl(settings.homepageHeroImageUrl),
     socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,
     socialReels: readSocialReels(rawSocialLinks)

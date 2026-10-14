@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { getPublicClubSettings } from "@/lib/public/club";
 import { PublicHeader } from "@/components/public/public-header";
@@ -7,6 +8,15 @@ import { PublicAnalyticsTracker } from "@/components/public/public-analytics-tra
 import { PublicMediaProtection } from "@/components/public/public-media-protection";
 import { PublicParentBackNavigation } from "@/components/public/public-parent-back-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    title: locale === "ar"
+      ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم"
+      : "Association Sportive Espoir Sidi Hosni de Football"
+  };
+}
 
 export default async function PublicLayout({
   children,
@@ -59,7 +69,6 @@ export default async function PublicLayout({
         locale={locale}
         clubName={clubDisplayName}
         clubShortName={clubDisplayName}
-        logoUrl={club.logoUrl}
         labels={headerLabels}
       />
       <main className="flex-1">{children}</main>

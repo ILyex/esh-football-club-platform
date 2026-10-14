@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-
-export const dynamic = "force-dynamic";
 import { Bell, ExternalLink, Globe } from "lucide-react";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
@@ -25,6 +24,17 @@ import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    title: locale === "ar"
+      ? "المنصة الإدارية لجمعية أمل سيدي حسني"
+      : "Plateforme administrative de l’Association Espoir Sidi Hosni"
+  };
+}
 
 export default async function DashboardLayout({
   children,
@@ -97,7 +107,7 @@ export default async function DashboardLayout({
         <div className="hidden border-b border-border p-4 md:flex flex-col gap-2.5 bg-muted/20 dark:bg-black/30 shrink-0">
           <Link href={`/${locale}/dashboard`} className="flex items-center gap-3 group min-w-0">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-transform group-hover:scale-105 dark:bg-background">
-              <ClubLogo src={clubSettings?.logoUrl || "/branding/esh-logo-64.png"} fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
+              <ClubLogo src="/branding/esh-logo-64.png" fallbackSrc="/branding/esh-logo-64.png" alt={locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"} className="h-8 w-8 object-contain" />
             </div>
             <div className="min-w-0">
               <p className="club-name line-clamp-3 whitespace-normal text-sm font-bold leading-tight tracking-tight text-foreground group-hover:text-club-primary transition-colors">
@@ -119,7 +129,7 @@ export default async function DashboardLayout({
             groups={visibleGroups}
             locale={locale}
             clubName={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"}
-            clubLogoUrl={clubSettings?.logoUrl}
+            clubLogoUrl="/branding/esh-logo-64.png"
           />
         </div>
 
