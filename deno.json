@@ -1,0 +1,17 @@
+{
+  "nodeModulesDir": "auto",
+  "unstable": [
+    "detect-cjs",
+    "node-globals",
+    "unsafe-proto",
+    "sloppy-imports"
+  ],
+  "deploy": {
+    "org": "esh",
+    "app": "esh-football-platform-deno",
+    "framework": "nextjs",
+    "install": "npm ci --ignore-scripts",
+    "build": "npm run db:mysql:generate && npx prisma generate && npx next build",
+    "region": "eu"
+  }
+}
