@@ -71,19 +71,21 @@ export function SavedTacticalPlans({ locale, canEdit, plans: initialPlans }: { l
     {plans.length === 0 ? <section className="rounded-xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">{isAr ? "لا توجد خطط محفوظة بعد." : "Aucun plan enregistré pour le moment."}</section> : <section className="space-y-3">
       {plans.map((plan) => {
         const mayManage = canEdit && (Boolean(plan.teamId) || plan.isOwner);
-        return <article key={plan.id} className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-club-primary/60">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0"><h2 className="truncate text-lg font-bold">{plan.title}</h2><p className="mt-1 text-sm text-muted-foreground">{plan.teamName || plan.formation}</p></div>
-            <Link href={editorUrl(plan.id)} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-club-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110"><Pencil size={15}/>{isAr ? "فتح الخطة" : "Ouvrir le plan"}</Link>
+        return <article key={plan.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-club-primary/60 sm:grid-cols-[minmax(0,1.5fr)_minmax(100px,.8fr)_minmax(140px,1fr)_auto] sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-sm font-bold" title={plan.title}>{plan.title}</h2>
+            <span className="shrink-0 rounded-md bg-muted/60 px-2 py-1 font-mono text-[11px] text-muted-foreground">{plan.formation}</span>
+            {plan.teamName && <span className="hidden truncate text-xs text-muted-foreground lg:block">{plan.teamName}</span>}
           </div>
-          <dl className="mt-4 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-            <div><dt className="text-xs text-muted-foreground">{isAr ? "التاريخ" : "Date"}</dt><dd className="mt-1 text-sm font-medium">{dateLabel(plan.updatedAt)}</dd></div>
-            <div><dt className="text-xs text-muted-foreground">{isAr ? "المدرب" : "Entraîneur"}</dt><dd className="mt-1 text-sm font-medium">{plan.coachName || plan.creatorName || "—"}</dd></div>
-          </dl>
-          {mayManage && <div className="mt-3 flex gap-2 border-t border-border pt-3">
-            <button type="button" onClick={() => void duplicate(plan)} disabled={busyId !== null} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:border-club-primary disabled:opacity-50"><Copy size={14}/>{isAr ? "نسخ" : "Dupliquer"}</button>
-            <button type="button" onClick={() => void remove(plan)} disabled={busyId !== null} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50"><Trash2 size={14}/>{isAr ? "حذف" : "Supprimer"}</button>
-          </div>}
+          <div className="min-w-0 text-xs"><span className="text-muted-foreground">{isAr ? "المدرب" : "Entraîneur"}: </span><span className="font-medium">{plan.coachName || plan.creatorName || "—"}</span></div>
+          <time className="col-start-1 text-xs font-medium tabular-nums text-muted-foreground sm:col-auto" dir="ltr">{dateLabel(plan.updatedAt)}</time>
+          <div className="col-start-2 row-span-2 flex items-center justify-end gap-1.5 sm:col-auto sm:row-span-1">
+            {mayManage && <>
+              <button type="button" aria-label={isAr ? "نسخ الخطة" : "Dupliquer le plan"} title={isAr ? "نسخ الخطة" : "Dupliquer le plan"} onClick={() => void duplicate(plan)} disabled={busyId !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs font-semibold hover:border-club-primary disabled:opacity-50"><Copy size={14}/><span className="hidden md:inline">{isAr ? "نسخ" : "Dupliquer"}</span></button>
+              <button type="button" aria-label={isAr ? "حذف الخطة" : "Supprimer le plan"} title={isAr ? "حذف الخطة" : "Supprimer le plan"} onClick={() => void remove(plan)} disabled={busyId !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-red-500/30 px-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50"><Trash2 size={14}/><span className="hidden md:inline">{isAr ? "حذف" : "Supprimer"}</span></button>
+            </>}
+            <Link href={editorUrl(plan.id)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md bg-club-primary px-2.5 text-xs font-semibold text-white hover:brightness-110"><Pencil size={14}/>{isAr ? "فتح" : "Ouvrir"}</Link>
+          </div>
         </article>;
       })}
     </section>}
