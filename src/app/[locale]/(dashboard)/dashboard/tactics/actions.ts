@@ -58,6 +58,7 @@ export async function saveTacticalPlanAction(input: unknown) {
     : await db.tacticalPlan.create({ data: { ...data, creatorId: user.id } });
   await writeAuditLog({ userId: user.id, action: existing ? "tactics.update" : "tactics.create", entityType: "TacticalPlan", entityId: plan.id });
   revalidatePath("/[locale]/dashboard/tactics", "page");
+  revalidatePath("/[locale]/dashboard/tactics/plans", "page");
   return { id: plan.id, updatedAt: plan.updatedAt.toISOString() };
 }
 
@@ -72,5 +73,6 @@ export async function deleteTacticalPlanAction(id: string) {
   await db.tacticalPlan.delete({ where: { id } });
   await writeAuditLog({ userId: user.id, action: "tactics.delete", entityType: "TacticalPlan", entityId: plan.id });
   revalidatePath("/[locale]/dashboard/tactics", "page");
+  revalidatePath("/[locale]/dashboard/tactics/plans", "page");
   return { ok: true };
 }

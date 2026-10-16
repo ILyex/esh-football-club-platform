@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowRight, Circle, Copy, Download, Eraser, FilePlus2, Flag, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowRight, Circle, Download, Eraser, FilePlus2, Flag, List, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
-import { deleteTacticalPlanAction, saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
+import { saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
 
 type Team = { id: string; name: string; category: string };
 type PlayerItem = { id: string; kind: "player" | "opponent"; x: number; y: number; number: string; label: string; color: string };
@@ -34,21 +35,23 @@ const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(
 function localize(locale: string) {
   const ar = locale === "ar";
   return ar ? {
-    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", copy: "نسخ الخطة", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم"
+    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم"
   } : {
-    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", copy: "Duplicate plan", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch"
+    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch"
   };
 }
 
-export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: { locale: string; canEdit: boolean; teams: Team[]; plans: Plan[] }) {
+export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, initialPlanId }: { locale: string; canEdit: boolean; teams: Team[]; plans: Plan[]; initialPlanId?: string }) {
   const t = localize(locale);
+  const initialPlan = initialPlans.find((plan) => plan.id === initialPlanId);
+  const initialBoard = initialPlan?.data as BoardData | undefined;
   const [plans, setPlans] = useState(initialPlans);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [formation, setFormation] = useState("4-3-3");
-  const [teamId, setTeamId] = useState("");
-  const [board, setBoard] = useState<BoardData>(() => freshBoard());
+  const [activeId, setActiveId] = useState<string | null>(initialPlan?.id ?? null);
+  const [title, setTitle] = useState(initialPlan?.title ?? "");
+  const [description, setDescription] = useState(initialPlan?.description ?? "");
+  const [formation, setFormation] = useState(initialPlan?.formation ?? "4-3-3");
+  const [teamId, setTeamId] = useState(initialPlan?.teamId ?? "");
+  const [board, setBoard] = useState<BoardData>(() => initialBoard && Array.isArray(initialBoard.items) ? { ...initialBoard, coachName: initialBoard.coachName ?? "" } : freshBoard());
   const [tool, setTool] = useState<Tool>("select");
   const [color, setColor] = useState<string>(PALETTE[1] ?? "#ef4444");
   const [selected, setSelected] = useState<string | null>(null);
@@ -70,11 +73,6 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
     setHistory((old) => [...old.slice(-39), board]);
     setFuture([]);
     setBoard(change(board));
-  }
-  function loadPlan(plan: Plan) {
-    setActiveId(plan.id); setTitle(plan.title); setDescription(plan.description); setFormation(plan.formation); setTeamId(plan.teamId ?? "");
-    const parsed = plan.data as BoardData;
-    setBoard(parsed && Array.isArray(parsed.items) ? { ...parsed, coachName: parsed.coachName ?? "" } : freshBoard()); setHistory([]); setFuture([]); setSelected(null); setMessage("");
   }
   function newPlan() {
     setActiveId(null); setTitle(""); setDescription(""); setFormation("4-3-3"); setTeamId(""); setBoard(freshBoard()); setHistory([]); setFuture([]); setSelected(null);
@@ -180,17 +178,6 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
     } catch (error) { console.error("Tactical plan save failed", error); setMessage(t.error); }
     finally { setBusy(false); }
   }
-  async function duplicatePlan(plan: Plan) {
-    if (!canEdit) return;
-    const result = await saveTacticalPlanAction({ title: `${plan.title} — copy`, description: plan.description, formation: plan.formation, teamId: plan.teamId, data: JSON.stringify(plan.data) });
-    const duplicate: Plan = { ...plan, id: result.id, title: `${plan.title} — copy`, creatorName: "", isOwner: true, updatedAt: result.updatedAt };
-    setPlans((items) => [duplicate, ...items]); loadPlan(duplicate);
-  }
-  async function removePlan(plan: Plan) {
-    if (!window.confirm(t.confirmDelete)) return;
-    try { await deleteTacticalPlanAction(plan.id); setPlans((items) => items.filter((item) => item.id !== plan.id)); if (activeId === plan.id) newPlan(); setMessage(t.deleted); }
-    catch (error) { console.error("Tactical plan delete failed", error); setMessage(t.error); }
-  }
   function undo() { if (!history.length) return; const previous = history.at(-1)!; setFuture((items) => [...items, board]); setBoard(previous); setHistory((items) => items.slice(0, -1)); }
   function redo() { if (!future.length) return; const next = future.at(-1)!; setHistory((items) => [...items, board]); setBoard(next); setFuture((items) => items.slice(0, -1)); }
   function exportSvg() {
@@ -220,6 +207,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
       <div><h1 className="text-2xl font-bold">{t.title}</h1><p className="mt-1 text-sm text-muted-foreground">{t.subtitle}</p></div>
       <div className="flex flex-wrap gap-2">
         {canEdit && <button type="button" onClick={newPlan} className="tactics-action"><FilePlus2 size={16}/>{t.newPlan}</button>}
+        <Link href={`/${locale}/dashboard/tactics/plans`} className="tactics-action"><List size={16}/>{t.plans}</Link>
         <button type="button" onClick={exportSvg} className="tactics-action"><Download size={16}/>{t.export}</button>
         <button type="button" onClick={() => window.print()} className="tactics-action tactics-primary"><Printer size={16}/>{t.print}</button>
       </div>
@@ -274,7 +262,6 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
 
       <aside className="min-w-0 space-y-3 2xl:sticky 2xl:top-4">
         {canEdit && <section className="tactics-panel space-y-3 p-4"><button type="button" onClick={savePlan} disabled={busy || !title.trim() || !canEditActive} className="tactics-action tactics-primary w-full justify-center"><Save size={16}/>{busy ? t.saving : t.save}</button>{message && <p role="status" className="text-center text-sm text-emerald-400">{message}</p>}</section>}
-        <section className="tactics-panel overflow-hidden"><div className="border-b border-border p-4"><h2 className="font-bold">{t.plans}</h2></div><div className="max-h-[560px] overflow-auto p-2">{plans.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{t.empty}</p> : plans.map((plan) => { const mayManagePlan = canEdit && (Boolean(plan.teamId) || plan.isOwner); return <div key={plan.id} className={`mb-2 rounded-lg border p-3 ${activeId === plan.id ? "border-club-primary bg-club-primary/5" : "border-border"}`}><button type="button" onClick={() => loadPlan(plan)} className="w-full text-start"><span className="block truncate font-semibold">{plan.title}</span><span className="mt-1 block text-xs text-muted-foreground">{plan.teamName || plan.formation} · {new Date(plan.updatedAt).toLocaleDateString(locale === "ar" ? "ar-DZ" : "fr-DZ", { timeZone: "Africa/Algiers" })}</span></button>{mayManagePlan && <div className="mt-2 flex justify-end gap-1"><button type="button" className="tactics-icon" title={t.copy} onClick={() => void duplicatePlan(plan)}><Copy size={15}/></button><button type="button" className="tactics-icon text-red-400" title={t.delete} onClick={() => void removePlan(plan)}><Trash2 size={15}/></button></div>}</div>})}</div></section>
         <section className="tactics-panel p-4"><h2 className="mb-3 text-sm font-bold">{t.tools}</h2><div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground"><span>↗ {t.arrow}</span><span>⇢ {t.line}</span><span>▱ {t.zone}</span><span>⚽ {t.ball}</span><span>4-3-3</span><span>4-2-3-1</span></div></section>
       </aside>
     </div>
