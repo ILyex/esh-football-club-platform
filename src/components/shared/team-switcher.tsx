@@ -49,6 +49,8 @@ export function TeamSwitcher({
     pathname.includes("/dashboard/reports") ||
     pathname.includes("/dashboard/website") ||
     pathname.includes("/dashboard/teams") ||
+    pathname.includes("/dashboard/contracts") ||
+    pathname.includes("/dashboard/tactics") ||
     pathname.includes("/dashboard/meeting-minutes") ||
     pathname.includes("/dashboard/jobs");
 
