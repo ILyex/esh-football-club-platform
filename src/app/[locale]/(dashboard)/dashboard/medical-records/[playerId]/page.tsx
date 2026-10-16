@@ -6,6 +6,7 @@ import { assertTeamScope, getMutationScopeContext } from "@/lib/mutation-guards"
 import { approveMedicalDocumentAction, createPlayerMedicalRecordAction, updateMedicalClearanceStatusAction } from "../actions";
 import { ArrowRight, BadgeCheck, FileHeart, FileText, Save, Upload } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
+import { MedicalUploadForm } from "@/components/medical-records/medical-upload-form";
 
 const recordTypes = [
   ["MEDICAL_CLEARANCE", "الأهلية الطبية لكرة القدم", "Aptitude médicale au football"],
@@ -13,7 +14,7 @@ const recordTypes = [
   ["LAB_ANALYSIS", "التحاليل الطبية", "Analyses médicales"]
 ] as const;
 
-export default async function PlayerMedicalFilePage({ params, searchParams }: { params: Promise<{ locale: string; playerId: string }>; searchParams: Promise<{ saved?: string; updated?: string }> }) {
+export default async function PlayerMedicalFilePage({ params, searchParams }: { params: Promise<{ locale: string; playerId: string }>; searchParams: Promise<{ saved?: string; updated?: string; error?: string }> }) {
   const { locale, playerId } = await params;
   const notice = await searchParams;
   const user = await requirePagePermission("medical.records.view", locale);
@@ -124,6 +125,7 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
         </div>
       </header>
       {(notice.saved === "1" || notice.updated === "1") && <p role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{isAr ? "تم حفظ الملف الطبي وتسجيل العملية." : "Le dossier médical a été enregistré et l’opération journalisée."}</p>}
+      {notice.error === "save-failed" && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-700 dark:text-red-300">{isAr ? "تعذر حفظ الوثيقة. تأكد من إعداد التخزين الخاص وصحة الملف، ثم أعد المحاولة. لم يُعتمد أي مستند تلقائيًا." : "Impossible d’enregistrer le document. Vérifiez le stockage privé et le fichier, puis réessayez. Aucun document n’a été validé automatiquement."}</p>}
 
       <section className="grid items-stretch gap-4 xl:grid-cols-2">
         <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
@@ -142,7 +144,7 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
           </div>
         </div>
 
-        {canManage ? <form id="medical-document-form" action={formAction} encType="multipart/form-data" className="min-w-0 space-y-4 rounded-2xl border border-border bg-card p-5">
+        {canManage ? <MedicalUploadForm action={formAction} isArabic={isAr}>
           <div className="flex items-start gap-3 border-b border-border pb-4"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Upload className="h-4 w-4" /></span><div><h2 className="font-bold">{isAr ? "إضافة وثيقة إلى الملف" : "Ajouter un document"}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{isAr ? "ترفع الملفات إلى التخزين الخاص وتُربط بهذا اللاعب وحده." : "Le fichier est stocké de manière privée et lié uniquement à ce joueur."}</p></div></div>
           <input type="hidden" name="locale" value={locale} />
           <label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "نوع الوثيقة" : "Type de document"}</span><FormSelect name="type" required locale={locale} ariaLabel={isAr ? "نوع الوثيقة" : "Type de document"} options={recordTypes.map(([value, ar, fr]) => ({ value, label: String(isAr ? ar : fr) }))} /></label>
@@ -150,9 +152,9 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
           <div className="grid grid-cols-2 gap-3"><label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "تاريخ الإصدار" : "Date d’émission"}</span><input type="date" name="issuedAt" className={medicalInputClass} /></label><label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "تاريخ الانتهاء" : "Date d’expiration"}</span><input type="date" name="expiresAt" className={medicalInputClass} /></label></div>
           <label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "الجهة المصدرة (اختياري)" : "Émetteur (facultatif)"}</span><input name="provider" maxLength={120} className={medicalInputClass} /></label>
           <label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "الحالة الطبية (للأهلية فقط)" : "Aptitude (pour le certificat médical uniquement)"}</span><FormSelect name="status" locale={locale} ariaLabel={isAr ? "الحالة الطبية" : "Statut médical"} options={["PENDING", "FIT", "TEMPORARILY_UNFIT", "UNFIT"].map((status) => ({ value: status, label: statusName[status] || status }))} /></label>
-          <label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "الملف (PDF أو صورة)" : "Fichier (PDF ou image)"}</span><input type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg,.webp" className="block min-h-11 w-full rounded-xl border border-border bg-background p-2 text-sm text-foreground shadow-2xs outline-none transition-colors file:me-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-bold file:text-primary-foreground focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" /></label>
+          <label className="flex min-w-0 flex-col gap-2 text-sm"><span className="block leading-5 font-semibold">{isAr ? "الملف (PDF أو صورة) — حتى 3.5 ميغابايت" : "Fichier (PDF ou image) — jusqu’à 3,5 Mo"}</span><input type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg" className="block min-h-11 w-full rounded-xl border border-border bg-background p-2 text-sm text-foreground shadow-2xs outline-none transition-colors file:me-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-bold file:text-primary-foreground focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" /></label>
           <button className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"><Save className="h-4 w-4" />{isAr ? "حفظ" : "Enregistrer"}</button>
-        </form> : <aside className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">{isAr ? "لإضافة وثيقة، يلزم منح صلاحية «إدارة الملفات الطبية» للمستخدم من إعدادات الأدوار." : "L’ajout nécessite la permission « Gérer les dossiers médicaux » dans les rôles."}</aside>}
+        </MedicalUploadForm> : <aside className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">{isAr ? "لإضافة وثيقة، يلزم منح صلاحية «إدارة الملفات الطبية» للمستخدم من إعدادات الأدوار." : "L’ajout nécessite la permission « Gérer les dossiers médicaux » dans les rôles."}</aside>}
       </section>
     </main>
   );

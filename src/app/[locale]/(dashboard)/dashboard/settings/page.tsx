@@ -13,7 +13,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
 
   async function save(formData: FormData) {
     "use server";
-    return await updateClubSettingsAction(formData);
+    return await updateClubSettingsAction(formData, locale);
   }
 
   return (

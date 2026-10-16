@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
@@ -260,10 +261,7 @@ export default async function AuditLogsPage({
             {logs.map((log) => (
               <tr key={log.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap font-mono">
-                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : "fr-FR", {
-                    dateStyle: "short",
-                    timeStyle: "medium"
-                  }).format(log.createdAt)}
+                  {formatAlgeriaDateTimeLocalized(log.createdAt, locale, { dateStyle: "short", timeStyle: "medium" })}
                 </td>
                 <td className="px-4 py-3">
                   {log.userId && canManageUsers ? (

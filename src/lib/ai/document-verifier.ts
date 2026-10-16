@@ -15,9 +15,8 @@ import "server-only";
 //   - Other → UNVERIFIED (cannot read, do not block upload silently)
 // ============================================================================
 
-import { runAICompletion, isAIConfigured } from "./provider";
+import { runAICompletion, isAIConfigured, getAIVisionModel } from "./provider";
 import { AIError } from "./types";
-import { getAIConfig } from "./config";
 import {
   checkPlayerDocument,
   checkExpenseReceipt,
@@ -160,7 +159,7 @@ async function extractTextFromImage(buffer: Buffer, mimeType: string, onAIFailur
 async function extractTextFromImages(images: Buffer[], mimeType = "image/png", onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
   if (!isAIConfigured() || images.length === 0) return null;
   try {
-    const visionModel = process.env.AI_VISION_MODEL || process.env.AI_MODEL || getAIConfig().ollama.visionModel;
+    const visionModel = getAIVisionModel();
     const base64Images = images.map((image) => `data:${mimeType};base64,${image.toString("base64")}`);
     const text = await runAICompletion({
       system:

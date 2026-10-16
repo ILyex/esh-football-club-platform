@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { Save, Trash2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
@@ -80,7 +81,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
           {t("fields.originalName")}: {document.originalName} ({(document.sizeBytes / 1024).toFixed(0)} KB)
         </p>
         <p>
-          {tCommon("date")}: {new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(document.createdAt)}
+          {tCommon("date")}: {formatAlgeriaDateTimeLocalized(document.createdAt, locale, { dateStyle: "long", timeStyle: "short" })}
         </p>
         <p>{document.uploadedBy.name}</p>
       </div>

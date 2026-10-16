@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RolePermissionsMatrix } from "@/components/roles/role-permissions-matrix";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
+import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 
 export default async function RoleDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -49,7 +50,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
       </div>
       <p className="-mt-5 text-sm text-muted-foreground">{role.name}</p>
 
-      <form action={update} className="grid gap-4 rounded-lg border border-border bg-card p-6">
+      <ActionFeedbackForm action={update} successMessage={locale === "ar" ? "تم حفظ بيانات الدور بنجاح" : "Rôle enregistré avec succès"} errorMessage={locale === "ar" ? "تعذر حفظ بيانات الدور" : "Impossible d’enregistrer le rôle"} refreshOnSuccess className="grid gap-4 rounded-lg border border-border bg-card p-6">
         <div>
           <label className="mb-1 block text-sm font-medium">{t("fields.name")}</label>
           <input name="name" defaultValue={role.name} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
@@ -61,7 +62,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
         <div>
           <Button type="submit" className="gap-2"><Save className="h-4 w-4" /><span>{tCommon("save")}</span></Button>
         </div>
-      </form>
+      </ActionFeedbackForm>
 
       <form action={updatePermissions} className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

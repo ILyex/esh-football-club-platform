@@ -13,6 +13,7 @@ import { getPlayerDisplayName } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
 import { TrainingTimeFields } from "@/components/training/training-time-fields";
 import { Save, Calendar, Users, MapPin, Clock, Trash2, ClipboardCheck } from "lucide-react";
+import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
@@ -171,7 +172,7 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
             </h2>
           </div>
 
-          <form action={update} className="space-y-4">
+          <ActionFeedbackForm action={update} successMessage={isAr ? "تم حفظ بيانات الحصة التدريبية بنجاح" : "Séance d’entraînement enregistrée avec succès"} errorMessage={isAr ? "تعذر حفظ بيانات الحصة التدريبية" : "Impossible d’enregistrer la séance"} refreshOnSuccess className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted-foreground">{tTeams("title")}</label>
@@ -278,7 +279,7 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
                 </ConfirmDialog>
               )}
             </div>
-          </form>
+          </ActionFeedbackForm>
         </div>
         )}
 

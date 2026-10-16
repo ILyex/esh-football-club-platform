@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import Link from "next/link";
@@ -88,7 +89,7 @@ export default async function MeetingMinutesListPage({
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <time dateTime={event.startDateTime.toISOString()} className="inline-flex items-center gap-1.5">
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                  {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", calendar: locale === "ar" ? "gregory" : undefined }).format(event.startDateTime)}
+                  {formatAlgeriaDateTimeLocalized(event.startDateTime, locale, { dateStyle: "medium", timeStyle: "short", calendar: "gregory" })}
                 </time>
                 {event.team && <span>{tTeams(`categories.${event.team.category}` as any)}</span>}
               </div>

@@ -45,6 +45,7 @@ function formatJobClock(date: Date, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: "Africa/Algiers",
     hourCycle: "h23"
   }).format(date);
 }

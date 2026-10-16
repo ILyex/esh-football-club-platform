@@ -1,3 +1,4 @@
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Trophy, Calendar, MapPin, User, Shield, Target, CircleDot, CircleCheck, CircleX, Square, ArrowRightLeft, Sparkles, UsersRound } from "lucide-react";
@@ -42,12 +43,7 @@ export default async function PublicMatchDetailPage({
     timeZone: "Africa/Algiers"
   }).format(match.matchDate);
 
-  const formattedTime = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Africa/Algiers"
-  }).format(match.matchDate);
+  const formattedTime = formatAlgeriaTime(match.matchDate, locale);
   const kickoffRemaining = match.matchDate.getTime() - Date.now();
   const isNearKickoff = match.status === "SCHEDULED" && kickoffRemaining > 0 && kickoffRemaining <= 30 * 60 * 1000;
   const nextStatusRefreshAt = match.status === "SCHEDULED" && kickoffRemaining > 0

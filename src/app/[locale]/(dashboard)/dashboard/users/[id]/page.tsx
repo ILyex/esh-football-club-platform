@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission } from "@/lib/permissions";
@@ -101,7 +102,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
           {user.lastLoginAt && (
             <p className="text-[11px] text-muted-foreground/80">
               {t("fields.lastLoginAt")}:{" "}
-              {new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : "fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(user.lastLoginAt)}
+              {formatAlgeriaDateTimeLocalized(user.lastLoginAt, locale, { dateStyle: "medium", timeStyle: "short" })}
             </p>
           )}
 

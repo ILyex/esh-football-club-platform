@@ -20,3 +20,17 @@ export function formatAlgeriaTime(date: Date | string, locale: string) {
     hourCycle: "h23"
   }).format(typeof date === "string" ? new Date(date) : date);
 }
+
+/** Format any displayed date/time in the club's timezone with a 24-hour clock. */
+export function formatAlgeriaDateTimeLocalized(
+  date: Date | string,
+  locale: string,
+  options: Intl.DateTimeFormatOptions
+) {
+  const intlLocale = locale === "ar" ? "ar-DZ-u-ca-gregory-nu-latn" : "fr-DZ";
+  return new Intl.DateTimeFormat(intlLocale, {
+    ...options,
+    timeZone: "Africa/Algiers",
+    hourCycle: "h23"
+  }).format(typeof date === "string" ? new Date(date) : date);
+}

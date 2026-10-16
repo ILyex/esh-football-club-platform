@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -396,12 +397,7 @@ export function UpcomingMatchesCarousel({
                         <>
                           <span className="max-w-full truncate text-[9px] font-semibold text-muted-foreground">{shortMatchDate}</span>
                           <span className="rounded-xl bg-club-primary/10 px-3 py-2 font-mono text-lg font-black leading-none tabular-nums text-club-primary dark:text-foreground">
-                            {new Intl.DateTimeFormat(locale, {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                              timeZone: "Africa/Algiers"
-                            }).format(mDate)}
+                            {formatAlgeriaTime(mDate, locale)}
                           </span>
                         </>
                       )}
@@ -492,12 +488,7 @@ export function UpcomingMatchesCarousel({
                         <MatchLiveClock matchDate={mDate} hasExtraTime={m.hasExtraTime} hasPenaltyShootout={m.hasPenaltyShootout} homeScore={m.homeScore} awayScore={m.awayScore} addedTime={m.addedTime} locale={locale} compact presentation="clock" />
                       ) : (
                         <span className="font-mono text-xl font-black tracking-wider text-club-primary tabular-nums dark:text-foreground sm:text-3xl sm:tracking-[0.18em]">
-                          {new Intl.DateTimeFormat(locale, {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                            timeZone: "Africa/Algiers"
-                          }).format(mDate)}
+                          {formatAlgeriaTime(mDate, locale)}
                         </span>
                       )}
                     </div>

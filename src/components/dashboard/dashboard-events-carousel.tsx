@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -201,10 +202,7 @@ export function DashboardEventsCarousel({
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {new Intl.DateTimeFormat(locale, {
-                              dateStyle: "short",
-                              timeStyle: "short"
-                            }).format(new Date(t.date))}
+                            {formatAlgeriaDateTimeLocalized(new Date(t.date), locale, { dateStyle: "short", timeStyle: "short" })}
                           </span>
                           {t.location && <span className="min-w-0 truncate">• {t.location}</span>}
                         </p>

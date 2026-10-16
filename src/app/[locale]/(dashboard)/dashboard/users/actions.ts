@@ -170,6 +170,10 @@ export async function updateUserAction(userId: string, formData: FormData) {
   });
   revalidatePath("/[locale]/dashboard/users", "page");
   revalidatePath(`/[locale]/dashboard/users/${userId}`, "page");
+  // User names are also rendered from the Auth.js session in the dashboard
+  // layout and greeting. Revalidate that layout when profile data changes so
+  // the updated name is visible immediately after saving one's own account.
+  revalidatePath("/[locale]/dashboard", "layout");
 }
 
 /**

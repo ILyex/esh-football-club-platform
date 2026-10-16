@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
@@ -165,13 +166,7 @@ export default async function TestingSessionDetailPage({
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>
-                  {new Date(session.date).toLocaleDateString(locale === "ar" ? "ar-DZ" : "fr-FR", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatAlgeriaDateTimeLocalized(session.date, locale, { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </span>
               {session.location && (

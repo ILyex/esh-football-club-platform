@@ -1,3 +1,4 @@
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import {
@@ -101,19 +102,9 @@ export default async function HomePage({
       ? (session.team?.name ?? "الجمعية الرياضية أمل سيدي حسني لكرة القدم")
       : frenchPublicText(session.team?.name, "Association Sportive Espoir Sidi Hosni de Football"),
     date: session.date,
-    startTime: new Intl.DateTimeFormat(intlLocale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "Africa/Algiers"
-    }).format(session.startTime),
+    startTime: formatAlgeriaTime(session.startTime, locale),
     endTime: session.endTime
-      ? new Intl.DateTimeFormat(intlLocale, {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-          timeZone: "Africa/Algiers"
-        }).format(session.endTime)
+      ? formatAlgeriaTime(session.endTime, locale)
       : null,
     location: locale === "ar"
       ? (session.location || "الملعب البلدي طاهري حسني – سيدي حسني")

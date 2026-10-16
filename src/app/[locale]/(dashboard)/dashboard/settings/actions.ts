@@ -7,7 +7,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { validateUploadedImage, generatePublicStorageKey, uploadPublicFile } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
 
-export async function updateClubSettingsAction(formData: FormData) {
+export async function updateClubSettingsAction(formData: FormData, locale: string) {
   const user = await requirePermission("settings.manage");
   const before = await db.clubSettings.findUniqueOrThrow({ where: { id: "singleton" } });
 
@@ -54,6 +54,11 @@ export async function updateClubSettingsAction(formData: FormData) {
 
   // Branding touches nearly every page (public site header/footer, dashboard
   // sidebar, generated documents later) — revalidate broadly.
-  revalidatePath("/[locale]", "layout");
+  // The footer reads contact details through the public locale layout.
+  // Revalidate both supported locale roots so saved settings appear on every
+  // public page regardless of which language the visitor uses.
+  revalidatePath("/ar", "layout");
+  revalidatePath("/fr", "layout");
+  revalidatePath(`/${locale}/dashboard/settings`);
   return { id: settings.id };
 }

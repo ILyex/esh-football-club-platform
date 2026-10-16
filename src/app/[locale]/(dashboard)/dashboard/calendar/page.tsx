@@ -1,3 +1,4 @@
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
@@ -325,7 +326,7 @@ export default async function CalendarPage({
                       </span>
                       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 font-mono text-xs font-bold text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
-                        {new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(e.startDateTime)}
+                        {formatAlgeriaTime(e.startDateTime, locale)}
                       </span>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:-translate-x-0.5 rtl:rotate-180" aria-hidden="true" />
                     </Link>

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { useState, useRef, useEffect, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -119,12 +120,7 @@ export function NotificationsPopover({
   const formatTime = (dateInput: string | Date) => {
     try {
       const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-      return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : "fr-FR", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      }).format(d);
+      return formatAlgeriaDateTimeLocalized(d, locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch {
       return "";
     }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { Shield, Users, Activity, Lock, AlertTriangle, Info } from "lucide-react";
 import type { AnomalyReport } from "@/lib/security/anomaly-detector";
 
@@ -289,9 +290,7 @@ export function SecurityAnomalyGuard({ report, locale }: SecurityAnomalyGuardPro
                 </div>
                 <div className="shrink-0 text-end">
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    {new Intl.DateTimeFormat(locale, { timeStyle: "short", dateStyle: "short" }).format(
-                      new Date(anomaly.timestamp)
-                    )}
+                    {formatAlgeriaDateTimeLocalized(new Date(anomaly.timestamp), locale, { timeStyle: "short", dateStyle: "short" })}
                   </span>
                   {anomaly.actor && (
                     <p className="text-[10px] font-medium text-foreground/80 mt-0.5">

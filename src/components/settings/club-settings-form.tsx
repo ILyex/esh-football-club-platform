@@ -6,19 +6,18 @@ import {
   Palette,
   MapPin,
   Languages,
-  Shield,
   Save,
   Upload,
   CheckCircle2,
   Clock,
   Sparkles,
-  ExternalLink,
   Info,
   Calendar,
   AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { FormSelect } from "@/components/ui/form-select";
+import { toast } from "sonner";
 
 interface ClubSettingsData {
   id: string;
@@ -76,11 +75,11 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
     startTransition(async () => {
       try {
         await action(formData);
-        setSuccessMessage(
-          isAr
-            ? "تم حفظ إعدادات النادي والهوية بنجاح وتحديث النظام والموقع الرسمي."
-            : "Paramètres et identité du club enregistrés avec succès."
-        );
+        const message = isAr
+          ? "تم حفظ إعدادات النادي والهوية بنجاح وتحديث النظام والموقع الرسمي."
+          : "Paramètres et identité du club enregistrés avec succès.";
+        setSuccessMessage(message);
+        toast.success(message);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err: any) {
         setErrorMessage(
@@ -487,14 +486,17 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 {isAr ? "لغة النظام الافتراضية *" : "Langue par défaut du système *"}
               </label>
-              <select
+              <FormSelect
                 name="defaultLocale"
                 defaultValue={settings.defaultLocale}
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 font-medium"
-              >
-                <option value="ar">{isAr ? "العربية (الافتراضية)" : "Arabe (Par défaut)"}</option>
-                <option value="fr">{isAr ? "الفرنسية" : "Français"}</option>
-              </select>
+                locale={locale}
+                ariaLabel={isAr ? "لغة النظام الافتراضية" : "Langue par défaut du système"}
+                options={[
+                  { value: "ar", label: isAr ? "العربية (الافتراضية)" : "Arabe (Par défaut)" },
+                  { value: "fr", label: isAr ? "الفرنسية" : "Français" }
+                ]}
+                triggerClassName="min-h-11 rounded-xl font-medium"
+              />
             </div>
 
             <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5 space-y-2 text-xs">
@@ -510,45 +512,6 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
           </div>
         </div>
 
-        {/* Section 6: Governance, Security & Audit Notice */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2.5 border-b border-border/60 pb-3.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-foreground">
-                  {isAr ? "حوكمة النظام وسجل الرقابة" : "Gouvernance & Audit"}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {isAr ? "تتبع وتوثيق التعديلات المؤسسية" : "Traçabilité des modifications institutionnelles"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3 text-xs text-muted-foreground">
-              <div className="flex items-start gap-2 rounded-xl bg-muted/40 p-3 border border-border/60">
-                <Info className="h-4 w-4 text-club-primary shrink-0 mt-0.5" />
-                <p>
-                  {isAr
-                    ? "يُسجّل كل تغيير في إعدادات النادي وهويته في سجل العمليات، مع اسم المشرف ووقت التغيير والقيم السابقة والجديدة."
-                    : "Toute modification est automatiquement journalisée dans l'audit système avec l'utilisateur et l'horodatage."}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Link
-              href={`/${locale}/dashboard/audit-logs?entityType=ClubSettings`}
-              className="inline-flex items-center gap-2 text-xs font-bold text-club-primary hover:underline"
-            >
-              <span>{isAr ? "عرض سجل تدقيق إعدادات وهوية النادي" : "Consulter le journal d'audit de l'identité"}</span>
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-        </div>
       </div>
 
       {/* Action Footer */}

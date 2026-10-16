@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ChangeEvent } from "react";
+import { useId, useRef, useState, type ChangeEvent } from "react";
 import { ImagePlus, UploadCloud } from "lucide-react";
 
 /** Compresses avatars before the server action so the online DB stores only a small image. */
@@ -8,6 +8,7 @@ export function AvatarUploadField({ locale }: { locale: string }) {
   const [busy, setBusy] = useState(false);
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const isAr = locale === "ar";
 
   async function compress(event: ChangeEvent<HTMLInputElement>) {
@@ -42,6 +43,7 @@ export function AvatarUploadField({ locale }: { locale: string }) {
     <div className="space-y-2">
       <input
         id={inputId}
+        ref={inputRef}
         name="photo"
         type="file"
         accept="image/png,image/jpeg,image/webp"
@@ -49,14 +51,11 @@ export function AvatarUploadField({ locale }: { locale: string }) {
         disabled={busy}
         className="peer sr-only"
       />
-      <label
-        htmlFor={inputId}
-        className="group flex min-h-[68px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-2.5 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-club-primary/30 sm:px-4"
-      >
+      <div className="group flex min-h-[68px] items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-2.5 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 sm:px-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/10 text-club-primary transition-colors group-hover:bg-club-primary/15">
           {selectedName ? <ImagePlus className="h-5 w-5" aria-hidden="true" /> : <UploadCloud className="h-5 w-5" aria-hidden="true" />}
         </span>
-        <span className="min-w-0 flex-1">
+        <label htmlFor={inputId} className="min-w-0 flex-1 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40">
           <span className="block truncate text-sm font-semibold text-foreground">
             {busy
               ? (isAr ? "جارٍ تجهيز الصورة…" : "Préparation de la photo…")
@@ -65,12 +64,17 @@ export function AvatarUploadField({ locale }: { locale: string }) {
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {isAr ? "PNG أو JPG أو WebP · تُضغط تلقائيًا لتوفير المساحة" : "PNG, JPG ou WebP · compression automatique"}
           </span>
-        </span>
-        <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors group-hover:border-club-primary/30 group-hover:text-club-primary">
+        </label>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors hover:border-club-primary/30 hover:text-club-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 disabled:cursor-wait disabled:opacity-60"
+        >
           <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
           {isAr ? "استعراض" : "Parcourir"}
-        </span>
-      </label>
+        </button>
+      </div>
     </div>
   );
 }

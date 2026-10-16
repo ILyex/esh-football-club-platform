@@ -2,6 +2,7 @@ import "server-only";
 import { AIProvider, AIAvailabilityResult } from "./types";
 import { OllamaProvider } from "./providers/ollama";
 import { CloudflareWorkersAIProvider } from "./providers/cloudflare-workers-ai";
+import { getAIConfig } from "./config";
 
 // ============================================================================
 // AI PROVIDER REGISTRY & COMPATIBILITY LAYER
@@ -15,6 +16,16 @@ const useCloudflare = process.env.AI_PROVIDER === "cloudflare" ||
 const activeProvider: AIProvider = !useCloudflare
   ? new OllamaProvider()
   : new CloudflareWorkersAIProvider();
+
+/**
+ * Resolve an OCR-capable model for the active deployment. Do not let the
+ * Ollama-only `llava:7b` default leak into Vercel/Workers AI requests.
+ */
+export function getAIVisionModel(): string {
+  if (process.env.AI_VISION_MODEL?.trim()) return process.env.AI_VISION_MODEL.trim();
+  if (process.env.AI_MODEL?.trim()) return process.env.AI_MODEL.trim();
+  return useCloudflare ? "@cf/google/gemma-4-26b-a4b-it" : getAIConfig().ollama.visionModel;
+}
 
 /**
  * Returns the currently active AI provider instance.

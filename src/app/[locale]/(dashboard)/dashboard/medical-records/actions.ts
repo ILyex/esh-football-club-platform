@@ -69,12 +69,13 @@ export async function createPlayerMedicalRecordAction(playerId: string, formData
   if (!(file instanceof File) || file.size === 0) throw new Error("أرفق الوثيقة المطلوبة.");
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { mime, ext } = await validateUploadedFile(buffer);
-  const storageKey = generateStorageKey("medical", ext);
-  await uploadPrivateFile({ key: storageKey, buffer, mimeType: mime });
+  let storageKey = "";
   let documentId: string | null = null;
   let recordId: string | null = null;
   try {
+    const { mime, ext } = await validateUploadedFile(buffer);
+    storageKey = generateStorageKey("medical", ext);
+    await uploadPrivateFile({ key: storageKey, buffer, mimeType: mime });
     let category = await db.documentCategory.findFirst({ where: { key: "certificate" } });
     if (!category) category = await db.documentCategory.create({ data: { key: "certificate", name: "شهادات طبية" } });
     const document = await db.document.create({
@@ -111,8 +112,11 @@ export async function createPlayerMedicalRecordAction(playerId: string, formData
   } catch (error) {
     if (recordId) await db.playerMedicalRecord.delete({ where: { id: recordId } }).catch(() => {});
     if (documentId) await db.document.delete({ where: { id: documentId } }).catch(() => {});
-    await deletePrivateFile(storageKey).catch(() => {});
-    throw error;
+    if (storageKey) await deletePrivateFile(storageKey).catch(() => {});
+    // Keep the internal exception in server logs; show a safe, actionable
+    // message to the user instead of Next.js's generic Server Components page.
+    console.error("[MedicalRecords] Save failed", error instanceof Error ? error.name : "Unknown error");
+    redirect(`/${locale}/dashboard/medical-records/${playerId}?error=save-failed`);
   }
   revalidatePath("/[locale]/dashboard/medical-records", "page");
   revalidatePath("/[locale]/dashboard/players/[id]", "page");

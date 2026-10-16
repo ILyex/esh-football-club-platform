@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
@@ -344,10 +345,7 @@ export default async function NotificationsPage({
                 <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(n.createdAt)}
+                    {formatAlgeriaDateTimeLocalized(n.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}
                   </span>
                   <span
                     className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-muted/60 text-muted-foreground group-hover:bg-club-primary/10 group-hover:text-club-primary transition-colors"

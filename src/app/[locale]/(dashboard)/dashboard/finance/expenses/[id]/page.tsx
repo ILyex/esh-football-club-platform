@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
@@ -270,14 +271,14 @@ export default async function ExpenseDetailPage({
           <div>
             <dt className="text-xs text-muted-foreground">{t("fields.createdBy")}</dt>
             <dd>
-              {expense.createdBy.name} — {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(expense.createdAt)}
+              {expense.createdBy.name} — {formatAlgeriaDateTimeLocalized(expense.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}
             </dd>
           </div>
           {expense.updatedBy && (
             <div>
               <dt className="text-xs text-muted-foreground">{t("fields.updatedBy")}</dt>
               <dd>
-                {expense.updatedBy.name} — {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(expense.updatedAt)}
+                {expense.updatedBy.name} — {formatAlgeriaDateTimeLocalized(expense.updatedAt, locale, { dateStyle: "medium", timeStyle: "short" })}
               </dd>
             </div>
           )}
@@ -558,7 +559,7 @@ export default async function ExpenseDetailPage({
                 <Link href={`/${locale}/dashboard/generated-documents/${g.id}`} className="text-club-primary underline">
                   {g.templateVersion.template.name} — {tTemplates(`types.${g.templateVersion.template.type}` as any)}
                 </Link>
-                <span className="text-xs text-muted-foreground">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(g.createdAt)}</span>
+                <span className="text-xs text-muted-foreground">{formatAlgeriaDateTimeLocalized(g.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</span>
               </li>
             ))}
             {generatedDocuments.length === 0 && <li className="py-2 text-muted-foreground">{t("noGeneratedDocuments")}</li>}

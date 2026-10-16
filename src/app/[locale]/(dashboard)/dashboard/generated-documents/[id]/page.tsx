@@ -1,3 +1,4 @@
+import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import Link from "next/link";
@@ -106,7 +107,7 @@ export default async function GeneratedDocumentDetailPage({ params }: { params: 
             </div>
             <div>
               <span className="font-semibold text-foreground">{t("fields.createdAt")}: </span>
-              {new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(generated.createdAt)}
+              {formatAlgeriaDateTimeLocalized(generated.createdAt, locale, { dateStyle: "long", timeStyle: "short" })}
             </div>
             <div>
               <span className="font-semibold text-foreground">{t("fields.relatedEntity")}: </span>

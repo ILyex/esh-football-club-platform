@@ -149,6 +149,9 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
           const current = await db.user.findUnique({
             where: { id: token.userId as string },
             select: {
+              name: true,
+              email: true,
+              image: true,
               isActive: true,
               tokenVersion: true,
               deletedAt: true,
@@ -165,6 +168,14 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
             return {}; // empty token -> treated as unauthenticated by `auth()`
           }
 
+          // Keep profile fields in sync with the account record as well as
+          // role data. The profile chip and dashboard greeting read from the
+          // Auth.js session, so without refreshing these JWT claims a name
+          // edit appeared saved in Users while the rest of the platform kept
+          // showing the old name until the next sign-in.
+          token.name = current.name;
+          token.email = current.email;
+          token.picture = current.image;
           token.roleKey = current.role.key;
           token.roleName = current.role.name;
           token.permissions = current.role.permissions

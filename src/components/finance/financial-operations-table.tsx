@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAlgeriaTime, formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Receipt, Paperclip, Search, CheckCircle2, FileText, ChevronLeft, ChevronRight } from "lucide-react";
@@ -223,11 +224,11 @@ export function FinancialOperationsTable({
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
                       <span className="font-medium">
-                        {new Intl.DateTimeFormat(locale, { dateStyle: "short" }).format(new Date(op.date))}
+                        {formatAlgeriaDateTimeLocalized(new Date(op.date), locale, { dateStyle: "short" })}
                       </span>
                       <span className="opacity-40">•</span>
                       <span className="font-mono text-zinc-600 dark:text-zinc-400">
-                        {new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(op.date))}
+                        {formatAlgeriaTime(new Date(op.date), locale)}
                       </span>
                     </p>
                   </td>
