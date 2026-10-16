@@ -60,6 +60,10 @@ const nextConfig = {
     config.experiments = { ...config.experiments, asyncWebAssembly: true };
     return config;
   },
+  // Prisma loads its WebAssembly query compiler dynamically; include it in each server trace.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.prisma/client/query_compiler_bg.wasm"]
+  },
   // unpdf uses import.meta — treat it as external on the server to avoid webpack warning
   serverExternalPackages: ["unpdf"],
   images: {

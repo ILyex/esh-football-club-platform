@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: Generate Prisma Client
         run: npm run db:generate
+      - name: Generate MySQL Prisma Client for type checking
+        run: npm run db:mysql:generate
       - name: Validate Prisma schema
         run: npx prisma validate
       - name: Check translations
