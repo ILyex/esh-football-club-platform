@@ -25,12 +25,33 @@ const FORMATIONS: Record<string, number[][]> = {
 };
 const STARTING_FORMATION = FORMATIONS["4-3-3"] ?? [];
 const DEFAULT_ITEMS: Item[] = [
-  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `h${i + 1}`, kind: "player" as const, x: x * 10, y: y * 6.4, number: String(i + 1), label: (["GK", "RB", "RCB", "LCB", "LB", "DM", "CM", "CM", "RW", "ST", "LW"][i] ?? ""), color: "#f3f4f6" })),
+  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `h${i + 1}`, kind: "player" as const, x: x * 10, y: y * 6.4, number: String(i + 1), label: (["GB", "DD", "DC", "DC", "DG", "MDF", "MC", "MC", "AD", "BU", "AG"][i] ?? ""), color: i === 0 ? "#8b5cf6" : "#f3f4f6" })),
   ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `a${i + 1}`, kind: "opponent" as const, x: (100 - x) * 10, y: y * 6.4, number: String(i + 1), label: "", color: "#ef4444" }))
 ];
 const freshBoard = (): BoardData => ({ items: DEFAULT_ITEMS.map((item) => ({ ...item })), orientation: "horizontal", notes: "" });
 const PALETTE = ["#f3f4f6", "#ef4444", "#f59e0b", "#22c55e", "#38bdf8", "#a78bfa"];
+const LEGACY_POSITION_LABELS: Record<string, string> = { GK: "GB", RB: "DD", RCB: "DC", LCB: "DC", LB: "DG", DM: "MDF", CM: "MC", RW: "AD", ST: "BU", LW: "AG" };
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+function prepareBoard(data: unknown): BoardData | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const board = data as BoardData;
+  if (!Array.isArray(board.items)) return null;
+  return {
+    ...board,
+    coachName: board.coachName ?? "",
+    items: board.items.map((item) => {
+      if (item.kind !== "player" && item.kind !== "opponent") return item;
+      const legacyLabel = item.label.trim().toUpperCase();
+      const label = LEGACY_POSITION_LABELS[legacyLabel];
+      return {
+        ...item,
+        ...(label ? { label } : {}),
+        ...(item.kind === "player" && legacyLabel === "GK" && item.color.toLowerCase() === "#f3f4f6" ? { color: "#8b5cf6" } : {})
+      };
+    })
+  };
+}
 
 function localize(locale: string) {
   const ar = locale === "ar";
@@ -44,14 +65,14 @@ function localize(locale: string) {
 export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, initialPlanId }: { locale: string; canEdit: boolean; teams: Team[]; plans: Plan[]; initialPlanId?: string }) {
   const t = localize(locale);
   const initialPlan = initialPlans.find((plan) => plan.id === initialPlanId);
-  const initialBoard = initialPlan?.data as BoardData | undefined;
+  const initialBoard = prepareBoard(initialPlan?.data);
   const [plans, setPlans] = useState(initialPlans);
   const [activeId, setActiveId] = useState<string | null>(initialPlan?.id ?? null);
   const [title, setTitle] = useState(initialPlan?.title ?? "");
   const [description, setDescription] = useState(initialPlan?.description ?? "");
   const [formation, setFormation] = useState(initialPlan?.formation ?? "4-3-3");
   const [teamId, setTeamId] = useState(initialPlan?.teamId ?? "");
-  const [board, setBoard] = useState<BoardData>(() => initialBoard && Array.isArray(initialBoard.items) ? { ...initialBoard, coachName: initialBoard.coachName ?? "" } : freshBoard());
+  const [board, setBoard] = useState<BoardData>(() => initialBoard ?? freshBoard());
   const [tool, setTool] = useState<Tool>("select");
   const [color, setColor] = useState<string>(PALETTE[1] ?? "#ef4444");
   const [selected, setSelected] = useState<string | null>(null);
@@ -111,7 +132,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     }
     if (tool === "player" || tool === "opponent") {
       const kind = tool === "player" ? "player" : "opponent";
-      updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: p.x, y: p.y, number: String(b.items.filter((it) => it.kind === kind).length + 1), label: kind === "opponent" ? "" : "CM", color }] }));
+      updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: p.x, y: p.y, number: String(b.items.filter((it) => it.kind === kind).length + 1), label: kind === "opponent" ? "" : "MC", color }] }));
       setTool("select"); return;
     }
     if (tool === "ball") { updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind: "ball", x: p.x, y: p.y, color }] })); setTool("select"); return; }
