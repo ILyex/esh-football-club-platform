@@ -210,7 +210,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     if (board.mode === mode) return;
     setPlaying(false);
     setPlayhead(0);
-    updateBoard((current) => ({ ...current, mode }));
+    setBoard((current) => ({ ...current, mode }));
   }
   function newPlan() {
     setPlaying(false); setPlayhead(0); setActiveId(null); setTitle(""); setDescription(""); setFormation("4-3-3"); setTeamId(""); setBoard(freshBoard()); setHistory([]); setFuture([]); setSelected(null); setDragPreview(null); dragId.current = null;
@@ -338,8 +338,8 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     } catch (error) { console.error("Tactical plan save failed", error); setMessage(t.error); }
     finally { setBusy(false); }
   }
-  function undo() { if (!history.length) return; const previous = history.at(-1)!; setFuture((items) => [...items, board]); setBoard(previous); setHistory((items) => items.slice(0, -1)); }
-  function redo() { if (!future.length) return; const next = future.at(-1)!; setHistory((items) => [...items, board]); setBoard(next); setFuture((items) => items.slice(0, -1)); }
+  function undo() { if (!history.length) return; const previous = history.at(-1)!; setFuture((items) => [...items, board]); setBoard({ ...previous, mode: board.mode }); setHistory((items) => items.slice(0, -1)); }
+  function redo() { if (!future.length) return; const next = future.at(-1)!; setHistory((items) => [...items, board]); setBoard({ ...next, mode: board.mode }); setFuture((items) => items.slice(0, -1)); }
   function exportSvg() {
     if (!svgRef.current) return;
     const copySvg = svgRef.current.cloneNode(true) as SVGSVGElement;
