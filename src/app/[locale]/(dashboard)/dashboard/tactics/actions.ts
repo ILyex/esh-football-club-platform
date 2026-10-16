@@ -16,6 +16,7 @@ const boardDataSchema = z.object({
     z.object({ id: z.string().min(1).max(40), kind: z.literal("path"), x: z.number().min(0).max(1000), y: z.number().min(0).max(640), x2: z.number().min(0).max(1000), y2: z.number().min(0).max(640), color: z.string().regex(/^#[0-9a-f]{6}$/i), label: z.string().max(100).optional(), points: z.array(z.object({ x: z.number().min(0).max(1000), y: z.number().min(0).max(640) })).min(2).max(500) })
   ])).max(80),
   orientation: z.enum(["horizontal", "vertical"]),
+  mode: z.enum(["image", "video"]).optional(),
   notes: z.string().max(4000),
   coachName: z.string().max(100).optional(),
   animation: z.object({
