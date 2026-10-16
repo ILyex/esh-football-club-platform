@@ -2,7 +2,6 @@ import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { runSchedulerTick } from "@/lib/jobs/scheduler";
 import { processJobBatch } from "@/lib/jobs/worker";
-import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { flushPendingMatchPushOutbox } from "@/lib/push/match-push";
 
 // ============================================================================
@@ -43,8 +42,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Keep kickoff status accurate even when nobody has the dashboard open.
-    const promotedMatches = await promoteDueMatchesToLive();
     const queuedMatchPushes = await flushPendingMatchPushOutbox(20);
 
     // 1. Enqueue due recurring jobs
@@ -63,7 +60,6 @@ export async function POST(req: NextRequest) {
       succeeded: batchResult.succeeded,
       failed: batchResult.failed,
       retried: batchResult.retried,
-      promotedMatches,
       queuedMatchPushes
     });
   } catch (error) {

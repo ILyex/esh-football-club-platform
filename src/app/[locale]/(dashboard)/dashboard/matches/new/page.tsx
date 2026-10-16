@@ -10,6 +10,7 @@ import { getAllOpponentsList } from "@/lib/opponents";
 import { MatchFormClient } from "@/components/matches/match-form-client";
 import { localizedClubName } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
+import { FafScheduledMatchImportButton } from "@/components/matches/faf-scheduled-match-import-button";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -22,7 +23,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
     db.team.findMany({ where: { active: true }, orderBy: { category: "asc" } }),
     getCurrentTeamId(),
     getAllOpponentsList(),
-    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
+    db.player.findMany({ where: { status: { not: "ARCHIVED" } }, include: { team: { select: { category: true } } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
   ]);
 
   async function action(formData: FormData) {
@@ -48,6 +49,10 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
             : "Planification d'un nouveau match, gestion des logos et publication directe sur le portail public"}
         </p>
       </div>
+
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <FafScheduledMatchImportButton locale={locale} />
+      </section>
 
       {competitions.length === 0 ? (
         <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
@@ -79,7 +84,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
           locale={locale}
           competitions={competitions.map((c) => ({ id: c.id, name: c.name, teamId: c.teamId }))}
           teams={teams.map((tm) => ({ id: tm.id, name: localizedClubName(tm.name, locale, tTeams(`categories.${tm.category}` as any)), category: tm.category }))}
-          players={players.map((player) => ({ id: player.id, firstName: player.firstName, lastName: player.lastName, position: player.position, status: player.status, teamId: player.teamId }))}
+          players={players.map((player) => ({ id: player.id, firstName: player.firstName, lastName: player.lastName, position: player.position, status: player.status, teamId: player.teamId, teamCategory: player.team?.category ?? null }))}
           savedOpponents={savedOpponents}
           defaultTeamId={currentTeamId}
           clubName={

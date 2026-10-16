@@ -105,6 +105,22 @@ export class FafEmsClient {
     return output;
   }
 
+  /** Upcoming EMS fixtures are exposed by the same filtered rencontres feed
+   * used by the official Match Sheet client (the history endpoint is past
+   * matches only). Keep the look-ahead bounded and paginate defensively. */
+  async scheduledMatches(startDate: string, endDate: string): Promise<JsonRecord[]> {
+    const output: JsonRecord[] = [];
+    for (let page = 0; page < 10; page++) {
+      const params = new URLSearchParams({ page: String(page), pageSize: "30", startDate, endDate });
+      const response = await this.request(`/api/rencontres?${params.toString()}`);
+      const json = await this.json(response, "scheduled matches");
+      if (!Array.isArray(json.content)) throw new Error("Unexpected FAF EMS scheduled match response.");
+      output.push(...json.content);
+      if (!json.hasNext || json.content.length === 0) break;
+    }
+    return output;
+  }
+
   async matchInfo(externalId: number): Promise<JsonRecord> {
     const response = await this.request(`/api/rencontres/match-info?matchId=${encodeURIComponent(externalId)}`);
     const json = await this.json(response, "match details");

@@ -44,12 +44,7 @@ export default async function PublicMatchDetailPage({
   }).format(match.matchDate);
 
   const formattedTime = formatAlgeriaTime(match.matchDate, locale);
-  const kickoffRemaining = match.matchDate.getTime() - Date.now();
-  const isNearKickoff = match.status === "SCHEDULED" && kickoffRemaining > 0 && kickoffRemaining <= 30 * 60 * 1000;
-  const nextStatusRefreshAt = match.status === "SCHEDULED" && kickoffRemaining > 0
-    ? match.matchDate.getTime() - (kickoffRemaining > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
-    : undefined;
-  const showOfficialLineup = match.status === "LIVE" || isNearKickoff;
+  const showOfficialLineup = match.status === "LIVE" || (match.status === "SCHEDULED" && (match.startingLineup.length > 0 || match.substitutes.length > 0));
   const showMatchEvents = match.status === "LIVE" || match.status === "FINISHED";
 
   // Keep the public match center tied to the configured club record while
@@ -96,7 +91,6 @@ export default async function PublicMatchDetailPage({
     <div className="mx-auto max-w-6xl space-y-7 px-3 py-7 sm:space-y-8 sm:px-6 sm:py-10">
       <LiveMatchRefresh
         enabled={match.status === "LIVE"}
-        refreshAt={nextStatusRefreshAt}
       />
       <PublicPageHeading
         locale={locale}

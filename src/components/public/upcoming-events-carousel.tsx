@@ -184,8 +184,7 @@ export function UpcomingMatchesCarousel({
   const isImminent = !isCancelled && currentMatch.status === "SCHEDULED" &&
     matchDate.getTime() > now.getTime() && matchDate.getTime() - now.getTime() <= 30 * 60 * 1000;
   const isLive =
-    !isCancelled && !isFinished && (currentMatch.status === "LIVE" || currentMatch.status === "IN_PROGRESS" ||
-      (currentMatch.status === "SCHEDULED" && now.getTime() >= matchDate.getTime() && now.getTime() <= matchDate.getTime() + 130 * 60 * 1000));
+    !isCancelled && !isFinished && (currentMatch.status === "LIVE" || currentMatch.status === "IN_PROGRESS");
   const isPostponed = currentMatch.status === "POSTPONED" || isCancelled;
   const matchBadgeLabel = isLive
     ? (locale === "ar" ? "المباراة الحالية" : "Match en cours")
@@ -352,8 +351,7 @@ export function UpcomingMatchesCarousel({
             const mImminent = !mCancelled && m.status === "SCHEDULED" &&
               mDate.getTime() > now.getTime() && mDate.getTime() - now.getTime() <= 30 * 60 * 1000;
             const mIsLive =
-              !mCancelled && !mFinished && (m.status === "LIVE" || m.status === "IN_PROGRESS" ||
-                (m.status === "SCHEDULED" && now.getTime() >= mDate.getTime() && now.getTime() <= mDate.getTime() + 130 * 60 * 1000));
+              !mCancelled && !mFinished && (m.status === "LIVE" || m.status === "IN_PROGRESS");
             const hasResult = mIsLive || mFinished;
             return (
               <div key={m.id} className="w-full shrink-0 space-y-3 px-0.5 outline-none focus:outline-none sm:space-y-6">

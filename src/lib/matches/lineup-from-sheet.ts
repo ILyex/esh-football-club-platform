@@ -81,8 +81,15 @@ export async function applyMatchSheetLineup(
   teamId: string,
   text: string
 ): Promise<MatchSheetLineupResult> {
+  const match = await db.match.findUniqueOrThrow({
+    where: { id: matchId },
+    select: { teamId: true, competitionId: true, matchDate: true, team: { select: { category: true } } }
+  });
+  const eligibleTeamIds = match.team?.category === "SENIOR"
+    ? [teamId, ...(await db.team.findUnique({ where: { category: "U20" }, select: { id: true } }).then((team) => team?.id ? [team.id] : []))]
+    : [teamId];
   const players = await db.player.findMany({
-    where: { teamId, status: { not: "ARCHIVED" } },
+    where: { teamId: { in: eligibleTeamIds }, status: { not: "ARCHIVED" } },
     select: { id: true, firstName: true, lastName: true, shirtNumber: true, position: true, status: true }
   });
   if (players.length === 0) return { applied: false, starters: 0, substitutes: 0, notCalled: 0, injured: 0, suspended: 0, reason: "no_roster" };
@@ -95,10 +102,7 @@ export async function applyMatchSheetLineup(
     return { applied: false, starters, substitutes, notCalled: 0, injured: 0, suspended: 0, reason: "insufficient_recognition" };
   }
 
-  const [match, existingLineups] = await Promise.all([
-    db.match.findUniqueOrThrow({ where: { id: matchId }, select: { teamId: true, competitionId: true, matchDate: true } }),
-    db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true } })
-  ]);
+  const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true } });
   const previousMatch = match.competitionId
     ? await db.match.findFirst({
         where: { teamId, competitionId: match.competitionId, status: "FINISHED", matchDate: { lt: match.matchDate } },

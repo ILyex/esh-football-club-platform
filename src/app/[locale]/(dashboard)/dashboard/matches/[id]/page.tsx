@@ -74,10 +74,6 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
     db.team.findMany({ orderBy: { category: "asc" } }),
     db.staff.findMany({ where: { status: "ACTIVE" }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
   ]);
-  const kickoffRemaining = match ? match.matchDate.getTime() - Date.now() : 0;
-  const nextStatusRefreshAt = match?.status === "SCHEDULED" && kickoffRemaining > 0
-    ? match.matchDate.getTime() - (kickoffRemaining > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
-    : undefined;
   if (!match) notFound();
   const canManageLineup = canReport && (match.status === "SCHEDULED" || match.status === "LIVE");
   const { homeTeamName, awayTeamName } = getMatchDisplayNames(match, locale);
@@ -117,8 +113,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   const previousRedCardPlayerIds = new Set(
     previousCompetitionMatch?.events.flatMap((event) => event.playerId ? [event.playerId] : []) ?? []
   );
-  const squadPlayers = players.filter((player) => player.teamId === match.teamId);
-  const trackedPlayers = squadPlayers.length > 0 ? squadPlayers : players;
+  const matchTeamCategory = teams.find((team) => team.id === match.teamId)?.category;
+  const teamCategoryById = new Map(teams.map((team) => [team.id, team.category]));
+  const trackedPlayers = players.filter((player) =>
+    player.teamId === match.teamId || (matchTeamCategory === "SENIOR" && teamCategoryById.get(player.teamId ?? "") === "U20")
+  );
   const getLineupStatus = (lineup: (typeof match.lineups)[number]) =>
     lineup.selectionStatus ?? (lineup.isStarting ? "STARTING" : "SUBSTITUTE");
   const startingPlayers = match.lineups.filter((lineup) => getLineupStatus(lineup) === "STARTING");
@@ -211,7 +210,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl space-y-6">
-      <LiveMatchRefresh enabled={match.status === "LIVE"} refreshAt={nextStatusRefreshAt} />
+      <LiveMatchRefresh enabled={match.status === "LIVE"} />
       <section className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-club-primary/[0.07] to-transparent" aria-hidden="true" />
         <div className="relative px-4 py-6 sm:px-7 sm:py-8">
@@ -491,7 +490,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-bold text-foreground">{t("lineup.title")}</h2>
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{locale === "ar" ? "تُملأ القائمة من وثيقة FAF: الأساسيون والاحتياط، والباقون غير مدعوين. حدّد المصابين يدويًا؛ ويُحسب الإيقاف من البطاقة الحمراء في آخر مباراة سابقة ضمن المسابقة نفسها." : "La feuille FAF renseigne les titulaires et les remplaçants ; les autres joueurs sont non convoqués. Saisissez les blessures manuellement. Une expulsion au dernier match précédent de cette compétition entraîne une suspension."}</p>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{locale === "ar" ? `تُملأ القائمة من وثيقة FAF: الأساسيون والاحتياط، والباقون غير مدعوين. حدّد المصابين يدويًا؛ ويُحسب الإيقاف من البطاقة الحمراء في آخر مباراة سابقة ضمن المسابقة نفسها.${matchTeamCategory === "SENIOR" ? " لاعبو U20 متاحون أيضًا لتشكيلة الأكابر." : ""}` : `La feuille FAF renseigne les titulaires et les remplaçants ; les autres joueurs sont non convoqués. Saisissez les blessures manuellement. Une expulsion au dernier match précédent de cette compétition entraîne une suspension.${matchTeamCategory === "SENIOR" ? " Les joueurs U20 sont aussi disponibles avec les seniors." : ""}`}</p>
             </div>
           </div>
           <span className="flex shrink-0 items-center gap-2">
@@ -613,7 +612,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           ) : null}
 
           {canReport && (
-          <PreMatchSheetUploadGate status={match.status} matchDate={match.matchDate} locale={locale}>
+          <PreMatchSheetUploadGate status={match.status} locale={locale}>
           <ActionFeedbackForm action={attachSheet} successMessage={locale === "ar" ? "تم رفع ورقة المباراة بنجاح" : "La feuille du match a été téléversée"} errorMessage={locale === "ar" ? "تعذر رفع الوثيقة. تحقق من الملف ثم أعد المحاولة." : "Impossible de téléverser le document. Vérifiez le fichier puis réessayez."} className="grid min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input type="hidden" name="sheetType" value="PRE_MATCH_SHEET" />
               <input type="hidden" name="locale" value={locale} />

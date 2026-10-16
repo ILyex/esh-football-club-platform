@@ -43,6 +43,7 @@ interface MatchPlayerOption {
   position: string | null;
   status: string;
   teamId: string | null;
+  teamCategory: string | null;
 }
 
 interface SavedOpponent {
@@ -77,6 +78,7 @@ export function MatchFormClient({
 
   // Form interactive states
   const [teamId, setTeamId] = useState(defaultTeamId || teams[0]?.id || "");
+  const selectedTeamCategory = teams.find((team) => team.id === teamId)?.category ?? null;
   const [competitionId, setCompetitionId] = useState(() => competitions.find((competition) => !competition.teamId || competition.teamId === (defaultTeamId || teams[0]?.id))?.id || "");
   const availableCompetitions = competitions.filter((competition) => !competition.teamId || competition.teamId === teamId);
   const handleTeamChange = (nextTeamId: string) => {
@@ -616,7 +618,7 @@ export function MatchFormClient({
           />
         </div>
 
-        <NewMatchLineup locale={locale} teamId={teamId} players={players} />
+          <NewMatchLineup locale={locale} teamId={teamId} teamCategory={selectedTeamCategory} players={players} />
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-5 border-t border-border/80">

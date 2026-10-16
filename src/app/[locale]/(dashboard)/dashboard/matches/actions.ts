@@ -9,8 +9,8 @@ import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@
 import { revalidatePath as nextRevalidatePath } from "next/cache";
 import { getMatchClockState, isShootoutDecided } from "@/lib/matches/clock";
 import { resolveShootoutWinner } from "@/lib/matches/result";
-import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { getFAFConfig } from "@/lib/integrations/faf/config";
+import { importUpcomingFafMatches } from "@/lib/integrations/faf/scheduled-match-import";
 import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
@@ -151,11 +151,17 @@ export async function createMatchAction(formData: FormData) {
       const parsedEntry = matchLineupEntrySchema.parse(entry);
       return [parsedEntry.playerId, parsedEntry] as const;
     }));
-    const lineupPlayers = await db.player.findMany({
-      where: { id: { in: [...uniqueEntries.keys()] }, teamId: parsed.teamId, status: { not: "ARCHIVED" } },
-      select: { id: true }
-    });
-    if (lineupPlayers.length !== uniqueEntries.size) throw new Error("invalidLineupPlayer");
+    const [lineupPlayers, targetTeam] = await Promise.all([
+      db.player.findMany({
+        where: { id: { in: [...uniqueEntries.keys()] }, status: { not: "ARCHIVED" } },
+        select: { id: true, teamId: true, team: { select: { category: true } } }
+      }),
+      db.team.findUniqueOrThrow({ where: { id: parsed.teamId }, select: { category: true } })
+    ]);
+    const eligibleIds = new Set(lineupPlayers.filter((player) =>
+      player.teamId === parsed.teamId || (targetTeam.category === "SENIOR" && player.team?.category === "U20")
+    ).map((player) => player.id));
+    if (eligibleIds.size !== uniqueEntries.size) throw new Error("invalidLineupPlayer");
     lineupEntries = [...uniqueEntries.values()];
   }
 
@@ -222,6 +228,21 @@ export async function createMatchAction(formData: FormData) {
     console.error("Match was saved, but cache refresh failed:", error);
   }
   return { id: match.id };
+}
+
+export async function importUpcomingFafMatchesAction() {
+  const user = await requirePermission("matches.create");
+  const scopeContext = await getMutationScopeContext();
+  const result = await importUpcomingFafMatches({
+    actorId: user.id,
+    allowedTeamIds: scopeContext.isUnrestricted ? null : scopeContext.authorizedTeamIds,
+    lookAheadDays: 14
+  });
+  revalidatePath("/[locale]/dashboard/matches", "page");
+  revalidatePath("/[locale]/dashboard/calendar", "page");
+  revalidatePath("/[locale]/matches", "page");
+  revalidatePath("/[locale]", "page");
+  return result;
 }
 
 export async function updateMatchAction(matchId: string, formData: FormData) {
@@ -440,10 +461,11 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   if (parsed.entityType === "STAFF" && isOpponentEvent && !playerName) throw new Error("opponentStaffNameRequired");
 
   if (playerId) {
-    const player = await db.player.findUniqueOrThrow({ where: { id: playerId } });
-    assertTeamScope(scopeContext, player.teamId, "Player");
+    const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: { select: { category: true } } } });
+    const isMatchPlayer = player.teamId === match.teamId || (match.team?.category === "SENIOR" && player.team?.category === "U20");
     // SECURITY FIX: Keep event player selection bound to the match roster for every role.
-    if (player.teamId !== match.teamId || parsed.side !== (match.isHomeFixture ? "HOME" : "AWAY")) {
+    const isSelectedForMatch = await db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId } }, select: { playerId: true } });
+    if (!isMatchPlayer || (player.teamId !== match.teamId && !isSelectedForMatch) || parsed.side !== (match.isHomeFixture ? "HOME" : "AWAY")) {
       throw new Error("matchEventPlayerSideMismatch");
     }
     playerName = `${player.firstName} ${player.lastName}`;
@@ -610,7 +632,7 @@ export async function deleteMatchEventAction(matchId: string, eventId: string) {
 export async function addShootoutKickAction(matchId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
-  const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, include: { team: { select: { category: true } } } });
   assertTeamScope(scopeContext, match.teamId, "Match");
   if (match.status !== "LIVE" || !match.hasPenaltyShootout) throw new Error("shootoutNotAvailable");
   const clock = getMatchClockState(match.matchDate, new Date(), match.hasExtraTime, match.hasPenaltyShootout, match.homeScore, match.awayScore, {
@@ -625,10 +647,11 @@ export async function addShootoutKickAction(matchId: string, formData: FormData)
   const playerId = parsed.playerId || null;
   let playerName = parsed.playerName;
   if (playerId) {
-    const player = await db.player.findUniqueOrThrow({ where: { id: playerId } });
-    assertTeamScope(scopeContext, player.teamId, "Player");
+    const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: { select: { category: true } } } });
     const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
-    if (player.teamId !== match.teamId || parsed.side !== clubSide || player.status !== "ACTIVE") {
+    const isMatchPlayer = player.teamId === match.teamId || (match.team?.category === "SENIOR" && player.team?.category === "U20");
+    const selectedForMatch = player.teamId === match.teamId || await db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId } }, select: { playerId: true } });
+    if (!isMatchPlayer || !selectedForMatch || parsed.side !== clubSide || player.status !== "ACTIVE") {
       throw new Error("shootoutPlayerMismatch");
     }
     playerName = `${player.firstName} ${player.lastName}`;
@@ -712,15 +735,17 @@ export async function deleteShootoutKickAction(matchId: string, kickId: string) 
 export async function upsertLineupEntryAction(matchId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
-  const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, include: { team: { select: { category: true } } } });
   assertTeamScope(scopeContext, match.teamId, "Match");
   if (match.status !== "LIVE" && match.status !== "SCHEDULED") throw new Error("lineupNotAvailable");
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = matchLineupEntrySchema.parse(raw);
 
-  const player = await db.player.findUniqueOrThrow({ where: { id: parsed.playerId } });
-  assertTeamScope(scopeContext, player.teamId, "Player");
+  const player = await db.player.findUniqueOrThrow({ where: { id: parsed.playerId }, include: { team: { select: { category: true } } } });
+  const sameTeam = player.teamId === match.teamId;
+  const eligibleU20ForSenior = match.team?.category === "SENIOR" && player.team?.category === "U20";
+  if (!sameTeam && !eligibleU20ForSenior) throw new Error("invalidLineupPlayer");
 
   if (player.status === "INJURED" && parsed.selectionStatus !== "INJURED") throw new Error("lineupPlayerInjured");
 
@@ -775,8 +800,18 @@ export async function syncPreviousMatchRedCardSuspensionsAction(matchId: string)
   const playerIds = Array.from(new Set(previousMatch?.events.flatMap((event) => event.playerId ? [event.playerId] : []) ?? []));
   if (playerIds.length === 0) return [];
 
+  const matchTeam = await db.team.findUnique({ where: { id: match.teamId }, select: { category: true } });
   const eligiblePlayers = await db.player.findMany({
-    where: { id: { in: playerIds }, teamId: match.teamId, status: { not: "ARCHIVED" } },
+    where: {
+      id: { in: playerIds },
+      status: { not: "ARCHIVED" },
+      OR: [
+        { teamId: match.teamId },
+        ...(matchTeam?.category === "SENIOR"
+          ? [{ team: { category: "U20" as const } }]
+          : [])
+      ]
+    },
     select: { id: true, position: true }
   });
   if (eligiblePlayers.length > 0) {
@@ -826,7 +861,6 @@ export async function removeLineupEntryAction(matchId: string, playerId: string)
 
 export async function attachMatchSheetAction(matchId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
-  await promoteDueMatchesToLive();
   const scopeContext = await getMutationScopeContext();
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, match.teamId, "Match");
@@ -844,10 +878,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   const locale = formData.get("locale") === "fr" ? "fr" : "ar";
 
   if (sheetType === "PRE_MATCH_SHEET") {
-    const withinPreMatchWindow = match.status === "SCHEDULED" &&
-      match.matchDate.getTime() > Date.now() &&
-      match.matchDate.getTime() - Date.now() <= 30 * 60 * 1000;
-    if (match.status !== "LIVE" && !withinPreMatchWindow) {
+    if (match.status !== "LIVE" && match.status !== "SCHEDULED") {
       throw new Error("preMatchSheetUploadUnavailable");
     }
   }

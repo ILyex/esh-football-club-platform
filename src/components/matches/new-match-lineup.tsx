@@ -4,19 +4,21 @@ import { useMemo, useState } from "react";
 import { Ban, ChevronDown, HeartPulse, Plus, UserCheck, UserRoundX, Users } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
 
-type Player = { id: string; firstName: string; lastName: string; position: string | null; status: string; teamId: string | null };
+type Player = { id: string; firstName: string; lastName: string; position: string | null; status: string; teamId: string | null; teamCategory: string | null };
 type Entry = { playerId: string; position: string; selectionStatus: "STARTING" | "SUBSTITUTE" | "INJURED" | "SUSPENDED" | "NOT_CALLED" };
 
 const positions = ["GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"] as const;
 const statuses = ["STARTING", "SUBSTITUTE", "INJURED", "SUSPENDED", "NOT_CALLED"] as const;
 
-export function NewMatchLineup({ players, teamId, locale }: { players: Player[]; teamId: string; locale: string }) {
+export function NewMatchLineup({ players, teamId, teamCategory, locale }: { players: Player[]; teamId: string; teamCategory: string | null; locale: string }) {
   const isAr = locale === "ar";
   const [entries, setEntries] = useState<Entry[]>([]);
   const [playerId, setPlayerId] = useState("");
   const [position, setPosition] = useState("");
   const [selectionStatus, setSelectionStatus] = useState<Entry["selectionStatus"]>("STARTING");
-  const availablePlayers = players.filter((player) => player.teamId === teamId);
+  const availablePlayers = players.filter((player) =>
+    player.teamId === teamId || (teamCategory === "SENIOR" && player.teamCategory === "U20")
+  );
   const selected = availablePlayers.find((player) => player.id === playerId);
   const labels = isAr
     ? { STARTING: "أساسي", SUBSTITUTE: "احتياط", INJURED: "مصاب", SUSPENDED: "موقوف", NOT_CALLED: "غير مستدعى" }
@@ -63,7 +65,7 @@ export function NewMatchLineup({ players, teamId, locale }: { players: Player[];
         ))}
       </div>
       <div className="grid grid-cols-1 items-end gap-3 rounded-xl border border-border/70 bg-background/40 p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <FormSelect name="newLineupPlayer" value={playerId} locale={locale} ariaLabel={isAr ? "اللاعب" : "Joueur"} placeholder={isAr ? "اختر اللاعب" : "Choisir le joueur"} onValueChange={(value) => { setPlayerId(value); setPosition(availablePlayers.find((player) => player.id === value)?.position ?? ""); }} options={availablePlayers.filter((player) => !entries.some((entry) => entry.playerId === player.id)).map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}` }))} />
+        <FormSelect name="newLineupPlayer" value={playerId} locale={locale} ariaLabel={isAr ? "اللاعب" : "Joueur"} placeholder={isAr ? "اختر اللاعب" : "Choisir le joueur"} onValueChange={(value) => { setPlayerId(value); setPosition(availablePlayers.find((player) => player.id === value)?.position ?? ""); }} options={availablePlayers.filter((player) => !entries.some((entry) => entry.playerId === player.id)).map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}${player.teamId !== teamId ? " · U20" : ""}` }))} />
         <FormSelect name="newLineupPosition" value={position} locale={locale} ariaLabel={isAr ? "المركز" : "Poste"} placeholder={isAr ? "اختر المركز" : "Choisir le poste"} onValueChange={setPosition} options={positions.map((value) => ({ value, label: positionLabels[value] }))} />
         <FormSelect name="newLineupStatus" value={selectionStatus} locale={locale} ariaLabel={isAr ? "حالة اللاعب" : "Statut"} onValueChange={(value) => setSelectionStatus(value as Entry["selectionStatus"])} options={statuses.map((value) => ({ value, label: labels[value] }))} />
         <button type="button" onClick={addEntry} disabled={!selected || !position} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-club-primary px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"><Plus className="h-4 w-4" />{isAr ? "إضافة اللاعب" : "Ajouter le joueur"}</button>

@@ -46,18 +46,9 @@ export default async function PublicMatchesPage({
     home: locale === "ar" ? "المستضيف" : "Domicile",
     away: locale === "ar" ? "الضيف" : "Extérieur"
   };
-  const nowMs = Date.now();
-  const nextScheduledKickoff = matches
-    .filter((match) => match.status === "SCHEDULED" && new Date(match.matchDate).getTime() > nowMs)
-    .map((match) => new Date(match.matchDate).getTime())
-    .sort((a, b) => a - b)[0];
-  const nextStatusRefreshAt = nextScheduledKickoff
-    ? nextScheduledKickoff - (nextScheduledKickoff - nowMs > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
-    : undefined;
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} refreshAt={nextStatusRefreshAt} />
+      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} />
       <PublicPageHeading locale={locale} icon={<Trophy />} eyebrow={tPublic("matches.title")} title={tPublic("matches.title")} description={tPublic("matches.subtitle")} />
       <div className="border-b border-border/80 pb-6">
         {/* Tab Filters: Upcoming vs Results vs All */}

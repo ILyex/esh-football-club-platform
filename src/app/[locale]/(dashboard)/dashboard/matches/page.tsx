@@ -58,18 +58,9 @@ export default async function MatchesListPage({
     getAuthorizedTeams()
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const nowMs = Date.now();
-  const nextScheduledKickoff = matches
-    .filter((match) => match.status === "SCHEDULED" && match.matchDate.getTime() > nowMs)
-    .map((match) => match.matchDate.getTime())
-    .sort((a, b) => a - b)[0];
-  const nextStatusRefreshAt = nextScheduledKickoff
-    ? nextScheduledKickoff - (nextScheduledKickoff - nowMs > 30 * 60 * 1000 ? 30 * 60 * 1000 : 0)
-    : undefined;
-
   return (
     <div>
-      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} refreshAt={nextStatusRefreshAt} />
+      <LiveMatchRefresh enabled={matches.some((match) => match.status === "LIVE")} />
       <div className="mb-6 grid grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div className="text-center sm:col-start-2 sm:row-start-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground">{t("title")}</h1>
