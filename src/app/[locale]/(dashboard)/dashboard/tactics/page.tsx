@@ -8,12 +8,15 @@ export default async function TacticalPlanningPage({ params, searchParams }: { p
   const user = await requirePagePermission("training.view", locale);
   const context = await resolveUserTeamContext();
   const teamIds = context.authorizedTeams.map((team) => team.id);
-  const plans = await db.tacticalPlan.findMany({
-    where: { OR: [{ teamId: { in: teamIds } }, { teamId: null, creatorId: user.id }] },
-    include: { team: { select: { id: true, name: true, category: true } }, creator: { select: { name: true } } },
-    orderBy: { updatedAt: "desc" },
-    take: 100
-  });
+  const [plans, clubSettings] = await Promise.all([
+    db.tacticalPlan.findMany({
+      where: { OR: [{ teamId: { in: teamIds } }, { teamId: null, creatorId: user.id }] },
+      include: { team: { select: { id: true, name: true, category: true } }, creator: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 100
+    }),
+    db.clubSettings.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } })
+  ]);
   const teams = context.authorizedTeams.map(({ id, name, category }) => ({ id, name, category }));
   return (
     <TacticalBoard
@@ -21,6 +24,7 @@ export default async function TacticalPlanningPage({ params, searchParams }: { p
       canEdit={hasPermission(user, "training.manage")}
       initialPlanId={initialPlanId}
       teams={teams}
+      clubLogoUrl={clubSettings?.logoUrl}
       plans={plans.map((plan) => ({
         id: plan.id,
         title: plan.title,

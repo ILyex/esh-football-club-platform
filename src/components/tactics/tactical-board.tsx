@@ -26,9 +26,12 @@ const FORMATIONS: Record<string, number[][]> = {
   "4-1-4-1": [[14, 50], [27, 18], [27, 39], [27, 61], [27, 82], [39, 50], [53, 18], [53, 39], [53, 61], [53, 82], [68, 50]]
 };
 const STARTING_FORMATION = FORMATIONS["4-3-3"] ?? [];
+const HOME_COLOR = "#dc2626";
+const AWAY_COLOR = "#38bdf8";
+const HOME_KEEPER_COLOR = "#8b5cf6";
 const DEFAULT_ITEMS: Item[] = [
-  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `h${i + 1}`, kind: "player" as const, x: x * 10, y: y * 6.4, number: String(i + 1), label: (["GB", "DD", "DC", "DC", "DG", "MDF", "MC", "MC", "AD", "BU", "AG"][i] ?? ""), color: i === 0 ? "#8b5cf6" : "#f3f4f6" })),
-  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `a${i + 1}`, kind: "opponent" as const, x: (100 - x) * 10, y: y * 6.4, number: String(i + 1), label: "", color: "#ef4444" }))
+  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `h${i + 1}`, kind: "player" as const, x: x * 10, y: y * 6.4, number: String(i + 1), label: (["GB", "DD", "DC", "DC", "DG", "MDF", "MC", "MC", "AD", "BU", "AG"][i] ?? ""), color: i === 0 ? HOME_KEEPER_COLOR : HOME_COLOR })),
+  ...STARTING_FORMATION.map(([x = 14, y = 50], i) => ({ id: `a${i + 1}`, kind: "opponent" as const, x: (100 - x) * 10, y: y * 6.4, number: String(i + 1), label: "", color: AWAY_COLOR }))
 ];
 const freshBoard = (): BoardData => ({ items: DEFAULT_ITEMS.map((item) => ({ ...item })), orientation: "horizontal", mode: "image", notes: "" });
 const PALETTE = ["#f3f4f6", "#ef4444", "#f59e0b", "#22c55e", "#38bdf8", "#a78bfa"];
@@ -78,7 +81,9 @@ function prepareBoard(data: unknown): BoardData | null {
       return {
         ...item,
         ...(label ? { label } : {}),
-        ...(item.kind === "player" && legacyLabel === "GK" && item.color.toLowerCase() === "#f3f4f6" ? { color: "#8b5cf6" } : {})
+        ...(item.kind === "player" && legacyLabel === "GK" && item.color.toLowerCase() === "#f3f4f6" ? { color: HOME_KEEPER_COLOR } : {}),
+        ...(item.kind === "player" && legacyLabel !== "GK" && item.color.toLowerCase() === "#f3f4f6" ? { color: HOME_COLOR } : {}),
+        ...(item.kind === "opponent" && item.color.toLowerCase() === "#ef4444" ? { color: AWAY_COLOR } : {})
       };
     })
   };
@@ -93,7 +98,7 @@ function localize(locale: string) {
   };
 }
 
-export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, initialPlanId }: { locale: string; canEdit: boolean; teams: Team[]; plans: Plan[]; initialPlanId?: string }) {
+export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, initialPlanId, clubLogoUrl }: { locale: string; canEdit: boolean; teams: Team[]; plans: Plan[]; initialPlanId?: string; clubLogoUrl?: string | null }) {
   const t = localize(locale);
   const initialPlan = initialPlans.find((plan) => plan.id === initialPlanId);
   const initialBoard = prepareBoard(initialPlan?.data);
@@ -105,7 +110,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
   const [teamId, setTeamId] = useState(initialPlan?.teamId ?? "");
   const [board, setBoard] = useState<BoardData>(() => initialBoard ?? freshBoard());
   const [tool, setTool] = useState<Tool>("select");
-  const [color, setColor] = useState<string>(PALETTE[1] ?? "#ef4444");
+  const [color, setColor] = useState<string>(HOME_COLOR);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -244,7 +249,8 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     }
     if (tool === "player" || tool === "opponent") {
       const kind = tool === "player" ? "player" : "opponent";
-      updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: p.x, y: p.y, number: String(b.items.filter((it) => it.kind === kind).length + 1), label: kind === "opponent" ? "" : "MC", color }] }));
+      const markerColor = kind === "opponent" && color.toLowerCase() === HOME_COLOR ? AWAY_COLOR : color;
+      updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: p.x, y: p.y, number: String(b.items.filter((it) => it.kind === kind).length + 1), label: kind === "opponent" ? "" : "MC", color: markerColor }] }));
       setTool("select"); return;
     }
     if (tool === "ball") { updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind: "ball", x: p.x, y: p.y, color }] })); setTool("select"); return; }
@@ -338,6 +344,10 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     if (!svgRef.current) return;
     const copySvg = svgRef.current.cloneNode(true) as SVGSVGElement;
     copySvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    copySvg.querySelectorAll("image").forEach((image) => {
+      const source = image.getAttribute("href");
+      if (source?.startsWith("/")) image.setAttribute("href", new URL(source, window.location.origin).href);
+    });
     const blob = new Blob([new XMLSerializer().serializeToString(copySvg)], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${title.trim() || "tactical-plan"}.svg`; a.click(); URL.revokeObjectURL(url);
   }
@@ -420,10 +430,11 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
             <svg ref={svgRef} viewBox={viewBox} aria-label={t.pitch} className={`tactics-pitch ${board.orientation === "vertical" ? "tactics-pitch-vertical" : ""} ${tool !== "select" ? "tactics-crosshair" : ""}`} onPointerDown={onBoardPointerDown} onPointerMove={onItemMove} onPointerUp={(event) => { onBoardPointerUp(event); finishMove(); }} onPointerCancel={() => { setPending(null); setPendingCurrent(null); setPendingPath(null); dragId.current = null; setDragPreview(null); }}>
               <defs><pattern id="grass" width="100" height="640" patternUnits="userSpaceOnUse"><rect width="50" height="640" fill="#176b43"/><rect x="50" width="50" height="640" fill="#1b7549"/></pattern><marker id="tactics-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L7 3.5L0 7z" fill="context-stroke"/></marker><pattern id="small-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#ffffff" strokeOpacity=".055" strokeWidth="1"/></pattern></defs>
               <g transform={board.orientation === "vertical" ? "translate(640 0) rotate(90)" : undefined}>
-              <rect width="1000" height="640" rx="12" fill="url(#grass)"/><rect width="1000" height="640" rx="12" fill="url(#small-grid)"/>
+                <rect width="1000" height="640" rx="12" fill="url(#grass)"/><rect width="1000" height="640" rx="12" fill="url(#small-grid)"/>
+                <image href={clubLogoUrl || "/branding/esh-logo-transparent.png"} x="350" y="150" width="300" height="300" opacity=".16" preserveAspectRatio="xMidYMid meet" pointerEvents="none" aria-hidden="true"/>
               <g fill="none" stroke="#ecfdf5" strokeOpacity=".82" strokeWidth="3"><rect x="22" y="22" width="956" height="596" rx="4"/><line x1="500" y1="22" x2="500" y2="618"/><circle cx="500" cy="320" r="82"/><circle cx="500" cy="320" r="3" fill="#ecfdf5"/><rect x="22" y="168" width="145" height="304"/><rect x="22" y="232" width="58" height="176"/><circle cx="112" cy="320" r="3" fill="#ecfdf5"/><path d="M167 255a82 82 0 0 1 0 130"/><rect x="833" y="168" width="145" height="304"/><rect x="920" y="232" width="58" height="176"/><circle cx="888" cy="320" r="3" fill="#ecfdf5"/><path d="M833 255a82 82 0 0 0 0 130"/></g>
                 {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
-                <g transform={board.orientation === "vertical" ? "rotate(-90)" : undefined}><circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#7f1d1d"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={0} y={board.orientation === "vertical" ? -39 : 39} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}</g>
+                <g transform={board.orientation === "vertical" ? "rotate(-90)" : undefined}><circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#075985"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={0} y={board.orientation === "vertical" ? -39 : 39} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}</g>
               </g> : item.kind === "ball" ? <g key={item.id} transform={`translate(${item.x} ${item.y})`} className="tactics-player" onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><circle r="12" fill={item.color ?? "#fff"} stroke="#111827" strokeWidth="3"/><path d="M0-6 6-2 4 5-4 5-6-2Z" transform={board.orientation === "vertical" ? "rotate(-90)" : undefined} fill="#111827"/></g> : item.kind === "zone" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><rect x={Math.min(item.x, item.x2)} y={Math.min(item.y, item.y2)} width={Math.abs(item.x2 - item.x)} height={Math.abs(item.y2 - item.y)} rx="8" fill={item.color} fillOpacity=".2" stroke={item.color} strokeWidth="3" strokeDasharray="8 6"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "path" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><polyline points={(item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }]).map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" markerEnd="url(#tactics-arrow)"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "arrow" || item.kind === "line" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><line x1={item.x} y1={item.y} x2={item.x2} y2={item.y2} stroke={item.color} strokeWidth={item.kind === "arrow" ? 4 : 3} strokeDasharray={item.kind === "line" ? "12 8" : undefined} markerEnd={item.kind === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : null)}
               {pending && pendingCurrent && <g pointerEvents="none" opacity=".78">
                 {tool === "zone" ? <rect x={Math.min(pending.x, pendingCurrent.x)} y={Math.min(pending.y, pendingCurrent.y)} width={Math.abs(pendingCurrent.x - pending.x)} height={Math.abs(pendingCurrent.y - pending.y)} rx="8" fill={color} fillOpacity=".18" stroke={color} strokeWidth="3" strokeDasharray="8 6"/> : <line x1={pending.x} y1={pending.y} x2={pendingCurrent.x} y2={pendingCurrent.y} stroke={color} strokeWidth={tool === "arrow" ? 4 : 3} strokeDasharray={tool === "line" ? "12 8" : undefined} markerEnd={tool === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>}
