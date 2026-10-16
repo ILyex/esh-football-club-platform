@@ -4,6 +4,7 @@ import { PublicMatchItem } from "@/lib/public/matches";
 import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 
 interface MatchCardProps {
   match: PublicMatchItem;
@@ -40,11 +41,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
     timeZone: "Africa/Algiers"
   }).format(match.matchDate);
 
-  const formattedTime = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Africa/Algiers"
-  }).format(match.matchDate);
+  const formattedTime = formatAlgeriaTime(match.matchDate, locale);
 
   return (
     <article className="group flex min-h-[270px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-club-primary/50 hover:shadow-lg sm:min-h-[300px]">
