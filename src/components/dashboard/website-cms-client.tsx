@@ -92,8 +92,8 @@ export function WebsiteCmsClient({
   const [isHomeFixture, setIsHomeFixture] = useState(selectedMatch ? selectedMatch.isHomeFixture : true);
   const [matchDate, setMatchDate] = useState(
     selectedMatch
-      ? new Date(selectedMatch.matchDate).toISOString().slice(0, 16)
-      : new Date().toISOString().slice(0, 16)
+      ? new Date(selectedMatch.matchDate).toISOString()
+      : new Date().toISOString()
   );
   const [stadium, setStadium] = useState(selectedMatch?.stadium || (isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni"));
   const [refereeName, setRefereeName] = useState(selectedMatch?.refereeName || "");
@@ -141,7 +141,7 @@ export function WebsiteCmsClient({
     if (id === "NEW") {
       setOpponent("");
       setIsHomeFixture(true);
-      setMatchDate(new Date().toISOString().slice(0, 16));
+      setMatchDate(new Date().toISOString());
       setStadium(isRtl ? "الملعب البلدي طاهري حسني – سيدي حسني" : "Stade communal Taheri Hosni – Sidi Hosni");
       setRefereeName("");
       setStatus("SCHEDULED");
@@ -158,7 +158,7 @@ export function WebsiteCmsClient({
         const opp = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
         setOpponent(opp);
         setIsHomeFixture(match.isHomeFixture);
-        setMatchDate(new Date(match.matchDate).toISOString().slice(0, 16));
+        setMatchDate(new Date(match.matchDate).toISOString());
         setStadium(match.stadium || "");
         setRefereeName(match.refereeName || "");
         setStatus(match.status === "CANCELLED" ? "POSTPONED" : match.status);
@@ -591,7 +591,10 @@ export function WebsiteCmsClient({
                   label={isRtl ? "تاريخ وتوقيت انطلاق المباراة" : "Date et heure du match"}
                   required
                   value={matchDate}
-                  onChange={(_, iso) => setMatchDate(iso || "")}
+                  onChange={(draft, iso) => {
+                    if (iso) setMatchDate(iso);
+                    else if (!draft) setMatchDate("");
+                  }}
                   locale={locale}
                 />
               </div>

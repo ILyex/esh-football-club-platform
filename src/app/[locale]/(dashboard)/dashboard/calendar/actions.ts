@@ -20,14 +20,16 @@ export async function createCalendarEventAction(formData: FormData) {
   const parsed = calendarEventSchema.parse(raw);
   assertTeamScope(scopeContext, null, "CalendarEvent"); // creating manual club-wide calendar event requires unrestricted scope
 
-  const event = await db.calendarEvent.create({ data: parsed });
-
-  await writeAuditLog({
+  const event = await db.$transaction(async (tx) => {
+    const created = await tx.calendarEvent.create({ data: parsed });
+    await writeAuditLog({
     userId: user.id,
     action: "calendarEvent.create",
     entityType: "CalendarEvent",
-    entityId: event.id,
+    entityId: created.id,
     changes: { after: parsed }
+    }, tx);
+    return created;
   });
   revalidatePath("/[locale]/dashboard/calendar", "page");
   if (event.type === "MEETING") revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
@@ -53,15 +55,14 @@ export async function updateCalendarEventAction(eventId: string, formData: FormD
     if (before.meetingMinute) {
       await tx.meetingMinute.update({ where: { id: before.meetingMinute.id }, data: { title: parsed.title, date: parsed.startDateTime, location: parsed.location, teamId: before.teamId } });
     }
+    await writeAuditLog({
+      userId: user.id,
+      action: "calendarEvent.update",
+      entityType: "CalendarEvent",
+      entityId: updated.id,
+      changes: { before, after: parsed }
+    }, tx);
     return updated;
-  });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "calendarEvent.update",
-    entityType: "CalendarEvent",
-    entityId: event.id,
-    changes: { before, after: parsed }
   });
   revalidatePath("/[locale]/dashboard/calendar", "page");
   if (event.type === "MEETING" || before.meetingMinute) revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
@@ -77,9 +78,10 @@ export async function deleteCalendarEventAction(eventId: string) {
   }
   assertTeamScope(scopeContext, event.teamId, "CalendarEvent");
 
-  await db.calendarEvent.delete({ where: { id: eventId } });
-
-  await writeAuditLog({ userId: user.id, action: "calendarEvent.delete", entityType: "CalendarEvent", entityId: eventId });
+  await db.$transaction(async (tx) => {
+    await tx.calendarEvent.delete({ where: { id: eventId } });
+    await writeAuditLog({ userId: user.id, action: "calendarEvent.delete", entityType: "CalendarEvent", entityId: eventId }, tx);
+  });
   revalidatePath("/[locale]/dashboard/calendar", "page");
   if (event.type === "MEETING") revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
 }

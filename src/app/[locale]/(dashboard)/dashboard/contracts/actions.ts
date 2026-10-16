@@ -41,7 +41,8 @@ export async function createContractAction(formData: FormData) {
   const teamId = await resolveSubjectTeamId(parsed.playerId, parsed.staffId);
   assertTeamScope(scopeContext, teamId, "Contract");
 
-  const contract = await db.contract.create({
+  const contract = await db.$transaction(async (tx) => {
+    const created = await tx.contract.create({
     data: {
       type: parsed.type,
       playerId: parsed.playerId || null,
@@ -52,14 +53,15 @@ export async function createContractAction(formData: FormData) {
       status: parsed.status,
       notes: parsed.notes
     }
-  });
-
-  await writeAuditLog({
+    });
+    await writeAuditLog({
     userId: user.id,
     action: "contract.create",
     entityType: "Contract",
-    entityId: contract.id,
+    entityId: created.id,
     changes: { after: parsed }
+    }, tx);
+    return created;
   });
 
   revalidatePath("/[locale]/dashboard/contracts", "page");
@@ -88,7 +90,8 @@ export async function updateContractAction(contractId: string, formData: FormDat
   const teamId = await resolveSubjectTeamId(parsed.playerId, parsed.staffId);
   assertDualTeamScope(scopeContext, before.teamId, teamId, "Contract");
 
-  const contract = await db.contract.update({
+  const contract = await db.$transaction(async (tx) => {
+    const updated = await tx.contract.update({
     where: { id: contractId },
     data: {
       type: parsed.type,
@@ -100,14 +103,15 @@ export async function updateContractAction(contractId: string, formData: FormDat
       status: parsed.status,
       notes: parsed.notes
     }
-  });
-
-  await writeAuditLog({
+    });
+    await writeAuditLog({
     userId: user.id,
     action: "contract.update",
     entityType: "Contract",
-    entityId: contract.id,
+    entityId: updated.id,
     changes: { before, after: parsed }
+    }, tx);
+    return updated;
   });
 
   revalidatePath("/[locale]/dashboard/contracts", "page");
@@ -121,9 +125,10 @@ export async function archiveContractAction(contractId: string) {
   const before = await db.contract.findUniqueOrThrow({ where: { id: contractId } });
   assertTeamScope(scopeContext, before.teamId, "Contract");
 
-  const contract = await db.contract.update({ where: { id: contractId }, data: { status: "EXPIRED" } });
-
-  await writeAuditLog({ userId: user.id, action: "contract.archive", entityType: "Contract", entityId: contract.id });
+  await db.$transaction(async (tx) => {
+    const contract = await tx.contract.update({ where: { id: contractId }, data: { status: "EXPIRED" } });
+    await writeAuditLog({ userId: user.id, action: "contract.archive", entityType: "Contract", entityId: contract.id }, tx);
+  });
   revalidatePath("/[locale]/dashboard/contracts", "page");
   revalidatePath("/[locale]/dashboard", "page");
 }

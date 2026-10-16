@@ -65,6 +65,7 @@ export default async function DocumentsListPage({
   const activeFilter = sp.filter ?? "all";
 
   const filterWhere: any = {
+    medicalRecord: null,
     ...(canSeeRestricted ? {} : { classification: { in: ["PUBLIC", "INTERNAL"] } }),
     ...(effectiveTeamId ? { teamId: effectiveTeamId } : {}),
     ...(sp.category ? { categoryId: sp.category } : {})
@@ -109,12 +110,13 @@ export default async function DocumentsListPage({
     getAuthorizedTeams(),
     db.documentCategory.findMany({ orderBy: { name: "asc" } }),
     db.document.count({
-      where: canSeeRestricted ? {} : { classification: { in: ["PUBLIC", "INTERNAL"] } }
+      where: { medicalRecord: null, ...(canSeeRestricted ? {} : { classification: { in: ["PUBLIC", "INTERNAL"] } }) }
     }),
-    db.document.count({ where: { relatedMatchId: { not: null } } }),
-    db.document.count({ where: { OR: [{ relatedPlayerId: { not: null } }, { relatedStaffId: { not: null } }] } }),
+    db.document.count({ where: { medicalRecord: null, relatedMatchId: { not: null } } }),
+    db.document.count({ where: { medicalRecord: null, OR: [{ relatedPlayerId: { not: null } }, { relatedStaffId: { not: null } }] } }),
     db.document.count({
       where: {
+        medicalRecord: null,
         OR: [
           { category: { key: { in: ["decision", "certificate", "meeting_minute", "report"] } } },
           { correspondenceAttachments: { some: {} } },
@@ -130,7 +132,7 @@ export default async function DocumentsListPage({
         locale={locale}
         canViewDocuments={true}
         canViewContracts={canViewContracts}
-        canViewInsurance={true}
+        canViewMedicalRecords={hasPermission(user, "medical.records.view")}
         canViewCorrespondence={canViewCorrespondence}
         canViewMeetings={canViewMeetings}
         canViewTemplates={hasPermission(user, "templates.view")}

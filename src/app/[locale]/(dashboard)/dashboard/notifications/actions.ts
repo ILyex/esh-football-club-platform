@@ -17,3 +17,11 @@ export async function markAllNotificationsReadAction() {
   revalidatePath("/[locale]/dashboard/notifications", "page");
   revalidatePath("/[locale]/dashboard", "layout");
 }
+
+export async function deleteAllNotificationsAction() {
+  const user = await getSessionOrThrow();
+  await db.notification.deleteMany({ where: { userId: user.id } });
+  revalidatePath("/[locale]/dashboard/notifications", "page");
+  revalidatePath("/[locale]/dashboard", "layout");
+  return { success: true };
+}

@@ -26,12 +26,53 @@ export interface GoogleOAuthConfig {
   isConfigured: boolean;
 }
 
+/** Resolve the canonical public origin used by OAuth redirects. */
+export function getPublicApplicationOrigin(): string {
+  const configuredOrigin =
+    process.env.AUTH_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    process.env.NEXT_PUBLIC_PUBLIC_SITE_URL?.trim();
+
+  if (!configuredOrigin) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("A public application URL is required for Google OAuth in production.");
+    }
+    return "http://localhost:3000";
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configuredOrigin);
+  } catch {
+    throw new Error("The configured public application URL is invalid.");
+  }
+
+  const isLocalHost =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "::1" ||
+    parsed.hostname.endsWith(".localhost");
+
+  if (process.env.NODE_ENV === "production" && (parsed.protocol !== "https:" || isLocalHost)) {
+    throw new Error("Google OAuth requires the public HTTPS application URL in production.");
+  }
+
+  return parsed.origin;
+}
+
 export function getGoogleOAuthConfig(): GoogleOAuthConfig {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() || "";
+  const canonicalRedirectUri = new URL(
+    "/api/auth/google/callback",
+    getPublicApplicationOrigin()
+  ).toString();
+  // In production the app's configured public origin is authoritative. This
+  // prevents a stale GOOGLE_REDIRECT_URI secret from sending users to localhost.
   const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI?.trim() ||
-    `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/auth/google/callback`;
+    process.env.NODE_ENV === "production"
+      ? canonicalRedirectUri
+      : process.env.GOOGLE_REDIRECT_URI?.trim() || canonicalRedirectUri;
 
   const encryptionSecret = process.env.GMAIL_TOKEN_ENCRYPTION_KEY?.trim() || process.env.AUTH_SECRET?.trim();
   const authSecret = process.env.AUTH_SECRET?.trim();

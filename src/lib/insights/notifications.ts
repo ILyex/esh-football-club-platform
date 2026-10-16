@@ -20,6 +20,8 @@ const NOTIFIABLE_TYPES: Partial<Record<InsightType, { notificationType: string; 
   CONTRACT_EXPIRING: { notificationType: "CONTRACT_EXPIRING", requiredPermission: "contracts.view" },
   CONTRACT_EXPIRED: { notificationType: "CONTRACT_EXPIRED", requiredPermission: "contracts.manage" },
   PLAYER_MISSING_DOCUMENTS: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.update" },
+  PLAYER_MEDICAL_DOCUMENTS_MISSING: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "medical.records.view" },
+  MEDICAL_DOCUMENT_AI_REVIEW: { notificationType: "DOCUMENT_PENDING_REVIEW", requiredPermission: "medical.records.manage" },
   PLAYER_NOT_INSURED: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
   PLAYER_INSURANCE_EXPIRING: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
   PLAYER_INSURANCE_EXPIRED: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
@@ -54,6 +56,8 @@ function formatTitle(insight: Insight): string {
       return `Contrat de ${p.name} — expiré`;
     case "PLAYER_MISSING_DOCUMENTS":
       return `Aucun document pour ${p.name}`;
+    case "PLAYER_MEDICAL_DOCUMENTS_MISSING":
+      return `Dossier médical incomplet — ${p.name}`;
     case "PLAYER_NOT_INSURED":
       return `Le joueur ${p.name} n'est pas assuré pour la saison`;
     case "PLAYER_INSURANCE_EXPIRING":

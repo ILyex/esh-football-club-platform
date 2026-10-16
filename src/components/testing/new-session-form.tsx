@@ -313,7 +313,10 @@ export function NewSessionForm({
                 label={isAr ? "تاريخ وتوقيت الاختبار" : "Date & Heure"}
                 required
                 value={date}
-                onChange={(_, iso) => setDate(iso || "")}
+                onChange={(draft, iso) => {
+                  if (iso) setDate(iso);
+                  else if (!draft) setDate("");
+                }}
                 locale={locale}
               />
             </div>

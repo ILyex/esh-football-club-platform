@@ -22,6 +22,23 @@ export interface DateTimeInputProps {
   locale?: string;
 }
 
+function getAlgeriaDateTimeParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Algiers",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    dateStr: `${values.day}/${values.month}/${values.year}`,
+    timeStr: `${values.hour}:${values.minute}`
+  };
+}
+
 /**
  * Universal DateTime Input: Combines DD/MM/YYYY DateInput with 24-Hour HH:mm TimeInput.
  * Emits unified ISO string to Server Actions and displays DD/MM/YYYY clearly.
@@ -46,13 +63,14 @@ export function DateTimeInput({
     const raw = value || defaultValue;
     if (!raw) return { dateStr: "", timeStr: "00:00" };
     if (raw instanceof Date) {
-      const dmy = parseISOToDMY(raw);
-      const hours = String(raw.getHours()).padStart(2, "0");
-      const minutes = String(raw.getMinutes()).padStart(2, "0");
-      return { dateStr: dmy, timeStr: `${hours}:${minutes}` };
+      return getAlgeriaDateTimeParts(raw);
     }
     const str = String(raw).trim();
     if (str.includes("T")) {
+      if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(str)) {
+        const instant = new Date(str);
+        if (Number.isFinite(instant.getTime())) return getAlgeriaDateTimeParts(instant);
+      }
       const [dPart, tPart] = str.split("T");
       return {
         dateStr: parseISOToDMY(dPart),
@@ -85,14 +103,19 @@ export function DateTimeInput({
     if (!isValidDMY(dStr)) return null;
     const isoDate = parseDMYToISO(dStr);
     const cleanTime = tStr && /^\d{2}:\d{2}$/.test(tStr) ? tStr : "00:00";
-    return `${isoDate}T${cleanTime}:00`;
+    // Match times are entered and displayed in Algeria (UTC+01 year-round).
+    // Include the offset so Cloudflare's UTC runtime stores the same kickoff.
+    return `${isoDate}T${cleanTime}:00+01:00`;
   };
 
   const handleDateChange = (newDate: string) => {
     setDatePart(newDate);
     const iso = computeIso(newDate, timePart);
     if (onChange) {
-      onChange(`${newDate} ${timePart}`, iso);
+      // A fully cleared date must be distinguishable from an incomplete
+      // draft so controlled parents can clear their saved value without
+      // resetting the field on every keystroke.
+      onChange(newDate ? `${newDate} ${timePart}` : "", iso);
     }
   };
 

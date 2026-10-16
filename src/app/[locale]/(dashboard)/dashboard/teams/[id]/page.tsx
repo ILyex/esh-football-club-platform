@@ -26,6 +26,17 @@ export default async function TeamEditPage({
   const team = await db.team.findUnique({ where: { id } });
   if (!team) notFound();
 
+  // Team rows represent the four canonical categories. Their stored labels may
+  // have been entered in Arabic, so use the locale catalog when editing them
+  // in French instead of showing Arabic text inside an otherwise French form.
+  const localizedCategoryName = t(`categories.${team.category}` as any);
+  const frenchTeamName = localizedClubName(
+    team.name,
+    locale,
+    `Espoir Sidi Hosni — ${localizedCategoryName}`
+  );
+  const frenchShortName = localizedClubName(team.shortName, locale, localizedCategoryName);
+
   async function update(formData: FormData) {
     "use server";
     try {
@@ -59,11 +70,11 @@ export default async function TeamEditPage({
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="team-name" className="mb-1.5 block text-xs font-semibold text-foreground">{t("fields.name")}</label>
-          <input id="team-name" name="name" defaultValue={team.name} maxLength={80} required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          <input id="team-name" name="name" defaultValue={locale === "fr" ? frenchTeamName : team.name} maxLength={80} required className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
         </div>
         <div>
           <label htmlFor="team-short-name" className="mb-1.5 block text-xs font-semibold text-foreground">{t("fields.shortName")}</label>
-          <input id="team-short-name" name="shortName" defaultValue={team.shortName ?? ""} maxLength={40} className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          <input id="team-short-name" name="shortName" defaultValue={locale === "fr" ? frenchShortName : team.shortName ?? ""} maxLength={40} className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
         </div>
         <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3.5 text-sm transition-colors hover:bg-muted/40">
           <span className="font-medium text-foreground">{t("fields.active")}</span>

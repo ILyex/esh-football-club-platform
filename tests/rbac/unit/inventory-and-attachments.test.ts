@@ -44,12 +44,13 @@ test("inventoryItemSchema: rejects empty item name", () => {
   assert.equal(result.success, false);
 });
 
-test("inventoryItemSchema: rejects 0 or negative quantity", () => {
+test("inventoryItemSchema: accepts zero stock but rejects negative quantity", () => {
   const resultZero = inventoryItemSchema.safeParse({
     name: "Plot de cônes",
     quantity: 0
   });
-  assert.equal(resultZero.success, false);
+  assert.equal(resultZero.success, true);
+  if (resultZero.success) assert.equal(resultZero.data.quantity, 0);
 
   const resultNeg = inventoryItemSchema.safeParse({
     name: "Plot de cônes",

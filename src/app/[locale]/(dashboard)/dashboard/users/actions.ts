@@ -58,7 +58,6 @@ export async function createUserAction(formData: FormData) {
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
   }
-
   const existing = await db.user.findUnique({ where: { email: parsed.email.toLowerCase() } });
   if (existing) throw new Error("emailTaken");
 
@@ -99,6 +98,10 @@ export async function updateUserAction(userId: string, formData: FormData) {
   const selectedRole = await db.role.findUniqueOrThrow({ where: { id: parsed.roleId }, select: { key: true } });
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
+  }
+  if (selectedRole.key === "coach") {
+    const existingTeamAssignments = await db.userTeam.count({ where: { userId: targetUserId } });
+    if (existingTeamAssignments > 1) throw new Error("coachMustHaveOneTeam");
   }
 
   if (parsed.email.toLowerCase() !== before.email) {
@@ -281,9 +284,20 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
   const parsed = teamAssignmentSchema.parse(raw);
 
-  await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
+  const targetUser = await db.user.findFirstOrThrow({
+    where: { id: targetUserId, deletedAt: null },
+    select: { id: true, role: { select: { key: true } } }
+  });
 
   await db.$transaction(async (tx) => {
+    if (targetUser.role.key === "coach") {
+      const existingTeamAssignments = await tx.userTeam.count({ where: { userId: targetUserId } });
+      const alreadyAssigned = await tx.userTeam.findUnique({
+        where: { userId_teamId: { userId: targetUserId, teamId: parsed.teamId } },
+        select: { teamId: true }
+      });
+      if (existingTeamAssignments > 0 && !alreadyAssigned) throw new Error("coachMustHaveOneTeam");
+    }
     await tx.userTeam.upsert({
       where: { userId_teamId: { userId: targetUserId, teamId: parsed.teamId } },
       create: { userId: targetUserId, teamId: parsed.teamId },

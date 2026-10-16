@@ -37,7 +37,8 @@ export async function createAnnouncementAction(formData: FormData) {
   const imageUrl = uploadedUrls[0] ?? null;
   const imageUrls = uploadedUrls;
 
-  const announcement = await db.announcement.create({
+  const announcement = await db.$transaction(async (tx) => {
+    const created = await tx.announcement.create({
     data: {
       priority: parsed.priority,
       teamId: parsed.teamId || null,
@@ -55,14 +56,15 @@ export async function createAnnouncementAction(formData: FormData) {
         ]
       }
     }
-  });
-
-  await writeAuditLog({
+    });
+    await writeAuditLog({
     userId: user.id,
     action: "announcement.create",
     entityType: "Announcement",
-    entityId: announcement.id,
+    entityId: created.id,
     changes: { after: parsed }
+    }, tx);
+    return created;
   });
   revalidatePath("/[locale]/dashboard/announcements", "page");
   revalidatePath("/[locale]", "page"); // homepage announcements section
@@ -81,15 +83,12 @@ export async function updateAnnouncementAction(announcementId: string, formData:
   const newUploadedUrls = await extractAllImages(formData);
   const removedImages = formData.getAll("removedImages").map(String);
 
-  for (const removedUrl of removedImages) {
-    await deletePublicFile(removedUrl).catch(() => {});
-  }
-
   const remainingImages = (before.imageUrls || []).filter((u) => !removedImages.includes(u));
   const combinedImageUrls = [...remainingImages, ...newUploadedUrls];
   const newImageUrl = combinedImageUrls[0] ?? (newUploadedUrls[0] ?? before.imageUrl);
 
-  const announcement = await db.announcement.update({
+  const announcement = await db.$transaction(async (tx) => {
+    const updated = await tx.announcement.update({
     where: { id: announcementId },
     data: {
       priority: parsed.priority,
@@ -115,15 +114,19 @@ export async function updateAnnouncementAction(announcementId: string, formData:
         ]
       }
     }
-  });
-
-  await writeAuditLog({
+    });
+    await writeAuditLog({
     userId: user.id,
     action: "announcement.update",
     entityType: "Announcement",
-    entityId: announcement.id,
+    entityId: updated.id,
     changes: { before, after: parsed }
+    }, tx);
+    return updated;
   });
+  for (const removedUrl of removedImages) {
+    await deletePublicFile(removedUrl).catch(() => {});
+  }
   revalidatePath("/[locale]/dashboard/announcements", "page");
   revalidatePath("/[locale]", "page");
   return { id: announcement.id };
@@ -135,9 +138,10 @@ export async function archiveAnnouncementAction(announcementId: string) {
   const before = await db.announcement.findUniqueOrThrow({ where: { id: announcementId } });
   assertTeamScope(scopeContext, before.teamId, "Announcement");
 
-  const announcement = await db.announcement.update({ where: { id: announcementId }, data: { status: "ARCHIVED" } });
-
-  await writeAuditLog({ userId: user.id, action: "announcement.archive", entityType: "Announcement", entityId: announcement.id });
+  await db.$transaction(async (tx) => {
+    const announcement = await tx.announcement.update({ where: { id: announcementId }, data: { status: "ARCHIVED" } });
+    await writeAuditLog({ userId: user.id, action: "announcement.archive", entityType: "Announcement", entityId: announcement.id }, tx);
+  });
   revalidatePath("/[locale]/dashboard/announcements", "page");
   revalidatePath("/[locale]", "page");
 }
@@ -148,16 +152,14 @@ export async function setAnnouncementStatusAction(announcementId: string, status
   const before = await db.announcement.findUniqueOrThrow({ where: { id: announcementId } });
   assertTeamScope(scopeContext, before.teamId, "Announcement");
 
-  await db.announcement.update({
-    where: { id: announcementId },
-    data: { status }
-  });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: `announcement.${status === "PUBLISHED" ? "publish" : "hide"}`,
-    entityType: "Announcement",
-    entityId: announcementId
+  await db.$transaction(async (tx) => {
+    await tx.announcement.update({ where: { id: announcementId }, data: { status } });
+    await writeAuditLog({
+      userId: user.id,
+      action: `announcement.${status === "PUBLISHED" ? "publish" : "hide"}`,
+      entityType: "Announcement",
+      entityId: announcementId
+    }, tx);
   });
 
   revalidatePath("/[locale]/dashboard/announcements", "page");
@@ -170,19 +172,18 @@ export async function deleteAnnouncementAction(announcementId: string) {
   const before = await db.announcement.findUniqueOrThrow({ where: { id: announcementId } });
   assertTeamScope(scopeContext, before.teamId, "Announcement");
 
-  if (before.imageUrl) await deletePublicFile(before.imageUrl).catch(() => {});
-  for (const u of before.imageUrls || []) {
-    await deletePublicFile(u).catch(() => {});
-  }
-
-  await db.announcement.delete({ where: { id: announcementId } });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "announcement.delete",
-    entityType: "Announcement",
-    entityId: announcementId
+  await db.$transaction(async (tx) => {
+    await tx.announcement.delete({ where: { id: announcementId } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "announcement.delete",
+      entityType: "Announcement",
+      entityId: announcementId
+    }, tx);
   });
+  for (const url of new Set([before.imageUrl, ...(before.imageUrls || [])].filter((value): value is string => Boolean(value)))) {
+    await deletePublicFile(url).catch(() => {});
+  }
 
   revalidatePath("/[locale]/dashboard/announcements", "page");
   revalidatePath("/[locale]", "page");

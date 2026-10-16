@@ -28,5 +28,37 @@ export default {
     if (!response.ok) {
       throw new Error(`Scheduled jobs endpoint failed with HTTP ${response.status}.`);
     }
+  },
+
+  async queue(batch, env, _ctx) {
+    if (!env.CRON_SECRET) {
+      batch.retryAll({ delaySeconds: 60 });
+      return;
+    }
+
+    for (const message of batch.messages) {
+      try {
+        const response = await nextWorker.fetch(
+          new Request("https://internal.invalid/api/internal/push/process", {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${env.CRON_SECRET}`,
+              "content-type": "application/json"
+            },
+            body: JSON.stringify(message.body)
+          }),
+          env,
+          _ctx
+        );
+        if (!response.ok) {
+          message.retry({ delaySeconds: Math.min(300, 10 * message.attempts) });
+        } else {
+          message.ack();
+        }
+      } catch (error) {
+        console.error("[MatchPush] Internal queue dispatch failed.", error);
+        message.retry({ delaySeconds: Math.min(300, 10 * message.attempts) });
+      }
+    }
   }
 };

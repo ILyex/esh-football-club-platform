@@ -74,12 +74,19 @@ export default async function TeamCategoryPage({
   );
 
   const categoryImages: Record<string, string> = {
-    senior: "/branding/teams/team-senior.png",
-    u20: "/branding/teams/team-u20.png",
-    u17: "/branding/teams/team-u17.png",
-    u15: "/branding/teams/team-u15.png"
+    senior: "/branding/teams/category-senior.jpg",
+    u20: "/branding/teams/category-u20.jpg",
+    u17: "/branding/teams/category-u17.jpg",
+    u15: "/branding/teams/category-u15.jpg"
   };
   const catImg = categoryImages[categorySlug];
+  const categoryVideos: Record<string, string> = {
+    senior: "/branding/teams/category-senior.mp4",
+    u20: "/branding/teams/category-u20.mp4",
+    u17: "/branding/teams/category-u17.mp4",
+    u15: "/branding/teams/category-u15.mp4"
+  };
+  const catVideo = categoryVideos[categorySlug];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
@@ -99,7 +106,7 @@ export default async function TeamCategoryPage({
             >
               <UsersRound className="me-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span className="sm:hidden">
-                {t.category === "SENIOR" ? (locale === "ar" ? "الأكابر" : "Senior") : t.category}
+                {tTeams(`categories.${t.category}` as any) || t.category}
               </span>
               <span className="hidden sm:inline">
                 {tTeams(`categories.${t.category}` as any) || t.category}
@@ -121,13 +128,22 @@ export default async function TeamCategoryPage({
       />
 
       {/* Category Banner Hero */}
-      {catImg && (
+      {catVideo && (
         <div className="group relative mx-auto mt-6 aspect-[2/1] w-full max-w-5xl overflow-hidden rounded-3xl border border-border/80 shadow-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={catImg}
-            alt={categoryDisplayName}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+          <video
+            src={catVideo}
+            poster={catImg}
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            disablePictureInPicture
+            disableRemotePlayback
+            preload="metadata"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="pointer-events-none h-full w-full object-cover"
           />
         </div>
       )}

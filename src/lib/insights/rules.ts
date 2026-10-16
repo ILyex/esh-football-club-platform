@@ -12,7 +12,6 @@ import {
   expenseDisagreesWithBudget,
   expensePaymentIssue
 } from "./finance-rules";
-import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
 
 // ============================================================================
 // DETERMINISTIC INSIGHTS ENGINE
@@ -41,6 +40,8 @@ export type InsightType =
   | "CONTRACT_EXPIRING"
   | "CONTRACT_EXPIRED"
   | "PLAYER_MISSING_DOCUMENTS"
+  | "PLAYER_MEDICAL_DOCUMENTS_MISSING"
+  | "MEDICAL_DOCUMENT_AI_REVIEW"
   | "PLAYER_NOT_INSURED"
   | "PLAYER_INSURANCE_EXPIRING"
   | "PLAYER_INSURANCE_EXPIRED"
@@ -164,6 +165,7 @@ export async function computeInsights(options?: {
     select: {
       id: true, firstName: true, lastName: true, teamId: true, dateOfBirth: true,
       documents: { select: { id: true, name: true, description: true, documentDate: true, createdAt: true, category: { select: { name: true, key: true } } } },
+      medicalRecords: { select: { type: true, status: true, documentId: true, expiresAt: true, document: { select: { status: true } } } },
       team: { select: { category: true, birthYearFrom: true, birthYearTo: true } }
     }
   }) : [];
@@ -183,44 +185,23 @@ export async function computeInsights(options?: {
       });
     }
 
-    const insuranceEval = evaluatePlayerInsurance(p.documents, now);
-    if (!insuranceEval.document) {
+    const requiredMedicalTypes = ["MEDICAL_CLEARANCE", "DRUG_TEST_RESULT", "LAB_ANALYSIS"];
+    const missingMedicalDocument = requiredMedicalTypes.some((type) => !p.medicalRecords.some((record) => record.type === type && !!record.documentId));
+    if (missingMedicalDocument) {
       insights.push({
-        id: `player:${p.id}:not-insured`,
-        type: "PLAYER_NOT_INSURED",
+        id: `player:${p.id}:missing-medical-documents`,
+        type: "PLAYER_MEDICAL_DOCUMENTS_MISSING",
         category: "attention",
-        severity: "critical",
+        severity: "warning",
         entityType: "Player",
         entityId: p.id,
         teamId: p.teamId,
         params: { name },
-        link: `/dashboard/insurance`
-      });
-    } else if (insuranceEval.isExpired) {
-      insights.push({
-        id: `player:${p.id}:insurance-expired`,
-        type: "PLAYER_INSURANCE_EXPIRED",
-        category: "attention",
-        severity: "critical",
-        entityType: "Player",
-        entityId: p.id,
-        teamId: p.teamId,
-        params: { name },
-        link: `/dashboard/insurance`
-      });
-    } else if (insuranceEval.isExpiringSoon && insuranceEval.daysRemaining !== null) {
-      insights.push({
-        id: `player:${p.id}:insurance-expiring`,
-        type: "PLAYER_INSURANCE_EXPIRING",
-        category: "attention",
-        severity: insuranceEval.daysRemaining <= 10 ? "critical" : "warning",
-        entityType: "Player",
-        entityId: p.id,
-        teamId: p.teamId,
-        params: { name, days: insuranceEval.daysRemaining },
-        link: `/dashboard/insurance`
+        link: `/dashboard/medical-records/${p.id}`,
+        requiredPermission: "medical.records.view"
       });
     }
+
     if (includeDataQuality && !p.teamId) {
       insights.push({
         id: `player:${p.id}:missing-team`,

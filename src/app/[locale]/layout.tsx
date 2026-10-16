@@ -15,6 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
   return {
     title: name,
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "ESH" },
     icons: {
       icon: [
         { url: "/branding/esh-logo-32.png", sizes: "32x32", type: "image/png" },
@@ -53,6 +55,36 @@ export default async function LocaleLayout({
     // RTL branching logic.
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              var key='esh:client-recovery';
+              function maybeRecover(event){
+                var target=event&&event.target;
+                var url=target instanceof HTMLScriptElement?target.src:target instanceof HTMLLinkElement?target.href:'';
+                var error=event&&event.error;
+                var text=[error&&error.name,error&&error.message,event&&event.message,url].filter(Boolean).join(' ');
+                if(!(/ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed|_next\/static\/(?:chunks|css)/i.test(text)||/Minified React error #(?:418|423|425)\b/.test(text)))return;
+                try{
+                  var now=Date.now();
+                  var saved=JSON.parse(sessionStorage.getItem(key)||'null');
+                  var recent=saved&&typeof saved.startedAt==='number'&&now-saved.startedAt<60000;
+                  var count=recent?Number(saved.count||0):0;
+                  if(count>=3)return;
+                  sessionStorage.setItem(key,JSON.stringify({count:count+1,startedAt:recent?saved.startedAt:now}));
+                  window.location.reload();
+                }catch(e){}
+              }
+              window.addEventListener('error',maybeRecover,true);
+              window.addEventListener('unhandledrejection',function(event){
+                var reason=event&&event.reason;
+                var text=reason&&reason.message?reason.name+' '+reason.message:String(reason||'');
+                if(/ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed|_next\/static\/(?:chunks|css)/i.test(text))maybeRecover({message:text,error:reason});
+              });
+              window.addEventListener('load',function(){window.setTimeout(function(){try{sessionStorage.removeItem(key)}catch(e){}},20000)},{once:true});
+            })()`
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){

@@ -332,7 +332,8 @@ export function UpcomingMatchesCarousel({
             const shortMatchDate = new Intl.DateTimeFormat(locale, {
               weekday: "short",
               day: "numeric",
-              month: "short"
+              month: "short",
+              timeZone: "Africa/Algiers"
             }).format(mDate);
             const mCancelled = m.status === "CANCELLED";
             const mClockState = getMatchClockState(

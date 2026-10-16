@@ -84,6 +84,12 @@ async function getLocalClient(): Promise<PrismaClient> {
 async function getClient(): Promise<PrismaClient> {
   const isDevelopment = process.env.NODE_ENV !== "production";
 
+  // Deno Deploy runs the Node-compatible Prisma PostgreSQL adapter directly;
+  // it has no OpenNext/Cloudflare request context.
+  if (process.env.DENO_DEPLOY === "true" || process.env.DEPLOY_TARGET === "deno") {
+    return getLocalClient();
+  }
+
   // A standalone Node/cPanel process can contain OpenNext preview artefacts
   // from a previous Cloudflare build. Never ask for a Worker request context
   // in that runtime; use the regular PostgreSQL adapter instead.

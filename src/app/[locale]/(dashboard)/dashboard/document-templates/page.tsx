@@ -31,7 +31,7 @@ export default async function DocumentTemplatesListPage({ params }: { params: Pr
         locale={locale}
         canViewDocuments={hasPermission(user, "documents.view")}
         canViewContracts={hasPermission(user, "contracts.view")}
-        canViewInsurance={hasPermission(user, "documents.view")}
+        canViewMedicalRecords={hasPermission(user, "medical.records.view")}
         canViewCorrespondence={hasPermission(user, "correspondence.view")}
         canViewMeetings={hasPermission(user, "meetings.view")}
         canViewTemplates={true}

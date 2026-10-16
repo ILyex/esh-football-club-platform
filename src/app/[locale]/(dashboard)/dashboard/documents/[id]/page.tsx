@@ -25,13 +25,13 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
 
   const document = await db.document.findUnique({
     where: { id },
-    include: { category: true, team: true, relatedPlayer: true, relatedStaff: true, relatedMatch: true, uploadedBy: true }
+    include: { category: true, team: true, relatedPlayer: true, relatedStaff: true, relatedMatch: true, uploadedBy: true, medicalRecord: { select: { id: true } } }
   });
   if (!document) notFound();
   // Same choke point as the list query and the download API route — a
   // direct-by-ID visit can never bypass classification (spec: never access
   // another team's restricted information merely by changing an ID in a URL).
-  if (!hasPermission(user, requiredPermissionForDocument(document.classification))) notFound();
+  if (document.medicalRecord ? !hasPermission(user, "medical.records.view") : !hasPermission(user, requiredPermissionForDocument(document.classification))) notFound();
 
   // Team-scope authorization check
   const scopeContext = await getMutationScopeContext();

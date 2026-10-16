@@ -9,7 +9,8 @@ const environment = {
   AI_PROVIDER: "cloudflare",
   AI_MODEL: "@cf/google/gemma-4-26b-a4b-it",
   AI_VISION_MODEL: "@cf/google/gemma-4-26b-a4b-it",
-  NEXT_PUBLIC_AI_ENABLED: "true"
+  NEXT_PUBLIC_AI_ENABLED: "true",
+  NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID ?? `cf-${Date.now().toString(36)}`
 };
 
 function run(command, args) {

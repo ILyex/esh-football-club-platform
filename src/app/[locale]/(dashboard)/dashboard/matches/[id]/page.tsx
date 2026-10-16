@@ -139,7 +139,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   async function update(formData: FormData) {
     "use server";
     try {
-      await updateMatchAction(id, formData);
+      return await updateMatchAction(id, formData);
     } catch (error) {
       console.error("[Match] update failed", error);
       return getMatchFormError(error, locale);

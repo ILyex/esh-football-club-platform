@@ -8,7 +8,7 @@ const withoutWorker = source.replace(/\ngenerator clientWorker \{[\s\S]*?\n\}\n\
 const mysql = withoutWorker
   .replace(/(generator client\s*\{)([\s\S]*?)(\r?\n\})/, (_match, start, body, end) => {
     const clientBody = body.replace(/^\s*output\s*=.*\r?\n/gm, "");
-    return start + clientBody + '\n  output = "../.generated/prisma-mysql"' + end;
+    return `${start}${clientBody}\n  output = "../.generated/prisma-mysql"${end}`;
   })
   .replace(/(datasource db\s*\{[\s\S]*?\bprovider\s*=\s*)"postgresql"/, '$1"mysql"')
   .replace(/String\[\]/g, "Json")

@@ -21,7 +21,10 @@
     "close": "Fermer",
     "images": "Images",
     "view": "Voir",
-    "remove": "Retirer"
+    "remove": "Retirer",
+    "nextPage": "Page suivante",
+    "previousPage": "Page précédente",
+    "pageOf": "Page {page} / {pages}"
   },
   "nav": {
     "home": "Accueil",
@@ -72,6 +75,7 @@
       "documents": "Archives des documents",
       "contracts": "Contrats et conventions",
       "insurance": "Assurance Sportive",
+      "medicalRecords": "Dossiers médicaux des joueurs",
       "correspondence": "Correspondances et recours",
       "meetingMinutes": "Procès-verbaux",
       "reports": "Rapports",
@@ -787,6 +791,7 @@
     "CONTRACT_EXPIRING": "Le contrat de {name} expire dans {days} jours",
     "CONTRACT_EXPIRED": "Le contrat de {name} a expiré et n'a pas été mis à jour",
     "PLAYER_MISSING_DOCUMENTS": "Aucun document téléversé pour {name}",
+    "PLAYER_MEDICAL_DOCUMENTS_MISSING": "Il manque un document d’aptitude, de dépistage ou d’analyses dans le dossier médical de {name}.",
     "PLAYER_NOT_INSURED": "Le joueur {name} n'est pas assuré pour la saison ou son attestation d'assurance est manquante",
     "PLAYER_INSURANCE_EXPIRING": "L'assurance sportive de {name} expire dans {days} jours",
     "PLAYER_INSURANCE_EXPIRED": "L'assurance sportive de {name} a expiré et nécessite un renouvellement immédiat",
@@ -806,6 +811,8 @@
       "CONTRACT_EXPIRING": "Le contrat de {name} expire dans {days} jours",
       "CONTRACT_EXPIRED": "Le contrat de {name} a expiré et n'a pas été mis à jour",
       "PLAYER_MISSING_DOCUMENTS": "Aucun document téléversé pour {name}",
+      "PLAYER_MEDICAL_DOCUMENTS_MISSING": "Il manque un document d’aptitude, de dépistage ou d’analyses dans le dossier médical de {name}.",
+      "MEDICAL_DOCUMENT_AI_REVIEW": "Alerte IA : un document médical de {name} présente une incohérence ou un élément nécessitant un avis spécialisé.",
       "PLAYER_NOT_INSURED": "Le joueur {name} n'est pas assuré pour la saison ou son attestation d'assurance est manquante",
       "PLAYER_INSURANCE_EXPIRING": "L'assurance sportive de {name} expire dans {days} jours",
       "PLAYER_INSURANCE_EXPIRED": "L'assurance sportive de {name} a expiré et nécessite un renouvellement immédiat",
@@ -828,6 +835,8 @@
       "CONTRACT_EXPIRING": "Contrats bientôt expirés",
       "CONTRACT_EXPIRED": "Contrats expirés non mis à jour",
       "PLAYER_MISSING_DOCUMENTS": "Joueurs sans document",
+      "PLAYER_MEDICAL_DOCUMENTS_MISSING": "Dossiers médicaux à compléter",
+      "MEDICAL_DOCUMENT_AI_REVIEW": "Documents médicaux à vérifier par un spécialiste",
       "PLAYER_NOT_INSURED": "Joueurs non assurés",
       "PLAYER_INSURANCE_EXPIRING": "Assurances sportives bientôt expirées",
       "PLAYER_INSURANCE_EXPIRED": "Assurances sportives expirées",
@@ -1337,6 +1346,7 @@
     "clubWide": "Général club",
     "allCategories": "Toutes les catégories",
     "allConditions": "Tous les états",
+    "paginationSummary": "Affichage de {from} à {to} sur {total} articles",
     "searchPlaceholder": "Rechercher par nom ou emplacement...",
     "noItemsFound": "Aucun équipement trouvé",
     "noItemsHint": "Vous pouvez ajouter un équipement ou modifier les filtres ci-dessus.",
@@ -1371,8 +1381,10 @@
       "NEW": "Neuf",
       "GOOD": "Bon état",
       "FAIR": "État moyen",
+      "OLD": "Ancien",
       "POOR": "Usé",
-      "DAMAGED": "Endommagé"
+      "DAMAGED": "Endommagé",
+      "UNSPECIFIED": "Non précisé dans le registre"
     }
   },
   "testing": {

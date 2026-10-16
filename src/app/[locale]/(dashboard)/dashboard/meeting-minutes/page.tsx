@@ -54,7 +54,7 @@ export default async function MeetingMinutesListPage({
         locale={locale}
         canViewDocuments={hasPermission(user, "documents.view")}
         canViewContracts={canViewContracts}
-        canViewInsurance={hasPermission(user, "documents.view")}
+        canViewMedicalRecords={hasPermission(user, "medical.records.view")}
         canViewCorrespondence={canViewCorrespondence}
         canViewMeetings={true}
         canViewTemplates={hasPermission(user, "templates.view")}

@@ -48,6 +48,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
 
   const assignedTeamIds = new Set(user.teamAssignments.map((a) => a.teamId));
   const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
+  const isSingleTeamCoach = user.role.key === "coach";
 
   // Inline server wrappers required by Next.js for form actions that close
   // over `id` from params — they cannot be directly bound in JSX.
@@ -235,7 +236,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
             </ul>
           )}
 
-          {unassignedTeams.length > 0 && (
+          {unassignedTeams.length > 0 && !(isSingleTeamCoach && user.teamAssignments.length > 0) && (
             <form action={addTeam} className="rounded-xl border border-dashed border-club-primary/35 bg-club-primary/[0.035] p-4">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-foreground">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary">
@@ -258,6 +259,14 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
                 </Button>
               </div>
             </form>
+          )}
+
+          {isSingleTeamCoach && user.teamAssignments.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {locale === "ar"
+                ? "حساب المدرب مرتبط بفئة واحدة فقط. غيّر الفئة بإزالة الإسناد الحالي أولًا."
+                : "Un compte entraîneur est limité à une seule catégorie. Retirez l’équipe actuelle avant d’en attribuer une autre."}
+            </p>
           )}
 
         {/* Contextual note about the role's team-scope setting */}

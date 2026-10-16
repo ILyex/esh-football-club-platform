@@ -1,7 +1,6 @@
 import "server-only";
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 // ============================================================================
 // PHASE 13 — PRODUCTION HEALTH & READINESS PROBE
@@ -47,6 +46,10 @@ export async function GET(req: NextRequest) {
 
   try {
     // Quick ping to PostgreSQL with bounded timeout
+    // Keep the liveness probe independent of Prisma initialization. On
+    // Cloudflare, importing the database adapter into every cold isolate can
+    // exceed the Worker CPU budget even when this branch never queries it.
+    const { db } = await import("@/lib/db");
     await Promise.race([
       db.$queryRaw`SELECT 1`,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Database ping timeout")), 4000))

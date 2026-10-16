@@ -63,13 +63,53 @@ export function InventoryPreviewModal({
     NEW: isAr ? "جديد ممتاز" : "Neuf",
     GOOD: isAr ? "حالة جيدة" : "Bon état",
     FAIR: isAr ? "مقبول / مستعمل" : "Passable",
+    OLD: isAr ? "قديم" : "Ancien",
     POOR: isAr ? "رديء بحاجة لتجديد" : "Mauvais état",
     DAMAGED: isAr ? "تالف غير صالح" : "Endommagé",
+    UNSPECIFIED: isAr ? "غير محدد في السجل" : "Non précisé",
     ...conditionLabels
   };
 
   const categoryKeys = ["BALLS", "KITS", "CONES_MARKERS", "GOALKEEPING", "MEDICAL", "TRAINING_AIDS", "ELECTRONICS", "OTHER"];
-
+  const pages: Array<Array<{ catKey: string; items: typeof items; startIndex: number; hasCategoryTotal: boolean }>> = [[]];
+  let pageUnits = 0;
+  const populatedCategories = categoryKeys
+    .map((catKey) => ({ catKey, items: items.filter((item) => item.category === catKey) }))
+    .filter((category) => category.items.length > 0);
+  populatedCategories.forEach(({ catKey, items: categoryItems }, categoryIndex) => {
+    let startIndex = 0;
+    while (startIndex < categoryItems.length) {
+      const isFinalCategory = categoryIndex === populatedCategories.length - 1;
+      const pageCapacity = pages.length === 1 ? 28 : 34;
+      let availableUnits = pageCapacity - pageUnits;
+      if (availableUnits < 3) {
+        pages.push([]);
+        pageUnits = 0;
+        availableUnits = 34;
+      }
+      const remainingItems = categoryItems.length - startIndex;
+      if (isFinalCategory && remainingItems <= 2 && pageUnits > 0 && 8 + remainingItems > availableUnits) {
+        pages.push([]);
+        pageUnits = 0;
+        availableUnits = 34;
+      }
+      let itemCount = Math.min(remainingItems, availableUnits - 2);
+      if (itemCount === categoryItems.length - startIndex) {
+        const finishingUnits = 2 + itemCount + 1 + (isFinalCategory ? 5 : 0);
+        if (finishingUnits > availableUnits) itemCount = Math.max(1, itemCount - (finishingUnits - availableUnits));
+      }
+      const completesCategory = startIndex + itemCount === categoryItems.length;
+      const pageItems = categoryItems.slice(startIndex, startIndex + itemCount);
+      pages[pages.length - 1]?.push({
+        catKey,
+        items: pageItems,
+        startIndex,
+        hasCategoryTotal: completesCategory
+      });
+      pageUnits += pageItems.length + 2 + (completesCategory ? 1 : 0);
+      startIndex += pageItems.length;
+    }
+  });
   return (
     <>
       <Button
@@ -125,153 +165,68 @@ export function InventoryPreviewModal({
 
             {/* Printable Official Document Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/50 dark:bg-zinc-950/50 flex justify-center print:overflow-visible print:p-0 print:m-0 print:bg-white print:block">
-              <div
-                id={elementId}
-                className="printable-document inventory-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-black p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col print:shadow-none print:border-none print:max-w-none print:w-[210mm]"
-                style={{
-                  fontFamily: ESH_DOCUMENT_FONT_FAMILY,
-                  boxSizing: "border-box",
-                  direction: isAr ? "rtl" : "ltr"
-                }}
-              >
-                {/* Dedicated Visible Anti-Counterfeit Watermark Pattern Layer */}
-                <div
-                  className="pointer-events-none absolute inset-0 z-0 esh-document-watermark select-none print:hidden opacity-100"
-                  style={{
-                    backgroundImage: ESH_WATERMARK_CSS_URL,
-                    backgroundSize: "100px 50px",
-                    backgroundRepeat: "repeat"
-                  }}
-                  aria-hidden="true"
-                />
-
-                {/* Document Content */}
-                <div className="relative z-10 w-[190mm] min-w-[190mm] max-w-[190mm] space-y-4" style={{ width: "190mm", minWidth: "190mm", maxWidth: "190mm" }}>
-                  {/* Official Institutional Header */}
-                  <OfficialDocumentHeader
-                    badgeText={isAr ? "جرد العتاد" : "INVENTAIRE"}
-                    documentTitle={isAr ? "جرد العتاد والمعدات الرياضية" : "INVENTAIRE DU MATÉRIEL SPORTIF"}
-                    referenceNumber={`INV-${new Date().getFullYear()}-001-ESH`}
-                    date={new Date()}
-                    locale={locale}
-                    className="mb-2"
-                  />
-
-                  {/* Items Grouped by Category */}
-                  <div className="space-y-5 text-black">
-                    {categoryKeys.map((catKey) => {
-                      const catItems = items.filter((it) => it.category === catKey);
-                      if (catItems.length === 0) return null;
-                      const catTotal = catItems.reduce((acc, it) => acc + it.quantity, 0);
-
-                      return (
-                        <div
-                          key={catKey}
-                          className="category-section space-y-2"
-                          style={{ pageBreakInside: "auto", breakInside: "auto" }}
-                        >
-                          {/* Category Header */}
-                          <div
-                            className="category-header flex items-center justify-between bg-zinc-100 px-3 py-1.5 text-black"
-                            style={{ pageBreakAfter: "avoid", breakAfter: "avoid" }}
-                          >
-                            <div className="font-bold text-[13px] sm:text-[14px] text-black uppercase tracking-wider flex items-center gap-2">
-                              <span>{defaultCategoryLabels[catKey] || catKey}</span>
+              <div id={elementId} className="printable-document inventory-list-document mx-auto flex w-[210mm] shrink-0 flex-col gap-6 text-start text-black" style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, direction: isAr ? "rtl" : "ltr" }}>
+                {pages.map((pageSections, pageIndex) => {
+                  const isLastPage = pageIndex === pages.length - 1;
+                  return (
+                    <section key={pageIndex} className={`print-preview-sheet relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col border border-zinc-200 bg-white p-[10mm] shadow-xl ${isLastPage ? "" : "print-preview-sheet-break"}`} style={{ boxSizing: "border-box", backgroundColor: "white", backgroundImage: ESH_WATERMARK_CSS_URL, backgroundSize: "100px 50px", backgroundRepeat: "repeat" }}>
+                      <div className="relative z-10 flex w-full flex-1 flex-col space-y-3">
+                        {pageIndex === 0 && <OfficialDocumentHeader badgeText={isAr ? "جرد العتاد" : "INVENTAIRE"} documentTitle={isAr ? "جرد العتاد والمعدات الرياضية" : "INVENTAIRE DU MATÉRIEL SPORTIF"} referenceNumber={`INV-${new Date().getFullYear()}-001-ESH`} date={new Date()} locale={locale} className="mb-2" />}
+                        {pageSections.map(({ catKey, items: catItems, startIndex, hasCategoryTotal }) => {
+                          const allCategoryItems = items.filter((item) => item.category === catKey);
+                          const catTotal = allCategoryItems.reduce((acc, item) => acc + item.quantity, 0);
+                          return (
+                            <div key={`${catKey}-${startIndex}`} className="category-section space-y-1.5" style={{ breakInside: "auto", pageBreakInside: "auto" }}>
+                              <div className="category-header flex items-center justify-between bg-zinc-100 px-3 py-1.5 text-black" style={{ breakAfter: "avoid", pageBreakAfter: "avoid" }}>
+                                <span className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide">{defaultCategoryLabels[catKey] || catKey}</span>
+                                <span className="text-[12px] font-semibold text-zinc-700">{allCategoryItems.length} {isAr ? "أصناف" : "articles"}</span>
+                              </div>
+                              <table className="w-full border-collapse border border-zinc-300 text-start text-[11px] leading-snug text-black" style={{ width: "100%", tableLayout: "fixed" }}>
+                                <thead>
+                                  <tr className="bg-zinc-100 font-bold" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                                    <th className="border border-zinc-300 px-1.5 py-1 text-center" style={{ width: "7%" }}>#</th>
+                                    <th className="border border-zinc-300 px-2 py-1 text-start" style={{ width: "33%" }}>{isAr ? "اسم العتاد / التجهيز" : "Désignation"}</th>
+                                    <th className="border border-zinc-300 px-1.5 py-1 text-center" style={{ width: "11%" }}>{isAr ? "الكمية" : "Qté"}</th>
+                                    <th className="border border-zinc-300 px-1.5 py-1 text-center" style={{ width: "17%" }}>{isAr ? "الحالة الفنية" : "État"}</th>
+                                    <th className="border border-zinc-300 px-1.5 py-1 text-center" style={{ width: "15%" }}>{isAr ? "الموقع" : "Lieu"}</th>
+                                    <th className="border border-zinc-300 px-1.5 py-1 text-center" style={{ width: "17%" }}>{isAr ? "الفئة / العهدة" : "Affectation"}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {catItems.map((item, idx) => (
+                                    <tr key={item.id} className={(startIndex + idx) % 2 ? "bg-zinc-50/50" : "bg-white"} style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                                      <td className="border border-zinc-300 px-1.5 py-1 text-center font-mono">{startIndex + idx + 1}</td>
+                                      <td className="border border-zinc-300 px-2 py-1 font-bold">{item.name}</td>
+                                      <td className="border border-zinc-300 px-1.5 py-1 text-center font-mono font-bold">{item.quantity}</td>
+                                      <td className="border border-zinc-300 px-1.5 py-1 text-center">{defaultConditionLabels[item.condition] || item.condition}</td>
+                                      <td className="border border-zinc-300 px-1.5 py-1 text-center">{item.location || "—"}</td>
+                                      <td className="border border-zinc-300 px-1.5 py-1 text-center">{item.team?.name || (isAr ? "عام للنادي" : "Club")}</td>
+                                    </tr>
+                                  ))}
+                                  {hasCategoryTotal && <tr className="bg-zinc-100 font-bold" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                                    <td colSpan={2} className="border border-zinc-300 px-2 py-1 text-start">{isAr ? `مجموع (${defaultCategoryLabels[catKey] || catKey})` : `Total (${defaultCategoryLabels[catKey] || catKey})`}</td>
+                                    <td className="print-document-total-count border border-zinc-300 px-1.5 py-1 text-center font-mono">{catTotal}</td>
+                                    <td colSpan={3} className="border border-zinc-300 px-1.5 py-1 text-end text-[10px] text-zinc-600">{allCategoryItems.length} {isAr ? "بند مسجل" : "lignes"}</td>
+                                  </tr>}
+                                </tbody>
+                              </table>
                             </div>
-                            <span className="text-[12px] font-semibold text-zinc-700">
-                              {catItems.length} {isAr ? "أصناف" : "articles"}
-                            </span>
-                          </div>
-
-                          <table
-                            className="w-full text-start text-[12px] sm:text-[13px] border-collapse border border-zinc-300 text-black"
-                            style={{ width: "100%", tableLayout: "fixed" }}
-                          >
-                            <thead style={{ display: "table-header-group" }}>
-                              <tr
-                                className="bg-zinc-100 font-bold"
-                                style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
-                              >
-                                <th className="border border-zinc-300 px-2 py-1.5 text-center" style={{ width: "8%" }}>#</th>
-                                <th className="border border-zinc-300 px-3 py-1.5 text-start" style={{ width: "34%" }}>{isAr ? "اسم العتاد / التجهيز" : "Désignation"}</th>
-                                <th className="border border-zinc-300 px-2 py-1.5 text-center" style={{ width: "12%" }}>{isAr ? "الكمية" : "Qté"}</th>
-                                <th className="border border-zinc-300 px-2 py-1.5 text-center" style={{ width: "16%" }}>{isAr ? "الحالة الفنية" : "État"}</th>
-                                <th className="border border-zinc-300 px-2 py-1.5 text-center" style={{ width: "15%" }}>{isAr ? "الموقع" : "Lieu"}</th>
-                                <th className="border border-zinc-300 px-2 py-1.5 text-center" style={{ width: "15%" }}>{isAr ? "الفئة / العهدة" : "Affectation"}</th>
-                              </tr>
-                            </thead>
-                            <tbody style={{ display: "table-row-group" }}>
-                              {catItems.map((item, idx) => (
-                                <tr
-                                  key={item.id}
-                                  className={idx % 2 === 1 ? "bg-zinc-50/50" : "bg-white"}
-                                  style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
-                                >
-                                  <td className="border border-zinc-300 px-2 py-1.5 text-center font-mono">{idx + 1}</td>
-                                  <td className="border border-zinc-300 px-3 py-1.5 font-bold text-black">{item.name}</td>
-                                  <td className="border border-zinc-300 px-2 py-1.5 text-center font-mono font-bold text-[13px]">{item.quantity}</td>
-                                  <td className="border border-zinc-300 px-2 py-1.5 text-center font-medium">{defaultConditionLabels[item.condition] || item.condition}</td>
-                                  <td className="border border-zinc-300 px-2 py-1.5 text-center">{item.location || "—"}</td>
-                                  <td className="border border-zinc-300 px-2 py-1.5 text-center">{item.team?.name || (isAr ? "عام للنادي" : "Club")}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot style={{ display: "table-footer-group" }}>
-                              <tr
-                                className="bg-zinc-100 font-bold"
-                                style={{ pageBreakInside: "avoid", breakInside: "avoid" }}
-                              >
-                                <td colSpan={2} className="border border-zinc-300 px-3 py-1.5 text-start font-bold">
-                                  {isAr ? `مجموع (${defaultCategoryLabels[catKey] || catKey})` : `Total (${defaultCategoryLabels[catKey] || catKey})`}
-                                </td>
-                                <td className="print-document-total-count border border-zinc-300 px-2 py-1.5 text-center font-bold font-mono">
-                                  {catTotal}
-                                </td>
-                                <td colSpan={3} className="border border-zinc-300 px-2 py-1.5 text-end text-[11px] text-zinc-600">
-                                  {catItems.length} {isAr ? "بند مسجل" : "lignes"}
-                                </td>
-                              </tr>
-                            </tfoot>
+                          );
+                        })}
+                        {isLastPage && <>
+                          <table className="grand-total-section w-full border-collapse border border-zinc-300 text-[15px] leading-relaxed text-black" style={{ width: "100%", tableLayout: "fixed", breakInside: "avoid", pageBreakInside: "avoid" }}>
+                            <tbody><tr className="bg-zinc-100 font-bold"><td className="border border-zinc-300 px-3 py-2 text-start">{isAr ? "المجموع الإجمالي للقطع والمعدات المفهرسة:" : "TOTAL GÉNÉRAL DU MATÉRIEL :"}</td><td className="w-36 border border-zinc-300 px-3 py-2 text-center font-mono"><span className="print-document-total-count">{items.reduce((acc, it) => acc + it.quantity, 0)}</span> {isAr ? "قطعة" : "unités"}</td></tr></tbody>
                           </table>
-                        </div>
-                      );
-                    })}
-
-                    {/* Overall grand total */}
-                    <table
-                      className="grand-total-section w-full border-collapse border border-zinc-300 text-[18px] leading-relaxed text-black"
-                      style={{ width: "100%", tableLayout: "fixed", pageBreakInside: "avoid", breakInside: "avoid" }}
-                    >
-                      <tbody>
-                        <tr className="bg-zinc-100 font-bold">
-                          <td className="border border-zinc-300 px-4 py-2.5 text-start">
-                            {isAr ? "المجموع الإجمالي للقطع والمعدات المفهرسة:" : "TOTAL GÉNÉRAL DU MATÉRIEL :"}
-                          </td>
-                          <td className="w-40 border border-zinc-300 px-4 py-2.5 text-center font-mono">
-                            <span className="print-document-total-count">{items.reduce((acc, it) => acc + it.quantity, 0)}</span> {isAr ? "قطعة" : "unités"}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* The equipment department signs its own inventory. */}
-                  <div
-                    className="document-signatures signatures-section flex justify-end text-right pt-8 mt-6 text-black"
-                    style={{
-                      pageBreakInside: "avoid",
-                      breakInside: "avoid"
-                    }}
-                  >
-                    <div className="min-w-[220px]">
-                      <p className="font-bold text-black">
-                        {isAr ? "مسؤول العتاد" : "Le Responsable du Matériel"}
-                      </p>
-                      <div className="h-14" />
-                    </div>
-                  </div>
-
-                </div>
+                          <div className="document-signatures signatures-section mt-auto flex justify-end pt-6 text-right text-black" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}><div className="min-w-[220px]"><p className="font-bold">{isAr ? "مسؤول العتاد" : "Le Responsable du Matériel"}</p><div className="h-12" /></div></div>
+                        </>}
+                        <footer className="inventory-page-footer mt-auto flex w-full justify-between border-t border-zinc-300 pt-2 text-[11px] text-zinc-600">
+                          <span>{isAr ? "الجرد الرسمي للعتاد" : "Inventaire officiel du matériel"}</span>
+                          <span dir="ltr">{isAr ? `صفحة ${pageIndex + 1} من ${pages.length}` : `Page ${pageIndex + 1} sur ${pages.length}`}</span>
+                        </footer>
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -10,18 +10,41 @@ import { UserListActions } from "@/components/users/user-list-actions";
 import { UsersPresenceRefresh } from "@/components/users/users-presence-refresh";
 import { userDetailsHref } from "@/lib/user-route";
 
-export default async function UsersListPage({ params }: { params: Promise<{ locale: string }> }) {
+const USERS_PER_PAGE = 25;
+
+export default async function UsersListPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { locale } = await params;
+  const { page: pageParam } = await searchParams;
+  const requestedPage = Number.parseInt(pageParam ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const currentUser = await requirePagePermission("users.view", locale);
   const canTerminateSessions = hasPermission(currentUser, "users.manage") && isProgrammer(currentUser);
   const t = await getTranslations("users");
   const tCommon = await getTranslations("common");
 
-  const users = await db.user.findMany({
+  const pageUsers = await db.user.findMany({
     where: { deletedAt: null },
-    include: { role: true },
-    orderBy: { createdAt: "desc" }
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      isActive: true,
+      lastSeenAt: true,
+      role: { select: { name: true } }
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * USERS_PER_PAGE,
+    take: USERS_PER_PAGE + 1
   });
+  const hasNextPage = pageUsers.length > USERS_PER_PAGE;
+  const users = pageUsers.slice(0, USERS_PER_PAGE);
   const now = Date.now();
 
   return (
@@ -104,6 +127,21 @@ export default async function UsersListPage({ params }: { params: Promise<{ loca
           </tbody>
         </table>
       </div>
+      {(page > 1 || hasNextPage) && (
+        <nav className="flex items-center justify-between gap-3" aria-label={locale === "ar" ? "صفحات المستخدمين" : "Pages des utilisateurs"}>
+          {page > 1 ? (
+            <Link href={`/${locale}/dashboard/users?page=${page - 1}`} className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-muted">
+              {locale === "ar" ? "السابق" : "Précédent"}
+            </Link>
+          ) : <span />}
+          <span className="text-sm text-muted-foreground">{locale === "ar" ? `صفحة ${page}` : `Page ${page}`}</span>
+          {hasNextPage ? (
+            <Link href={`/${locale}/dashboard/users?page=${page + 1}`} className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-muted">
+              {locale === "ar" ? "التالي" : "Suivant"}
+            </Link>
+          ) : <span />}
+        </nav>
+      )}
     </div>
   );
 }

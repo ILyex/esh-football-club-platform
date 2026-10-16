@@ -7,6 +7,7 @@ import {
   FileText,
   Globe,
   ShieldCheck,
+  Activity,
   CheckSquare,
   Square,
   Search,
@@ -46,6 +47,7 @@ export function RolePermissionsMatrix({
 
   const icons = {
     sporting: Trophy,
+    medical: Activity,
     finance: Coins,
     governance: FileText,
     media: Globe,

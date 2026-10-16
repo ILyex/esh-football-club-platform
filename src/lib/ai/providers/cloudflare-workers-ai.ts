@@ -8,6 +8,44 @@ const DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 type WorkersAIBinding = { run(model: string, input: Record<string, unknown>): Promise<unknown> };
 type WorkersEnv = CloudflareEnv & { AI?: WorkersAIBinding };
 
+function isDenoDeploy(): boolean {
+  return process.env.DENO_DEPLOY === "true" || process.env.DENO_DEPLOY === "1" || process.env.DEPLOY_TARGET === "deno";
+}
+
+function getDenoApiConfig(): { accountId: string; token: string } | null {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const token = process.env.CLOUDFLARE_AI_API_TOKEN?.trim();
+  return accountId && token ? { accountId, token } : null;
+}
+
+function modelPath(model: string): string {
+  return model.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
+async function runDenoWorkersAI(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+  const config = getDenoApiConfig();
+  if (!config) throw new AIError("AI_NOT_CONFIGURED", "Cloudflare Workers AI API credentials are missing in Deno Deploy");
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/run/${modelPath(model)}`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${config.token}`,
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(timeoutMs),
+      redirect: "error"
+    }
+  );
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new AIError("AI_UNAVAILABLE", `Cloudflare Workers AI returned HTTP ${response.status}`, payload);
+  const envelope = payload as { success?: unknown; result?: unknown } | null;
+  if (envelope && envelope.success === false) throw new AIError("AI_UNAVAILABLE", "Cloudflare Workers AI rejected the request", payload);
+  return envelope && "result" in envelope ? envelope.result : payload;
+}
+
 function getErrorCode(error: unknown): string {
   if (error instanceof Error) return `${error.message} ${String((error as Error & { code?: unknown }).code ?? "")} ${JSON.stringify(error.cause ?? "")}`;
   return typeof error === "string" ? error : JSON.stringify(error);
@@ -34,13 +72,40 @@ export class CloudflareWorkersAIProvider implements AIProvider {
   readonly name = "cloudflare-workers-ai";
 
   isConfigured(): boolean {
-    return (process.env.AI_ENABLED === "true" || process.env.AI_ENABLED === "1") &&
-      (process.env.AI_PROVIDER || "cloudflare") === "cloudflare";
+    const enabled = process.env.AI_ENABLED === "true" || process.env.AI_ENABLED === "1";
+    if (!enabled || (process.env.AI_PROVIDER || "cloudflare") !== "cloudflare") return false;
+    return !isDenoDeploy() || Boolean(getDenoApiConfig());
   }
 
   async checkAvailability(): Promise<AIAvailabilityResult> {
     if (!this.isConfigured()) return { available: false, error: "AI is disabled or not configured" };
     try {
+      if (isDenoDeploy()) {
+        const config = getDenoApiConfig();
+        if (!config) return { available: false, error: "Cloudflare Workers AI API credentials are missing in Deno Deploy" };
+        const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/models/search`);
+        url.searchParams.set("search", process.env.AI_MODEL || DEFAULT_MODEL);
+        const response = await fetch(url, {
+          headers: { authorization: `Bearer ${config.token}`, accept: "application/json" },
+          signal: AbortSignal.timeout(8000),
+          redirect: "error"
+        });
+        if (!response.ok) return { available: false, error: `Cloudflare Workers AI model check returned HTTP ${response.status}` };
+        const payload = await response.json() as { success?: boolean; result?: unknown[] };
+        const models = Array.isArray(payload.result) ? payload.result : [];
+        const modelFound = models.some((entry) => {
+          if (!entry || typeof entry !== "object") return false;
+          const item = entry as { name?: unknown; id?: unknown };
+          return item.name === (process.env.AI_MODEL || DEFAULT_MODEL) || item.id === (process.env.AI_MODEL || DEFAULT_MODEL);
+        });
+        return payload.success === false
+          ? { available: false, error: "Cloudflare Workers AI model check was rejected" }
+          : { available: true, modelFound, details: { models: models.map((entry) => {
+              if (!entry || typeof entry !== "object") return "";
+              const item = entry as { name?: unknown; id?: unknown };
+              return typeof item.name === "string" ? item.name : typeof item.id === "string" ? item.id : "";
+            }).filter(Boolean) } };
+      }
       const { env } = await getCloudflareContext({ async: true });
       return (env as WorkersEnv).AI
         ? { available: true, modelFound: true, details: { models: [process.env.AI_MODEL || DEFAULT_MODEL] } }
@@ -57,9 +122,6 @@ export class CloudflareWorkersAIProvider implements AIProvider {
     }
 
     try {
-      const { env } = await getCloudflareContext({ async: true });
-      const binding = (env as WorkersEnv).AI;
-      if (!binding) throw new AIError("AI_NOT_CONFIGURED", "Workers AI binding is missing");
       const userContent: unknown = params.images?.length
         ? [
             { type: "text", text: params.prompt },
@@ -67,19 +129,27 @@ export class CloudflareWorkersAIProvider implements AIProvider {
           ]
         : params.prompt;
       const model = params.model || process.env.AI_MODEL || DEFAULT_MODEL;
+      const modelInput = {
+        messages: [
+          { role: "system", content: params.system },
+          { role: "user", content: userContent }
+        ],
+        max_completion_tokens: Math.max(1, Math.min(params.maxTokens ?? 1024, 4096)),
+        temperature: Math.max(0, Math.min(params.temperature ?? 0.2, 1)),
+        ...(model.startsWith("@cf/google/gemma-4") ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+        stream: false
+      };
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       let result: unknown;
       try {
         result = await Promise.race([
-          binding.run(model, {
-          messages: [
-            { role: "system", content: params.system },
-            { role: "user", content: userContent }
-          ],
-          max_completion_tokens: Math.max(1, Math.min(params.maxTokens ?? 1024, 4096)),
-          temperature: Math.max(0, Math.min(params.temperature ?? 0.2, 1)),
-            stream: false
-          }),
+          (async () => {
+            if (isDenoDeploy()) return runDenoWorkersAI(model, modelInput, Math.max(1000, Math.min(params.timeoutMs ?? 30_000, 120_000)));
+            const { env } = await getCloudflareContext({ async: true });
+            const binding = (env as WorkersEnv).AI;
+            if (!binding) throw new AIError("AI_NOT_CONFIGURED", "Workers AI binding is missing");
+            return binding.run(model, modelInput);
+          })(),
           new Promise<never>((_, reject) => {
             timeoutId = setTimeout(() => reject(new AIError("AI_TIMEOUT", "Workers AI request timed out")), Math.max(1000, Math.min(params.timeoutMs ?? 30_000, 120_000)));
           })

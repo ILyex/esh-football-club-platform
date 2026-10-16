@@ -27,12 +27,13 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
 
   async function action(formData: FormData) {
     "use server";
-    let result: { id: string };
+    let result: Awaited<ReturnType<typeof createMatchAction>>;
     try {
       result = await createMatchAction(formData);
     } catch (error) {
       return getMatchFormError(error, locale);
     }
+    if ("formError" in result) return result;
     const { id } = result;
     redirect(`/${locale}/dashboard/matches/${id}`);
   }

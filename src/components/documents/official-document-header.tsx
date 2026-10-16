@@ -54,7 +54,7 @@ export function OfficialDocumentHeader({
       }}
     >
       <div
-        className="flex items-start justify-between gap-4"
+        className="esh-document-header-row flex items-start justify-between gap-4"
         style={{
           display: "flex",
           flexDirection: "row",
@@ -73,16 +73,16 @@ export function OfficialDocumentHeader({
             minWidth: 0
           }}
         >
-          <p className="font-bold leading-snug text-black whitespace-nowrap" style={{ fontSize: `${authorityFontSize}px` }}>
+          <p className="font-bold leading-snug text-black" style={{ fontSize: `${isAr ? authorityFontSize : Math.min(authorityFontSize, 10)}px`, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "break-word" }}>
             {isAr ? "الجمهورية الجزائرية الديمقراطية الشعبية" : "RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE"}
           </p>
-          <p className="font-bold leading-snug text-black whitespace-nowrap" style={{ fontSize: `${authorityFontSize}px` }}>
+          <p className="font-bold leading-snug text-black" style={{ fontSize: `${isAr ? authorityFontSize : Math.min(authorityFontSize, 10)}px`, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "break-word" }}>
             {isAr ? "مديرية الشباب والرياضة — ولاية تيارت" : "Direction de la Jeunesse et des Sports — W. Tiaret"}
           </p>
-          <p className="font-bold leading-snug text-black whitespace-nowrap" style={{ fontSize: `${authorityFontSize}px` }}>
+          <p className="font-bold leading-snug text-black" style={{ fontSize: `${isAr ? authorityFontSize : Math.min(authorityFontSize, 10)}px`, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "break-word" }}>
             {isAr ? "الرابطة الولائية لكرة القدم — تيارت" : "Ligue de Football de la Wilaya de Tiaret"}
           </p>
-          <p className="font-bold leading-snug text-black whitespace-nowrap" style={{ fontSize: `${authorityFontSize}px` }}>
+          <p className="font-bold leading-snug text-black" style={{ fontSize: `${isAr ? authorityFontSize : Math.min(authorityFontSize, 10)}px`, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "break-word" }}>
             {isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}
           </p>
         </div>
@@ -95,7 +95,7 @@ export function OfficialDocumentHeader({
             flexDirection: "column",
             alignItems: "center",
             flexShrink: 0,
-            padding: "0 8px"
+            padding: isAr ? "0 8px" : "0 4px"
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -103,7 +103,7 @@ export function OfficialDocumentHeader({
             src="/branding/esh-logo-transparent.png"
             alt="الجمعية الرياضية أمل سيدي حسني لكرة القدم"
             className={`esh-club-logo ${compact ? "h-[72px] w-[72px]" : "h-24 w-24"} object-contain`}
-            style={{ height: compact ? "72px" : "96px", width: compact ? "72px" : "96px", objectFit: "contain" }}
+            style={{ height: compact ? (isAr ? "72px" : "60px") : (isAr ? "96px" : "80px"), width: compact ? (isAr ? "72px" : "60px") : (isAr ? "96px" : "80px"), objectFit: "contain" }}
           />
         </div>
 
@@ -119,20 +119,20 @@ export function OfficialDocumentHeader({
         >
           {badgeText && (
             <p
-              className="text-[14px] font-bold text-zinc-800"
+              className={`${isAr ? "text-[14px]" : "text-[11px]"} font-bold text-zinc-800`}
               style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY }}
             >
               {badgeText}
             </p>
           )}
           {referenceNumber && <p
-            className="text-[14px] font-bold text-black"
+            className={`${isAr ? "text-[14px]" : "text-[11px]"} font-bold text-black`}
             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "anywhere" }}
           >
             {isAr ? "المرجع: " : "Réf : "}{referenceNumber}
           </p>}
           <p
-            className="text-[14px] font-bold text-black"
+            className={`${isAr ? "text-[14px]" : "text-[11px]"} font-bold text-black`}
             style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, whiteSpace: isAr ? "nowrap" : "normal", overflowWrap: "anywhere" }}
           >
             {isAr ? `بتاريخ: ${formattedDate}` : `Le : ${formattedDate}`}

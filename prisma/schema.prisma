@@ -46,11 +46,11 @@ datasource db {
 // keeping uploaded assets off the administrator's PC. This table is only for
 // public website assets; confidential documents continue using private storage.
 model PublicAsset {
-  key        String   @id
-  mimeType   String
-  sizeBytes  Int
-  data       Bytes
-  createdAt  DateTime @default(now())
+  key       String   @id
+  mimeType  String
+  sizeBytes Int
+  data      Bytes
+  createdAt DateTime @default(now())
 
   @@index([createdAt])
 }
@@ -75,36 +75,39 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs                   AuditLog[]
-  uploadedDocuments           Document[]                @relation("DocumentUploadedBy")
-  ownedDocuments              Document[]                @relation("DocumentOwner")
-  authoredNews                News[]
-  createdAnnouncements        Announcement[]
-  createdAlbums               Album[]
-  correspondences             Correspondence[]
-  meetingMinutes              MeetingMinute[]
-  passwordResetTokens         PasswordResetToken[]
-  documentTemplates           DocumentTemplate[]
-  documentTemplateVersions    DocumentTemplateVersion[]
-  generatedDocuments          GeneratedDocument[]
-  notifications               Notification[]
-  createdBudgets              Budget[]
-  createdExpenses             Expense[]                 @relation("ExpenseCreatedBy")
-  updatedExpenses             Expense[]                 @relation("ExpenseUpdatedBy")
-  createdTreasuryAccounts     TreasuryAccount[]
-  createdTreasuryTransactions TreasuryTransaction[]
-  createdInventoryItems       InventoryItem[]           @relation("InventoryCreatedBy")
-  conductedTestSessions       TestSession[]             @relation("UserConductedTestSessions")
+  auditLogs                    AuditLog[]
+  uploadedDocuments            Document[]                @relation("DocumentUploadedBy")
+  ownedDocuments               Document[]                @relation("DocumentOwner")
+  medicalRecordsCreated        PlayerMedicalRecord[]
+  teamInsurancePoliciesCreated TeamInsurancePolicy[]
+  authoredNews                 News[]
+  createdAnnouncements         Announcement[]
+  createdAlbums                Album[]
+  correspondences              Correspondence[]
+  meetingMinutes               MeetingMinute[]
+  passwordResetTokens          PasswordResetToken[]
+  documentTemplates            DocumentTemplate[]
+  documentTemplateVersions     DocumentTemplateVersion[]
+  generatedDocuments           GeneratedDocument[]
+  notifications                Notification[]
+  pushSubscriptions            PushSubscription[]
+  createdBudgets               Budget[]
+  createdExpenses              Expense[]                 @relation("ExpenseCreatedBy")
+  updatedExpenses              Expense[]                 @relation("ExpenseUpdatedBy")
+  createdTreasuryAccounts      TreasuryAccount[]
+  createdTreasuryTransactions  TreasuryTransaction[]
+  createdInventoryItems        InventoryItem[]           @relation("InventoryCreatedBy")
+  conductedTestSessions        TestSession[]             @relation("UserConductedTestSessions")
   // P1 RBAC foundation — authorization assignment (approved Group: UserTeam).
   // Which teams THIS USER may access, independent of any Staff record.
   // Never derived from Staff/StaffTeam — see StaffTeam's own comment below.
-  teamAssignments             UserTeam[]
+  teamAssignments              UserTeam[]
   // P1 RBAC foundation — optional identity link only (approved Group: Staff.userId).
   // Connects this login to a Staff record for DISPLAY/IDENTITY purposes.
   // MUST NOT be read anywhere as a source of authorization: a user's team
   // access always comes from `teamAssignments` (UserTeam) above, never from
   // whatever teams the linked Staff record happens to work with.
-  staff                       Staff?
+  staff                        Staff?
 
   @@index([deletedAt, lastSeenAt])
   @@index([roleId])
@@ -225,25 +228,26 @@ model Team {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  players          Player[]
-  staff            Staff[]
-  matches          Match[]
-  competitions     Competition[]
-  trainingSessions TrainingSession[]
-  contracts        Contract[]
-  documents        Document[]
-  calendarEvents   CalendarEvent[]
-  announcements    Announcement[]
-  albums           Album[]
-  correspondences  Correspondence[]
-  meetingMinutes   MeetingMinute[]
-  budgets          Budget[]
-  expenses         Expense[]
-  inventoryItems   InventoryItem[]
-  testSessions     TestSession[]
+  players           Player[]
+  staff             Staff[]
+  matches           Match[]
+  competitions      Competition[]
+  trainingSessions  TrainingSession[]
+  contracts         Contract[]
+  documents         Document[]
+  insurancePolicies TeamInsurancePolicy[]
+  calendarEvents    CalendarEvent[]
+  announcements     Announcement[]
+  albums            Album[]
+  correspondences   Correspondence[]
+  meetingMinutes    MeetingMinute[]
+  budgets           Budget[]
+  expenses          Expense[]
+  inventoryItems    InventoryItem[]
+  testSessions      TestSession[]
   // P1 RBAC foundation — reverse relations for the two new assignment tables.
-  userAssignments  UserTeam[]
-  staffAssignments StaffTeam[]
+  userAssignments   UserTeam[]
+  staffAssignments  StaffTeam[]
 }
 
 // ============================================================================
@@ -316,6 +320,7 @@ model Player {
   statistics             PlayerStatistic[]
   contracts              Contract[]
   documents              Document[]
+  medicalRecords         PlayerMedicalRecord[]
   matchEvents            MatchEvent[]
   matchLineups           MatchLineup[]
   shootoutKicks          MatchShootoutKick[]
@@ -517,6 +522,8 @@ model Document {
   team            Team?   @relation(fields: [teamId], references: [id])
 
   contract                  Contract?
+  medicalRecord             PlayerMedicalRecord?
+  teamInsurancePolicy       TeamInsurancePolicy?
   correspondenceAttachments CorrespondenceAttachment[]
   meetingAttachments        MeetingAttachment[]
   generatedFrom             GeneratedDocument?
@@ -531,6 +538,91 @@ model Document {
   @@index([relatedPlayerId])
   @@index([teamId])
   @@index([relatedMatchId, matchDocumentType])
+}
+
+enum TeamInsuranceCheckStatus {
+  QUEUED
+  CHECKED
+  NEEDS_REVIEW
+  UNAVAILABLE
+}
+
+model TeamInsurancePolicy {
+  id            String                   @id @default(cuid())
+  teamId        String
+  team          Team                     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  documentId    String                   @unique
+  document      Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  startDate     DateTime
+  endDate       DateTime
+  checkStatus   TeamInsuranceCheckStatus @default(QUEUED)
+  checkFindings Json                     @default("[]")
+  checkedAt     DateTime?
+  createdById   String
+  createdBy     User                     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@index([teamId, startDate, endDate])
+  @@index([checkStatus, createdAt])
+}
+
+enum PlayerMedicalRecordType {
+  INSURANCE_POLICY
+  MEDICAL_CLEARANCE
+  ANTI_DOPING_CONSENT
+  DRUG_TEST_RESULT
+  LAB_ANALYSIS
+  OTHER
+}
+
+enum PlayerMedicalStatus {
+  PENDING
+  FIT
+  TEMPORARILY_UNFIT
+  UNFIT
+  NOT_APPLICABLE
+}
+
+enum PlayerConsentAuthority {
+  PLAYER
+  LEGAL_GUARDIAN
+}
+
+enum MedicalDocumentCheckStatus {
+  QUEUED
+  CHECKED
+  NEEDS_REVIEW
+  UNAVAILABLE
+}
+
+// Confidential, per-player medical register. File bytes stay in the private
+// document store; this row contains only workflow metadata and a secure link.
+model PlayerMedicalRecord {
+  id                       String                     @id @default(cuid())
+  playerId                 String
+  player                   Player                     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  documentId               String?                    @unique
+  document                 Document?                  @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  type                     PlayerMedicalRecordType
+  title                    String
+  issuedAt                 DateTime?
+  expiresAt                DateTime?
+  status                   PlayerMedicalStatus        @default(PENDING)
+  documentCheckStatus      MedicalDocumentCheckStatus @default(QUEUED)
+  documentCheckFindings    Json?
+  documentCheckCompletedAt DateTime?
+  provider                 String?
+  consentAuthority         PlayerConsentAuthority?
+  consentAuthorityName     String?
+  consentRecordedAt        DateTime?
+  createdById              String
+  createdBy                User                       @relation(fields: [createdById], references: [id])
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+
+  @@index([playerId, type, expiresAt])
+  @@index([type, status])
 }
 
 // ----------------------------------------------------------------------------
@@ -691,31 +783,31 @@ enum MatchStatus {
 }
 
 model Match {
-  id                 String      @id @default(cuid())
-  competitionId      String
-  competition        Competition @relation(fields: [competitionId], references: [id])
-  teamId             String?
-  team               Team?       @relation(fields: [teamId], references: [id])
-  homeTeamName       String // "Our Club" or opponent name
-  awayTeamName       String
-  isHomeFixture      Boolean     @default(true) // whether the club plays at home
-  homeScore          Int?
-  awayScore          Int?
-  matchDate          DateTime
-  stadium            String?
-  refereeName        String?
-  refereeNameAr      String?
-  refereeNameFr      String?
-  status             MatchStatus @default(SCHEDULED)
-  hasExtraTime       Boolean     @default(false)
-  hasPenaltyShootout Boolean     @default(false)
-  firstHalfAddedTime Int         @default(0)
-  secondHalfAddedTime Int        @default(0)
-  extraTimeFirstHalfAddedTime Int @default(0)
-  extraTimeSecondHalfAddedTime Int @default(0)
-  matchReport        String?     @db.Text
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  id                           String      @id @default(cuid())
+  competitionId                String
+  competition                  Competition @relation(fields: [competitionId], references: [id])
+  teamId                       String?
+  team                         Team?       @relation(fields: [teamId], references: [id])
+  homeTeamName                 String // "Our Club" or opponent name
+  awayTeamName                 String
+  isHomeFixture                Boolean     @default(true) // whether the club plays at home
+  homeScore                    Int?
+  awayScore                    Int?
+  matchDate                    DateTime
+  stadium                      String?
+  refereeName                  String?
+  refereeNameAr                String?
+  refereeNameFr                String?
+  status                       MatchStatus @default(SCHEDULED)
+  hasExtraTime                 Boolean     @default(false)
+  hasPenaltyShootout           Boolean     @default(false)
+  firstHalfAddedTime           Int         @default(0)
+  secondHalfAddedTime          Int         @default(0)
+  extraTimeFirstHalfAddedTime  Int         @default(0)
+  extraTimeSecondHalfAddedTime Int         @default(0)
+  matchReport                  String?     @db.Text
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
 
   events          MatchEvent[]
   lineups         MatchLineup[]
@@ -767,22 +859,82 @@ enum MatchEventSource {
 }
 
 model MatchEvent {
-  id       String           @id @default(cuid())
-  matchId  String
-  match    Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  playerId String?
-  player   Player?          @relation(fields: [playerId], references: [id])
-  staffId  String?
-  staff    Staff?           @relation(fields: [staffId], references: [id])
-  type     MatchEventType
-  side     MatchEventSide   @default(HOME)
-  source   MatchEventSource @default(MANUAL)
-  minute   Int
-  notes    String?
+  id           String           @id @default(cuid())
+  matchId      String
+  match        Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId     String?
+  player       Player?          @relation(fields: [playerId], references: [id])
+  staffId      String?
+  staff        Staff?           @relation(fields: [staffId], references: [id])
+  type         MatchEventType
+  side         MatchEventSide   @default(HOME)
+  source       MatchEventSource @default(MANUAL)
+  minute       Int
+  notes        String?
   playerName   String?
   playerNameFr String?
 
   @@index([staffId])
+}
+
+/// Durable event record for public match push notifications. Written in the
+/// same transaction as the score/event state; Cloudflare Queues handles delivery.
+model MatchPushOutbox {
+  id           String              @id @default(cuid())
+  dedupKey     String              @unique @db.VarChar(191)
+  matchId      String
+  matchEventId String?
+  kind         String              @db.VarChar(32)
+  payload      Json
+  queuedAt     DateTime?
+  createdAt    DateTime            @default(now())
+  deliveries   MatchPushDelivery[]
+
+  @@index([queuedAt, createdAt])
+  @@index([matchId, createdAt])
+}
+
+/// A browser/device subscription. `ownerTokenHash` lets a public visitor
+/// manage only their own device without requiring a platform account.
+model PushSubscription {
+  id             String                     @id @default(cuid())
+  endpoint       String                     @db.Text
+  endpointHash   String                     @unique @db.VarChar(64)
+  p256dh         String                     @db.VarChar(128)
+  auth           String                     @db.VarChar(64)
+  ownerTokenHash String                     @db.VarChar(64)
+  locale         String                     @default("ar") @db.VarChar(5)
+  userId         String?
+  user           User?                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  categories     PushSubscriptionCategory[]
+  deliveries     MatchPushDelivery[]
+
+  @@index([ownerTokenHash])
+  @@index([userId])
+}
+
+model PushSubscriptionCategory {
+  subscriptionId String
+  category       TeamCategory
+  subscription   PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionId, category])
+  @@index([category])
+}
+
+/// Per-device delivery record so queue retries do not show duplicate alerts.
+model MatchPushDelivery {
+  id             String           @id @default(cuid())
+  outboxId       String
+  subscriptionId String
+  sentAt         DateTime         @default(now())
+  outbox         MatchPushOutbox  @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+  subscription   PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([outboxId, subscriptionId])
+  @@index([subscriptionId, sentAt])
 }
 
 model MatchLineup {
@@ -1487,8 +1639,10 @@ enum InventoryCondition {
   NEW
   GOOD
   FAIR
+  OLD
   POOR
   DAMAGED
+  UNSPECIFIED
 }
 
 model InventoryItem {

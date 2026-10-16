@@ -542,6 +542,14 @@ img[src^="blob:"] {
 .esh-official-document,
 .esh-official-document * {
   font-family: 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+  font-size: 19px !important;
+  line-height: 1.45 !important;
+}
+
+.esh-official-document-header,
+.esh-official-document-header * {
+  font-size: 18px !important;
+  line-height: 1.35 !important;
 }
 
 /* Official Institutional Club Documents: All numbers, digits, tabular-nums, mono, dates, and amounts must strictly be Arial Bold (ARIAL EN GRAS). Strictly NO other font allowed. */
@@ -559,18 +567,39 @@ img[src^="blob:"] {
   font-weight: 700 !important;
 }
 
-/* Use the player-list masthead as the shared typography standard for every
-   official document, both in preview and when printing. */
+/* Keep the shared official masthead within the printable A4 content width.
+   These rules also cap older templates that pass oversized inline font sizes. */
+.esh-official-document-header {
+  padding-bottom: 4px !important;
+}
+
 .esh-official-document-header .esh-document-authority p {
-  font-size: 20px !important;
+  margin-block: 0 !important;
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+}
+
+.esh-official-document-header:dir(ltr) .esh-document-authority p {
+  font-size: 18px !important;
 }
 
 .esh-official-document-header .esh-document-reference p {
+  margin-block: 0 !important;
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+}
+
+.esh-official-document-header:dir(ltr) .esh-document-reference p {
   font-size: 18px !important;
 }
 
 .esh-official-document-header h1 {
-  font-size: 30px !important;
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+}
+
+.esh-official-document-header > div + div p {
+  line-height: 1.25 !important;
 }
 
 /* The shared footer is rendered from inside the header component, but it must
@@ -602,38 +631,50 @@ img[src^="blob:"] {
 
 /* Keep printed document totals and their counts consistent across modules. */
 .print-document-total-count {
-  font-size: 20px !important;
+  font-size: 19px !important;
   line-height: 1.25 !important;
   font-variant-numeric: tabular-nums;
 }
 
-/* Signatory names use one readable size in every official document. A lone
-   signer sits at the physical right; multiple signers spread across the row. */
+/* Signatory names use one readable size and sit at the physical left. */
 .document-signatures {
   direction: ltr !important;
-  font-size: 22px !important;
+  font-size: 19px !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+.document-signatures,
+.document-signatures.signature-block,
+.document-signatures.signatures-section,
+.signature-block.document-signatures-multiple {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
 }
 
 .document-signatures > *,
 .document-signatures p,
 .document-signatures span,
 .document-signatures .esh-attestation-stamp {
-  font-size: 22px !important;
-  text-align: right !important;
+  font-size: 19px !important;
+  text-align: left !important;
 }
 
 .document-signatures:not(.document-signatures-multiple) {
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
 }
 
 .document-signatures-multiple {
-  justify-content: space-between !important;
+  direction: ltr !important;
+  justify-content: start !important;
 }
 
 .document-signatures-multiple > :nth-child(2),
 .document-signatures-multiple > :nth-child(2) p,
 .document-signatures-multiple > :nth-child(2) span {
-  text-align: center !important;
+  text-align: left !important;
 }
 
 .document-signatures-multiple > :nth-child(3),
@@ -726,12 +767,24 @@ img[src^="blob:"] {
     color: black !important;
     padding: 0 !important;
     margin: 0 !important;
-    width: 100% !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
     box-sizing: border-box !important;
   }
 
   main,
-  #root,
+  #root {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
   .printable-document,
   .printable-document-container,
   #official-inventory-document,
@@ -739,11 +792,28 @@ img[src^="blob:"] {
     background: white !important;
     color: black !important;
     margin: 0 !important;
-    width: 210mm !important;
-    max-width: 210mm !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    min-width: 0 !important;
+    min-height: 277mm !important;
+    height: auto !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     transform: none !important;
+    overflow: visible !important;
+  }
+
+  .printable-document .print-preview-sheet,
+  #official-inventory-document .print-preview-sheet,
+  #official-inventory-preview-document .print-preview-sheet {
+    width: 190mm !important;
+    min-width: 0 !important;
+    max-width: 190mm !important;
+    min-height: 277mm !important;
+    height: auto !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
     overflow: visible !important;
   }
 
@@ -765,13 +835,14 @@ img[src^="blob:"] {
     gap: 0 !important;
   }
   .player-list-document .print-preview-sheet {
-    width: 210mm !important;
-    min-width: 210mm !important;
-    max-width: 210mm !important;
-    min-height: 297mm !important;
-    height: 297mm !important;
+    width: 190mm !important;
+    min-width: 0 !important;
+    max-width: 190mm !important;
+    min-height: 277mm !important;
+    height: auto !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    padding: 0 !important;
+    overflow: visible !important;
     box-shadow: none !important;
   }
   .player-list-document .print-preview-sheet-break {

@@ -59,6 +59,9 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "documents.update", group: "documents", description: "Edit document metadata" },
   { key: "documents.delete", group: "documents", description: "Delete documents" },
 
+  { key: "medical.records.view", group: "medical", description: "View confidential per-player medical records" },
+  { key: "medical.records.manage", group: "medical", description: "Upload and manage confidential per-player medical records" },
+
   { key: "templates.view", group: "templates", description: "View document templates" },
   { key: "templates.manage", group: "templates", description: "Upload templates, manage versions and field mappings" },
   { key: "documents.generate", group: "templates", description: "Generate official documents from an active template" },
@@ -111,21 +114,50 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "inventory.manage", group: "inventory", description: "Manage club inventory, sports gear, and warehouse items" }
 ];
 
-const ALL_VIEW_PERMS = PERMISSIONS.filter((p) => p.key.endsWith(".view")).map((p) => p.key);
+const ALL_VIEW_PERMS = PERMISSIONS.filter((p) => p.key.endsWith(".view") && p.key !== "medical.records.view").map((p) => p.key);
 
 const ROLE_DEFINITIONS: {
   key: string;
   name: string;
   description: string;
   isSystem?: boolean;
+  teamScoped?: boolean;
+  syncPermissions?: boolean;
   permissions: string[];
 }[] = [
   { key: "super_admin", name: "Super Admin", description: "Full system access", isSystem: true, permissions: ["*"] },
   {
     key: "president",
-    name: "Club President",
-    description: "High-level oversight across the club",
-    permissions: [...ALL_VIEW_PERMS, "players.create", "players.update", "documents.view.restricted", "settings.manage", "reports.view", "teams.manage", "finance.manage", "finance.approve"]
+    name: "رئيس الجمعية",
+    description: "عرض جميع أقسام المنصة باستثناء إدارة النظام وسجلات الرقابة.",
+    syncPermissions: true,
+    permissions: [...ALL_VIEW_PERMS.filter((permission) => permission !== "audit.view"), "medical.records.view", "documents.view.restricted"]
+  },
+  {
+    key: "developer",
+    name: "DEV",
+    description: "Full platform access for development and system administration.",
+    // DEV can be removed by a different DEV administrator. Keep only the
+    // break-glass super_admin role immutable.
+    isSystem: false,
+    syncPermissions: true,
+    permissions: PERMISSIONS.filter((permission) => permission.key !== "*").map((permission) => permission.key)
+  },
+  {
+    key: "secretary_general",
+    name: "الكاتب العام",
+    description: "إدارة وثائق الجمعية ومحتوى الموقع دون المالية أو التدريب أو إدارة النظام.",
+    syncPermissions: true,
+    permissions: [
+      "documents.view", "documents.view.restricted", "documents.create", "documents.update", "documents.delete",
+      "templates.view", "templates.manage", "documents.generate",
+      "contracts.view", "contracts.manage",
+      "correspondence.view", "correspondence.manage",
+      "meetings.view", "meetings.manage",
+      "news.view", "news.create", "news.update", "news.delete", "news.publish",
+      "announcements.view", "announcements.manage",
+      "gallery.view", "gallery.manage"
+    ]
   },
   {
     key: "director",
@@ -176,12 +208,12 @@ const ROLE_DEFINITIONS: {
   },
   {
     key: "coach",
-    name: "Coach",
-    description: "Sporting information only — no access to sensitive administrative documents",
+    name: "مدرب فئة",
+    description: "عرض التدريب وقائمة لاعبي الفرق المسندة للمدرب دون تعديل.",
+    teamScoped: true,
+    syncPermissions: true,
     permissions: [
-      "players.view", "players.create", "players.update", "matches.view", "matches.report",
-      "training.view", "training.manage", "testing.view", "testing.manage",
-      "calendar.view", "documents.generate"
+      "players.view", "teams.view", "matches.view", "training.view", "calendar.view"
     ]
   },
   {
@@ -210,13 +242,11 @@ const ROLE_DEFINITIONS: {
   },
   {
     key: "treasurer",
-    name: "Treasurer",
-    description: "Day-to-day financial operations — budgets, expenses, and the treasury ledger",
+    name: "أمين الخزينة",
+    description: "صلاحيات إدارة العمليات المالية فقط.",
+    syncPermissions: true,
     permissions: [
-      "finance.view", "finance.manage", "finance.approve",
-      "documents.view", "documents.create", "documents.generate",
-      "templates.view",
-      "reports.view", "teams.view"
+      "finance.view", "finance.manage", "finance.approve", "finance.budgets", "finance.vouchers", "finance.subsidies"
     ]
   },
   {
@@ -244,17 +274,51 @@ async function main() {
 
   console.log("→ Roles + role/permission grants");
   for (const roleDef of ROLE_DEFINITIONS) {
+    const existingRole = await db.role.findUnique({
+      where: { key: roleDef.key },
+      include: { permissions: { include: { permission: { select: { key: true } } } } }
+    });
+    const previousPermissionKeys = new Set(existingRole?.permissions.map((grant) => grant.permission.key) ?? []);
+    const desiredPermissionKeys = new Set(roleDef.permissions);
+    const permissionsChanged = roleDef.syncPermissions === true && (
+      previousPermissionKeys.size !== desiredPermissionKeys.size ||
+      [...previousPermissionKeys].some((key) => !desiredPermissionKeys.has(key))
+    );
+    const teamScopeChanged = roleDef.teamScoped !== undefined && existingRole?.teamScoped !== roleDef.teamScoped;
     const role = await db.role.upsert({
       where: { key: roleDef.key },
-      update: { name: roleDef.name, description: roleDef.description },
-      create: { key: roleDef.key, name: roleDef.name, description: roleDef.description, isSystem: roleDef.isSystem ?? false }
+      update: {
+        name: roleDef.name,
+        description: roleDef.description,
+        ...(roleDef.isSystem !== undefined ? { isSystem: roleDef.isSystem } : {}),
+        ...(roleDef.teamScoped !== undefined ? { teamScoped: roleDef.teamScoped } : {})
+      },
+      create: {
+        key: roleDef.key,
+        name: roleDef.name,
+        description: roleDef.description,
+        isSystem: roleDef.isSystem ?? false,
+        teamScoped: roleDef.teamScoped ?? false
+      }
     });
+    if (roleDef.syncPermissions) {
+      const desiredPermissions = await db.permission.findMany({ where: { key: { in: roleDef.permissions } }, select: { id: true } });
+      await db.rolePermission.deleteMany({
+        where: { roleId: role.id, permissionId: { notIn: desiredPermissions.map((permission) => permission.id) } }
+      });
+    }
     for (const permKey of roleDef.permissions) {
       const permission = await db.permission.findUniqueOrThrow({ where: { key: permKey } });
       await db.rolePermission.upsert({
         where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
         update: {},
         create: { roleId: role.id, permissionId: permission.id }
+      });
+    }
+    if (existingRole && (permissionsChanged || teamScopeChanged)) {
+      await db.user.updateMany({
+        where: { roleId: role.id, deletedAt: null },
+        data: { tokenVersion: { increment: 1 } }
       });
     }
   }

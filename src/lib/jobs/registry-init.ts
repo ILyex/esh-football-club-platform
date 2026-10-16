@@ -5,6 +5,8 @@ import { dispatchNotification } from "@/lib/notifications/service";
 import { db } from "@/lib/db";
 import { registerFAFJobHandlers } from "@/lib/integrations/faf/job-handler";
 import { registerRefereeReportAnalysisJob } from "@/lib/ai/referee-report-job";
+import { registerMedicalDocumentCheckJob } from "@/lib/ai/medical-document-check-job";
+import { registerTeamInsuranceCheckJob } from "@/lib/ai/team-insurance-check-job";
 
 // ============================================================================
 // P5 — BUILT-IN JOB HANDLERS REGISTRATION
@@ -20,6 +22,8 @@ export function initializeJobRegistry(): void {
   registerGmailJobHandlers();
   registerFAFJobHandlers();
   registerRefereeReportAnalysisJob();
+  registerMedicalDocumentCheckJob();
+  registerTeamInsuranceCheckJob();
 
   if (!hasJobHandler("insights.sync")) {
     registerJobHandler({

@@ -60,7 +60,7 @@ export default async function NewInventoryItemPage({
     "OTHER"
   ] as const;
 
-  const CONDITIONS = ["NEW", "GOOD", "FAIR", "POOR", "DAMAGED"] as const;
+  const CONDITIONS = ["NEW", "GOOD", "FAIR", "OLD", "POOR", "DAMAGED", "UNSPECIFIED"] as const;
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -141,7 +141,7 @@ export default async function NewInventoryItemPage({
               <input
                 name="quantity"
                 type="number"
-                min={1}
+                min={0}
                 defaultValue={1}
                 required
                 className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-bold [font-family:Arial,sans-serif] focus:border-club-primary focus:ring-1 focus:ring-club-primary"

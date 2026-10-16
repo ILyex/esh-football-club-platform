@@ -144,7 +144,7 @@ export default async function ContractsListPage({
         locale={locale}
         canViewDocuments={hasPermission(user, "documents.view")}
         canViewContracts={true}
-        canViewInsurance={hasPermission(user, "documents.view")}
+        canViewMedicalRecords={hasPermission(user, "medical.records.view")}
         canViewCorrespondence={canViewCorrespondence}
         canViewMeetings={canViewMeetings}
         canViewTemplates={hasPermission(user, "templates.view")}

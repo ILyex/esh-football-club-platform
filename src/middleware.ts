@@ -4,6 +4,16 @@ import { routing } from "@/i18n/routing";
 import { edgeAuth } from "@/lib/auth-edge";
 
 const intlMiddleware = createMiddleware(routing);
+const nextIntlLocaleHeader = "X-NEXT-INTL-LOCALE";
+
+function continueLocalizedRequest(req: NextRequest, locale: "ar" | "fr") {
+  // Locale-prefixed URLs already identify their locale. Avoid running the full
+  // next-intl routing/cookie/alternate-link pipeline on every such request;
+  // pass the locale header consumed by next-intl server components directly.
+  const headers = new Headers(req.headers);
+  headers.set(nextIntlLocaleHeader, locale);
+  return NextResponse.next({ request: { headers } });
+}
 
 // Route-level protection is intentionally COARSE: any /dashboard path just
 // requires *some* authenticated session. Fine-grained, per-action permission
@@ -13,6 +23,19 @@ const intlMiddleware = createMiddleware(routing);
 // section 41. Never rely on middleware alone for authorization.
 function handleRequest(req: NextRequest & { auth?: unknown }) {
   const { pathname } = req.nextUrl;
+  const launchAt = Date.parse(process.env.ESH_LAUNCH_AT ?? "");
+  const launchDemoActive = process.env.NODE_ENV === "development" &&
+    process.env.ESH_LAUNCH_DEMO_ENABLED === "true" &&
+    Number.isFinite(launchAt) && Date.now() < launchAt;
+  const isLaunchPresentation = /^\/(?:ar|fr)\/launch\/?$/.test(pathname);
+
+  // Local-only launch rehearsal: keep the app and API untouched on production,
+  // while visitors to the local site see the presentation until the deadline.
+  if (launchDemoActive && !pathname.startsWith("/api/") && !isLaunchPresentation) {
+    const locale = pathname.startsWith("/fr") ? "fr" : "ar";
+    return NextResponse.rewrite(new URL(`/${locale}/launch`, req.url));
+  }
+
   const publicSiteOnly = process.env.PUBLIC_SITE_ONLY === "true" || process.env.PUBLIC_SITE_ONLY === "1";
 
   // The public deployment can share the same build while exposing only the
@@ -25,7 +48,7 @@ function handleRequest(req: NextRequest & { auth?: unknown }) {
     if (isAdminPage) return new NextResponse(null, { status: 404 });
 
     if (pathname.startsWith("/api/")) {
-      const isPublicApi = /^\/api\/(?:health|public-analytics|storage\/public-file|auth)(?:\/|$)/.test(pathname);
+      const isPublicApi = /^\/api\/(?:health|public-analytics|storage\/public-file|auth|push)(?:\/|$)/.test(pathname) || pathname === "/api/internal/push/process";
       if (!isPublicApi) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
@@ -65,6 +88,13 @@ function handleRequest(req: NextRequest & { auth?: unknown }) {
     return NextResponse.redirect(loginUrl);
   }
 
+  const localizedPath = pathname.match(/^\/(ar|fr)(?:\/|$)/);
+  if (localizedPath) {
+    return continueLocalizedRequest(req, localizedPath[1] as "ar" | "fr");
+  }
+
+  // Keep next-intl routing for unprefixed URLs, where it must choose/redirect
+  // to the configured locale.
   return intlMiddleware(req);
 }
 

@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "الجمعية الرياضية أمل سيدي حسني",
+  "short_name": "ESH",
+  "description": "الموقع الرسمي للجمعية الرياضية أمل سيدي حسني لكرة القدم",
+  "lang": "ar-DZ",
+  "dir": "rtl",
+  "start_url": "/ar",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0d0e",
+  "theme_color": "#d20a2e",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/branding/esh-logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/branding/esh-logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

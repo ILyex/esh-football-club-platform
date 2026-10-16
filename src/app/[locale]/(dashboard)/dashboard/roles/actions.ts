@@ -86,7 +86,9 @@ export async function updateRolePermissionsAction(roleId: string, formData: Form
 export async function deleteRoleAction(roleId: string) {
   const actor = await requirePermission("roles.manage");
   const role = await db.role.findUniqueOrThrow({ where: { id: roleId }, include: { users: true } });
-  if (role.isSystem) throw new Error("cannotDeleteSystemRole");
+  // The immutable break-glass super_admin role is the only role that cannot
+  // be deleted. DEV is intentionally manageable by another DEV administrator.
+  if (role.key === "super_admin") throw new Error("cannotDeleteSystemRole");
   if (role.users.length > 0) throw new Error("roleInUse");
 
   await db.role.delete({ where: { id: roleId } });

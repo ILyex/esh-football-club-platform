@@ -6,7 +6,7 @@ import { isAIConfigured, runAICompletion } from "@/lib/ai/provider";
 import { AIError } from "@/lib/ai/types";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
-import { generatePublicStorageKey, uploadPublicFile, validateUploadedImage, validateUploadedBannerImage } from "@/lib/storage";
+import { generatePublicStorageKey, uploadPublicFile, validateUploadedImage, validateUploadedBannerImage, validateUploadedMedia } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -182,10 +182,12 @@ export async function updateWebsiteSocialReelsAction(formData: FormData): Promis
 export async function updateHomepageHeroImageAction(formData: FormData): Promise<{ success: boolean; imageUrl?: string; error?: string; warning?: string }> {
   const user = await requirePermission("settings.manage");
   const file = formData.get("heroImage");
-  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة صالحة أولاً." };
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة أو فيديو صالحاً أولاً." };
+  if (file.size > 20 * 1024 * 1024) return { success: false, error: "حجم فيديو الهيدر يجب ألا يتجاوز 20 ميغابايت. الصور بحد أقصى 8 ميغابايت." };
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { mime, ext } = await validateUploadedImage(buffer);
+    const { mime, ext, isVideo } = await validateUploadedMedia(buffer);
+    if (isVideo && mime !== "video/mp4") return { success: false, error: "صيغة فيديو الهيدر المدعومة هي MP4 لضمان تشغيله على الهواتف والمتصفحات." };
     const imageUrl = await uploadPublicFile({
       key: generatePublicStorageKey("branding/site-hero", ext), buffer, mimeType: mime
     });
@@ -193,10 +195,10 @@ export async function updateHomepageHeroImageAction(formData: FormData): Promise
     await db.clubSettings.update({ where: { id: "singleton" }, data: { homepageHeroImageUrl: imageUrl } });
     await writeAuditLog({
       userId: user.id,
-      action: "website.hero_image.update",
+      action: "website.hero_media.update",
       entityType: "ClubSettings",
       entityId: "singleton",
-      changes: { before: before?.homepageHeroImageUrl ?? null, after: imageUrl }
+      changes: { before: before?.homepageHeroImageUrl ?? null, after: imageUrl, mediaType: isVideo ? "video" : "image" }
     });
     revalidatePath("/[locale]", "layout");
     revalidatePath("/[locale]/dashboard/website/images", "page");

@@ -1,11 +1,11 @@
 import createNextIntlPlugin from "next-intl/plugin";
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 // Cloudflare's Wrangler bridge is only needed when explicitly requested. It
 // starts an extra local runtime and can consume hundreds of MB on the club's
 // low-spec administration PC, while the normal Node.js profile uses .env and
 // PostgreSQL directly.
 if (process.env.OPENNEXT_DEV === "true") {
+  const { initOpenNextCloudflareForDev } = await import("@opennextjs/cloudflare");
   initOpenNextCloudflareForDev();
 }
 
@@ -36,6 +36,9 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Give each Cloudflare build a version marker so an open browser tab can
+  // detect a newer deployment and reload before invoking stale Server Actions.
+  ...(process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
   // Keep the production runtime small for cPanel shared hosting. The build
   // helper copies public/static assets into this standalone runtime folder.
   output: "standalone",

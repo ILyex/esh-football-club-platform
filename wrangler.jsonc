@@ -34,6 +34,20 @@
 		"STORAGE_PRIVATE_BUCKET": "esh-private",
 		"STORAGE_PUBLIC_BUCKET": "esh-public"
 	},
+	"queues": {
+		"producers": [
+			{ "binding": "GOAL_PUSH_QUEUE", "queue": "esh-goal-push" }
+		],
+		"consumers": [
+			{
+				"queue": "esh-goal-push",
+				"max_batch_size": 1,
+				"max_batch_timeout": 0,
+				"max_retries": 8,
+				"dead_letter_queue": "esh-goal-push-dead"
+			}
+		]
+	},
 	"triggers": {
 		"crons": [
 			"* * * * *"

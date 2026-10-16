@@ -23,6 +23,7 @@ import {
 } from "@/components/public/upcoming-events-carousel";
 import { ClubPhotosCarousel } from "@/components/public/club-photos-carousel";
 import { frenchPublicText } from "@/lib/public/locale-text";
+import { isVideoUrl } from "@/lib/media-utils";
 import { SocialReelsSection } from "@/components/public/social-reels-section";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubIntroVideo } from "@/components/public/club-intro-video";
@@ -124,25 +125,29 @@ export default async function HomePage({
       id: "senior",
       category: "SENIOR",
       href: `/${locale}/team/senior`,
-      image: "/branding/teams/team-senior.png",
+      video: "/branding/teams/category-senior.mp4",
+      poster: "/branding/teams/category-senior.jpg",
     },
     {
       id: "u20",
       category: "U20",
       href: `/${locale}/team/u20`,
-      image: "/branding/teams/team-u20.png",
+      video: "/branding/teams/category-u20.mp4",
+      poster: "/branding/teams/category-u20.jpg",
     },
     {
       id: "u17",
       category: "U17",
       href: `/${locale}/team/u17`,
-      image: "/branding/teams/team-u17.png",
+      video: "/branding/teams/category-u17.mp4",
+      poster: "/branding/teams/category-u17.jpg",
     },
     {
       id: "u15",
       category: "U15",
       href: `/${locale}/team/u15`,
-      image: "/branding/teams/team-u15.png",
+      video: "/branding/teams/category-u15.mp4",
+      poster: "/branding/teams/category-u15.jpg",
     }
   ];
 
@@ -151,10 +156,28 @@ export default async function HomePage({
       {/* 1. CINEMATIC FULL-BLEED HERO */}
       <section className="relative overflow-hidden bg-[#0C0D0E] text-white border-b border-border/40 min-h-[420px] sm:min-h-[540px] flex items-center">
         {/* Official Custom Club Header Banner with Floodlights & Badge */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-75 scale-100 transition-all duration-700"
-          style={{ backgroundImage: `url('${homeData.club.homepageHeroImageUrl || "/branding/esh-header-stadium.png"}')` }}
-        />
+        {isVideoUrl(homeData.club.homepageHeroImageUrl) ? (
+          <video
+            key={homeData.club.homepageHeroImageUrl}
+            src={homeData.club.homepageHeroImageUrl ?? undefined}
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            preload="metadata"
+            poster="/branding/esh-header-stadium.png"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="absolute inset-0 h-full w-full scale-100 object-cover opacity-75 transition-all duration-700"
+          />
+        ) : (
+          <div
+            className="absolute inset-0 scale-100 bg-cover bg-center opacity-75 transition-all duration-700"
+            style={{ backgroundImage: `url('${homeData.club.homepageHeroImageUrl || "/branding/esh-header-stadium.png"}')` }}
+            aria-hidden="true"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0C0D0E] via-[#0C0D0E]/60 to-black/30 pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(220,38,38,0.22),transparent_70%)] pointer-events-none" />
 
@@ -345,13 +368,20 @@ export default async function HomePage({
                     className="group relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs transition-all hover:-translate-y-1 hover:border-club-primary/60 hover:shadow-md block"
                   >
                     <div className="relative aspect-[507/249] w-full overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={sec.image}
-                        alt={tCategories(sec.category)}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      <video
+                        src={sec.video}
+                        poster={sec.poster}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls={false}
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        preload="metadata"
+                        aria-hidden="true"
+                        tabIndex={-1}
+                        className="pointer-events-none h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/75 via-black/10 to-transparent p-2.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                         <div className="flex items-center justify-between w-full text-white text-xs font-bold">

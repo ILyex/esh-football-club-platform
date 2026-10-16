@@ -24,6 +24,7 @@ import { getPublicSiteUrl } from "@/lib/public-site-url";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
+import { DhikrReminder } from "@/components/shared/dhikr-reminder";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen flex-col md:flex-row bg-background antialiased" style={getClubBrandStyle(clubSettings?.primaryColor ?? "#DC2626", clubSettings?.secondaryColor ?? "#111214")}>
       <DashboardPresenceHeartbeat />
       <DashboardMailNotifier locale={locale} enabled={hasPermission(user, "mail.view")} />
+      <DhikrReminder locale={locale} />
       {/* Institutional Left/Right Resizable Sidebar (Locked Spec A.3: Right in RTL, Left in LTR) */}
       <ResizableSidebar locale={locale} defaultWidth={264} minWidth={220} maxWidth={400}>
         {/* Official Club Branding Header (Spec A.3 & Concept Image) */}

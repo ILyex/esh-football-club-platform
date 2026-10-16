@@ -123,13 +123,15 @@ export function PlayersAndEquipmentCarousel({
     () => setActiveSlide((prev) => (prev === 0 ? 1 : 0))
   );
 
-  // Auto rotate carousel every 9 seconds
+  // Schedule the next automatic slide from the moment the current slide is shown.
+  // Any manual change updates activeSlide, cleaning up this timeout and starting
+  // a fresh full minute on the newly selected slide.
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = window.setTimeout(() => {
       setActiveSlide((prev) => (prev === 0 ? 1 : 0));
-    }, 9000);
-    return () => clearInterval(timer);
-  }, []);
+    }, 60_000);
+    return () => window.clearTimeout(timer);
+  }, [activeSlide]);
 
   const positionColors = [
     { fill: "#DC2626", stroke: "#EF4444", bg: "bg-red-600" },     // Forwards
@@ -138,14 +140,17 @@ export function PlayersAndEquipmentCarousel({
     { fill: "#10B981", stroke: "#34D399", bg: "bg-emerald-500" }  // Goalkeepers
   ];
 
-  const inventoryColors = [
-    { fill: "#DC2626", bg: "bg-red-600" },
-    { fill: "#10B981", bg: "bg-emerald-500" },
-    { fill: "#3B82F6", bg: "bg-blue-500" },
-    { fill: "#F59E0B", bg: "bg-amber-500" },
-    { fill: "#8B5CF6", bg: "bg-purple-500" },
-    { fill: "#06B6D4", bg: "bg-cyan-500" }
-  ];
+  const inventoryColors: Record<string, { fill: string; bg: string }> = {
+    BALLS: { fill: "#DC2626", bg: "bg-red-600" },
+    KITS: { fill: "#10B981", bg: "bg-emerald-500" },
+    CONES_MARKERS: { fill: "#3B82F6", bg: "bg-blue-500" },
+    GOALKEEPING: { fill: "#F59E0B", bg: "bg-amber-500" },
+    MEDICAL: { fill: "#14B8A6", bg: "bg-teal-500" },
+    TRAINING_AIDS: { fill: "#8B5CF6", bg: "bg-purple-500" },
+    ELECTRONICS: { fill: "#06B6D4", bg: "bg-cyan-500" },
+    OTHER: { fill: "#64748B", bg: "bg-slate-500" }
+  };
+  const fallbackInventoryColor = { fill: "#64748B", bg: "bg-slate-500" };
 
   return (
     <div {...swipe} className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col justify-between h-full transition-all carousel-no-stroke select-none outline-none focus:outline-none">
@@ -362,10 +367,10 @@ export function PlayersAndEquipmentCarousel({
                     paddingAngle={4}
                     dataKey="count"
                   >
-                    {inventoryCategories.map((entry, index) => (
+                    {inventoryCategories.map((entry) => (
                       <Cell
                         key={`cell-inv-${entry.category}`}
-                        fill={inventoryColors[index % inventoryColors.length]?.fill}
+                        fill={(inventoryColors[entry.category] ?? fallbackInventoryColor).fill}
                       />
                     ))}
                   </Pie>
@@ -394,8 +399,8 @@ export function PlayersAndEquipmentCarousel({
 
             {/* Inventory List Breakdown */}
             <div className="sm:col-span-6 space-y-2">
-              {inventoryCategories.slice(0, 4).map((cat, idx) => {
-                const color = inventoryColors[idx % inventoryColors.length]!;
+              {inventoryCategories.slice(0, 4).map((cat) => {
+                const color = inventoryColors[cat.category] ?? fallbackInventoryColor;
                 const pct = totalEquipmentQuantity > 0 ? Math.round((cat.count / totalEquipmentQuantity) * 100) : 0;
                 return (
                   <div

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
 
 interface FormSelectProps {
+  id?: string;
   name: string;
   options: Array<{ value: string; label: string; warning?: string; disabled?: boolean }>;
   value?: string;
@@ -21,6 +22,7 @@ interface FormSelectProps {
 }
 
 export function FormSelect({
+  id,
   name,
   options,
   value,
@@ -67,6 +69,7 @@ export function FormSelect({
     <div ref={rootRef} className="relative w-full" dir={isAr ? "rtl" : "ltr"}>
       <input type="hidden" name={name} value={selectedValue} />
       <button
+        id={id}
         type="button"
         disabled={disabled}
         role="combobox"

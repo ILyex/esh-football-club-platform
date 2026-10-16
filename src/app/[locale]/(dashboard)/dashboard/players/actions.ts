@@ -251,8 +251,7 @@ export async function createPlayerAction(formData: FormData) {
   const attachments = [
     { field: "cniFile", type: "CNI" as const },
     { field: "contractFile", type: "CONTRACT" as const },
-    { field: "birthCertificateFile", type: "BIRTH_CERTIFICATE" as const },
-    { field: "drugTestFile", type: "DRUG_TEST" as const }
+    { field: "birthCertificateFile", type: "BIRTH_CERTIFICATE" as const }
   ];
 
   for (const attachment of attachments) {
@@ -295,6 +294,10 @@ export async function createPlayerAction(formData: FormData) {
 
 export async function updatePlayerAction(playerId: string, formData: FormData) {
   const user = await requirePermission("players.update");
+  const medicalUpload = formData.get("drugTestFile");
+  if (medicalUpload instanceof File && medicalUpload.size > 0) {
+    throw new Error("ارفع الفحوصات الطبية من الملف الطبي للاعب.");
+  }
   const scopeContext = await getMutationScopeContext();
   const before = await db.player.findUniqueOrThrow({ where: { id: playerId } });
 
@@ -402,18 +405,6 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
       teamId: player.teamId,
       file: birthCertificateFile,
       type: "BIRTH_CERTIFICATE",
-      playerName: `${player.firstName} ${player.lastName}`,
-      userId: user.id
-    })) || positiveDrugTestDetected;
-  }
-
-  const drugTestFile = formData.get("drugTestFile");
-  if (drugTestFile instanceof File && drugTestFile.size > 0) {
-    positiveDrugTestDetected = (await savePlayerAttachedDocument({
-      playerId: player.id,
-      teamId: player.teamId,
-      file: drugTestFile,
-      type: "DRUG_TEST",
       playerName: `${player.firstName} ${player.lastName}`,
       userId: user.id
     })) || positiveDrugTestDetected;

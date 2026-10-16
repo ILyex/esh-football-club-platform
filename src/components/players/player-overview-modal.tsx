@@ -92,12 +92,12 @@ const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   U15: { ar: "أقل من 15 سنة (U15)", fr: "U15" }
 };
 
-const STATUS_LABELS: Record<string, { ar: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
-  ACTIVE: { ar: "نشط ومعتمد", tone: "success" },
-  INJURED: { ar: "مصاب", tone: "warning" },
-  SUSPENDED: { ar: "معاقب", tone: "danger" },
-  ON_LOAN: { ar: "معار", tone: "neutral" },
-  ARCHIVED: { ar: "مؤرشف", tone: "neutral" }
+const STATUS_LABELS: Record<string, { ar: string; fr: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
+  ACTIVE: { ar: "نشط ومعتمد", fr: "Actif et homologué", tone: "success" },
+  INJURED: { ar: "مصاب", fr: "Blessé", tone: "warning" },
+  SUSPENDED: { ar: "معاقب", fr: "Suspendu", tone: "danger" },
+  ON_LOAN: { ar: "معار", fr: "Prêté", tone: "neutral" },
+  ARCHIVED: { ar: "مؤرشف", fr: "Archivé", tone: "neutral" }
 };
 
 export function PlayerOverviewModal({
@@ -132,7 +132,11 @@ export function PlayerOverviewModal({
   const catLabel = player.team?.category
     ? CATEGORY_LABELS[player.team.category]?.[isAr ? "ar" : "fr"] || player.team.name
     : isAr ? "غير محدد" : "Non assigné";
-  const statusInfo = STATUS_LABELS[player.status] || { ar: player.status, tone: "neutral" as const };
+  const statusInfo = STATUS_LABELS[player.status] || {
+    ar: "غير محدد",
+    fr: "Non renseigné",
+    tone: "neutral" as const
+  };
 
   const age = Math.floor(
     (new Date().getTime() - new Date(player.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
@@ -201,7 +205,7 @@ export function PlayerOverviewModal({
                         {getPlayerDisplayName(player, locale)}
                       </h2>
                       <Badge tone={statusInfo.tone} className="text-[10px] bg-white/20 text-white border-white/30">
-                        {statusInfo.ar}
+                        {statusInfo[isAr ? "ar" : "fr"]}
                       </Badge>
                       {player.isInsured ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300">

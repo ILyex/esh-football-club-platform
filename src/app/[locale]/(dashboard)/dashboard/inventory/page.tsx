@@ -16,8 +16,10 @@ const CONDITION_TONE: Record<string, "success" | "neutral" | "warning" | "danger
   NEW: "success",
   GOOD: "success",
   FAIR: "neutral",
+  OLD: "warning",
   POOR: "warning",
-  DAMAGED: "danger"
+  DAMAGED: "danger",
+  UNSPECIFIED: "neutral"
 };
 
 export default async function InventoryListPage({
@@ -25,7 +27,7 @@ export default async function InventoryListPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ team?: string; category?: string; condition?: string; q?: string }>;
+  searchParams: Promise<{ team?: string; category?: string; condition?: string; q?: string; page?: string }>;
 }) {
   const { locale } = await params;
   const sp = await searchParams;
@@ -55,12 +57,12 @@ export default async function InventoryListPage({
       : {})
   };
 
-  const [items, teams, allStats] = await Promise.all([
-    db.inventoryItem.findMany({
-      where,
-      include: { team: true },
-      orderBy: [{ category: "asc" }, { name: "asc" }]
-    }),
+  const pageSize = 20;
+  const requestedPageValue = Number.parseInt(sp.page ?? "1", 10);
+  const requestedPage = Number.isSafeInteger(requestedPageValue) && requestedPageValue > 0 ? requestedPageValue : 1;
+
+  const [itemsCount, teams, allStats] = await Promise.all([
+    db.inventoryItem.count({ where }),
     getAuthorizedTeams(),
     db.inventoryItem.groupBy({
       by: ["category", "condition"],
@@ -68,6 +70,25 @@ export default async function InventoryListPage({
       _sum: { quantity: true }
     })
   ]);
+  const totalPages = Math.max(1, Math.ceil(itemsCount / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const items = await db.inventoryItem.findMany({
+    where,
+    include: { team: true },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize
+  });
+
+  const pageUrl = (targetPage: number) => {
+    const query = new URLSearchParams();
+    if (sp.team) query.set("team", sp.team);
+    if (sp.category) query.set("category", sp.category);
+    if (sp.condition) query.set("condition", sp.condition);
+    if (sp.q) query.set("q", sp.q);
+    query.set("page", String(targetPage));
+    return `/${locale}/dashboard/inventory?${query.toString()}`;
+  };
 
   let totalItemsCount = 0;
   let totalBallsCount = 0;
@@ -114,8 +135,10 @@ export default async function InventoryListPage({
               NEW: t("conditions.NEW"),
               GOOD: t("conditions.GOOD"),
               FAIR: t("conditions.FAIR"),
+              OLD: t("conditions.OLD"),
               POOR: t("conditions.POOR"),
-              DAMAGED: t("conditions.DAMAGED")
+              DAMAGED: t("conditions.DAMAGED"),
+              UNSPECIFIED: t("conditions.UNSPECIFIED")
             }}
           />
           {canManage && (
@@ -139,7 +162,7 @@ export default async function InventoryListPage({
             </div>
           </div>
           <p className="mt-2 text-2xl font-bold">{totalItemsCount}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{items.length} {t("stats.uniqueEntries")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{itemsCount} {t("stats.uniqueEntries")}</p>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -211,7 +234,7 @@ export default async function InventoryListPage({
           value={sp.condition ?? ""}
           options={[
             { id: "", label: t("allConditions") },
-            ...["NEW", "GOOD", "FAIR", "POOR", "DAMAGED"].map((cond) => ({ id: cond, label: t(`conditions.${cond}` as any) }))
+            ...["NEW", "GOOD", "FAIR", "OLD", "POOR", "DAMAGED", "UNSPECIFIED"].map((cond) => ({ id: cond, label: t(`conditions.${cond}` as any) }))
           ]}
           headerTitle={locale === "ar" ? "تصفية حسب الحالة" : "Filtrer par état"}
         />
@@ -303,6 +326,25 @@ export default async function InventoryListPage({
           </tbody>
         </table>
       </div>
+
+      {itemsCount > 0 && (
+        <nav aria-label={locale === "ar" ? "صفحات العتاد" : "Pages de l’inventaire"} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+          <p className="text-xs text-muted-foreground">
+            {t("paginationSummary", { from: (page - 1) * pageSize + 1, to: Math.min(page * pageSize, itemsCount), total: itemsCount })}
+          </p>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            {page <= 1
+              ? <span aria-disabled="true" className="inline-flex h-9 min-w-24 items-center justify-center rounded-md border border-border px-3 text-xs text-muted-foreground opacity-50">{tCommon("previousPage")}</span>
+              : <Link href={pageUrl(page - 1)} className="inline-flex h-9 min-w-24 items-center justify-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">{tCommon("previousPage")}</Link>}
+            <span className="min-w-24 text-center text-xs font-semibold text-muted-foreground">
+              {tCommon("pageOf", { page, pages: totalPages })}
+            </span>
+            {page >= totalPages
+              ? <span aria-disabled="true" className="inline-flex h-9 min-w-24 items-center justify-center rounded-md border border-border px-3 text-xs text-muted-foreground opacity-50">{tCommon("nextPage")}</span>
+              : <Link href={pageUrl(page + 1)} className="inline-flex h-9 min-w-24 items-center justify-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">{tCommon("nextPage")}</Link>}
+          </div>
+        </nav>
+      )}
 
     </div>
   );

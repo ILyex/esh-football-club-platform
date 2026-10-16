@@ -6,6 +6,7 @@ import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { getAuthorizedTeams } from "@/lib/team-context";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateInventoryItemAction, deleteInventoryItemAction } from "../actions";
 import { Save,  ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
@@ -56,19 +57,23 @@ export default async function EditInventoryItemPage({
   }
 
   const BackIcon = locale === "ar" ? ArrowRight : ArrowLeft;
+  const fieldClassName = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20 disabled:cursor-not-allowed disabled:opacity-60";
+  const categories = ["BALLS", "KITS", "CONES_MARKERS", "GOALKEEPING", "MEDICAL", "TRAINING_AIDS", "ELECTRONICS", "OTHER"];
+  const conditions = ["NEW", "GOOD", "FAIR", "OLD", "POOR", "DAMAGED", "UNSPECIFIED"];
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="mx-auto w-full max-w-3xl space-y-6 px-1 sm:px-0">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <Link
             href={`/${locale}/dashboard/inventory`}
-            className="rounded-md border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={tCommon("back")}
+            className="shrink-0 rounded-lg border border-border bg-card p-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <BackIcon className="h-4 w-4" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">{item.name}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold tracking-tight">{item.name}</h1>
             <p className="text-xs text-muted-foreground">{t("editItemDescription")}</p>
           </div>
         </div>
@@ -83,106 +88,101 @@ export default async function EditInventoryItemPage({
         )}
       </div>
 
-      <form action={updateAction} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.name")}</label>
+      <form action={updateAction} className="grid grid-cols-1 gap-x-5 gap-y-5 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        <div className="sm:col-span-2">
+          <label htmlFor="inventory-name" className="mb-2 block text-sm font-semibold">{t("fields.name")}</label>
           <input
+            id="inventory-name"
             name="name"
             defaultValue={item.name}
             required
             disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+            className={fieldClassName}
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.category")}</label>
-          <select
+          <label htmlFor="inventory-category" className="mb-2 block text-sm font-semibold">{t("fields.category")}</label>
+          <FormSelect
+            id="inventory-category"
             name="category"
             required
             defaultValue={item.category}
             disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
-          >
-            {["BALLS", "KITS", "CONES_MARKERS", "GOALKEEPING", "MEDICAL", "TRAINING_AIDS", "ELECTRONICS", "OTHER"].map(
-              (c) => (
-                <option key={c} value={c}>
-                  {t(`categories.${c}` as any)}
-                </option>
-              )
-            )}
-          </select>
+            locale={locale}
+            ariaLabel={t("fields.category")}
+            options={categories.map((category) => ({ value: category, label: t(`categories.${category}` as any) }))}
+          />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.quantity")}</label>
+          <label htmlFor="inventory-quantity" className="mb-2 block text-sm font-semibold">{t("fields.quantity")}</label>
           <input
+            id="inventory-quantity"
             name="quantity"
             type="number"
-            min={1}
+            min={0}
             defaultValue={item.quantity}
             required
             disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono disabled:opacity-60"
+            className={`${fieldClassName} font-mono`}
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.condition")}</label>
-          <select
+          <label htmlFor="inventory-condition" className="mb-2 block text-sm font-semibold">{t("fields.condition")}</label>
+          <FormSelect
+            id="inventory-condition"
             name="condition"
             defaultValue={item.condition}
             disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
-          >
-            {["NEW", "GOOD", "FAIR", "POOR", "DAMAGED"].map((cond) => (
-              <option key={cond} value={cond}>
-                {t(`conditions.${cond}` as any)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t("fields.team")}</label>
-          <select
-            name="teamId"
-            defaultValue={item.teamId ?? ""}
-            disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
-          >
-            <option value="">{t("clubWide")}</option>
-            {teams.map((tm) => (
-              <option key={tm.id} value={tm.id}>
-                {tTeams(`categories.${tm.category}` as any)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.location")}</label>
-          <input
-            name="location"
-            defaultValue={item.location ?? ""}
-            disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+            locale={locale}
+            ariaLabel={t("fields.condition")}
+            options={conditions.map((condition) => ({ value: condition, label: t(`conditions.${condition}` as any) }))}
           />
         </div>
 
-        <div className="col-span-2">
-          <label className="mb-1 block text-sm font-medium">{t("fields.notes")}</label>
+        <div>
+          <label htmlFor="inventory-team" className="mb-2 block text-sm font-semibold">{t("fields.team")}</label>
+          <FormSelect
+            id="inventory-team"
+            name="teamId"
+            defaultValue={item.teamId ?? ""}
+            disabled={!canManage}
+            locale={locale}
+            ariaLabel={t("fields.team")}
+            options={[
+              { value: "", label: t("clubWide") },
+              ...teams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))
+            ]}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="inventory-location" className="mb-2 block text-sm font-semibold">{t("fields.location")}</label>
+          <input
+            id="inventory-location"
+            name="location"
+            defaultValue={item.location ?? ""}
+            disabled={!canManage}
+            className={fieldClassName}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="inventory-notes" className="mb-2 block text-sm font-semibold">{t("fields.notes")}</label>
           <textarea
+            id="inventory-notes"
             name="notes"
-            rows={3}
+            rows={4}
             defaultValue={item.notes ?? ""}
             disabled={!canManage}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+            className={`${fieldClassName} h-auto min-h-28 resize-y py-3 leading-6`}
           />
         </div>
 
         {canManage && (
-          <div className="col-span-2 flex items-center justify-end gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-5 sm:col-span-2">
             <Link href={`/${locale}/dashboard/inventory`}>
               <Button type="button" variant="outline">
                 {tCommon("cancel")}

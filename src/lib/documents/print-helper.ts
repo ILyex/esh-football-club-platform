@@ -58,7 +58,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     @page official-testing-report { size: A4 portrait; margin: 10mm; }
 
     html, body {
-      width: 100% !important;
+      width: 190mm !important;
       min-width: 0 !important;
       max-width: 190mm !important;
       margin: 0 !important;
@@ -78,7 +78,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     .esh-print-root {
       display: block !important;
       position: static !important;
-      width: 100% !important;
+      width: 190mm !important;
       min-width: 0 !important;
       max-width: 190mm !important;
       margin: 0 !important;
@@ -91,10 +91,10 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       position: relative !important;
       display: block !important;
       box-sizing: border-box !important;
-      width: 100% !important;
+      width: 190mm !important;
       min-width: 0 !important;
       max-width: 190mm !important;
-      min-height: 0 !important;
+      min-height: 277mm !important;
       height: auto !important;
       max-height: none !important;
       margin: 0 !important;
@@ -113,6 +113,13 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       page-break-after: auto !important;
       direction: ${sourceDirection} !important;
       font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
+    }
+
+    /* Apply the requested common document type size across every print view. */
+    .esh-print-page,
+    .esh-print-page * {
+      font-size: 19px !important;
+      line-height: 1.45 !important;
     }
 
     /* Named pages use the same A4 printable area as every other document. */
@@ -135,7 +142,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
 
     .esh-print-page.printable-document,
     .esh-print-page .print-preview-sheet {
-      width: 100% !important;
+      width: 190mm !important;
       min-width: 0 !important;
       max-width: none !important;
       min-height: 277mm !important;
@@ -166,7 +173,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     }
 
     .esh-print-page .esh-official-document-header,
-    .esh-print-page .esh-official-document-header > div,
+    .esh-print-page .esh-document-header-row,
     .esh-print-page table {
       width: 100% !important;
       min-width: 0 !important;
@@ -174,13 +181,138 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       box-sizing: border-box !important;
     }
 
+    /* Only the three-column masthead row spans the page. Applying width:100%
+       to every direct child makes each flex column as wide as the whole page,
+       pushing the authority and reference text beyond the right paper edge. */
+    .esh-print-page .esh-document-header-row {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 18mm minmax(0, 1fr) !important;
+      direction: ltr !important;
+      align-items: start !important;
+      column-gap: 2mm !important;
+    }
+    .esh-print-page .esh-document-header-row > .esh-document-authority,
+    .esh-print-page .esh-document-header-row > .esh-document-reference {
+      grid-row: 1 !important;
+      width: auto !important;
+      min-width: 0 !important;
+      overflow-wrap: anywhere !important;
+    }
+    .esh-print-page .esh-document-header-row > .esh-document-authority {
+      grid-column: 1 !important;
+    }
+    .esh-print-page .esh-document-header-row > .esh-document-reference {
+      grid-column: 3 !important;
+    }
+    .esh-print-page .esh-document-header-row > .esh-document-brand {
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+      flex: none !important;
+      width: 18mm !important;
+      padding-inline: 1mm !important;
+      justify-self: center !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(rtl) .esh-document-authority {
+      grid-column: 3 !important;
+      text-align: right !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(rtl) .esh-document-reference {
+      grid-column: 1 !important;
+      text-align: left !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(ltr) .esh-document-authority {
+      text-align: left !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(ltr) .esh-document-reference {
+      text-align: right !important;
+    }
+    .esh-print-page .esh-document-brand .esh-club-logo {
+      width: 16mm !important;
+      height: 16mm !important;
+    }
+    .esh-print-page .esh-document-authority p {
+      font-size: 18px !important;
+      line-height: 1.35 !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+    }
+    .esh-print-page .esh-document-reference p {
+      font-size: 18px !important;
+      line-height: 1.35 !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(ltr) .esh-document-authority p {
+      font-size: 18px !important;
+    }
+    .esh-print-page .esh-official-document-header:dir(ltr) .esh-document-reference p {
+      font-size: 18px !important;
+    }
+    .esh-print-page .esh-official-document-header h1 {
+      font-size: 18px !important;
+      line-height: 1.35 !important;
+    }
+
+    /* Keep the player attestation masthead aligned with the shared 18px rule. */
+    .esh-print-page.esh-attestation-document .esh-document-authority p {
+      font-size: 18px !important;
+      line-height: 1.4 !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-document-reference p {
+      font-size: 18px !important;
+      line-height: 1.4 !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-official-document-header h1 {
+      font-size: 18px !important;
+      line-height: 1.4 !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-attestation-body {
+      font-size: 19px !important;
+      line-height: 1.65 !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-attestation-body .text-xl {
+      font-size: 19px !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-attestation-footer {
+      font-size: 19px !important;
+    }
+    .esh-print-page.esh-attestation-document .esh-attestation-signature {
+      font-size: 19px !important;
+    }
+
+    /* Keep inventory labels and cells on the shared 19px document scale. */
+    .esh-print-page.inventory-list-document .category-header span:first-child {
+      font-size: 19px !important;
+      line-height: 1.35 !important;
+    }
+    .esh-print-page.inventory-list-document .category-header span:last-child {
+      font-size: 19px !important;
+      line-height: 1.35 !important;
+    }
+    .esh-print-page.inventory-list-document table:not(.grand-total-section) th,
+    .esh-print-page.inventory-list-document table:not(.grand-total-section) td {
+      font-size: 19px !important;
+      line-height: 1.35 !important;
+      padding-block: 4px !important;
+    }
+    .esh-print-page.inventory-list-document .grand-total-section th,
+    .esh-print-page.inventory-list-document .grand-total-section td {
+      font-size: 19px !important;
+      line-height: 1.4 !important;
+    }
+    .esh-print-page.inventory-list-document .document-signatures p {
+      font-size: 19px !important;
+    }
+
     .esh-print-page table {
       table-layout: fixed !important;
       border-collapse: collapse !important;
     }
 
-    .esh-print-page thead { display: table-row-group !important; }
-    .esh-print-page tfoot { display: table-footer-group !important; }
+    /* Repeat table headings when a long document flows onto another A4 page.
+       Totals are ordinary rows and must appear only where they occur. */
+    .esh-print-page thead { display: table-header-group !important; }
+    .esh-print-page tfoot { display: table-row-group !important; }
     .esh-print-page tr,
     .esh-print-page th,
     .esh-print-page td {
@@ -194,6 +326,36 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     .esh-print-page .signatures-section {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
+    }
+    .esh-print-page .document-signatures {
+      direction: ltr !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .esh-print-page .document-signatures.signature-block,
+    .esh-print-page .document-signatures.signatures-section,
+    .esh-print-page .signature-block.document-signatures-multiple {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .esh-print-page .document-signatures > *,
+    .esh-print-page .document-signatures p,
+    .esh-print-page .document-signatures span {
+      text-align: left !important;
+    }
+    .esh-print-page .document-signatures-multiple {
+      direction: ltr !important;
+      justify-content: start !important;
+    }
+    .esh-print-page .document-signatures-multiple > :nth-child(2),
+    .esh-print-page .document-signatures-multiple > :nth-child(2) p,
+    .esh-print-page .document-signatures-multiple > :nth-child(2) span,
+    .esh-print-page .document-signatures-multiple > :nth-child(3),
+    .esh-print-page .document-signatures-multiple > :nth-child(3) p,
+    .esh-print-page .document-signatures-multiple > :nth-child(3) span {
+      text-align: left !important;
     }
     .esh-print-page .signature-block,
     .esh-print-page .signatures-section {

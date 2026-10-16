@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Users, ArrowRight, ArrowLeft } from "lucide-react";
 import { getPublicTeams } from "@/lib/public/teams";
-import { frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function TeamsOverviewPage({
@@ -21,11 +21,11 @@ export default async function TeamsOverviewPage({
     getPublicTeams()
   ]);
 
-  const categoryImages: Record<string, string> = {
-    senior: "/branding/teams/team-senior.png",
-    u20: "/branding/teams/team-u20.png",
-    u17: "/branding/teams/team-u17.png",
-    u15: "/branding/teams/team-u15.png"
+  const categoryMedia: Record<string, { video: string; poster: string }> = {
+    senior: { video: "/branding/teams/category-senior.mp4", poster: "/branding/teams/category-senior.jpg" },
+    u20: { video: "/branding/teams/category-u20.mp4", poster: "/branding/teams/category-u20.jpg" },
+    u17: { video: "/branding/teams/category-u17.mp4", poster: "/branding/teams/category-u17.jpg" },
+    u15: { video: "/branding/teams/category-u15.mp4", poster: "/branding/teams/category-u15.jpg" }
   };
 
   return (
@@ -35,23 +35,30 @@ export default async function TeamsOverviewPage({
       {/* Team Cards Grid */}
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {teams.map((team) => {
-          const catImg = categoryImages[team.category.toLowerCase()];
+          const categoryAsset = categoryMedia[team.category.toLowerCase()];
           const categoryLabel = tTeams(`categories.${team.category}` as any) || team.category;
-          const teamDisplayName = localizedClubName(team.name, locale, categoryLabel);
-          const showTeamName = teamDisplayName.trim() !== categoryLabel.trim();
           return (
             <Link
               key={team.id}
               href={`/${locale}/team/${team.category.toLowerCase()}`}
               className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all hover:-translate-y-1 hover:border-club-primary/50 hover:shadow-md"
             >
-              {catImg && (
+              {categoryAsset && (
                 <div className="relative aspect-[507/249] w-full overflow-hidden border-b border-border/60">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={catImg}
-                    alt={localizedClubName(team.name, locale, tTeams(`categories.${team.category}` as any))}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  <video
+                    src={categoryAsset.video}
+                    poster={categoryAsset.poster}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls={false}
+                    disablePictureInPicture
+                    disableRemotePlayback
+                    preload="metadata"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    className="pointer-events-none h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
               )}
@@ -59,18 +66,16 @@ export default async function TeamsOverviewPage({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="rounded-md bg-club-primary/10 px-2.5 py-1 text-xs font-bold text-club-primary">
-                      {categoryLabel}
+                      {team.category === "SENIOR" ? categoryLabel : team.category}
                     </span>
                     <span className="text-xs font-medium text-muted-foreground">
                       {team.playerCount} {locale === "ar" ? "لاعب" : "joueurs"}
                     </span>
                   </div>
 
-                  {showTeamName && (
-                    <h2 className="mt-4 text-xl font-bold text-foreground transition-colors group-hover:text-club-primary">
-                      {teamDisplayName}
-                    </h2>
-                  )}
+                  <h2 className="mt-4 text-xl font-bold text-foreground transition-colors group-hover:text-club-primary">
+                    {categoryLabel}
+                  </h2>
 
               {(locale === "ar" ? team.description : frenchPublicText(team.description, "")) && (
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">

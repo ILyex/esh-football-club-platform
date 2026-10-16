@@ -72,6 +72,19 @@ const MONTH_NAMES_FR = [
 const WEEKDAY_NAMES_AR = ["سبت", "أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"];
 const WEEKDAY_NAMES_FR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+function normalizeDateInputValue(raw?: string | Date | null): string {
+  if (!raw) return "";
+  if (raw instanceof Date) return parseISOToDMY(raw);
+
+  const value = String(raw).trim();
+  // Keep typed drafts such as "1", "16/0", and "16/01/20" as drafts.
+  // Passing a digit-only draft to `new Date()` makes JavaScript interpret
+  // values like "1" as January 1, 2001 and overwrites what the user typed.
+  if (/^\d{0,2}(?:\/\d{0,2}(?:\/\d{0,4})?)?$/.test(value)) return value;
+
+  return parseISOToDMY(value);
+}
+
 /**
  * Universal Mandatory Date Input Component for ESH Platform.
  * Enforces DD/MM/YYYY formatting, validation, and calendar selection.
@@ -99,8 +112,8 @@ export function DateInput({
 
   // Normalize initial value to DD/MM/YYYY
   const getInitialValue = (): string => {
-    if (value) return parseISOToDMY(value);
-    if (defaultValue) return parseISOToDMY(defaultValue);
+    if (value) return normalizeDateInputValue(value);
+    if (defaultValue) return normalizeDateInputValue(defaultValue);
     return "";
   };
 
@@ -142,7 +155,7 @@ export function DateInput({
   // Sync when controlled value changes
   useEffect(() => {
     if (isControlled && value !== undefined || !isControlled && defaultValue !== undefined) {
-      const formatted = parseISOToDMY(isControlled ? value! : defaultValue!);
+      const formatted = normalizeDateInputValue(isControlled ? value! : defaultValue!);
       setDisplayValue(formatted);
       if (isValidDMY(formatted)) {
         const parts = formatted.split("/");
@@ -184,6 +197,8 @@ export function DateInput({
   // Masked typing: auto-insert slashes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value;
+    const selectionStart = e.target.selectionStart ?? input.length;
+    const digitsBeforeCursor = input.slice(0, selectionStart).replace(/\D/g, "").length;
 
     // Always rebuild the mask from the digits. Previously, once the first
     // slash existed, the handler stopped formatting, so the second slash was
@@ -218,6 +233,24 @@ export function DateInput({
     if (onChange) {
       onChange(cleaned, isoVal);
     }
+
+    // Reformatting the whole string moves the caret to the end in many
+    // browsers, making it nearly impossible to replace a date segment (such
+    // as the year). Restore the caret after the same number of digits.
+    let nextCaret = 0;
+    let digitsSeen = 0;
+    while (nextCaret < cleaned.length && digitsSeen < digitsBeforeCursor) {
+      if (/\d/.test(cleaned[nextCaret]!)) digitsSeen += 1;
+      nextCaret += 1;
+    }
+    if ((digitsBeforeCursor === 2 || digitsBeforeCursor === 4) && cleaned[nextCaret] === "/") {
+      nextCaret += 1;
+    }
+    window.requestAnimationFrame(() => {
+      const currentInput = inputRef.current;
+      if (!currentInput) return;
+      currentInput.setSelectionRange(nextCaret, nextCaret);
+    });
   };
 
   // Day click from calendar

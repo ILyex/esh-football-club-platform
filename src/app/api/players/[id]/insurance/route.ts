@@ -14,7 +14,7 @@ export async function POST(
 ) {
   try {
     const { id: playerId } = await params;
-    const user = await requirePermission("players.update");
+    const user = await requirePermission("medical.records.manage");
     const scope = await getMutationScopeContext();
 
     const player = await db.player.findUnique({
@@ -124,8 +124,9 @@ export async function POST(
     });
     const parsedDocDate = startDateStr ? new Date(startDateStr) : new Date();
 
+    let savedDocumentId: string;
     if (existing) {
-      await db.document.update({
+      const updatedDocument = await db.document.update({
         where: { id: existing.id },
         data: {
           name: docName,
@@ -139,8 +140,9 @@ export async function POST(
           status: pendingManualReview ? "PENDING_REVIEW" : "APPROVED"
         }
       });
+      savedDocumentId = updatedDocument.id;
     } else {
-      await db.document.create({
+      const createdDocument = await db.document.create({
         data: {
           name: docName,
           categoryId: category.id,
@@ -158,7 +160,22 @@ export async function POST(
           status: pendingManualReview ? "PENDING_REVIEW" : "APPROVED"
         }
       });
+      savedDocumentId = createdDocument.id;
     }
+
+    await db.playerMedicalRecord.upsert({
+      where: { documentId: savedDocumentId },
+      update: { type: "INSURANCE_POLICY", title: "وثيقة التأمين الرياضي", issuedAt: parsedDocDate, expiresAt: endDateStr ? new Date(endDateStr) : null },
+      create: {
+        playerId: player.id,
+        documentId: savedDocumentId,
+        type: "INSURANCE_POLICY",
+        title: "وثيقة التأمين الرياضي",
+        issuedAt: parsedDocDate,
+        expiresAt: endDateStr ? new Date(endDateStr) : null,
+        createdById: user.id
+      }
+    });
 
     await writeAuditLog({
       userId: user.id,
@@ -190,7 +207,7 @@ export async function DELETE(
     const { id: playerId } = await params;
     const user = await getSessionOrThrow();
     const scope = await getMutationScopeContext();
-    if (!hasPermission(user, "players.update") && !hasPermission(user, "documents.delete")) {
+    if (!hasPermission(user, "medical.records.manage")) {
       return NextResponse.json({ error: "غير مصرح لك بحذف وثيقة التأمين" }, { status: 403 });
     }
 

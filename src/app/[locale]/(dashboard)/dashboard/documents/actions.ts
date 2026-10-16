@@ -53,6 +53,10 @@ export async function uploadDocumentAction(formData: FormData) {
   const metadataRaw = Object.fromEntries(formData.entries());
   const metadata = documentMetadataSchema.parse(metadataRaw);
 
+  if (metadata.relatedPlayerId && /insurance|assurance|تأمين|مخدر|drug|dopage|تحاليل|analysis|analyse|medical|طبي|أهلية|aptitude/i.test(`${metadata.name} ${metadata.description || ""}`)) {
+    throw new Error("أضف وثائق التأمين والفحوصات الطبية من الملف الطبي الخاص باللاعب.");
+  }
+
   // Assert target team is authorized for the caller
   assertTeamScope(scopeContext, metadata.teamId || null, "Document");
 
@@ -195,6 +199,10 @@ export async function deleteDocumentAction(documentId: string) {
   const user = await requirePermission("documents.delete");
   const scopeContext = await getMutationScopeContext();
   const document = await db.document.findUniqueOrThrow({ where: { id: documentId } });
+  if (await db.playerMedicalRecord.findUnique({ where: { documentId }, select: { id: true } })) {
+    await requirePermission("medical.records.manage");
+    throw new Error("تُدار الوثائق الطبية من سجل اللاعب للحفاظ على تاريخ الملف.");
+  }
   assertTeamScope(scopeContext, document.teamId, "Document");
 
   await deletePrivateFile(document.storageKey);
@@ -211,6 +219,10 @@ export async function updateDocumentMetadataAction(documentId: string, formData:
   const user = await requirePermission("documents.update");
   const scopeContext = await getMutationScopeContext();
   const before = await db.document.findUniqueOrThrow({ where: { id: documentId } });
+  if (await db.playerMedicalRecord.findUnique({ where: { documentId }, select: { id: true } })) {
+    await requirePermission("medical.records.manage");
+    throw new Error("تُدار بيانات الوثيقة الطبية من سجل اللاعب.");
+  }
 
   const metadataRaw = Object.fromEntries(formData.entries());
   const metadata = documentMetadataSchema.parse(metadataRaw);
@@ -266,6 +278,10 @@ export async function setDocumentStatusAction(documentId: string, status: "PENDI
   const user = await requirePermission("documents.update");
   const scopeContext = await getMutationScopeContext();
   const before = await db.document.findUniqueOrThrow({ where: { id: documentId } });
+  if (await db.playerMedicalRecord.findUnique({ where: { documentId }, select: { id: true } })) {
+    await requirePermission("medical.records.manage");
+    throw new Error("لا يمكن تعديل حالة وثيقة طبية من الأرشيف العام.");
+  }
   assertTeamScope(scopeContext, before.teamId, "Document");
 
   const document = await db.document.update({ where: { id: documentId }, data: { status } });

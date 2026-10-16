@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
-import { ImagePlus, LoaderCircle, Save } from "lucide-react";
+import { ImagePlus, LoaderCircle, Save, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateHomepageHeroImageAction } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
+import { isVideoUrl } from "@/lib/media-utils";
 
 interface WebsiteAppearanceManagerProps {
   locale: string;
@@ -47,18 +48,19 @@ export function WebsiteAppearanceManager({ locale, currentImageUrl }: WebsiteApp
         form.reset();
         setFeedback({
           success: true,
-          message: result.warning || (isAr ? "تم تحديث صورة الهيدر بنجاح." : "L’image de l’en-tête a été mise à jour.")
+          message: result.warning || (isAr ? "تم تحديث خلفية الهيدر بنجاح." : "Le fond de l’en-tête a été mis à jour.")
         });
       } else {
         setFeedback({
           success: false,
-          message: result.error || (isAr ? "تعذر حفظ الصورة." : "Impossible d’enregistrer l’image.")
+          message: result.error || (isAr ? "تعذر حفظ الوسيط." : "Impossible d’enregistrer le média.")
         });
       }
     });
   };
 
-  const displayedImage = previewUrl || savedUrl;
+  const displayedMedia = previewUrl || savedUrl;
+  const displayedVideo = previewUrl ? Boolean(file?.type.startsWith("video/")) : isVideoUrl(displayedMedia);
 
   return (
     <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6" aria-labelledby="website-appearance-title">
@@ -68,30 +70,35 @@ export function WebsiteAppearanceManager({ locale, currentImageUrl }: WebsiteApp
         </span>
         <div>
           <h2 id="website-appearance-title" className="text-base font-bold text-foreground">
-            {isAr ? "صور الموقع العام" : "Images du site public"}
+            {isAr ? "خلفية هيدر الموقع العام" : "Fond d’en-tête du site public"}
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {isAr
-              ? "غيّر صورة الهيدر الرئيسية وشاهد معاينتها قبل الحفظ. الحد الأقصى 8 ميغابايت."
-              : "Modifiez l’image d’en-tête de la page d’accueil et prévisualisez-la avant l’enregistrement. 8 Mo maximum."}
+              ? "اختر صورة للهيدر (JPG أو PNG أو WebP، حتى 8 ميغابايت) أو فيديو MP4 (حتى 20 ميغابايت). الفيديو يعمل تلقائياً بصمت وبشكل متكرر كخلفية دون عناصر تحكم."
+              : "Choisissez une image (JPG, PNG, WebP, 8 Mo max.) ou une vidéo MP4 (20 Mo max.). La vidéo est muette, en boucle et sans commandes, en arrière-plan."}
           </p>
         </div>
       </div>
 
-      <div className="relative h-40 overflow-hidden rounded-xl border border-border bg-muted sm:h-52">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={displayedImage} alt={isAr ? "معاينة صورة الهيدر" : "Aperçu de l’image d’en-tête"} className="h-full w-full object-cover" />
+      <div className="relative h-40 overflow-hidden rounded-xl border border-border bg-[#0C0D0E] sm:h-52">
+        {displayedVideo ? (
+          <video key={displayedMedia} src={displayedMedia} autoPlay loop muted playsInline controls={false} preload="metadata" aria-label={isAr ? "معاينة فيديو خلفية الهيدر" : "Aperçu de la vidéo d’en-tête"} className="h-full w-full object-cover" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={displayedMedia} alt={isAr ? "معاينة صورة الهيدر" : "Aperçu de l’image d’en-tête"} className="h-full w-full object-cover" />
+        )}
         <span className="absolute bottom-3 start-3 rounded-lg bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
-          {isAr ? (previewUrl ? "معاينة قبل الحفظ" : "صورة الهيدر الحالية") : (previewUrl ? "Aperçu avant enregistrement" : "Image actuelle")}
+          {isAr ? (previewUrl ? "معاينة قبل الحفظ" : displayedVideo ? "فيديو الهيدر الحالي" : "صورة الهيدر الحالية") : (previewUrl ? "Aperçu avant enregistrement" : displayedVideo ? "Vidéo d’en-tête actuelle" : "Image d’en-tête actuelle")}
+          {displayedVideo && <Video className="ms-1.5 inline h-3.5 w-3.5" aria-hidden="true" />}
         </span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-semibold text-foreground">
-          <span>{isAr ? "اختر صورة جديدة" : "Choisir une nouvelle image"}</span>
+          <span>{isAr ? "اختر صورة أو فيديو جديداً" : "Choisir une nouvelle image ou vidéo"}</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,video/mp4,.mp4"
             onChange={handleFileChange}
             disabled={isSaving}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-foreground"
@@ -99,7 +106,7 @@ export function WebsiteAppearanceManager({ locale, currentImageUrl }: WebsiteApp
         </label>
         <Button type="submit" disabled={!file || isSaving} className="shrink-0 gap-2 sm:self-end">
           {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          <span>{isAr ? "حفظ الصورة" : "Enregistrer l’image"}</span>
+          <span>{isAr ? "حفظ خلفية الهيدر" : "Enregistrer le fond"}</span>
         </Button>
       </form>
 

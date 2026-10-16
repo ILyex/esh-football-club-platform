@@ -10,7 +10,7 @@ interface DocumentsNavTabsProps {
   locale: string;
   canViewDocuments?: boolean;
   canViewContracts?: boolean;
-  canViewInsurance?: boolean;
+  canViewMedicalRecords?: boolean;
   canViewCorrespondence?: boolean;
   canViewMeetings?: boolean;
   canManageTemplates?: boolean;
@@ -22,7 +22,7 @@ export function DocumentsNavTabs({
   locale,
   canViewDocuments = false,
   canViewContracts = false,
-  canViewInsurance = false,
+  canViewMedicalRecords = false,
   canViewCorrespondence = false,
   canViewMeetings = false,
   canViewReports = false
@@ -68,10 +68,10 @@ export function DocumentsNavTabs({
       exact: false
     },
     {
-      href: `/${locale}/dashboard/insurance`,
-      label: isAr ? "التأمين الرياضي" : "Assurance Sportive",
+      href: `/${locale}/dashboard/medical-records`,
+      label: isAr ? "الملف الطبي للاعبين" : "Dossiers médicaux des joueurs",
       icon: ShieldCheck,
-      visible: canViewInsurance,
+      visible: canViewMedicalRecords,
       exact: false
     }
   ].filter((t) => t.visible);

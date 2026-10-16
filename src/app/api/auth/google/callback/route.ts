@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyOAuthState, getGoogleOAuthConfig } from "@/lib/integrations/gmail/config";
+import { verifyOAuthState, getGoogleOAuthConfig, getPublicApplicationOrigin } from "@/lib/integrations/gmail/config";
 import { connectOfficialGmail } from "@/lib/integrations/gmail/service";
 import { db } from "@/lib/db";
 import type { SessionUser } from "@/lib/permissions";
@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const baseUrl = process.env.NEXTAUTH_URL || req.nextUrl.origin;
+  const baseUrl =
+    process.env.NODE_ENV === "production"
+      ? getPublicApplicationOrigin()
+      : process.env.AUTH_URL || process.env.NEXTAUTH_URL || req.nextUrl.origin;
 
   const stateVerification = state ? verifyOAuthState(state) : null;
   const locale = stateVerification?.valid ? stateVerification.locale : "ar";

@@ -93,7 +93,8 @@ export function MatchFormClient({
     const d = new Date();
     d.setDate(d.getDate() + 7);
     d.setHours(14, 30, 0, 0);
-    return d.toISOString().slice(0, 16);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
@@ -113,6 +114,7 @@ export function MatchFormClient({
   // Logo state
   const [previewLogo, setPreviewLogo] = useState<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
+  const selectedLogoFileRef = useRef<File | null>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
@@ -129,6 +131,7 @@ export function MatchFormClient({
   };
 
   const clearLogoFile = () => {
+    selectedLogoFileRef.current = null;
     if (logoFileInputRef.current) logoFileInputRef.current.value = "";
   };
 
@@ -166,6 +169,7 @@ export function MatchFormClient({
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      selectedLogoFileRef.current = file;
       const objectUrl = URL.createObjectURL(file);
       setLogoPreview(objectUrl);
     }
@@ -189,6 +193,9 @@ export function MatchFormClient({
   };
 
   const handleSubmit = (formData: FormData) => {
+    if (selectedLogoFileRef.current) {
+      formData.set("opponentLogoFile", selectedLogoFileRef.current);
+    }
     startTransition(async () => {
       try {
         const result = await action(formData) as { formError?: { field?: string; message: string } } | undefined;
@@ -211,6 +218,7 @@ export function MatchFormClient({
 
   return (
     <form action={handleSubmit} className="space-y-6">
+      <input type="hidden" name="locale" value={locale} />
       {/* 1. Header Card with Live Duel Preview */}
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-background p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
@@ -482,10 +490,9 @@ export function MatchFormClient({
               name="matchDate"
               required
               value={matchDate}
-              onChange={(_, iso) => {
-                // Keep the controlled value in sync when the user clears the
-                // date, so unrelated rerenders don't restore the old value.
-                setMatchDate(iso ?? "");
+              onChange={(draft, iso) => {
+                if (iso) setMatchDate(iso);
+                else if (!draft) setMatchDate("");
               }}
               locale={locale}
             />
@@ -508,26 +515,6 @@ export function MatchFormClient({
             />
           </div>
 
-          {/* Referee */}
-          <div className="space-y-3">
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            {isRtl ? "حكام اللقاء والطاقم" : "Arbitres du match"}
-            </label>
-            <p className="mb-1.5 text-[11px] text-muted-foreground">
-              {isRtl ? "بالترتيب: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي." : "Ordre : arbitre principal, assistants, puis arbitre remplaçant."}
-            </p>
-            <div className="grid gap-3">
-              <div>
-                <p className="mb-1 text-[11px] font-semibold text-foreground">{isRtl ? "أسماء الحكام بالعربية" : "Noms des arbitres en arabe"}</p>
-                <RefereeNamesInput name="refereeNameAr" locale={locale} nameDirection="rtl" showOrderHint={false} />
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold text-foreground">{isRtl ? "أسماء الحكام بالفرنسية" : "Noms des arbitres en français"}</p>
-                <RefereeNamesInput name="refereeNameFr" locale={locale} nameDirection="ltr" showOrderHint={false} />
-              </div>
-            </div>
-          </div>
-
           {/* Match Status */}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -548,6 +535,28 @@ export function MatchFormClient({
               ]}
             />
           </div>
+
+          {/* Referee names */}
+          <section className="md:col-span-2 rounded-xl border border-border bg-background/40 p-4 sm:p-5">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-foreground">
+                {isRtl ? "حكام اللقاء والطاقم" : "Arbitres du match"}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {isRtl ? "أدخل الأسماء بالترتيب: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي." : "Saisissez les noms dans l’ordre : arbitre principal, assistants, puis arbitre remplaçant."}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-foreground">{isRtl ? "أسماء الحكام بالعربية" : "Noms des arbitres en arabe"}</p>
+                <RefereeNamesInput name="refereeNameAr" locale={locale} nameDirection="rtl" showOrderHint={false} />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-foreground">{isRtl ? "أسماء الحكام بالفرنسية" : "Noms des arbitres en français"}</p>
+                <RefereeNamesInput name="refereeNameFr" locale={locale} nameDirection="ltr" showOrderHint={false} />
+              </div>
+            </div>
+          </section>
 
           <MatchPeriodOptions locale={locale} initialExtraTime={false} initialShootout={false} />
 

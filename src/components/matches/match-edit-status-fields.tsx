@@ -25,8 +25,9 @@ function localDateTimeValue() {
 }
 
 function normalizeDateTime(value: string | Date) {
-  if (value instanceof Date) return value.toISOString().slice(0, 16);
-  return value.includes("T") ? value.slice(0, 16) : value;
+  // Keep the zone on persisted instants. DateTimeInput converts them to the
+  // club's Africa/Algiers wall clock before displaying or submitting them.
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 export function MatchEditStatusFields({
@@ -117,8 +118,9 @@ export function MatchEditStatusFields({
           required
           disabled={!canUpdate}
           locale={locale}
-          onChange={(_, iso) => {
-            setMatchDate(iso ?? "");
+          onChange={(draft, iso) => {
+            if (iso) setMatchDate(iso);
+            else if (!draft) setMatchDate("");
           }}
         />
       </div>

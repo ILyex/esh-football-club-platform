@@ -37,12 +37,15 @@ export default async function PublicMatchDetailPage({
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Africa/Algiers"
   }).format(match.matchDate);
 
   const formattedTime = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Algiers"
   }).format(match.matchDate);
   const kickoffRemaining = match.matchDate.getTime() - Date.now();
   const isNearKickoff = match.status === "SCHEDULED" && kickoffRemaining > 0 && kickoffRemaining <= 30 * 60 * 1000;

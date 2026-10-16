@@ -17,9 +17,11 @@ export async function updateTeamAction(teamId: string, formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
   const parsed = teamSchema.parse(raw);
 
-  const team = await db.team.update({ where: { id: teamId }, data: parsed });
-
-  await writeAuditLog({ userId: user.id, action: "team.update", entityType: "Team", entityId: team.id, changes: { before, after: parsed } });
+  const team = await db.$transaction(async (tx) => {
+    const updated = await tx.team.update({ where: { id: teamId }, data: parsed });
+    await writeAuditLog({ userId: user.id, action: "team.update", entityType: "Team", entityId: updated.id, changes: { before, after: parsed } }, tx);
+    return updated;
+  });
   revalidatePath("/[locale]/dashboard/teams", "page");
   revalidatePath("/[locale]/dashboard", "page"); // team switcher labels shown in the layout
   return { id: team.id };

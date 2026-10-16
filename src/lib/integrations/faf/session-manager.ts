@@ -101,6 +101,11 @@ export class FAFSessionManagerImpl {
    */
   private async usesDatabasePersistence(): Promise<boolean> {
     if (this.customFilePath) return false;
+    // Deno Deploy instances can scale to zero and do not share a writable
+    // project directory. Persist the encrypted FAF session in PostgreSQL.
+    if (process.env.DENO_DEPLOY === "true" || process.env.DEPLOY_TARGET === "deno") {
+      return true;
+    }
     try {
       const { getCloudflareContext } = await import("@opennextjs/cloudflare");
       const context = await getCloudflareContext({ async: true });

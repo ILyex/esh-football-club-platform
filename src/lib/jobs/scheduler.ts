@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { enqueueJob } from "./queue";
+import { enqueueMedicalDocumentCheck } from "@/lib/ai/medical-document-check-job";
 import "./registry-init";
 
 // ============================================================================
@@ -41,6 +42,24 @@ export async function runSchedulerTick(): Promise<SchedulerTickResult> {
     }
   } catch (error) {
     console.error("[Scheduler] Error scheduling insights.sync:", error);
+  }
+
+  // Backfill legacy medical records in bounded batches. Uploads enqueue their
+  // check immediately; this also picks up records created before the worker
+  // feature was installed.
+  try {
+    const pendingMedicalRecords = await db.playerMedicalRecord.findMany({
+      where: { documentCheckStatus: "QUEUED", documentId: { not: null } },
+      select: { id: true, createdById: true },
+      orderBy: { createdAt: "asc" },
+      take: 25
+    });
+    for (const record of pendingMedicalRecords) {
+      const job = await enqueueMedicalDocumentCheck(db, record.id, record.createdById);
+      enqueuedJobs.push(job.id);
+    }
+  } catch (error) {
+    console.error("[Scheduler] Error scheduling medical document checks:", error);
   }
 
   return { enqueuedJobs };

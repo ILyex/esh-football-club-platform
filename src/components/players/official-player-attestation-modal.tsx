@@ -141,7 +141,7 @@ export function OfficialPlayerAttestationModal({
             <div className="relative flex-1 overflow-auto bg-[#525659] p-4 sm:p-8">
               <div
                 id={elementId}
-                className="printable-document esh-security-watermark relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col justify-between border border-zinc-200 bg-white p-[14mm] text-black shadow-2xl"
+                className="printable-document esh-attestation-document esh-security-watermark relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col justify-between border border-zinc-200 bg-white p-[14mm] text-black shadow-2xl"
                 style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, boxSizing: "border-box" }}
               >
                 {/* Security watermark */}
@@ -165,7 +165,7 @@ export function OfficialPlayerAttestationModal({
 
                   {/* Main Attestation Body - Clean, direct, no underlines or decorative boxes */}
                   <div
-                    className="mt-5 space-y-5 text-justify text-black"
+                    className="esh-attestation-body mt-5 space-y-5 text-start text-black"
                     style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, fontSize: "20px", lineHeight: "1.65" }}
                   >
                     <p className="mb-4 text-center text-xl font-bold leading-relaxed">
@@ -239,19 +239,16 @@ export function OfficialPlayerAttestationModal({
                   </div>
                 </div>
 
-                {/* Footer Signatures Block - Strictly by role only, zero decorative lines */}
+                {/* Association president placement follows the official document layout. */}
                 <div
-                  className="esh-attestation-footer relative z-10 mt-8 pt-6"
+                  className="esh-attestation-footer relative z-10 mt-20 w-full"
                   style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, breakInside: "avoid", pageBreakInside: "avoid" }}
                 >
-                  <div className="document-signatures flex justify-end text-right text-black">
+                  <div className="document-signatures flex justify-start text-right text-black">
                     <div className="min-w-[220px] space-y-2 text-right">
                       <p className="esh-attestation-signature font-black">
                         {isAr ? "رئيس الجمعية" : "Le Président de l'association"}
                       </p>
-                      <div className="esh-attestation-stamp flex h-20 w-40 items-center justify-center text-zinc-400 select-none">
-                        {isAr ? "الختم والتوقيع" : "Cachet et signature"}
-                      </div>
                     </div>
                   </div>
                 </div>

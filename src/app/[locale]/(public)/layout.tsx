@@ -8,6 +8,7 @@ import { PublicAnalyticsTracker } from "@/components/public/public-analytics-tra
 import { PublicMediaProtection } from "@/components/public/public-media-protection";
 import { PublicParentBackNavigation } from "@/components/public/public-parent-back-navigation";
 import { getClubBrandStyle } from "@/lib/branding";
+import { MatchPushOptIn } from "@/components/public/match-push-opt-in";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -71,6 +72,7 @@ export default async function PublicLayout({
         clubShortName={clubDisplayName}
         labels={headerLabels}
       />
+      <MatchPushOptIn locale={locale} />
       <main className="flex-1">{children}</main>
       <section aria-label={locale === "ar" ? "الشراكة الرسمية" : "Partenaire officiel"} className="border-y border-border/70 bg-card/35 px-3 py-4 sm:px-6 sm:py-5">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row sm:gap-6">

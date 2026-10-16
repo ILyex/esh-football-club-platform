@@ -73,7 +73,17 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
                 : "Configurez les autorisations d'accès par secteur opérationnel"}
             </p>
           </div>
-          <Button type="submit" disabled={role.key === "super_admin"} className="gap-2"><Save className="h-4 w-4" /><span>{t("savePermissions")}</span></Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!role.isSystem && role.users.length === 0 && (
+              <ConfirmDialog onConfirm={remove}>
+                <Button type="button" variant="destructive" className="gap-2 rounded-xl font-bold">
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span>{t("deleteRole")}</span>
+                </Button>
+              </ConfirmDialog>
+            )}
+            <Button type="submit" disabled={role.key === "super_admin"} className="gap-2"><Save className="h-4 w-4" /><span>{t("savePermissions")}</span></Button>
+          </div>
         </div>
 
         <RolePermissionsMatrix
@@ -82,20 +92,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
           locale={locale}
           isSystemRole={role.key === "super_admin"}
         />
-
-        <div className="mt-6 flex justify-end border-t border-border/60 pt-4">
-          <Button type="submit" disabled={role.key === "super_admin"} className="gap-2"><Save className="h-4 w-4" /><span>{t("savePermissions")}</span></Button>
-        </div>
       </form>
-
-      {!role.isSystem && role.users.length === 0 && (
-        <ConfirmDialog onConfirm={remove}>
-          <Button variant="destructive" className="gap-2 rounded-xl font-bold">
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            <span>{t("deleteRole")}</span>
-          </Button>
-        </ConfirmDialog>
-      )}
     </div>
   );
 }

@@ -80,7 +80,7 @@ export default async function CorrespondenceListPage({
         locale={locale}
         canViewDocuments={hasPermission(user, "documents.view")}
         canViewContracts={canViewContracts}
-        canViewInsurance={hasPermission(user, "documents.view")}
+        canViewMedicalRecords={hasPermission(user, "medical.records.view")}
         canViewCorrespondence={true}
         canViewMeetings={canViewMeetings}
         canViewTemplates={hasPermission(user, "templates.view")}

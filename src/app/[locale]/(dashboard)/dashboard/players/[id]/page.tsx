@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
@@ -65,7 +66,7 @@ export default async function PlayerDetailPage({
   const [translationsResult, contractsResult, documentsResult, teamResult] = await Promise.allSettled([
     db.playerTranslation.findMany({ where: { playerId: id } }),
     db.contract.findMany({ where: { playerId: id } }),
-    db.document.findMany({ where: { relatedPlayerId: id } }),
+    db.document.findMany({ where: { relatedPlayerId: id, medicalRecord: null } }),
     playerRecord.teamId ? db.team.findUnique({ where: { id: playerRecord.teamId } }) : Promise.resolve(null)
   ]);
   const player = {
@@ -195,13 +196,8 @@ export default async function PlayerDetailPage({
       d.name.toLowerCase().includes("birth") ||
       d.name.toLowerCase().includes("naissance")
   );
-  const drugTestDoc = player.documents.find(
-    (d) =>
-      d.name.includes("مخدرات") ||
-      d.name.toLowerCase().includes("drug") ||
-      d.name.toLowerCase().includes("dopage")
-  );
   const insuranceEval = evaluatePlayerInsurance(player.documents);
+  const canViewMedical = hasPermission(user, "medical.records.view");
   const isAr = locale === "ar";
 
   // Calculate player age
@@ -324,7 +320,7 @@ export default async function PlayerDetailPage({
             />
 
             {/* Insurance Status Badge */}
-            {insuranceEval.status === "INSURED" && (
+            {canViewMedical && insuranceEval.status === "INSURED" && (
               <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-xs">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <div className="flex flex-col">
@@ -337,7 +333,7 @@ export default async function PlayerDetailPage({
                 </div>
               </div>
             )}
-            {insuranceEval.status === "EXPIRING_SOON" && (
+            {canViewMedical && insuranceEval.status === "EXPIRING_SOON" && (
               <div className="inline-flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 shadow-xs">
                 <Clock className="h-4 w-4" />
                 <div className="flex flex-col">
@@ -348,13 +344,13 @@ export default async function PlayerDetailPage({
                 </div>
               </div>
             )}
-            {insuranceEval.status === "EXPIRED" && (
+            {canViewMedical && insuranceEval.status === "EXPIRED" && (
               <div className="inline-flex items-center gap-2 rounded-xl bg-red-600/10 border border-red-600/20 px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 shadow-xs">
                 <XCircle className="h-4 w-4" />
                 <span>{isAr ? "تأمين منتهي الصلاحية" : "Assurance expirée"}</span>
               </div>
             )}
-            {insuranceEval.status === "NOT_INSURED" && (
+            {canViewMedical && insuranceEval.status === "NOT_INSURED" && (
               <div className="inline-flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 shadow-xs">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <span>{isAr ? "غير مؤمّن" : "Non assuré"}</span>
@@ -658,21 +654,7 @@ export default async function PlayerDetailPage({
                     sizeBytes: birthCertificateDoc.sizeBytes
                   } : null}
                 />
-                <DocumentUploadField
-                  name="drugTestFile"
-                  label={isAr ? "وثيقة فحص المخدرات" : "Test de dépistage de drogues"}
-                  description={isAr ? "تقرير الفحص الطبي والتحاليل المخبرية للمواد الممنوعة" : "Résultat du contrôle médical et des analyses de dépistage"}
-                  locale={locale}
-                  formId="player-update-form"
-                  existingDocument={drugTestDoc ? {
-                    id: drugTestDoc.id,
-                    name: drugTestDoc.name,
-                    mimeType: drugTestDoc.mimeType,
-                    originalName: drugTestDoc.originalName,
-                    sizeBytes: drugTestDoc.sizeBytes,
-                    positiveDrugTest: drugTestDoc.description === "verification:DRUG_TEST_POSITIVE"
-                  } : null}
-                />
+                {canViewMedical && <Link href={`/${locale}/dashboard/medical-records/${player.id}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 text-sm font-bold text-primary hover:bg-primary/10"><ShieldCheck className="h-4 w-4" />{isAr ? "فتح الملف الطبي" : "Ouvrir le dossier médical"}</Link>}
               </div>
             </div>
 

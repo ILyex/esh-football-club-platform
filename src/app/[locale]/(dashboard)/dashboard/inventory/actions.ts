@@ -7,6 +7,16 @@ import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { revalidatePath } from "next/cache";
 
+function safelyRevalidateInventory(...paths: string[]) {
+  for (const path of paths) {
+    try {
+      revalidatePath(path, "page");
+    } catch (error) {
+      console.error("Inventory saved, but cache refresh failed:", error instanceof Error ? error.message : "unknown error");
+    }
+  }
+}
+
 async function requireInventoryManage() {
   const user = await getSessionOrThrow();
   if (
@@ -27,28 +37,31 @@ export async function createInventoryItemAction(formData: FormData) {
   const parsed = inventoryItemSchema.parse(raw);
   assertTeamScope(scopeContext, parsed.teamId || null, "InventoryItem");
 
-  const item = await db.inventoryItem.create({
-    data: {
-      name: parsed.name,
-      category: parsed.category,
-      quantity: parsed.quantity,
-      condition: parsed.condition,
-      location: parsed.location || null,
-      teamId: parsed.teamId || null,
-      notes: parsed.notes || null,
-      createdById: user.id
-    }
-  });
+  const item = await db.$transaction(async (tx) => {
+    const created = await tx.inventoryItem.create({
+      data: {
+        name: parsed.name,
+        category: parsed.category,
+        quantity: parsed.quantity,
+        condition: parsed.condition,
+        location: parsed.location || null,
+        teamId: parsed.teamId || null,
+        notes: parsed.notes || null,
+        createdById: user.id
+      }
+    });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "inventory.create",
-    entityType: "InventoryItem",
-    entityId: item.id,
-    changes: { after: parsed }
-  });
+    await writeAuditLog({
+      userId: user.id,
+      action: "inventory.create",
+      entityType: "InventoryItem",
+      entityId: created.id,
+      changes: { after: parsed }
+    }, tx);
 
-  revalidatePath("/[locale]/dashboard/inventory", "page");
+    return created;
+  });
+  safelyRevalidateInventory("/[locale]/dashboard/inventory");
   return { id: item.id };
 }
 
@@ -61,29 +74,31 @@ export async function updateInventoryItemAction(id: string, formData: FormData) 
   const parsed = inventoryItemSchema.parse(raw);
   assertDualTeamScope(scopeContext, before.teamId, parsed.teamId || null, "InventoryItem");
 
-  const item = await db.inventoryItem.update({
-    where: { id },
-    data: {
-      name: parsed.name,
-      category: parsed.category,
-      quantity: parsed.quantity,
-      condition: parsed.condition,
-      location: parsed.location || null,
-      teamId: parsed.teamId || null,
-      notes: parsed.notes || null
-    }
-  });
+  const item = await db.$transaction(async (tx) => {
+    const updated = await tx.inventoryItem.update({
+      where: { id },
+      data: {
+        name: parsed.name,
+        category: parsed.category,
+        quantity: parsed.quantity,
+        condition: parsed.condition,
+        location: parsed.location || null,
+        teamId: parsed.teamId || null,
+        notes: parsed.notes || null
+      }
+    });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "inventory.update",
-    entityType: "InventoryItem",
-    entityId: id,
-    changes: { before, after: parsed }
-  });
+    await writeAuditLog({
+      userId: user.id,
+      action: "inventory.update",
+      entityType: "InventoryItem",
+      entityId: id,
+      changes: { before, after: parsed }
+    }, tx);
 
-  revalidatePath("/[locale]/dashboard/inventory", "page");
-  revalidatePath(`/[locale]/dashboard/inventory/${id}`, "page");
+    return updated;
+  });
+  safelyRevalidateInventory("/[locale]/dashboard/inventory", `/[locale]/dashboard/inventory/${id}`);
   return { id: item.id };
 }
 
@@ -93,15 +108,15 @@ export async function deleteInventoryItemAction(id: string) {
   const before = await db.inventoryItem.findUniqueOrThrow({ where: { id } });
   assertTeamScope(scopeContext, before.teamId, "InventoryItem");
 
-  await db.inventoryItem.delete({ where: { id } });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "inventory.delete",
-    entityType: "InventoryItem",
-    entityId: id,
-    changes: { before }
+  await db.$transaction(async (tx) => {
+    await tx.inventoryItem.delete({ where: { id } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "inventory.delete",
+      entityType: "InventoryItem",
+      entityId: id,
+      changes: { before }
+    }, tx);
   });
-
-  revalidatePath("/[locale]/dashboard/inventory", "page");
+  safelyRevalidateInventory("/[locale]/dashboard/inventory");
 }

@@ -1,11 +1,12 @@
 "use server";
 
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/permissions";
 import { matchSchema, matchEventSchema, matchLineupEntrySchema, matchShootoutKickSchema } from "@/lib/validations/match";
 import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
-import { revalidatePath } from "next/cache";
+import { revalidatePath as nextRevalidatePath } from "next/cache";
 import { getMatchClockState, isShootoutDecided } from "@/lib/matches/clock";
 import { resolveShootoutWinner } from "@/lib/matches/result";
 import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
@@ -14,6 +15,15 @@ import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
+import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
+
+function revalidatePath(...args: Parameters<typeof nextRevalidatePath>) {
+  try {
+    nextRevalidatePath(...args);
+  } catch (error) {
+    console.error("Match saved, but cache refresh failed:", error instanceof Error ? error.message : "unknown error");
+  }
+}
 
 async function enqueueAutomaticFafMatchSync(matchId: string, userId: string) {
   const config = getFAFConfig();
@@ -51,9 +61,9 @@ async function getClubName(): Promise<string> {
 
 // Every match write keeps its linked CalendarEvent in sync (spec section
 // 65: "عند تعديل Match... يجب أن يظهر التغيير" — including on the Calendar).
-async function syncCalendarEvent(matchId: string, title: string, matchDate: Date, teamId: string | null, location: string | null) {
+async function syncCalendarEvent(tx: Pick<Prisma.TransactionClient, "calendarEvent">, matchId: string, title: string, matchDate: Date, teamId: string | null, location: string | null) {
   const endDateTime = new Date(matchDate.getTime() + 2 * 3600 * 1000);
-  await db.calendarEvent.upsert({
+  await tx.calendarEvent.upsert({
     where: { relatedMatchId: matchId },
     update: { title, startDateTime: matchDate, endDateTime, teamId, location },
     create: { title, type: "MATCH", startDateTime: matchDate, endDateTime, teamId, location, relatedMatchId: matchId }
@@ -78,7 +88,25 @@ export async function createMatchAction(formData: FormData) {
   const scopeContext = await getMutationScopeContext();
 
   const raw = Object.fromEntries(formData.entries());
-  const parsed = matchSchema.parse(raw);
+  const validation = matchSchema.safeParse(raw);
+  if (!validation.success) {
+    const locale = formData.get("locale") === "fr" ? "fr" : "ar";
+    const field = String(validation.error.issues[0]?.path[0] ?? "");
+    const fieldMessages: Record<string, { ar: string; fr: string }> = {
+      teamId: { ar: "اختر فئة الفريق قبل حفظ المباراة.", fr: "Choisissez la catégorie de l’équipe avant d’enregistrer." },
+      competitionId: { ar: "اختر المسابقة قبل حفظ المباراة.", fr: "Choisissez une compétition avant d’enregistrer." },
+      opponent: { ar: "أدخل اسم الفريق الخصم.", fr: "Saisissez le nom de l’équipe adverse." },
+      matchDate: { ar: "أدخل تاريخاً ووقتاً صالحين للمباراة.", fr: "Saisissez une date et une heure valides." },
+      refereeName: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." },
+      refereeNameAr: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." },
+      refereeNameFr: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." }
+    };
+    const message = fieldMessages[field]?.[locale] ?? (locale === "fr"
+      ? "Certaines données du match sont invalides. Vérifiez les champs puis réessayez."
+      : "بعض بيانات المباراة غير صالحة. راجع الحقول ثم أعد المحاولة.");
+    return { formError: { field, message } };
+  }
+  const parsed = validation.data;
   assertTeamScope(scopeContext, parsed.teamId, "Match");
   await assertMatchCompetitionTeamConsistency(parsed.competitionId, parsed.teamId);
 
@@ -237,9 +265,10 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
   const homeTeamName = parsed.isHomeFixture ? clubName : opponentName;
   const awayTeamName = parsed.isHomeFixture ? opponentName : clubName;
 
-  const match = await db.match.update({
-    where: { id: matchId },
-    data: {
+  const { match, outbox } = await db.$transaction(async (tx) => {
+    const updated = await tx.match.update({
+      where: { id: matchId },
+      data: {
       competitionId: parsed.competitionId,
       teamId: parsed.teamId,
       homeTeamName,
@@ -259,23 +288,43 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
       extraTimeSecondHalfAddedTime: parsed.extraTimeSecondHalfAddedTime,
       homeScore: parsed.homeScore,
       awayScore: parsed.awayScore,
-      matchReport: parsed.matchReport
+        matchReport: parsed.matchReport
+      }
+    });
+    await syncCalendarEvent(tx, updated.id, `${homeTeamName} vs ${awayTeamName}`, updated.matchDate, updated.teamId, updated.stadium || null);
+    let notification = null;
+    if (updated.teamId && before.status !== updated.status && (updated.status === "LIVE" || updated.status === "FINISHED")) {
+      const team = await tx.team.findUnique({ where: { id: updated.teamId }, select: { category: true } });
+      if (team) {
+        notification = await createMatchPushOutbox(tx, {
+          dedupKey: `${updated.status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}`,
+          matchId: updated.id,
+          kind: updated.status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          payload: {
+            matchId: updated.id,
+            category: team.category,
+            homeTeamName,
+            awayTeamName,
+            homeScore: updated.homeScore,
+            awayScore: updated.awayScore
+          }
+        });
+      }
     }
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.update",
+      entityType: "Match",
+      entityId: updated.id,
+      changes: { before, after: parsed }
+    }, tx);
+    return { match: updated, outbox: notification };
   });
+  if (outbox) await enqueueMatchPushOutbox(outbox.id);
 
   if (parsed.status === "FINISHED" && before.status !== "FINISHED") {
     await enqueueAutomaticFafMatchSync(match.id, user.id);
   }
-
-  await syncCalendarEvent(match.id, `${homeTeamName} vs ${awayTeamName}`, parsed.matchDate, parsed.teamId, parsed.stadium || null);
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.update",
-    entityType: "Match",
-    entityId: match.id,
-    changes: { before, after: parsed }
-  });
 
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/dashboard/calendar", "page");
@@ -285,7 +334,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
   revalidatePath(`/[locale]/dashboard/matches/${match.id}`, "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
-  return { id: match.id };
+  return { success: true, id: match.id, matchDate: match.matchDate.toISOString() };
 }
 
 export async function updateMatchStatusAction(matchId: string, status: string) {
@@ -294,7 +343,7 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
   if (!allowedStatuses.includes(status as (typeof allowedStatuses)[number])) throw new Error("invalidMatchStatus");
 
   const scopeContext = await getMutationScopeContext();
-  const before = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  const before = await db.match.findUniqueOrThrow({ where: { id: matchId }, include: { team: { select: { category: true } } } });
   assertTeamScope(scopeContext, before.teamId, "Match");
 
   const nextStatus = status as (typeof allowedStatuses)[number];
@@ -302,25 +351,45 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
     const kicks = await db.matchShootoutKick.findMany({ where: { matchId }, select: { side: true, result: true } });
     if (!resolveShootoutWinner(kicks)) throw new Error("shootoutWinnerRequired");
   }
-  const match = await db.match.update({
-    where: { id: matchId },
-    data: {
-      status: nextStatus,
-      ...(nextStatus === "LIVE" && before.status !== "LIVE" ? { matchDate: new Date() } : {})
-    }
+  const { match, outbox } = await db.$transaction(async (tx) => {
+    const updated = await tx.match.update({
+      where: { id: matchId },
+      data: {
+        status: nextStatus,
+        ...(nextStatus === "LIVE" && before.status !== "LIVE" ? { matchDate: new Date() } : {})
+      }
+    });
+    await syncCalendarEvent(tx, updated.id, `${updated.homeTeamName} vs ${updated.awayTeamName}`, updated.matchDate, updated.teamId, updated.stadium || null);
+    const shouldNotify = before.status !== nextStatus && (nextStatus === "LIVE" || nextStatus === "FINISHED") && before.teamId && before.team?.category;
+    const notification = shouldNotify
+      ? await createMatchPushOutbox(tx, {
+          dedupKey: `${nextStatus === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}`,
+          matchId: updated.id,
+          kind: nextStatus === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          payload: {
+            matchId: updated.id,
+            category: before.team?.category ?? null,
+            homeTeamName: updated.homeTeamName,
+            awayTeamName: updated.awayTeamName,
+            homeScore: updated.homeScore,
+            awayScore: updated.awayScore
+          }
+        })
+      : null;
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.update",
+      entityType: "Match",
+      entityId: updated.id,
+      changes: { before: { status: before.status }, after: { status: nextStatus, matchDate: updated.matchDate } }
+    }, tx);
+    return { match: updated, outbox: notification };
   });
+  if (outbox) await enqueueMatchPushOutbox(outbox.id);
 
   if (nextStatus === "FINISHED" && before.status !== "FINISHED") {
     await enqueueAutomaticFafMatchSync(match.id, user.id);
   }
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.update",
-    entityType: "Match",
-    entityId: match.id,
-    changes: { before: { status: before.status }, after: { status: nextStatus, matchDate: match.matchDate } }
-  });
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -339,9 +408,8 @@ export async function deleteMatchAction(matchId: string) {
   await db.$transaction(async (tx) => {
     await tx.calendarEvent.deleteMany({ where: { relatedMatchId: matchId } });
     await tx.match.delete({ where: { id: matchId } });
+    await writeAuditLog({ userId: user.id, action: "match.delete", entityType: "Match", entityId: matchId, changes: { before } }, tx);
   }); // MatchEvent and MatchLineup cascade with the match.
-
-  await writeAuditLog({ userId: user.id, action: "match.delete", entityType: "Match", entityId: matchId });
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/dashboard/calendar", "page");
   revalidatePath("/[locale]/dashboard/competitions", "page");
@@ -353,7 +421,7 @@ export async function deleteMatchAction(matchId: string) {
 export async function addMatchEventAction(matchId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
-  const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, include: { team: { select: { category: true } } } });
   assertTeamScope(scopeContext, match.teamId, "Match");
   // The official report can be completed after the final whistle.
   if (match.status !== "LIVE" && match.status !== "FINISHED") throw new Error("matchMustBeLive");
@@ -388,7 +456,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
     }
   }
 
-  const event = await db.$transaction(async (tx) => {
+  const { event, outbox } = await db.$transaction(async (tx) => {
     const created = await tx.matchEvent.create({
       data: {
         matchId,
@@ -403,24 +471,49 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
         notes: parsed.notes
       }
     });
-    if (parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL" || parsed.type === "OWN_GOAL") {
+    const isGoal = parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL" || parsed.type === "OWN_GOAL";
+    let homeScore = match.homeScore ?? 0;
+    let awayScore = match.awayScore ?? 0;
+    if (isGoal) {
       await tx.match.update({
         where: { id: matchId },
         data: parsed.side === "HOME"
           ? { homeScore: { increment: 1 } }
           : { awayScore: { increment: 1 } }
       });
+      if (parsed.side === "HOME") homeScore++;
+      else awayScore++;
     }
-    return created;
+    const notification = isGoal && match.status === "LIVE" && match.team?.category
+      ? await createMatchPushOutbox(tx, {
+          dedupKey: `GOAL:${created.id}`,
+          matchId,
+          matchEventId: created.id,
+          kind: "GOAL",
+          payload: {
+            matchId,
+            category: match.team.category,
+            homeTeamName: match.homeTeamName,
+            awayTeamName: match.awayTeamName,
+            homeScore,
+            awayScore,
+            minute: parsed.minute,
+            side: parsed.side
+          }
+        })
+      : null;
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.event.create",
+      entityType: "MatchEvent",
+      entityId: created.id,
+      changes: { after: parsed }
+    }, tx);
+    return { event: created, outbox: notification };
   });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.event.create",
-    entityType: "MatchEvent",
-    entityId: event.id,
-    changes: { after: parsed }
-  });
+  if (outbox) await enqueueMatchPushOutbox(outbox.id);
+
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
 }
@@ -470,14 +563,13 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
         }
       });
     }
-  });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.event.update",
-    entityType: "MatchEvent",
-    entityId: eventId,
-    changes: { before: { type: event.type, side: event.side, minute: event.minute, playerName: event.playerName }, after: parsed }
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.event.update",
+      entityType: "MatchEvent",
+      entityId: eventId,
+      changes: { before: { type: event.type, side: event.side, minute: event.minute, playerName: event.playerName }, after: parsed }
+    }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -505,9 +597,8 @@ export async function deleteMatchEventAction(matchId: string, eventId: string) {
           : { awayScore: Math.max(0, (event.match.awayScore ?? 0) - 1) }
       });
     }
+    await writeAuditLog({ userId: user.id, action: "match.event.delete", entityType: "MatchEvent", entityId: eventId, changes: { before: event } }, tx);
   });
-
-  await writeAuditLog({ userId: user.id, action: "match.event.delete", entityType: "MatchEvent", entityId: eventId });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
@@ -544,26 +635,26 @@ export async function addShootoutKickAction(matchId: string, formData: FormData)
     throw new Error("shootoutPlayerRequired");
   }
 
-  const existingSideKicks = await db.matchShootoutKick.count({ where: { matchId, side: parsed.side } });
-  const kick = await db.matchShootoutKick.create({
-    data: {
-      matchId,
-      playerId,
-      playerName,
-      side: parsed.side,
-      attemptNumber: existingSideKicks + 1,
-      result: parsed.result
-    }
-  });
-  const allKicks = await db.matchShootoutKick.findMany({ where: { matchId }, select: { side: true, attemptNumber: true, result: true } });
-  const shootoutDecided = isShootoutDecided(allKicks);
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.shootout_kick.create",
-    entityType: "MatchShootoutKick",
-    entityId: kick.id,
-    changes: { after: { ...parsed, playerId, playerName, attemptNumber: kick.attemptNumber }, shootoutDecided }
+  await db.$transaction(async (tx) => {
+    const existingSideKicks = await tx.matchShootoutKick.count({ where: { matchId, side: parsed.side } });
+    const kick = await tx.matchShootoutKick.create({
+      data: {
+        matchId,
+        playerId,
+        playerName,
+        side: parsed.side,
+        attemptNumber: existingSideKicks + 1,
+        result: parsed.result
+      }
+    });
+    const allKicks = await tx.matchShootoutKick.findMany({ where: { matchId }, select: { side: true, attemptNumber: true, result: true } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.shootout_kick.create",
+      entityType: "MatchShootoutKick",
+      entityId: kick.id,
+      changes: { after: { ...parsed, playerId, playerName, attemptNumber: kick.attemptNumber }, shootoutDecided: isShootoutDecided(allKicks) }
+    }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -597,23 +688,21 @@ export async function deleteShootoutKickAction(matchId: string, kickId: string) 
         });
       }
     }
-  });
-
-  const remainingKicks = await db.matchShootoutKick.findMany({
-    where: { matchId },
-    select: { side: true, attemptNumber: true, result: true }
-  });
-  const finished = isShootoutDecided(remainingKicks);
-  if (match.status === "LIVE" || match.status === "FINISHED") {
-    await db.match.update({ where: { id: matchId }, data: { status: finished ? "FINISHED" : "LIVE" } });
-  }
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.shootout_kick.delete",
-    entityType: "MatchShootoutKick",
-    entityId: kickId,
-    changes: { before: kick, matchFinished: finished }
+    const remainingKicks = await tx.matchShootoutKick.findMany({
+      where: { matchId },
+      select: { side: true, attemptNumber: true, result: true }
+    });
+    const finished = isShootoutDecided(remainingKicks);
+    if (match.status === "LIVE" || match.status === "FINISHED") {
+      await tx.match.update({ where: { id: matchId }, data: { status: finished ? "FINISHED" : "LIVE" } });
+    }
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.shootout_kick.delete",
+      entityType: "MatchShootoutKick",
+      entityId: kickId,
+      changes: { before: kick, matchFinished: finished }
+    }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -645,18 +734,19 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
   if (automaticallySuspended && parsed.selectionStatus !== "SUSPENDED") throw new Error("lineupPlayerSuspended");
 
   const isStarting = parsed.selectionStatus === "STARTING";
-  await db.matchLineup.upsert({
-    where: { matchId_playerId: { matchId, playerId: parsed.playerId } },
-    update: { isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position },
-    create: { matchId, playerId: parsed.playerId, isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position }
-  });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.lineup.upsert",
-    entityType: "MatchLineup",
-    entityId: `${matchId}:${parsed.playerId}`,
-    changes: { after: parsed }
+  await db.$transaction(async (tx) => {
+    await tx.matchLineup.upsert({
+      where: { matchId_playerId: { matchId, playerId: parsed.playerId } },
+      update: { isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position },
+      create: { matchId, playerId: parsed.playerId, isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position }
+    });
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.lineup.upsert",
+      entityType: "MatchLineup",
+      entityId: `${matchId}:${parsed.playerId}`,
+      changes: { after: parsed }
+    }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -688,21 +778,22 @@ export async function syncPreviousMatchRedCardSuspensionsAction(matchId: string)
     where: { id: { in: playerIds }, teamId: match.teamId, status: { not: "ARCHIVED" } },
     select: { id: true, position: true }
   });
-  for (const player of eligiblePlayers) {
-    await db.matchLineup.upsert({
-      where: { matchId_playerId: { matchId, playerId: player.id } },
-      update: { isStarting: false, selectionStatus: "SUSPENDED" },
-      create: { matchId, playerId: player.id, isStarting: false, selectionStatus: "SUSPENDED", position: player.position }
-    });
-  }
-
   if (eligiblePlayers.length > 0) {
-    await writeAuditLog({
-      userId: user.id,
-      action: "match.lineup.auto_suspend",
-      entityType: "Match",
-      entityId: matchId,
-      changes: { playerIds: eligiblePlayers.map((player) => player.id), source: "previous_match_red_cards" }
+    await db.$transaction(async (tx) => {
+      for (const player of eligiblePlayers) {
+        await tx.matchLineup.upsert({
+          where: { matchId_playerId: { matchId, playerId: player.id } },
+          update: { isStarting: false, selectionStatus: "SUSPENDED" },
+          create: { matchId, playerId: player.id, isStarting: false, selectionStatus: "SUSPENDED", position: player.position }
+        });
+      }
+      await writeAuditLog({
+        userId: user.id,
+        action: "match.lineup.auto_suspend",
+        entityType: "Match",
+        entityId: matchId,
+        changes: { playerIds: eligiblePlayers.map((player) => player.id), source: "previous_match_red_cards" }
+      }, tx);
     });
     revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
     revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -719,13 +810,14 @@ export async function removeLineupEntryAction(matchId: string, playerId: string)
   if (player.status === "INJURED") throw new Error("lineupPlayerInjured");
   if (await wasRedCardedInPreviousMatch(match, playerId)) throw new Error("lineupPlayerSuspended");
 
-  await db.matchLineup.delete({ where: { matchId_playerId: { matchId, playerId } } });
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.lineup.remove",
-    entityType: "MatchLineup",
-    entityId: `${matchId}:${playerId}`
+  await db.$transaction(async (tx) => {
+    await tx.matchLineup.delete({ where: { matchId_playerId: { matchId, playerId } } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.lineup.remove",
+      entityType: "MatchLineup",
+      entityId: `${matchId}:${playerId}`
+    }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -759,7 +851,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
     }
   }
 
-  const { validateUploadedFile, uploadPrivateFile, generateStorageKey } = await import("@/lib/storage");
+  const { validateUploadedFile, uploadPrivateFile, deletePrivateFile, generateStorageKey } = await import("@/lib/storage");
   if (file.size > 25 * 1024 * 1024) throw new Error("حجم الملف يتجاوز الحد المسموح (25 MB).");
   const buffer = Buffer.from(await file.arrayBuffer());
   const validated = await validateUploadedFile(buffer);
@@ -790,23 +882,43 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
       : locale === "ar" ? "ورقة التشكيل قبل المباراة" : "Feuille de composition avant match";
 
   const title = `${titlePrefix} — ${match.homeTeamName} ${locale === "ar" ? "ضد" : "contre"} ${match.awayTeamName}`;
-  const doc = await db.document.create({
-    data: {
-      name: title,
-      categoryId: category.id,
-      classification: "INTERNAL",
-      storageKey,
-      mimeType: validated.mime,
-      sizeBytes: buffer.byteLength,
-      originalName: file.name,
-      ownerId: user.id,
-      uploadedById: user.id,
-      relatedMatchId: match.id,
-      matchDocumentType: sheetType,
-      teamId: match.teamId,
-      status: "PENDING_REVIEW"
+  let doc;
+  try {
+    doc = await db.$transaction(async (tx) => {
+      const created = await tx.document.create({
+        data: {
+          name: title,
+          categoryId: category.id,
+          classification: "INTERNAL",
+          storageKey,
+          mimeType: validated.mime,
+          sizeBytes: buffer.byteLength,
+          originalName: file.name,
+          ownerId: user.id,
+          uploadedById: user.id,
+          relatedMatchId: match.id,
+          matchDocumentType: sheetType,
+          teamId: match.teamId,
+          status: "PENDING_REVIEW"
+        }
+      });
+      await writeAuditLog({
+        userId: user.id,
+        action: "match.sheet_attached",
+        entityType: "Match",
+        entityId: match.id,
+        changes: { documentId: created.id, filename: file.name, sheetType, reviewStatus: created.status }
+      }, tx);
+      return created;
+    });
+  } catch (error) {
+    try {
+      await deletePrivateFile(storageKey);
+    } catch (cleanupError) {
+      console.error("Could not clean up an unlinked match sheet upload:", cleanupError instanceof Error ? cleanupError.message : "unknown error");
     }
-  });
+    throw error;
+  }
 
   let lineupsAdded = 0;
   let lineupSummary: Awaited<ReturnType<typeof applyMatchSheetLineup>> | undefined;
@@ -844,14 +956,6 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
         : "Rapport enregistré, mais l’analyse n’a pas pu être mise en file. Vous pouvez la relancer depuis la page du match.";
     }
   }
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "match.sheet_attached",
-    entityType: "Match",
-    entityId: match.id,
-    changes: { documentId: doc.id, filename: file.name, sheetType, reviewStatus: doc.status, lineupsAdded, lineupSummary, refereeAnalysisAttempted: sheetType === "REFEREE_REPORT" }
-  });
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath("/[locale]/dashboard/matches", "page");

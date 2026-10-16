@@ -28,7 +28,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    const requiredPermission = requiredPermissionForDocument(document.classification);
+    const medicalRecord = await db.playerMedicalRecord.findUnique({ where: { documentId: document.id }, select: { id: true } });
+    const teamInsurancePolicy = await db.teamInsurancePolicy.findUnique({ where: { documentId: document.id }, select: { id: true } });
+    const requiredPermission = medicalRecord ? "medical.records.view" : teamInsurancePolicy ? "teams.view" : requiredPermissionForDocument(document.classification);
     if (!hasPermission(user, requiredPermission)) {
       await writeAuditLog({
         userId: user.id,

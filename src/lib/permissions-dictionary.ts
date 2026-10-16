@@ -1,6 +1,6 @@
 export interface PermissionMeta {
   key: string;
-  category: "sporting" | "finance" | "governance" | "media" | "security";
+  category: "sporting" | "medical" | "finance" | "governance" | "media" | "security";
   labelAr: string;
   labelFr: string;
   descAr?: string;
@@ -14,6 +14,13 @@ export const PERMISSION_CATEGORIES = {
     titleFr: "Secteur Sportif, Terrain et Matériel",
     color: "emerald",
     icon: "Trophy"
+  },
+  medical: {
+    id: "medical",
+    titleAr: "الملفات الطبية وسرية بيانات اللاعبين",
+    titleFr: "Dossiers médicaux et confidentialité des joueurs",
+    color: "rose",
+    icon: "Activity"
   },
   finance: {
     id: "finance",
@@ -402,6 +409,22 @@ export const PERMISSION_METAS: Record<string, PermissionMeta> = {
     labelFr: "Supprimer des documents",
     descAr: "حذف المستندات والملفات المرفوعة",
     descFr: "Supprimer des documents archivés"
+  },
+  "medical.records.view": {
+    key: "medical.records.view",
+    category: "medical",
+    labelAr: "معاينة الملفات الطبية للاعبين",
+    labelFr: "Consulter les dossiers médicaux des joueurs",
+    descAr: "معاينة وثائق التأمين والأهلية والفحوصات الطبية السرية للاعبين",
+    descFr: "Consulter les assurances, aptitudes et examens médicaux confidentiels des joueurs"
+  },
+  "medical.records.manage": {
+    key: "medical.records.manage",
+    category: "medical",
+    labelAr: "إدارة الملفات الطبية للاعبين",
+    labelFr: "Gérer les dossiers médicaux des joueurs",
+    descAr: "رفع وتحديث وثائق التأمين والأهلية والفحوصات الطبية للاعبين",
+    descFr: "Téléverser et mettre à jour les documents médicaux des joueurs"
   },
   "templates.view": {
     key: "templates.view",

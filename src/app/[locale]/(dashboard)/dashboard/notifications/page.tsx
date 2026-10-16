@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/permissions";
 import { markNotificationReadAction } from "./actions";
 import { MarkAllReadButton } from "./mark-all-read-button";
+import { DeleteAllNotificationsButton } from "./delete-all-notifications-button";
 import { NOTIFIABLE_TYPE_KEYS } from "@/lib/insights/notifications";
 import { resolveNotificationLink } from "@/lib/notifications/links";
 import { Badge } from "@/components/ui/badge";
@@ -184,12 +185,15 @@ export default async function NotificationsPage({
           </div>
         </div>
 
-        {unreadCount > 0 && (
-          <MarkAllReadButton
-            label={t("markAllRead")}
-            errorLabel={locale === "ar" ? "تعذر تحديث الإشعارات. حاول مرة أخرى." : "Impossible de mettre à jour les notifications. Réessayez."}
-          />
-        )}
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {unreadCount > 0 && (
+            <MarkAllReadButton
+              label={t("markAllRead")}
+              errorLabel={locale === "ar" ? "تعذر تحديث الإشعارات. حاول مرة أخرى." : "Impossible de mettre à jour les notifications. Réessayez."}
+            />
+          )}
+          {totalCount > 0 && <DeleteAllNotificationsButton locale={locale} />}
+        </div>
       </div>
 
       {/* ----------------- Status Filter Pills ----------------- */}

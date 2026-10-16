@@ -35,12 +35,14 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
     weekday: "short",
     day: "numeric",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Africa/Algiers"
   }).format(match.matchDate);
 
   const formattedTime = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "Africa/Algiers"
   }).format(match.matchDate);
 
   return (

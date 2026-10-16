@@ -21,7 +21,10 @@
     "close": "إغلاق",
     "images": "صور",
     "view": "عرض",
-    "remove": "إزالة"
+    "remove": "إزالة",
+    "nextPage": "الصفحة التالية",
+    "previousPage": "الصفحة السابقة",
+    "pageOf": "الصفحة {page} / {pages}"
   },
   "nav": {
     "home": "الرئيسية",
@@ -72,6 +75,7 @@
       "documents": "أرشيف الوثائق",
       "contracts": "العقود والاتفاقيات",
       "insurance": "التأمين الرياضي",
+      "medicalRecords": "الملف الطبي للاعبين",
       "correspondence": "المراسلات والطعون",
       "meetingMinutes": "محاضر الاجتماعات",
       "reports": "التقارير",
@@ -254,9 +258,9 @@
     },
     "categories": {
       "SENIOR": "الأكابر",
-      "U20": "U20",
-      "U17": "U17",
-      "U15": "U15"
+      "U20": "أقل من 20 سنة (U20)",
+      "U17": "أقل من 17 سنة (U17)",
+      "U15": "أقل من 15 سنة (U15)"
     },
     "birthYearWarning": "تحذير: سنة ميلاد اللاعب لا تطابق الفئة العمرية المختارة",
     "errors": {
@@ -787,6 +791,7 @@
     "CONTRACT_EXPIRING": "عقد {name} ينتهي خلال {days} يومًا",
     "CONTRACT_EXPIRED": "عقد {name} منتهي الصلاحية ولم يُحدَّث",
     "PLAYER_MISSING_DOCUMENTS": "لا توجد وثائق مرفوعة للاعب {name}",
+    "PLAYER_MEDICAL_DOCUMENTS_MISSING": "الملف الطبي للاعب {name} ينقصه مستند من الأهلية أو فحص المخدرات أو التحاليل.",
     "PLAYER_NOT_INSURED": "اللاعب {name} غير مؤمّن للموسم الحالي أو تنقصه وثيقة التأمين",
     "PLAYER_INSURANCE_EXPIRING": "تأمين اللاعب {name} ينتهي خلال {days} يومًا",
     "PLAYER_INSURANCE_EXPIRED": "تأمين اللاعب {name} منتهي الصلاحية ويحتاج لتجديد فوري",
@@ -806,6 +811,8 @@
       "CONTRACT_EXPIRING": "عقد {name} ينتهي خلال {days} يومًا",
       "CONTRACT_EXPIRED": "عقد {name} منتهي الصلاحية ولم يُحدَّث",
       "PLAYER_MISSING_DOCUMENTS": "لا توجد وثائق مرفوعة للاعب {name}",
+      "PLAYER_MEDICAL_DOCUMENTS_MISSING": "الملف الطبي للاعب {name} ينقصه مستند من الأهلية أو فحص المخدرات أو التحاليل.",
+      "MEDICAL_DOCUMENT_AI_REVIEW": "تنبيه ذكاء اصطناعي: وثيقة طبية للاعب {name} بها اختلاف هوية أو مؤشر يتطلب مراجعة المختص.",
       "PLAYER_NOT_INSURED": "اللاعب {name} غير مؤمّن للموسم الحالي أو تنقصه وثيقة التأمين",
       "PLAYER_INSURANCE_EXPIRING": "تأمين اللاعب {name} ينتهي خلال {days} يومًا",
       "PLAYER_INSURANCE_EXPIRED": "تأمين اللاعب {name} منتهي الصلاحية ويحتاج لتجديد فوري",
@@ -828,6 +835,8 @@
       "CONTRACT_EXPIRING": "عقود قاربت على الانتهاء",
       "CONTRACT_EXPIRED": "عقود منتهية غير محدَّثة",
       "PLAYER_MISSING_DOCUMENTS": "لاعبون بدون وثائق",
+      "PLAYER_MEDICAL_DOCUMENTS_MISSING": "ملفات طبية تحتاج إلى استكمال",
+      "MEDICAL_DOCUMENT_AI_REVIEW": "وثائق طبية تتطلب مراجعة المختص",
       "PLAYER_NOT_INSURED": "لاعبون بدون تأمين رياضي",
       "PLAYER_INSURANCE_EXPIRING": "تأمينات رياضية قاربت على الانتهاء",
       "PLAYER_INSURANCE_EXPIRED": "تأمينات رياضية منتهية الصلاحية",
@@ -1337,6 +1346,7 @@
     "clubWide": "ملكية عامة للنادي",
     "allCategories": "جميع الأصناف",
     "allConditions": "جميع الحالات",
+    "paginationSummary": "عرض {from}–{to} من أصل {total} مادة",
     "searchPlaceholder": "البحث بالاسم أو الموقع...",
     "noItemsFound": "لم يتم العثور على أي معدات",
     "noItemsHint": "يمكنك إضافة عتاد جديد أو تعديل معايير التصفية والبحث أعلاه.",
@@ -1371,8 +1381,10 @@
       "NEW": "جديد",
       "GOOD": "جيد",
       "FAIR": "متوسط",
+      "OLD": "قديم",
       "POOR": "متهالك",
-      "DAMAGED": "تالف"
+      "DAMAGED": "تالف",
+      "UNSPECIFIED": "غير محدد في السجل"
     }
   },
   "testing": {

@@ -30,7 +30,7 @@ export const DASHBOARD_NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/contracts", labelKey: "contracts", requiredPermission: "contracts.view" },
       { href: "/dashboard/correspondence", labelKey: "correspondence", requiredPermission: "correspondence.view" },
       { href: "/dashboard/meeting-minutes", labelKey: "meetingMinutes", requiredPermission: "meetings.view" },
-      { href: "/dashboard/insurance", labelKey: "insurance", requiredPermission: "documents.view" },
+      { href: "/dashboard/medical-records", labelKey: "medicalRecords", requiredPermission: "medical.records.view" },
       { href: "/dashboard/reports", labelKey: "reports", requiredPermission: "reports.view" }
     ]
   },

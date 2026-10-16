@@ -37,6 +37,7 @@ export function TeamSwitcher({
     pathname.includes("/dashboard/matches") ||
     pathname.includes("/dashboard/players") ||
     pathname.includes("/dashboard/insurance") ||
+    pathname.includes("/dashboard/medical-records") ||
     pathname.includes("/dashboard/finance") ||
     pathname.includes("/dashboard/users") ||
     pathname.includes("/dashboard/roles") ||
