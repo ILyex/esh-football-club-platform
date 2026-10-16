@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route, Play, Pause, Image as ImageIcon, Video, SkipBack, SkipForward, Repeat2, Trash, Gauge, Settings2 } from "lucide-react";
+import { ArrowDown, ArrowRight, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route, Play, Pause, Image as ImageIcon, Video, Repeat2, Trash, Gauge, Settings2 } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
 import { TacticalColorPicker } from "@/components/tactics/color-picker";
 import { saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
@@ -92,9 +92,9 @@ function prepareBoard(data: unknown): BoardData | null {
 function localize(locale: string) {
   const ar = locale === "ar";
   return ar ? {
-    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", fitScreen: "ملء الشاشة", exitFitScreen: "إنهاء ملء الشاشة", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم", animation: "حركة التشكيلة", play: "تشغيل", pause: "إيقاف", seconds: "ثوانٍ", noFrame: "حرّك لاعبًا لبناء أول لقطة", imagePlan: "خطة صورة", videoPlan: "خطة فيديو", imageHelp: "تشكيلة ثابتة قابلة للرسم والطباعة", videoHelp: "خطط للحركة مع لقطات زمنية", playbackSpeed: "سرعة التشغيل", loop: "تكرار الحركة", previousFrame: "اللقطة السابقة", nextFrame: "اللقطة التالية", deleteFrame: "حذف اللقطة الحالية", keyframe: "لقطة محفوظة", noKeyframe: "المؤشر ليس على لقطة محفوظة", videoGuide: "اسحب اللاعب لإضافة لقطة عند الوقت المحدد. في النهاية اضغط «حفظ الخطة».", advanced: "إعدادات متقدمة"
+    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", saveVideo: "حفظ الفيديو", savingVideo: "جارٍ تجهيز الفيديو", videoSaved: "تم تنزيل الفيديو", videoExportError: "تعذر إنشاء الفيديو في هذا المتصفح.", videoExportUnsupported: "المتصفح لا يدعم تسجيل الفيديو.", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", fitScreen: "ملء الشاشة", exitFitScreen: "إنهاء ملء الشاشة", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم", animation: "حركة التشكيلة", play: "تشغيل", pause: "إيقاف", seconds: "ثوانٍ", noFrame: "حرّك لاعبًا لبناء أول لقطة", imagePlan: "خطة صورة", videoPlan: "خطة فيديو", imageHelp: "تشكيلة ثابتة قابلة للرسم والطباعة", videoHelp: "خطط للحركة مع لقطات زمنية", playbackSpeed: "سرعة التشغيل", loop: "تكرار الحركة", deleteFrame: "حذف اللقطة الحالية", keyframe: "لقطة محفوظة", noKeyframe: "المؤشر ليس على لقطة محفوظة", videoGuide: "اسحب اللاعب لإضافة لقطة عند الوقت المحدد. في النهاية اضغط «حفظ الخطة».", advanced: "إعدادات متقدمة"
   } : {
-    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", fitScreen: "Fit to screen", exitFitScreen: "Exit full screen", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch", animation: "Lineup animation", play: "Play", pause: "Pause", seconds: "seconds", noFrame: "Move a player to create the first keyframe", imagePlan: "Image plan", videoPlan: "Video plan", imageHelp: "A static, drawable and printable formation", videoHelp: "Build player movements with timed keyframes", playbackSpeed: "Playback speed", loop: "Loop animation", previousFrame: "Previous keyframe", nextFrame: "Next keyframe", deleteFrame: "Delete current keyframe", keyframe: "Saved keyframe", noKeyframe: "The playhead is not on a saved keyframe", videoGuide: "Drag a player to add a keyframe at the selected time. Press Save plan when done.", advanced: "Advanced settings"
+    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", saveVideo: "Save video", savingVideo: "Preparing video", videoSaved: "Video downloaded", videoExportError: "Could not create a video in this browser.", videoExportUnsupported: "This browser does not support video recording.", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", fitScreen: "Fit to screen", exitFitScreen: "Exit full screen", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch", animation: "Lineup animation", play: "Play", pause: "Pause", seconds: "seconds", noFrame: "Move a player to create the first keyframe", imagePlan: "Image plan", videoPlan: "Video plan", imageHelp: "A static, drawable and printable formation", videoHelp: "Build player movements with timed keyframes", playbackSpeed: "Playback speed", loop: "Loop animation", deleteFrame: "Delete current keyframe", keyframe: "Saved keyframe", noKeyframe: "The playhead is not on a saved keyframe", videoGuide: "Drag a player to add a keyframe at the selected time. Press Save plan when done.", advanced: "Advanced settings"
   };
 }
 
@@ -114,6 +114,8 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [videoExportProgress, setVideoExportProgress] = useState<number | null>(null);
+  const [videoExportMessage, setVideoExportMessage] = useState("");
   const [history, setHistory] = useState<BoardData[]>([]);
   const [future, setFuture] = useState<BoardData[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -193,15 +195,6 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
   }
   const keyframes = board.animation?.frames ?? [];
   const currentKeyframeIndex = keyframes.findIndex((frame) => Math.abs(frame.time - playhead) < 0.06);
-  function seekKeyframe(direction: -1 | 1) {
-    if (!keyframes.length) return;
-    const candidates = direction < 0
-      ? keyframes.filter((frame) => frame.time < playhead - 0.05)
-      : keyframes.filter((frame) => frame.time > playhead + 0.05);
-    const frame = direction < 0 ? candidates.at(-1) : candidates[0];
-    const target = frame ?? (direction < 0 ? keyframes.at(-1) : keyframes[0]);
-    if (target) { setPlaying(false); setPlayhead(target.time); }
-  }
   function deleteCurrentKeyframe() {
     if (currentKeyframeIndex < 0) return;
     updateBoard((current) => ({ ...current, animation: { duration: current.animation?.duration ?? 10, frames: (current.animation?.frames ?? []).filter((_, index) => index !== currentKeyframeIndex) } }));
@@ -351,6 +344,114 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     const blob = new Blob([new XMLSerializer().serializeToString(copySvg)], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${title.trim() || "tactical-plan"}.svg`; a.click(); URL.revokeObjectURL(url);
   }
+  async function exportVideo() {
+    const sourceSvg = svgRef.current;
+    if (!sourceSvg || videoExportProgress !== null) return;
+    const Recorder = window.MediaRecorder;
+    const canvas = document.createElement("canvas");
+    if (!Recorder || typeof canvas.captureStream !== "function") { setVideoExportMessage(t.videoExportUnsupported); return; }
+    const formats = [
+      { mime: "video/mp4;codecs=avc1.42E01E", extension: "mp4" },
+      { mime: "video/mp4", extension: "mp4" },
+      { mime: "video/quicktime", extension: "mov" },
+      { mime: "video/webm;codecs=vp9", extension: "webm" },
+      { mime: "video/webm", extension: "webm" }
+    ];
+    const format = formats.find((candidate) => Recorder.isTypeSupported(candidate.mime));
+    if (!format) { setVideoExportMessage(t.videoExportUnsupported); return; }
+
+    setVideoExportMessage("");
+    setVideoExportProgress(0);
+    setPlaying(false);
+    const portrait = board.orientation === "vertical";
+    canvas.width = portrait ? 720 : 1280;
+    canvas.height = portrait ? 1125 : 820;
+    const context = canvas.getContext("2d");
+    if (!context) { setVideoExportProgress(null); setVideoExportMessage(t.videoExportError); return; }
+    const stream = canvas.captureStream(24);
+    let recorder: MediaRecorder | null = null;
+    let objectUrl: string | null = null;
+    try {
+      const logo = sourceSvg.querySelector("image");
+      let logoDataUrl: string | null = null;
+      const logoSource = logo?.getAttribute("href");
+      if (logoSource) {
+        try {
+          const response = await fetch(new URL(logoSource, window.location.href), { credentials: "same-origin", mode: "cors" });
+          if (!response.ok) throw new Error("Could not load club logo");
+          const logoBlob = await response.blob();
+          logoDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read club logo"));
+            reader.onerror = () => reject(reader.error ?? new Error("Could not read club logo"));
+            reader.readAsDataURL(logoBlob);
+          });
+        } catch { /* A logo blocked by cross-origin policy is omitted to keep canvas export safe. */ }
+      }
+
+      const chunks: BlobPart[] = [];
+      recorder = new Recorder(stream, { mimeType: format.mime });
+      const finished = new Promise<Blob>((resolve, reject) => {
+        recorder!.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+        recorder!.onerror = () => reject(new Error("Video recording failed"));
+        recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder!.mimeType || format.mime }));
+      });
+      recorder.start(250);
+      const fps = 24;
+      const frameCount = Math.max(1, Math.ceil(duration * fps));
+      for (let frame = 0; frame <= frameCount; frame++) {
+        const started = performance.now();
+        const time = Math.min(duration, frame / fps);
+        const clone = sourceSvg.cloneNode(true) as SVGSVGElement;
+        clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        clone.setAttribute("width", String(canvas.width));
+        clone.setAttribute("height", String(canvas.height));
+        clone.setAttribute("viewBox", portrait ? "0 0 640 1000" : "0 0 1000 640");
+        clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        const frameItems = animatedItems(board, time);
+        clone.querySelectorAll<SVGGElement>("[data-tactics-item]").forEach((element) => {
+          const item = frameItems.find((candidate) => candidate.id === element.dataset.tacticsItem);
+          if (item && (item.kind === "player" || item.kind === "opponent" || item.kind === "ball")) element.setAttribute("transform", `translate(${item.x} ${item.y})`);
+        });
+        clone.querySelectorAll("image").forEach((image) => {
+          if (logoDataUrl) image.setAttribute("href", logoDataUrl);
+          else image.remove();
+        });
+        const svgBlob = new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" });
+        objectUrl = URL.createObjectURL(svgBlob);
+        const image = new Image();
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error("Could not render a video frame"));
+          image.src = objectUrl!;
+        });
+        context.fillStyle = "#101713";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+        setVideoExportProgress(Math.min(99, Math.round((frame / frameCount) * 100)));
+        if (frame < frameCount) await new Promise((resolve) => window.setTimeout(resolve, Math.max(0, 1000 / fps - (performance.now() - started))));
+      }
+      recorder.stop();
+      const video = await finished;
+      const downloadUrl = URL.createObjectURL(video);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = `${title.trim() || "tactical-plan"}.${format.extension}`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
+      setVideoExportMessage(`${t.videoSaved} (${format.extension.toUpperCase()})`);
+    } catch (error) {
+      console.error("Tactical video export failed", error);
+      if (recorder?.state === "recording") recorder.stop();
+      setVideoExportMessage(t.videoExportError);
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      stream.getTracks().forEach((track) => track.stop());
+      setVideoExportProgress(null);
+    }
+  }
   function chooseColor(nextColor: string) {
     setColor(nextColor);
   }
@@ -372,7 +473,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
       <div className="flex flex-wrap gap-2">
         {canEdit && <button type="button" onClick={newPlan} className="tactics-action"><FilePlus2 size={16}/>{t.newPlan}</button>}
         <Link href={`/${locale}/dashboard/tactics/plans`} className="tactics-action"><List size={16}/>{t.plans}</Link>
-        <button type="button" onClick={exportSvg} className="tactics-action"><Download size={16}/>{t.export}</button>
+        {board.mode === "video" ? <button type="button" onClick={() => void exportVideo()} disabled={videoExportProgress !== null} className="tactics-action tactics-primary"><Video size={16}/>{videoExportProgress === null ? t.saveVideo : `${t.savingVideo} ${videoExportProgress}%`}</button> : <button type="button" onClick={exportSvg} className="tactics-action"><Download size={16}/>{t.export}</button>}
         <button type="button" onClick={() => window.print()} className="tactics-action tactics-primary"><Printer size={16}/>{t.print}</button>
       </div>
     </header>
@@ -408,23 +509,21 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
           </div>
           {board.mode === "video" && <div className="space-y-2 border-b border-border px-3 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-sm font-semibold"><Video size={16} className="text-club-primary"/>{t.animation}</div><p className="text-xs text-muted-foreground">{t.videoGuide}</p></div>
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background/50 px-2 py-1.5">
               <button type="button" title={playing ? t.pause : t.play} aria-label={playing ? t.pause : t.play} disabled={!board.animation?.frames.length} onClick={() => setPlaying((value) => !value)} className="tactics-icon">{playing ? <Pause size={17}/> : <Play size={17}/>}</button>
               <input aria-label={t.animation} type="range" min={0} max={duration} step={0.1} value={Math.min(playhead, duration)} disabled={playing || !board.animation?.frames.length} onChange={(event) => setPlayhead(Number(event.target.value))} className="tactics-timeline min-w-0 flex-1" />
-              <span className="min-w-[72px] text-center font-mono text-xs tabular-nums text-muted-foreground">{playhead.toFixed(1)} / {duration.toFixed(0)}s</span>
+              <span className="min-w-[82px] text-center font-mono text-xs tabular-nums text-muted-foreground">{playhead.toFixed(1)}s / {duration.toFixed(0)}s</span>
             </div>
             <details className="tactics-advanced">
               <summary><Settings2 size={14}/>{t.advanced}</summary>
               <div className="flex flex-wrap items-center gap-2 pt-2">
-                <button type="button" title={t.previousFrame} aria-label={t.previousFrame} disabled={!keyframes.length} onClick={() => seekKeyframe(-1)} className="tactics-icon"><SkipBack size={16}/></button>
-                <button type="button" title={t.nextFrame} aria-label={t.nextFrame} disabled={!keyframes.length} onClick={() => seekKeyframe(1)} className="tactics-icon"><SkipForward size={16}/></button>
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><span>{t.seconds}</span><input aria-label={t.seconds} type="number" min={2} max={60} value={durationDraft} disabled={!canEditActive || playing} onChange={(event) => setDurationDraft(event.target.value)} onBlur={() => setAnimationDuration(Number(durationDraft) || 10)} className="tactics-duration w-16" /></label>
                 <button type="button" title={t.deleteFrame} aria-label={t.deleteFrame} disabled={!canEditActive || currentKeyframeIndex < 0 || playing} onClick={deleteCurrentKeyframe} className="tactics-icon text-red-400"><Trash size={15}/></button>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground"><Gauge size={14}/><span>{t.playbackSpeed}</span><select aria-label={t.playbackSpeed} value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} className="tactics-duration"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
                 <button type="button" aria-pressed={loopPlayback} title={t.loop} onClick={() => setLoopPlayback((value) => !value)} className={`tactics-icon ${loopPlayback ? "tactics-tool-active" : ""}`}><Repeat2 size={16}/><span>{t.loop}</span></button>
               </div>
             </details>
-            {keyframes.length === 0 ? <p className="text-xs text-muted-foreground">{t.noFrame}</p> : <p className="text-xs text-muted-foreground">{currentKeyframeIndex >= 0 ? `${t.keyframe} ${currentKeyframeIndex + 1} / ${keyframes.length}` : t.noKeyframe}</p>}
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{keyframes.length === 0 ? t.noFrame : currentKeyframeIndex >= 0 ? `${t.keyframe} ${currentKeyframeIndex + 1} / ${keyframes.length}` : `${keyframes.length} ${t.keyframe}`}</p>{videoExportMessage && <p role="status" className={`text-xs ${videoExportMessage === t.videoExportError || videoExportMessage === t.videoExportUnsupported ? "text-red-400" : "text-emerald-400"}`}>{videoExportMessage}</p>}</div>
           </div>}
           <div className="tactics-pitch-wrap p-2 sm:p-4">
             <svg ref={svgRef} viewBox={viewBox} aria-label={t.pitch} className={`tactics-pitch ${board.orientation === "vertical" ? "tactics-pitch-vertical" : ""} ${tool !== "select" ? "tactics-crosshair" : ""}`} onPointerDown={onBoardPointerDown} onPointerMove={onItemMove} onPointerUp={(event) => { onBoardPointerUp(event); finishMove(); }} onPointerCancel={() => { setPending(null); setPendingCurrent(null); setPendingPath(null); dragId.current = null; setDragPreview(null); }}>
@@ -433,9 +532,9 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
                 <rect width="1000" height="640" rx="12" fill="url(#grass)"/><rect width="1000" height="640" rx="12" fill="url(#small-grid)"/>
                 <image href={clubLogoUrl || "/branding/esh-logo-transparent.png"} x="350" y="150" width="300" height="300" opacity=".16" preserveAspectRatio="xMidYMid meet" pointerEvents="none" aria-hidden="true"/>
               <g fill="none" stroke="#ecfdf5" strokeOpacity=".82" strokeWidth="3"><rect x="22" y="22" width="956" height="596" rx="4"/><line x1="500" y1="22" x2="500" y2="618"/><circle cx="500" cy="320" r="82"/><circle cx="500" cy="320" r="3" fill="#ecfdf5"/><rect x="22" y="168" width="145" height="304"/><rect x="22" y="232" width="58" height="176"/><circle cx="112" cy="320" r="3" fill="#ecfdf5"/><path d="M167 255a82 82 0 0 1 0 130"/><rect x="833" y="168" width="145" height="304"/><rect x="920" y="232" width="58" height="176"/><circle cx="888" cy="320" r="3" fill="#ecfdf5"/><path d="M833 255a82 82 0 0 0 0 130"/></g>
-                {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
+                {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} data-tactics-item={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
                 <g transform={board.orientation === "vertical" ? "rotate(-90)" : undefined}><circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#075985"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={0} y={board.orientation === "vertical" ? -39 : 39} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}</g>
-              </g> : item.kind === "ball" ? <g key={item.id} transform={`translate(${item.x} ${item.y})`} className="tactics-player" onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><circle r="12" fill={item.color ?? "#fff"} stroke="#111827" strokeWidth="3"/><path d="M0-6 6-2 4 5-4 5-6-2Z" transform={board.orientation === "vertical" ? "rotate(-90)" : undefined} fill="#111827"/></g> : item.kind === "zone" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><rect x={Math.min(item.x, item.x2)} y={Math.min(item.y, item.y2)} width={Math.abs(item.x2 - item.x)} height={Math.abs(item.y2 - item.y)} rx="8" fill={item.color} fillOpacity=".2" stroke={item.color} strokeWidth="3" strokeDasharray="8 6"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "path" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><polyline points={(item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }]).map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" markerEnd="url(#tactics-arrow)"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "arrow" || item.kind === "line" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><line x1={item.x} y1={item.y} x2={item.x2} y2={item.y2} stroke={item.color} strokeWidth={item.kind === "arrow" ? 4 : 3} strokeDasharray={item.kind === "line" ? "12 8" : undefined} markerEnd={item.kind === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : null)}
+              </g> : item.kind === "ball" ? <g key={item.id} data-tactics-item={item.id} transform={`translate(${item.x} ${item.y})`} className="tactics-player" onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><circle r="12" fill={item.color ?? "#fff"} stroke="#111827" strokeWidth="3"/><path d="M0-6 6-2 4 5-4 5-6-2Z" transform={board.orientation === "vertical" ? "rotate(-90)" : undefined} fill="#111827"/></g> : item.kind === "zone" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><rect x={Math.min(item.x, item.x2)} y={Math.min(item.y, item.y2)} width={Math.abs(item.x2 - item.x)} height={Math.abs(item.y2 - item.y)} rx="8" fill={item.color} fillOpacity=".2" stroke={item.color} strokeWidth="3" strokeDasharray="8 6"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "path" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><polyline points={(item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }]).map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" markerEnd="url(#tactics-arrow)"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "arrow" || item.kind === "line" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><line x1={item.x} y1={item.y} x2={item.x2} y2={item.y2} stroke={item.color} strokeWidth={item.kind === "arrow" ? 4 : 3} strokeDasharray={item.kind === "line" ? "12 8" : undefined} markerEnd={item.kind === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : null)}
               {pending && pendingCurrent && <g pointerEvents="none" opacity=".78">
                 {tool === "zone" ? <rect x={Math.min(pending.x, pendingCurrent.x)} y={Math.min(pending.y, pendingCurrent.y)} width={Math.abs(pendingCurrent.x - pending.x)} height={Math.abs(pendingCurrent.y - pending.y)} rx="8" fill={color} fillOpacity=".18" stroke={color} strokeWidth="3" strokeDasharray="8 6"/> : <line x1={pending.x} y1={pending.y} x2={pendingCurrent.x} y2={pendingCurrent.y} stroke={color} strokeWidth={tool === "arrow" ? 4 : 3} strokeDasharray={tool === "line" ? "12 8" : undefined} markerEnd={tool === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>}
                 <circle cx={pending.x} cy={pending.y} r="5" fill={color}/><circle cx={pendingCurrent.x} cy={pendingCurrent.y} r="4" fill={color}/>
