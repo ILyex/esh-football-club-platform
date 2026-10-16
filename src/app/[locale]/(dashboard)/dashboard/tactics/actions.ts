@@ -11,11 +11,13 @@ const playerSchema = z.object({ id: z.string().min(1).max(40), kind: z.enum(["pl
 const boardDataSchema = z.object({
   items: z.array(z.discriminatedUnion("kind", [
     playerSchema,
-    z.object({ id: z.string().min(1).max(40), kind: z.literal("ball"), x: z.number().min(0).max(1000), y: z.number().min(0).max(640) }),
-    z.object({ id: z.string().min(1).max(40), kind: z.enum(["arrow", "line", "zone"]), x: z.number().min(0).max(1000), y: z.number().min(0).max(640), x2: z.number().min(0).max(1000), y2: z.number().min(0).max(640), color: z.string().regex(/^#[0-9a-f]{6}$/i), label: z.string().max(100).optional() })
+    z.object({ id: z.string().min(1).max(40), kind: z.literal("ball"), x: z.number().min(0).max(1000), y: z.number().min(0).max(640), color: z.string().regex(/^#[0-9a-f]{6}$/i).optional() }),
+    z.object({ id: z.string().min(1).max(40), kind: z.enum(["arrow", "line", "zone"]), x: z.number().min(0).max(1000), y: z.number().min(0).max(640), x2: z.number().min(0).max(1000), y2: z.number().min(0).max(640), color: z.string().regex(/^#[0-9a-f]{6}$/i), label: z.string().max(100).optional() }),
+    z.object({ id: z.string().min(1).max(40), kind: z.literal("path"), x: z.number().min(0).max(1000), y: z.number().min(0).max(640), x2: z.number().min(0).max(1000), y2: z.number().min(0).max(640), color: z.string().regex(/^#[0-9a-f]{6}$/i), label: z.string().max(100).optional(), points: z.array(z.object({ x: z.number().min(0).max(1000), y: z.number().min(0).max(640) })).min(2).max(500) })
   ])).max(80),
   orientation: z.enum(["horizontal", "vertical"]),
-  notes: z.string().max(4000)
+  notes: z.string().max(4000),
+  coachName: z.string().max(100).optional()
 });
 
 const planSchema = z.object({
