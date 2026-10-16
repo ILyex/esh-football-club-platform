@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ArrowDown, ArrowRight, Circle, Copy, Download, Eraser, FilePlus2, Flag, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route } from "lucide-react";
+import { FormSelect } from "@/components/ui/form-select";
 import { deleteTacticalPlanAction, saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
 
 type Team = { id: string; name: string; category: string };
@@ -239,8 +240,8 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
         <section className="tactics-panel grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(180px,1.2fr)_170px_150px] print:hidden">
           <label className="tactics-field"><span>{t.titlePlaceholder}</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} disabled={!canEditActive} placeholder={t.titlePlaceholder}/></label>
           <label className="tactics-field"><span>{t.description}</span><input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} disabled={!canEditActive} placeholder={t.description}/></label>
-          <label className="tactics-field"><span>{t.formation}</span><select value={formation} onChange={(e) => applyFormation(e.target.value)} disabled={!canEditActive}>{Object.keys(FORMATIONS).map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label className="tactics-field"><span>{t.team}</span><select value={teamId} onChange={(e) => setTeamId(e.target.value)} disabled={!canEditActive}><option value="">{t.noTeam}</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+          <div className="tactics-field"><span>{t.formation}</span><FormSelect name="tactical-formation" locale={locale} value={formation} onValueChange={applyFormation} disabled={!canEditActive} options={Object.keys(FORMATIONS).map((item) => ({ value: item, label: item }))} ariaLabel={t.formation}/></div>
+          <div className="tactics-field"><span>{t.team}</span><FormSelect name="tactical-team" locale={locale} value={teamId} onValueChange={setTeamId} disabled={!canEditActive} options={[{ value: "", label: t.noTeam }, ...teams.map((team) => ({ value: team.id, label: team.name }))]} ariaLabel={t.team}/></div>
         </section>
 
         <section className="tactics-panel overflow-hidden">
