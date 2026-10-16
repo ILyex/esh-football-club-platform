@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteMatchAction } from "./actions";
 import { resolveMatchResult } from "@/lib/matches/result";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
+import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 
 export default async function MatchesListPage({
   params,
@@ -147,7 +148,7 @@ export default async function MatchesListPage({
               }
               return (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                  <td className="px-4 py-2">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(m.matchDate)}</td>
+                  <td className="px-4 py-2" dir="ltr">{formatAlgeriaDateTime(m.matchDate, locale)}</td>
                   <td className="px-4 py-2 font-medium">
                     <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[280px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                       <span dir="auto" className="truncate">{homeTeamName}</span>

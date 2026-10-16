@@ -14,6 +14,7 @@ import { MatchEventEntryForm } from "../match-event-entry-form";
 import { CollapsibleMatchEvents } from "@/components/matches/collapsible-match-events";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
+import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 
 const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15";
 
@@ -157,7 +158,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
                   <span className="inline-flex items-center gap-1 font-semibold text-club-primary"><Trophy className="h-3 w-3" />{match.competition.name}</span>
-                  <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(match.matchDate)}</span>
+                  <span className="inline-flex items-center gap-1" dir="ltr"><CalendarDays className="h-3 w-3" />{formatAlgeriaDateTime(match.matchDate, locale)}</span>
                 </div>
                 <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                   <h2 className="min-w-0 truncate text-end text-sm font-extrabold leading-snug sm:text-base">{names.homeTeamName}</h2>

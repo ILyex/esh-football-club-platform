@@ -17,6 +17,7 @@ import {
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 import { localizedClubName } from "@/lib/public/locale-text";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 
 export interface DashboardMatchItem {
   id: string;
@@ -159,10 +160,7 @@ export function DashboardEventsCarousel({
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {new Intl.DateTimeFormat(locale, {
-                              dateStyle: "short",
-                              timeStyle: "short"
-                            }).format(new Date(m.matchDate))}
+                            {formatAlgeriaDateTime(m.matchDate, locale, "short")}
                           </span>
                           {m.competitionName && <span className="min-w-0 truncate">• {m.competitionName}</span>}
                         </p>
