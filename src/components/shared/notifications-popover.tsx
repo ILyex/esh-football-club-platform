@@ -211,24 +211,18 @@ export function NotificationsPopover({
 
                   {/* Notification Content */}
                   <div className="min-w-0 flex-1">
-                    {item.link ? (
-                      <Link
-                        href={resolveNotificationLink(item.link, locale)}
-                        onClick={() => {
-                          setIsOpen(false);
-                          handleMarkSingleRead(item.id);
-                        }}
-                        className="block hover:underline"
-                      >
-                        <p className={cn("text-xs leading-snug", !item.isRead ? "font-bold text-foreground" : "text-muted-foreground")}>
-                          {item.title}
-                        </p>
-                      </Link>
-                    ) : (
+                    <Link
+                      href={item.link ? resolveNotificationLink(item.link, locale) : `/${locale}/dashboard/notifications`}
+                      onClick={() => {
+                        setIsOpen(false);
+                        handleMarkSingleRead(item.id);
+                      }}
+                      className="block hover:underline"
+                    >
                       <p className={cn("text-xs leading-snug", !item.isRead ? "font-bold text-foreground" : "text-muted-foreground")}>
                         {item.title}
                       </p>
-                    )}
+                    </Link>
                     <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       <span>{formatTime(item.createdAt)}</span>
