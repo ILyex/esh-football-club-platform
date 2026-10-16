@@ -359,8 +359,8 @@ test("FAF Session Persistence: Encrypted session file preserves credentials acro
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => {
       return new Response(null, {
-        status: 302,
-        headers: { Location: "https://www.fafconnect.dz/clubs/index.php?id_club=3196" }
+        status: 200,
+        headers: {}
       });
     }) as any;
 
