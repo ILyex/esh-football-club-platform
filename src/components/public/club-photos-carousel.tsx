@@ -73,6 +73,16 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
   }
 
   const safeIndex = Math.min(currentIndex, orderedPhotos.length - 1);
+  // Keep the footer compact on narrow cards. The arrow buttons still let
+  // visitors reach every image when the carousel contains many photos.
+  const visibleDotCount = Math.min(5, orderedPhotos.length);
+  const firstVisibleDot = Math.max(
+    0,
+    Math.min(
+      safeIndex - Math.floor(visibleDotCount / 2),
+      orderedPhotos.length - visibleDotCount
+    )
+  );
   const currentPhoto = orderedPhotos[safeIndex]!;
   const photoCaption = isAr ? currentPhoto.caption : frenchPublicText(currentPhoto.caption, "Photo du club");
   const albumName = isAr ? currentPhoto.albumName : frenchPublicText(currentPhoto.albumName, "");
@@ -165,31 +175,35 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
       </div>
 
       {/* Indicator Dots & Counter Footer */}
-      <div className="flex min-h-[72px] items-center justify-between gap-3 border-t border-border/60 bg-card px-3 py-3 text-xs text-muted-foreground">
-        <span className="font-mono text-[11px] font-bold text-foreground">
+      <div className="flex min-h-[72px] w-full min-w-0 items-center justify-between gap-2 border-t border-border/60 bg-card px-3 py-3 text-xs text-muted-foreground">
+        <span className="shrink-0 whitespace-nowrap font-mono text-[11px] font-bold tabular-nums text-foreground" aria-live="polite">
           {safeIndex + 1} / {orderedPhotos.length}
         </span>
 
         {/* Dot Indicators */}
-        <div className="flex items-center gap-1.5">
-          {orderedPhotos.slice(0, 7).map((ph, idx) => (
+        <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden">
+          {orderedPhotos.slice(firstVisibleDot, firstVisibleDot + visibleDotCount).map((ph, visibleIdx) => {
+            const idx = firstVisibleDot + visibleIdx;
+            return (
             <button
               key={ph.id}
               type="button"
               onClick={() => setCurrentIndex(idx)}
-              className="flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
               aria-label={isAr ? `انتقل إلى الصورة ${idx + 1}` : `Aller à l’image ${idx + 1}`}
+              aria-current={safeIndex === idx ? "true" : undefined}
             >
               <span className={`block h-1.5 rounded-full transition-all ${
                 safeIndex === idx
-                  ? "w-5 bg-club-primary"
+                  ? "w-4 bg-club-primary"
                   : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60"
               }`} />
             </button>
-          ))}
+            );
+          })}
         </div>
 
-        <a href={`/${locale}/gallery`} className="inline-flex min-h-10 w-auto min-w-[110px] shrink-0 items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 px-3 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+        <a href={`/${locale}/gallery`} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-club-primary/20 bg-club-primary/10 px-2.5 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white sm:gap-2 sm:px-3">
           <span>{isAr ? "الألبومات" : "Albums"}</span>
           <Arrow className="h-3.5 w-3.5" aria-hidden="true" />
         </a>
