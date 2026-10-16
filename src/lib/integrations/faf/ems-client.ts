@@ -29,7 +29,8 @@ export class FafEmsClient {
     const config = getFAFConfig();
     const username = process.env.FAF_USERNAME?.trim();
     const password = process.env.FAF_PASSWORD;
-    if (!config.enabled || !username || !password) throw new Error("FAF EMS account credentials are not configured on the server.");
+    if (!config.enabled) throw new Error("FAF EMS integration is disabled on the server.");
+    if (!username || !password) throw new Error("No active saved FAF EMS session is available, and server account credentials are not configured.");
 
     const form = new FormData();
     form.set("user", username);

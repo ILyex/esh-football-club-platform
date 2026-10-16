@@ -50,6 +50,8 @@ export function MatchOperationalStatus({
     awayScore,
     addedTime
   ).phase : null;
+  const finishedByClock = status === "LIVE" && clockPhase === "FULL_TIME";
+  const displayStatus: MatchStatus = finishedByClock ? "FINISHED" : status;
   const isHalfTime = clockPhase === "HALF_TIME" || clockPhase === "EXTRA_TIME_HALF_TIME";
   const label = isImminent
     ? (isAr ? "تبدأ قريبًا" : "Débute bientôt")
@@ -57,30 +59,30 @@ export function MatchOperationalStatus({
     ? (clockPhase === "EXTRA_TIME_HALF_TIME"
       ? (isAr ? "نهاية الشوط الإضافي الأول" : "Mi-temps des prolongations")
       : (isAr ? "نهاية الشوط الأول" : "Mi-temps"))
-    : labels[status];
+    : labels[displayStatus];
 
   if (variant === "dashboard") {
-    const tone = isImminent || isHalfTime ? "warning" : status === "LIVE" ? "danger" : status === "FINISHED" ? "success" : status === "POSTPONED" || status === "CANCELLED" ? "warning" : "neutral";
+    const tone = isImminent || isHalfTime ? "warning" : displayStatus === "LIVE" ? "danger" : displayStatus === "FINISHED" ? "success" : displayStatus === "POSTPONED" || displayStatus === "CANCELLED" ? "warning" : "neutral";
     return <Badge tone={tone}>{label}</Badge>;
   }
 
   const className = variant === "card"
-    ? status === "LIVE"
+    ? displayStatus === "LIVE"
       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-      : status === "FINISHED"
+      : displayStatus === "FINISHED"
       ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
       : isImminent
       ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
-      : status === "SCHEDULED" || status === "POSTPONED" || status === "CANCELLED"
+      : displayStatus === "SCHEDULED" || displayStatus === "POSTPONED" || displayStatus === "CANCELLED"
       ? "!bg-blue-600 !text-white !border-white"
       : "bg-amber-500/10 text-amber-700 border-amber-500/20"
-    : status === "LIVE"
+    : displayStatus === "LIVE"
     ? "bg-red-500 text-white"
-    : status === "FINISHED"
+    : displayStatus === "FINISHED"
     ? "bg-emerald-600 text-white"
     : isImminent
     ? "bg-orange-600 text-white"
-    : status === "SCHEDULED" || status === "POSTPONED" || status === "CANCELLED"
+    : displayStatus === "SCHEDULED" || displayStatus === "POSTPONED" || displayStatus === "CANCELLED"
     ? "bg-blue-600 text-white"
     : "bg-amber-600 text-white";
 

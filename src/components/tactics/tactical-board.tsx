@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route } from "lucide-react";
+import { ArrowDown, ArrowRight, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route, Play, Pause, BookmarkPlus } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
+import { TacticalColorPicker } from "@/components/tactics/color-picker";
 import { saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
 
 type Team = { id: string; name: string; category: string };
@@ -11,7 +12,8 @@ type PlayerItem = { id: string; kind: "player" | "opponent"; x: number; y: numbe
 type MarkItem = { id: string; kind: "arrow" | "line" | "zone" | "path"; x: number; y: number; x2: number; y2: number; color: string; label?: string; points?: { x: number; y: number }[] };
 type BallItem = { id: string; kind: "ball"; x: number; y: number; color?: string };
 type Item = PlayerItem | MarkItem | BallItem;
-type BoardData = { items: Item[]; orientation: "horizontal" | "vertical"; notes: string; coachName?: string };
+type AnimationFrame = { time: number; positions: Record<string, { x: number; y: number }> };
+type BoardData = { items: Item[]; orientation: "horizontal" | "vertical"; notes: string; coachName?: string; animation?: { duration: number; frames: AnimationFrame[] } };
 type Plan = { id: string; title: string; description: string; formation: string; teamId: string | null; teamName: string; creatorName: string; isOwner: boolean; data: unknown; updatedAt: string };
 type Tool = "select" | "player" | "opponent" | "ball" | "arrow" | "line" | "zone" | "path" | "eraser";
 
@@ -33,6 +35,33 @@ const PALETTE = ["#f3f4f6", "#ef4444", "#f59e0b", "#22c55e", "#38bdf8", "#a78bfa
 const LEGACY_POSITION_LABELS: Record<string, string> = { GK: "GB", RB: "DD", RCB: "DC", LCB: "DC", LB: "DG", DM: "MDF", CM: "MC", RW: "AD", ST: "BU", LW: "AG" };
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
+function animatedItems(board: BoardData, time: number): Item[] {
+  const frames = [...(board.animation?.frames ?? [])].sort((a, b) => a.time - b.time);
+  return board.items.map((item) => {
+    if (item.kind !== "player" && item.kind !== "opponent" && item.kind !== "ball") return item;
+    let exactOrBefore = { time: 0, x: item.x, y: item.y };
+    let next: { time: number; x: number; y: number } | undefined;
+    for (const frame of frames) {
+      const position = frame.positions?.[item.id];
+      if (!position) continue;
+      const sample = { time: frame.time, ...position };
+      if (sample.time <= time) exactOrBefore = sample;
+      else { next = sample; break; }
+    }
+    if (!next || next.time === exactOrBefore.time) return { ...item, x: exactOrBefore.x, y: exactOrBefore.y };
+    const ratio = (time - exactOrBefore.time) / (next.time - exactOrBefore.time);
+    return { ...item, x: exactOrBefore.x + (next.x - exactOrBefore.x) * ratio, y: exactOrBefore.y + (next.y - exactOrBefore.y) * ratio };
+  });
+}
+
+function upsertAnimationFrame(board: BoardData, time: number, items: Item[]): BoardData {
+  const frameTime = Math.round(time * 10) / 10;
+  const positions = Object.fromEntries(items.flatMap((item) => item.kind === "player" || item.kind === "opponent" || item.kind === "ball" ? [[item.id, { x: Math.round(item.x * 10) / 10, y: Math.round(item.y * 10) / 10 }]] : []));
+  const frames = (board.animation?.frames ?? []).filter((frame) => Math.abs(frame.time - frameTime) > 0.05);
+  frames.push({ time: frameTime, positions });
+  return { ...board, animation: { duration: board.animation?.duration ?? 10, frames: frames.sort((a, b) => a.time - b.time) } };
+}
+
 function prepareBoard(data: unknown): BoardData | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const board = data as BoardData;
@@ -40,6 +69,7 @@ function prepareBoard(data: unknown): BoardData | null {
   return {
     ...board,
     coachName: board.coachName ?? "",
+    animation: board.animation && Array.isArray(board.animation.frames) ? board.animation : { duration: 10, frames: [] },
     items: board.items.map((item) => {
       if (item.kind !== "player" && item.kind !== "opponent") return item;
       const legacyLabel = item.label.trim().toUpperCase();
@@ -56,9 +86,9 @@ function prepareBoard(data: unknown): BoardData | null {
 function localize(locale: string) {
   const ar = locale === "ar";
   return ar ? {
-    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", fitScreen: "ملء الشاشة", exitFitScreen: "إنهاء ملء الشاشة", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم"
+    title: "الخطط والتكتيك", subtitle: "أنشئ خطط اللعب، حرّك اللاعبين، ارسم التحركات واطبع لوحة التدريب.", newPlan: "خطة جديدة", save: "حفظ الخطة", saving: "جارٍ الحفظ…", print: "طباعة", export: "تصدير SVG", plans: "خططي المحفوظة", selectPlan: "اختر خطة للبدء", titlePlaceholder: "اسم الخطة التكتيكية", description: "وصف الخطة / الهدف التدريبي", formation: "التشكيلة", team: "الفئة / الفريق", noTeam: "بدون فريق محدد", tools: "أدوات السبورة", select: "تحريك / تحديد", player: "إضافة لاعب", opponent: "إضافة خصم", ball: "الكرة", arrow: "سهم حركة", line: "خط تكتيكي", zone: "منطقة", path: "مسار حركة حر", eraser: "ممحاة العنصر", color: "لون الأداة المحددة", clear: "مسح الرسوم", undo: "تراجع", redo: "إعادة", notes: "ملاحظات المدرب", notesPlaceholder: "نقاط التدريب، واجبات اللاعبين، المحفزات التكتيكية…", playerDetails: "تفاصيل العنصر المحدد", number: "الرقم", label: "المركز / الاسم", deleteItem: "حذف العنصر", coach: "اسم المدرب", opponentLabel: "الخصم", created: "تم حفظ الخطة بنجاح", deleted: "تم حذف الخطة", delete: "حذف", players: "لاعبون", saved: "آخر حفظ", orientation: "اتجاه الملعب", horizontal: "أفقي", vertical: "عمودي", fitScreen: "ملء الشاشة", exitFitScreen: "إنهاء ملء الشاشة", empty: "لا توجد خطط محفوظة بعد", confirmDelete: "حذف هذه الخطة نهائيًا؟", error: "تعذر حفظ الخطة. تحقق من اتصالك وصلاحيتك.", pitch: "ملعب كرة القدم", animation: "حركة التشكيلة", saveFrame: "حفظ المواضع", play: "تشغيل", pause: "إيقاف", seconds: "ثوانٍ", noFrame: "احفظ مواضع اللاعبين لإضافة حركة"
   } : {
-    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", fitScreen: "Fit to screen", exitFitScreen: "Exit full screen", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch"
+    title: "Tactics & planning", subtitle: "Create match plans, position players, draw movements and print your coaching board.", newPlan: "New plan", save: "Save plan", saving: "Saving…", print: "Print", export: "Export SVG", plans: "Saved plans", selectPlan: "Choose a plan to start", titlePlaceholder: "Tactical plan name", description: "Plan description / coaching objective", formation: "Formation", team: "Team / category", noTeam: "No team selected", tools: "Board tools", select: "Select / move", player: "Add player", opponent: "Add opponent", ball: "Ball", arrow: "Movement arrow", line: "Tactical line", zone: "Zone", path: "Free movement path", eraser: "Erase item", color: "Selected tool color", clear: "Clear drawings", undo: "Undo", redo: "Redo", notes: "Coach notes", notesPlaceholder: "Coaching points, player duties, tactical triggers…", playerDetails: "Selected item details", number: "Number", label: "Position / name", deleteItem: "Delete item", coach: "Coach name", opponentLabel: "Opponent", created: "Plan saved", deleted: "Plan deleted", delete: "Delete", players: "players", saved: "Last saved", orientation: "Pitch orientation", horizontal: "Horizontal", vertical: "Vertical", fitScreen: "Fit to screen", exitFitScreen: "Exit full screen", empty: "No saved plans yet", confirmDelete: "Delete this plan permanently?", error: "Could not save the plan. Check your connection and permissions.", pitch: "Football pitch", animation: "Lineup animation", saveFrame: "Save positions", play: "Play", pause: "Pause", seconds: "seconds", noFrame: "Save player positions to build an animation"
   };
 }
 
@@ -82,7 +112,12 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
   const [future, setFuture] = useState<BoardData[]>([]);
   const [zoom, setZoom] = useState(1);
   const [expanded, setExpanded] = useState(false);
+  const [playhead, setPlayhead] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [durationDraft, setDurationDraft] = useState(String(initialBoard?.animation?.duration ?? 10));
+  const playheadRef = useRef(0);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
+  const [pendingCurrent, setPendingCurrent] = useState<{ x: number; y: number } | null>(null);
   const [pendingPath, setPendingPath] = useState<{ x: number; y: number }[] | null>(null);
   const dragId = useRef<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -90,6 +125,36 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
   const canEditActive = canEdit && (!activePlan || Boolean(activePlan.teamId) || activePlan.isOwner);
   const count = board.items.filter((item) => item.kind === "player").length;
   const activeItem = board.items.find((item) => item.id === selected);
+  const duration = board.animation?.duration ?? 10;
+  const displayItems = useMemo(() => animatedItems(board, playhead), [board, playhead]);
+
+  useEffect(() => {
+    playheadRef.current = playhead;
+  }, [playhead]);
+
+  useEffect(() => {
+    setDurationDraft(String(duration));
+  }, [duration]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const startedAt = performance.now() - playheadRef.current * 1000;
+    const tick = (now: number) => {
+      const next = (now - startedAt) / 1000;
+      if (next >= duration) {
+        playheadRef.current = 0;
+        setPlayhead(0);
+        setPlaying(false);
+        return;
+      }
+      playheadRef.current = next;
+      setPlayhead(next);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, duration]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -105,8 +170,16 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     setFuture([]);
     setBoard(change(board));
   }
+  function saveFrame() {
+    updateBoard((current) => upsertAnimationFrame(current, playhead, displayItems));
+  }
+  function setAnimationDuration(value: number) {
+    const nextDuration = Math.min(60, Math.max(2, value));
+    updateBoard((current) => ({ ...current, animation: { duration: nextDuration, frames: current.animation?.frames ?? [] } }));
+    if (playhead > nextDuration) setPlayhead(nextDuration);
+  }
   function newPlan() {
-    setActiveId(null); setTitle(""); setDescription(""); setFormation("4-3-3"); setTeamId(""); setBoard(freshBoard()); setHistory([]); setFuture([]); setSelected(null);
+    setPlaying(false); setPlayhead(0); setActiveId(null); setTitle(""); setDescription(""); setFormation("4-3-3"); setTeamId(""); setBoard(freshBoard()); setHistory([]); setFuture([]); setSelected(null);
   }
   function point(event: ReactPointerEvent<SVGSVGElement>) {
     const svg = svgRef.current; if (!svg) return { x: 500, y: 320 };
@@ -117,7 +190,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     return { x: Math.min(990, Math.max(10, mapped.x)), y: Math.min(630, Math.max(10, mapped.y)) };
   }
   function onBoardPointerDown(event: React.PointerEvent<SVGSVGElement>) {
-    if (!canEditActive) return;
+    if (!canEditActive || playing) return;
     const p = point(event);
     if (tool === "eraser") {
       const distanceToSegment = (x: number, y: number, x1: number, y1: number, x2: number, y2: number) => {
@@ -147,7 +220,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     }
     if (tool === "ball") { updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind: "ball", x: p.x, y: p.y, color }] })); setTool("select"); return; }
     if (tool === "path") { setPendingPath([p]); event.currentTarget.setPointerCapture(event.pointerId); return; }
-    if (tool === "arrow" || tool === "line" || tool === "zone") { setPending(p); event.currentTarget.setPointerCapture(event.pointerId); return; }
+    if (tool === "arrow" || tool === "line" || tool === "zone") { setPending(p); setPendingCurrent(p); event.currentTarget.setPointerCapture(event.pointerId); return; }
     setSelected(null);
   }
   function onBoardPointerUp(event: React.PointerEvent<SVGSVGElement>) {
@@ -164,13 +237,17 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
       const kind = tool === "arrow" ? "arrow" : tool === "zone" ? "zone" : "line";
       updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: pending.x, y: pending.y, x2: p.x, y2: p.y, color: color || "#ef4444" }] }));
     }
-    setPending(null);
+    setPending(null); setPendingCurrent(null);
   }
   function moveItem(event: React.PointerEvent<SVGElement>, id: string) {
-    if (!canEditActive || tool !== "select") return;
+    if (!canEditActive || tool !== "select" || playing) return;
     event.stopPropagation(); setHistory((old) => [...old.slice(-39), board]); setFuture([]); dragId.current = id; setSelected(id); event.currentTarget.setPointerCapture(event.pointerId);
   }
   function onItemMove(event: React.PointerEvent<SVGSVGElement>) {
+    if (pending && (tool === "arrow" || tool === "line" || tool === "zone")) {
+      setPendingCurrent(point(event));
+      return;
+    }
     if (pendingPath && tool === "path") {
       const p = point(event); const last = pendingPath[pendingPath.length - 1]!;
       if (Math.hypot(p.x - last.x, p.y - last.y) > 5) setPendingPath((points) => points ? [...points, p] : null);
@@ -178,7 +255,8 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
     }
     if (!dragId.current) return;
     const p = point(event); const id = dragId.current;
-    setBoard((b) => ({ ...b, items: b.items.map((item) => {
+    setBoard((b) => {
+      const movedItems = displayItems.map((item) => {
       if (item.id !== id) return item;
       if (item.kind === "player" || item.kind === "opponent" || item.kind === "ball") return { ...item, x: p.x, y: p.y };
       if (item.kind === "arrow" || item.kind === "line" || item.kind === "zone" || item.kind === "path") {
@@ -186,13 +264,16 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
         return { ...item, x: p.x, y: p.y, x2: item.x2 + dx, y2: item.y2 + dy, ...(item.points ? { points: item.points.map((point) => ({ x: point.x + dx, y: point.y + dy })) } : {}) };
       }
       return item;
-    }) }));
+      });
+      if (movedItems.some((item) => item.id === id && (item.kind === "player" || item.kind === "opponent" || item.kind === "ball"))) return upsertAnimationFrame(b, playhead, movedItems);
+      return { ...b, items: b.items.map((item) => item.id === id ? movedItems.find((moved) => moved.id === id)! : item) };
+    });
   }
   function finishMove() { dragId.current = null; }
   function applyFormation(value: string) {
     setFormation(value);
     const spots = FORMATIONS[value] ?? STARTING_FORMATION;
-    updateBoard((b) => ({ ...b, items: b.items.map((item) => {
+    updateBoard((b) => ({ ...b, animation: { duration: b.animation?.duration ?? 10, frames: [] }, items: b.items.map((item) => {
       if (item.kind !== "player") return item;
       const index = Math.max(0, Number(item.number) - 1); const spot = spots[index % spots.length] ?? [14, 50];
       return { ...item, x: (spot[0] ?? 14) * 10, y: (spot[1] ?? 50) * 6.4 };
@@ -263,29 +344,45 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
           <div className="tactics-field"><span>{t.team}</span><FormSelect name="tactical-team" locale={locale} value={teamId} onValueChange={setTeamId} disabled={!canEditActive} options={[{ value: "", label: t.noTeam }, ...teams.map((team) => ({ value: team.id, label: team.name }))]} ariaLabel={t.team}/></div>
         </section>
 
-        <section className={`tactics-panel overflow-hidden ${expanded ? "tactics-board-fullscreen" : ""}`}>
+        <section className={`tactics-panel ${expanded ? "tactics-board-fullscreen" : ""}`}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
-            <div className="flex flex-wrap items-center gap-1.5">{tools.map(({ id, icon: Icon, label }) => <button key={id} type="button" title={label} aria-label={label} aria-pressed={tool === id} onClick={() => setTool(id)} className={`tactics-tool ${tool === id ? "tactics-tool-active" : ""}`}><Icon size={17}/><span className="hidden sm:inline">{label}</span></button>)}<span className="mx-1 h-6 w-px bg-border"/><label className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground" title={t.color}><span>{t.color}</span><input aria-label={t.color} type="color" value={color} onChange={(e) => chooseColor(e.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0"/></label><div className="flex gap-1">{PALETTE.map((swatch) => <button key={swatch} type="button" aria-label={swatch} aria-pressed={color === swatch} onClick={() => chooseColor(swatch)} className={`h-6 w-6 rounded-full border-2 ${color === swatch ? "border-white ring-2 ring-club-primary" : "border-white/20"}`} style={{ background: swatch }}/>)}</div></div>
+            <div className="flex flex-wrap items-center gap-1.5">{tools.map(({ id, icon: Icon, label }) => <button key={id} type="button" title={label} aria-label={label} aria-pressed={tool === id} onClick={() => setTool(id)} className={`tactics-tool ${tool === id ? "tactics-tool-active" : ""}`}><Icon size={17}/><span className="hidden sm:inline">{label}</span></button>)}<span className="mx-1 h-6 w-px bg-border"/><TacticalColorPicker label={t.color} value={color} onChange={chooseColor}/><div className="flex gap-1">{PALETTE.map((swatch) => <button key={swatch} type="button" aria-label={swatch} aria-pressed={color === swatch} onClick={() => chooseColor(swatch)} className={`h-6 w-6 rounded-full border-2 ${color === swatch ? "border-white ring-2 ring-club-primary" : "border-white/20"}`} style={{ background: swatch }}/>)}</div></div>
             <div className="flex items-center gap-1.5"><button type="button" title={t.undo} onClick={undo} disabled={!history.length} className="tactics-icon"><Undo2 size={17}/></button><button type="button" title={t.redo} onClick={redo} disabled={!future.length} className="tactics-icon"><Redo2 size={17}/></button><span className="mx-1 h-6 w-px bg-border"/><button type="button" title="Zoom out" onClick={() => setZoom((z) => Math.max(.75, z - .15))} className="tactics-icon"><ZoomOut size={17}/></button><span className="min-w-10 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span><button type="button" title="Zoom in" onClick={() => setZoom((z) => Math.min(1.45, z + .15))} className="tactics-icon"><ZoomIn size={17}/></button><button type="button" title={expanded ? t.exitFitScreen : t.fitScreen} aria-label={expanded ? t.exitFitScreen : t.fitScreen} onClick={() => { setZoom(1); setExpanded((current) => !current); }} className="tactics-icon">{expanded ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}</button><button type="button" title={t.clear} onClick={() => updateBoard((b) => ({ ...b, items: b.items.filter((item) => item.kind === "player" || item.kind === "opponent") }))} className="tactics-icon text-red-400"><Trash2 size={17}/></button></div>
           </div>
+          <div className="grid gap-3 border-b border-border px-3 py-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+            <div className="flex items-center gap-2 text-sm font-semibold"><Play size={15} className="text-club-primary"/>{t.animation}</div>
+            <div className="flex min-w-0 items-center gap-2">
+              <button type="button" title={playing ? t.pause : t.play} aria-label={playing ? t.pause : t.play} disabled={!board.animation?.frames.length} onClick={() => setPlaying((value) => !value)} className="tactics-icon">{playing ? <Pause size={17}/> : <Play size={17}/>}</button>
+              <input aria-label={t.animation} type="range" min={0} max={duration} step={0.1} value={Math.min(playhead, duration)} disabled={playing || !board.animation?.frames.length} onChange={(event) => setPlayhead(Number(event.target.value))} className="tactics-timeline min-w-0 flex-1" />
+              <span className="min-w-[78px] text-center font-mono text-xs tabular-nums text-muted-foreground">{playhead.toFixed(1)} / {duration.toFixed(0)}s</span>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><span>{t.seconds}</span><input aria-label={t.seconds} type="number" min={2} max={60} value={durationDraft} disabled={!canEditActive || playing} onChange={(event) => setDurationDraft(event.target.value)} onBlur={() => setAnimationDuration(Number(durationDraft) || 10)} className="tactics-duration w-16" /></label>
+              <button type="button" disabled={!canEditActive || playing} onClick={saveFrame} className="tactics-small"><BookmarkPlus size={15}/>{t.saveFrame}</button>
+            </div>
+            {!board.animation?.frames.length && <p className="text-xs text-muted-foreground sm:col-start-2">{t.noFrame}</p>}
+          </div>
           <div className="tactics-pitch-wrap p-2 sm:p-4">
-            <svg ref={svgRef} viewBox={viewBox} aria-label={t.pitch} className={`tactics-pitch ${board.orientation === "vertical" ? "tactics-pitch-vertical" : ""} ${tool !== "select" ? "tactics-crosshair" : ""}`} onPointerDown={onBoardPointerDown} onPointerMove={onItemMove} onPointerUp={(event) => { onBoardPointerUp(event); finishMove(); }} onPointerCancel={() => { setPending(null); setPendingPath(null); }}>
+            <svg ref={svgRef} viewBox={viewBox} aria-label={t.pitch} className={`tactics-pitch ${board.orientation === "vertical" ? "tactics-pitch-vertical" : ""} ${tool !== "select" ? "tactics-crosshair" : ""}`} onPointerDown={onBoardPointerDown} onPointerMove={onItemMove} onPointerUp={(event) => { onBoardPointerUp(event); finishMove(); }} onPointerCancel={() => { setPending(null); setPendingCurrent(null); setPendingPath(null); }}>
               <defs><pattern id="grass" width="100" height="640" patternUnits="userSpaceOnUse"><rect width="50" height="640" fill="#176b43"/><rect x="50" width="50" height="640" fill="#1b7549"/></pattern><marker id="tactics-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L7 3.5L0 7z" fill="context-stroke"/></marker><pattern id="small-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#ffffff" strokeOpacity=".055" strokeWidth="1"/></pattern></defs>
               <g transform={board.orientation === "vertical" ? "translate(640 0) rotate(90)" : undefined}>
               <rect width="1000" height="640" rx="12" fill="url(#grass)"/><rect width="1000" height="640" rx="12" fill="url(#small-grid)"/>
               <g fill="none" stroke="#ecfdf5" strokeOpacity=".82" strokeWidth="3"><rect x="22" y="22" width="956" height="596" rx="4"/><line x1="500" y1="22" x2="500" y2="618"/><circle cx="500" cy="320" r="82"/><circle cx="500" cy="320" r="3" fill="#ecfdf5"/><rect x="22" y="168" width="145" height="304"/><rect x="22" y="232" width="58" height="176"/><circle cx="112" cy="320" r="3" fill="#ecfdf5"/><path d="M167 255a82 82 0 0 1 0 130"/><rect x="833" y="168" width="145" height="304"/><rect x="920" y="232" width="58" height="176"/><circle cx="888" cy="320" r="3" fill="#ecfdf5"/><path d="M833 255a82 82 0 0 0 0 130"/></g>
-              {board.items.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
+              {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
                 <circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#7f1d1d"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" transform={board.orientation === "vertical" ? "rotate(-90 0 5)" : undefined} textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={board.orientation === "vertical" ? 39 : 0} y={board.orientation === "vertical" ? 0 : 39} transform={board.orientation === "vertical" ? "rotate(-90 39 0)" : undefined} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}
               </g> : item.kind === "ball" ? <g key={item.id} transform={`translate(${item.x} ${item.y})`} className="tactics-player" onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><circle r="12" fill={item.color ?? "#fff"} stroke="#111827" strokeWidth="3"/><path d="M0-6 6-2 4 5-4 5-6-2Z" transform={board.orientation === "vertical" ? "rotate(-90)" : undefined} fill="#111827"/></g> : item.kind === "zone" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><rect x={Math.min(item.x, item.x2)} y={Math.min(item.y, item.y2)} width={Math.abs(item.x2 - item.x)} height={Math.abs(item.y2 - item.y)} rx="8" fill={item.color} fillOpacity=".2" stroke={item.color} strokeWidth="3" strokeDasharray="8 6"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "path" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><polyline points={(item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }]).map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" markerEnd="url(#tactics-arrow)"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "arrow" || item.kind === "line" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><line x1={item.x} y1={item.y} x2={item.x2} y2={item.y2} stroke={item.color} strokeWidth={item.kind === "arrow" ? 4 : 3} strokeDasharray={item.kind === "line" ? "12 8" : undefined} markerEnd={item.kind === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : null)}
-              {pending && <circle cx={pending.x} cy={pending.y} r="7" fill={color}/>}
+              {pending && pendingCurrent && <g pointerEvents="none" opacity=".78">
+                {tool === "zone" ? <rect x={Math.min(pending.x, pendingCurrent.x)} y={Math.min(pending.y, pendingCurrent.y)} width={Math.abs(pendingCurrent.x - pending.x)} height={Math.abs(pendingCurrent.y - pending.y)} rx="8" fill={color} fillOpacity=".18" stroke={color} strokeWidth="3" strokeDasharray="8 6"/> : <line x1={pending.x} y1={pending.y} x2={pendingCurrent.x} y2={pendingCurrent.y} stroke={color} strokeWidth={tool === "arrow" ? 4 : 3} strokeDasharray={tool === "line" ? "12 8" : undefined} markerEnd={tool === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>}
+                <circle cx={pending.x} cy={pending.y} r="5" fill={color}/><circle cx={pendingCurrent.x} cy={pendingCurrent.y} r="4" fill={color}/>
+              </g>}
               {pendingPath && <polyline points={pendingPath.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>}
               </g>
             </svg>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Users size={14}/>{count} {t.players}</span><div className="flex items-center gap-2"><span>{t.orientation}</span><button type="button" className="tactics-small" onClick={() => updateBoard((b) => ({ ...b, orientation: "horizontal" }))}><ArrowRight size={14}/>{t.horizontal}</button><button type="button" className="tactics-small" onClick={() => updateBoard((b) => ({ ...b, orientation: "vertical" }))}><ArrowDown size={14}/>{t.vertical}</button></div></div>
+          <div className="tactics-screen-only flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Users size={14}/>{count} {t.players}</span><div className="flex items-center gap-2"><span>{t.orientation}</span><button type="button" className="tactics-small" onClick={() => updateBoard((b) => ({ ...b, orientation: "horizontal" }))}><ArrowRight size={14}/>{t.horizontal}</button><button type="button" className="tactics-small" onClick={() => updateBoard((b) => ({ ...b, orientation: "vertical" }))}><ArrowDown size={14}/>{t.vertical}</button></div></div>
         </section>
 
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="tactics-screen-only grid gap-3 lg:grid-cols-2">
           <section className="tactics-panel p-4"><label className="tactics-field mb-4"><span>{t.coach}</span><input value={board.coachName ?? ""} maxLength={100} onChange={(e) => updateBoard((b) => ({ ...b, coachName: e.target.value }))} disabled={!canEditActive} placeholder={t.coach}/></label><label className="tactics-field"><span>{t.notes}</span><textarea rows={4} value={board.notes} onChange={(e) => updateBoard((b) => ({ ...b, notes: e.target.value }))} disabled={!canEditActive} placeholder={t.notesPlaceholder}/></label></section>
           <section className="tactics-panel p-4"><h2 className="mb-3 text-sm font-bold">{t.playerDetails}</h2>{activeItem && <div className="grid gap-3 sm:grid-cols-2">{(activeItem.kind === "player" || activeItem.kind === "opponent") && <><label className="tactics-field"><span>{t.number}</span><input value={activeItem.number} disabled={!canEditActive} onChange={(e) => updateBoard((b) => ({ ...b, items: b.items.map((it) => it.id === activeItem.id && (it.kind === "player" || it.kind === "opponent") ? { ...it, number: e.target.value.slice(0, 3) } : it) }))}/></label><label className="tactics-field"><span>{t.label}</span><input value={activeItem.label} disabled={!canEditActive} onChange={(e) => updateBoard((b) => ({ ...b, items: b.items.map((it) => it.id === activeItem.id && (it.kind === "player" || it.kind === "opponent") ? { ...it, label: e.target.value.slice(0, 32) } : it) }))}/></label></>}{(activeItem.kind === "arrow" || activeItem.kind === "line" || activeItem.kind === "zone" || activeItem.kind === "path") && <label className="tactics-field sm:col-span-2"><span>{t.label}</span><input value={activeItem.label ?? ""} maxLength={100} disabled={!canEditActive} onChange={(e) => updateBoard((b) => ({ ...b, items: b.items.map((it) => it.id === activeItem.id && it.kind !== "player" && it.kind !== "opponent" && it.kind !== "ball" ? { ...it, label: e.target.value } : it) }))}/></label>}{activeItem.color && <div className="flex flex-wrap items-center gap-1 sm:col-span-2"><span className="me-1 text-xs text-muted-foreground">{t.color}</span>{PALETTE.map((swatch) => <button key={swatch} type="button" disabled={!canEditActive} aria-label={swatch} onClick={() => setItemColor(activeItem.id, swatch)} className="h-6 w-6 rounded-full border border-white/30" style={{ background: swatch }}/>)}</div>}<button type="button" disabled={!canEditActive} className="tactics-small text-red-400 sm:col-span-2" onClick={() => { updateBoard((b) => ({ ...b, items: b.items.filter((it) => it.id !== selected) })); setSelected(null); }}><Trash2 size={14}/>{t.deleteItem}</button></div>}{!activeItem && <p className="py-4 text-sm text-muted-foreground">{t.selectPlan}</p>}</section>
         </div>
@@ -297,9 +394,10 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans, ini
       </aside>
     </div>
     <style jsx global>{`
-      .tactics-action{display:inline-flex;align-items:center;gap:.5rem;border:1px solid hsl(var(--border));border-radius:.55rem;padding:.55rem .8rem;font-size:.82rem;font-weight:650;transition:background .15s,border .15s}.tactics-action:hover{background:hsl(var(--muted))}.tactics-action:disabled{opacity:.5;cursor:not-allowed}.tactics-primary{background:#cf1235;color:#fff;border-color:#cf1235}.tactics-primary:hover{background:#b80f2e}.tactics-panel{border:1px solid hsl(var(--border));border-radius:.85rem;background:hsl(var(--card))}.tactics-field{display:flex;min-width:0;flex-direction:column;gap:.4rem}.tactics-field>span{font-size:.75rem;font-weight:650;color:hsl(var(--muted-foreground))}.tactics-field input,.tactics-field select,.tactics-field textarea{width:100%;border:1px solid #383a40;border-radius:.55rem;background:#0d0e10;padding:.62rem .75rem;font-size:.85rem;outline:none}.tactics-field input:focus,.tactics-field select:focus,.tactics-field textarea:focus{border-color:#cf1235;box-shadow:0 0 0 1px #cf1235}.tactics-field input:disabled,.tactics-field textarea:disabled,.tactics-field select:disabled{opacity:.7}.tactics-tool,.tactics-icon,.tactics-small{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border:1px solid transparent;border-radius:.5rem;padding:.48rem;color:hsl(var(--muted-foreground));font-size:.73rem;transition:all .15s}.tactics-tool:hover,.tactics-icon:hover,.tactics-small:hover{background:hsl(var(--muted));color:hsl(var(--foreground))}.tactics-tool-active{border-color:#cf1235;background:#cf12351a;color:#ef4764}.tactics-icon:disabled{opacity:.3}.tactics-small{border-color:hsl(var(--border));padding:.35rem .5rem}.tactics-pitch-wrap{background:#101713}.tactics-pitch{display:block;width:100%;max-height:min(68vh,680px);aspect-ratio:1000/640;border-radius:.6rem;touch-action:none;user-select:none}.tactics-crosshair{cursor:crosshair}.tactics-player{cursor:grab;touch-action:none}.tactics-player:active{cursor:grabbing}.tactics-player text{pointer-events:none;user-select:none}.tactics-pitch-vertical{aspect-ratio:640/1000;width:auto;max-width:100%;max-height:min(78vh,850px);margin-inline:auto}
+      .tactics-action{display:inline-flex;align-items:center;gap:.5rem;border:1px solid hsl(var(--border));border-radius:.55rem;padding:.55rem .8rem;font-size:.82rem;font-weight:650;transition:background .15s,border .15s}.tactics-action:hover{background:hsl(var(--muted))}.tactics-action:disabled{opacity:.5;cursor:not-allowed}.tactics-primary{background:#cf1235;color:#fff;border-color:#cf1235}.tactics-primary:hover{background:#b80f2e}.tactics-panel{border:1px solid hsl(var(--border));border-radius:.85rem;background:hsl(var(--card))}.tactics-field{display:flex;min-width:0;flex-direction:column;gap:.45rem}.tactics-field>span{font-size:.75rem;font-weight:650;color:hsl(var(--muted-foreground))}.tactics-field input,.tactics-field select,.tactics-field textarea{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid hsl(var(--border));border-radius:.625rem;background:hsl(var(--background));padding:.5rem .75rem;color:hsl(var(--foreground));font-size:.875rem;text-align:start;outline:none;transition:border-color .15s,box-shadow .15s,background-color .15s}.tactics-field input:hover,.tactics-field select:hover,.tactics-field textarea:hover{border-color:#dc262680}.tactics-field input:focus,.tactics-field select:focus,.tactics-field textarea:focus{border-color:#dc2626;box-shadow:0 0 0 2px #dc262626}.tactics-field textarea{min-height:7rem;resize:vertical;line-height:1.6}.tactics-field input::placeholder,.tactics-field textarea::placeholder{color:hsl(var(--muted-foreground));opacity:.8}.tactics-field input:disabled,.tactics-field textarea:disabled,.tactics-field select:disabled{opacity:.65;cursor:not-allowed}.tactics-tool,.tactics-icon,.tactics-small{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border:1px solid transparent;border-radius:.5rem;padding:.48rem;color:hsl(var(--muted-foreground));font-size:.73rem;transition:all .15s}.tactics-tool:hover,.tactics-icon:hover,.tactics-small:hover{background:hsl(var(--muted));color:hsl(var(--foreground))}.tactics-tool-active{border-color:#cf1235;background:#cf12351a;color:#ef4764}.tactics-icon:disabled,.tactics-small:disabled{opacity:.35;cursor:not-allowed}.tactics-small{border-color:hsl(var(--border));padding:.35rem .5rem}.tactics-duration{border:1px solid #383a40;border-radius:.45rem;background:#0d0e10;padding:.3rem .4rem;color:hsl(var(--foreground));font-size:.75rem}.tactics-timeline{height:6px;accent-color:#cf1235;cursor:pointer}.tactics-timeline:disabled{cursor:not-allowed;opacity:.45}.tactics-pitch-wrap{background:#101713}.tactics-pitch{display:block;width:100%;max-height:min(68vh,680px);aspect-ratio:1000/640;border-radius:.6rem;touch-action:none;user-select:none}.tactics-crosshair{cursor:crosshair}.tactics-player{cursor:grab;touch-action:none}.tactics-player:active{cursor:grabbing}.tactics-player text{pointer-events:none;user-select:none}.tactics-pitch-vertical{display:block;aspect-ratio:640/1000;width:min(100%,49.9dvh,544px);height:auto;max-width:100%;max-height:min(78dvh,850px);margin-inline:auto}
+      .tactical-color-root{position:relative;z-index:30}.tactical-color-trigger{display:inline-flex;align-items:center;gap:.5rem;border:1px solid hsl(var(--border));border-radius:.55rem;background:hsl(var(--card));padding:.38rem .55rem;color:hsl(var(--muted-foreground));font-size:.72rem;transition:border-color .15s,color .15s}.tactical-color-trigger:hover,.tactical-color-trigger[aria-expanded=true]{border-color:#cf1235;color:hsl(var(--foreground))}.tactical-color-dot,.tactical-color-preview{display:block;flex:none;border:1px solid #ffffff40;border-radius:999px}.tactical-color-dot{height:1rem;width:1rem}.tactical-color-popover{position:absolute;top:calc(100% + .5rem);inset-inline-start:0;z-index:100;width:min(17rem,calc(100vw - 2rem));border:1px solid hsl(var(--border));border-radius:.8rem;background:hsl(var(--card));padding:.75rem;box-shadow:0 18px 48px #000b;color:hsl(var(--foreground))}.tactical-color-head{display:flex;align-items:center;gap:.65rem;border-bottom:1px solid hsl(var(--border));padding-bottom:.7rem}.tactical-color-preview{height:2.2rem;width:2.2rem}.tactical-color-caption{display:block;margin-bottom:.2rem;color:hsl(var(--muted-foreground));font-size:.65rem}.tactical-color-hex{width:100%;border:1px solid hsl(var(--border));border-radius:.4rem;background:hsl(var(--background));padding:.3rem .45rem;font:500 .75rem ui-monospace,monospace;text-transform:uppercase;outline:none}.tactical-color-hex:focus{border-color:#cf1235;box-shadow:0 0 0 1px #cf1235}.tactical-color-presets{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:.35rem;padding:.75rem 0}.tactical-color-swatch{display:flex;aspect-ratio:1;align-items:center;justify-content:center;border:1px solid #ffffff30;border-radius:.35rem;color:white;box-shadow:inset 0 0 0 1px #0002}.tactical-color-swatch:hover{transform:scale(1.1)}.tactical-color-range{display:grid;grid-template-columns:1rem minmax(0,1fr);align-items:center;gap:.55rem;margin-top:.45rem;color:hsl(var(--muted-foreground));font-size:.65rem;font-weight:700}.tactical-color-range input{height:.5rem;width:100%;appearance:none;border:1px solid #ffffff30;border-radius:999px;cursor:pointer}.tactical-color-range input::-webkit-slider-thumb{height:14px;width:14px;appearance:none;border:2px solid white;border-radius:50%;background:#cf1235;box-shadow:0 1px 4px #0008}.tactical-color-range input::-moz-range-thumb{height:11px;width:11px;border:2px solid white;border-radius:50%;background:#cf1235;box-shadow:0 1px 4px #0008}.tactical-color-done{width:100%;margin-top:.75rem;border:1px solid #cf1235;border-radius:.45rem;background:#cf1235;padding:.4rem;color:white;font-size:.75rem;font-weight:700}.tactical-color-done:hover{background:#b80f2e}
       .tactics-board-fullscreen{position:fixed!important;inset:0!important;z-index:100!important;display:flex!important;height:100dvh!important;max-height:100dvh!important;width:100vw!important;flex-direction:column!important;border:0!important;border-radius:0!important;background:hsl(var(--background))!important}.tactics-board-fullscreen>div:first-child{flex:none}.tactics-board-fullscreen .tactics-pitch-wrap{display:flex;min-height:0;flex:1;align-items:center;justify-content:center;padding:12px!important}.tactics-board-fullscreen .tactics-pitch{width:min(100%,calc((100dvh - 110px)*1.5625));height:auto;max-height:calc(100dvh - 110px);aspect-ratio:1000/640}.tactics-board-fullscreen .tactics-pitch-vertical{width:min(100%,calc((100dvh - 110px)*.64));height:auto;max-width:100%;max-height:calc(100dvh - 110px);aspect-ratio:640/1000}
-      @media print{body *{visibility:hidden!important}.tactics-page,.tactics-page *{visibility:visible!important}.tactics-page{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;padding:0!important;background:white!important;color:#111!important}.tactics-page aside,.tactics-page .tactics-field,.tactics-page button,.tactics-page .border-b{display:none!important}.tactics-page>.tactics-print-header{display:grid!important;grid-template-columns:80px minmax(0,1fr) 80px!important;align-items:center!important;visibility:visible!important;border-color:#d4d4d8!important;padding:0 0 14px!important;margin-bottom:16px!important}.tactics-page>.tactics-print-header *{visibility:visible!important}.tactics-page>header:not(.tactics-print-header){display:none!important}.tactics-page main{width:100%!important}.tactics-page main>section:first-child{display:none!important}.tactics-page main>section.tactics-panel{border:none!important;box-shadow:none!important}.tactics-page main>section.tactics-panel:nth-child(2){break-inside:avoid!important;page-break-inside:avoid!important}.tactics-pitch{max-height:78vh!important}.tactics-pitch-wrap{padding:0!important;background:white!important}}
+      @media print{body *{visibility:hidden!important}.tactics-page,.tactics-page *{visibility:visible!important}.tactics-page{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;padding:0!important;background:white!important;color:#111!important}.tactics-page aside,.tactics-page .tactics-field,.tactics-page button,.tactics-page .border-b,.tactics-page .tactics-screen-only{display:none!important}.tactics-page>.tactics-print-header{display:grid!important;grid-template-columns:80px minmax(0,1fr) 80px!important;align-items:center!important;visibility:visible!important;border-color:#d4d4d8!important;padding:0 0 14px!important;margin-bottom:16px!important}.tactics-page>.tactics-print-header *{visibility:visible!important}.tactics-page>header:not(.tactics-print-header){display:none!important}.tactics-page main{width:100%!important}.tactics-page main>section:first-child{display:none!important}.tactics-page main>section.tactics-panel{border:none!important;box-shadow:none!important}.tactics-page main>section.tactics-panel:nth-child(2){break-inside:avoid!important;page-break-inside:avoid!important}.tactics-pitch{max-height:78vh!important}.tactics-pitch-wrap{padding:0!important;background:white!important}}
     `}</style>
   </div>;
 }

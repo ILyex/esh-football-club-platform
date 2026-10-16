@@ -17,7 +17,14 @@ const boardDataSchema = z.object({
   ])).max(80),
   orientation: z.enum(["horizontal", "vertical"]),
   notes: z.string().max(4000),
-  coachName: z.string().max(100).optional()
+  coachName: z.string().max(100).optional(),
+  animation: z.object({
+    duration: z.number().min(2).max(60),
+    frames: z.array(z.object({
+      time: z.number().min(0).max(60),
+      positions: z.record(z.string().min(1).max(40), z.object({ x: z.number().min(0).max(1000), y: z.number().min(0).max(640) })).refine((positions) => Object.keys(positions).length <= 24)
+    })).max(120)
+  }).optional()
 });
 
 const planSchema = z.object({

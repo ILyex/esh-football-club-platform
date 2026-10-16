@@ -138,9 +138,9 @@ export default async function MatchesListPage({
                 await deleteMatchAction(m.id);
               }
               return (
-                <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                  <td className="px-4 py-2" dir="ltr">{formatAlgeriaDateTime(m.matchDate, locale)}</td>
-                  <td className="px-4 py-2 font-medium">
+                <tr key={m.id} className="border-b border-border last:border-0 align-middle hover:bg-muted/20">
+                  <td className="px-4 py-2 text-start"><span dir="ltr" className="inline-block whitespace-nowrap font-mono text-xs tabular-nums">{formatAlgeriaDateTime(m.matchDate, locale)}</span></td>
+                  <td className="px-4 py-2 align-middle font-medium">
                     <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[280px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                       <span dir="auto" className="truncate">{homeTeamName}</span>
                       <span dir="ltr" className="inline-flex min-w-[72px] items-center justify-center gap-1 whitespace-nowrap rounded-md bg-muted/60 px-2 py-1 text-center font-mono text-xs font-bold tabular-nums">
@@ -157,9 +157,9 @@ export default async function MatchesListPage({
                     </p>
                   )}
                   </td>
-                  <td className="px-4 py-2">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</td>
-                  <td className="px-4 py-2">{m.competition.name}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 align-middle">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</td>
+                  <td className="px-4 py-2 align-middle">{m.competition.name}</td>
+                  <td className="px-4 py-2 align-middle">
                     <MatchOperationalStatus
                       status={m.status}
                       matchDate={m.matchDate}

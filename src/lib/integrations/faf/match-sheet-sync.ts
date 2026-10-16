@@ -86,7 +86,10 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
 
 export async function syncFafMatchDocuments(matchId: string, userId?: string): Promise<FafMatchSyncResult> {
   const config = getFAFConfig();
-  if (!config.enabled || !config.hasCredentials) throw new Error("FAF EMS credentials are not configured on the server.");
+  // Do not gate on environment credentials here: FafEmsClient first checks the
+  // encrypted, persisted FAF session (PostgreSQL on Vercel). Requiring env vars
+  // before that lookup made valid stored sessions unusable in production.
+  if (!config.enabled) throw new Error("FAF EMS integration is disabled on the server.");
   const { local, remote } = await resolveLocalMatch(matchId, config.clubCode);
   if (!remote) throw new Error("No matching FAF EMS record was found.");
   const actorId = userId || (await db.user.findFirst({ where: { role: { key: "ADMIN" } }, select: { id: true } }))?.id;
