@@ -141,16 +141,35 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         }
 
         try {
-          // On every subsequent request, re-check the user is still active and
-          // that tokenVersion still matches — this is the "instant revocation"
-          // mechanism described above.
+          // Re-read the current account and role on every Node request. The
+          // tokenVersion check revokes sessions after account-level security
+          // changes, while refreshing the role snapshot keeps role renames and
+          // grants/revocations from leaving stale names or permissions in the
+          // session JWT.
           const current = await db.user.findUnique({
             where: { id: token.userId as string },
-            select: { isActive: true, tokenVersion: true, deletedAt: true }
+            select: {
+              isActive: true,
+              tokenVersion: true,
+              deletedAt: true,
+              role: {
+                select: {
+                  key: true,
+                  name: true,
+                  permissions: { select: { permission: { select: { key: true } } } }
+                }
+              }
+            }
           });
           if (!current || !current.isActive || current.deletedAt || current.tokenVersion !== token.tokenVersion) {
             return {}; // empty token -> treated as unauthenticated by `auth()`
           }
+
+          token.roleKey = current.role.key;
+          token.roleName = current.role.name;
+          token.permissions = current.role.permissions
+            .map(({ permission }) => permission.key)
+            .filter((key) => key !== "*" || current.role.key === "super_admin");
         } catch {
           // The session validity check is an authorization boundary. If the
           // database cannot confirm the user's active state and tokenVersion,
