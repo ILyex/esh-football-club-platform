@@ -15,6 +15,8 @@ import {
 } from "@/lib/storage";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 
+const TEAM_SCOPED_COACH_ROLE_KEYS = new Set(["coach", "assistant_coach"]);
+
 /**
  * User detail links intentionally expose a readable route segment such as
  * `super-admin--cmuqk2tw`, while mutations must always use the full database
@@ -99,7 +101,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
   }
-  if (selectedRole.key === "coach") {
+  if (TEAM_SCOPED_COACH_ROLE_KEYS.has(selectedRole.key)) {
     const existingTeamAssignments = await db.userTeam.count({ where: { userId: targetUserId } });
     if (existingTeamAssignments > 1) throw new Error("coachMustHaveOneTeam");
   }
@@ -294,7 +296,7 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
   });
 
   await db.$transaction(async (tx) => {
-    if (targetUser.role.key === "coach") {
+    if (TEAM_SCOPED_COACH_ROLE_KEYS.has(targetUser.role.key)) {
       const existingTeamAssignments = await tx.userTeam.count({ where: { userId: targetUserId } });
       const alreadyAssigned = await tx.userTeam.findUnique({
         where: { userId_teamId: { userId: targetUserId, teamId: parsed.teamId } },

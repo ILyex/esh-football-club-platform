@@ -69,11 +69,11 @@ export function hasPermission(user: SessionUser, permissionKey: string): boolean
   // path just because its permission rows contain "*".
   const isSuperAdminWildcard = user.roleKey === "super_admin" && user.permissions.includes("*");
   if (permissionKey === "*") return isSuperAdminWildcard;
-  // Coaches manage the player roster for their assigned teams. Keep this
-  // compatibility rule explicit so already-provisioned coach accounts can
-  // create players before their role-permission rows are synchronized.
+  // Coaches and assistant coaches manage the player roster for their assigned
+  // teams when their role also includes players.update. Keep this compatibility
+  // rule explicit for accounts provisioned before role permissions sync.
   const coachRosterCreate = permissionKey === "players.create" &&
-    user.roleKey === "coach" &&
+    (user.roleKey === "coach" || user.roleKey === "assistant_coach") &&
     user.permissions.includes("players.update");
   if (coachRosterCreate) return true;
   return isSuperAdminWildcard || user.permissions.includes(permissionKey);

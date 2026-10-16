@@ -217,6 +217,16 @@ const ROLE_DEFINITIONS: {
     ]
   },
   {
+    key: "assistant_coach",
+    name: "مساعد المدرب",
+    description: "عرض بيانات التدريب واللاعبين والفرق المسندة لمساعد المدرب.",
+    teamScoped: true,
+    syncPermissions: true,
+    permissions: [
+      "players.view", "teams.view", "matches.view", "training.view", "calendar.view"
+    ]
+  },
+  {
     key: "media_manager",
     name: "Media Manager",
     description: "News, announcements and gallery — no access to contracts",

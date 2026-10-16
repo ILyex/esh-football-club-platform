@@ -22,7 +22,7 @@ export async function initTestingDatabase(): Promise<void> {
   }
 
   // 3. Ensure Coach and Team Manager roles get testing.view and testing.manage
-  const targetRoles = ["coach", "team_manager", "director", "president"];
+  const targetRoles = ["coach", "assistant_coach", "team_manager", "director", "president"];
   for (const roleKey of targetRoles) {
     const role = await db.role.findUnique({ where: { key: roleKey } });
     if (!role) continue;

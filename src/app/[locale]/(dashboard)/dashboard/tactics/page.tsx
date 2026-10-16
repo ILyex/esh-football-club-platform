@@ -8,22 +8,50 @@ export default async function TacticalPlanningPage({ params, searchParams }: { p
   const user = await requirePagePermission("training.view", locale);
   const context = await resolveUserTeamContext();
   const teamIds = context.authorizedTeams.map((team) => team.id);
-  const [plans, clubSettings] = await Promise.all([
+  const [plans, clubSettings, coachRecords] = await Promise.all([
     db.tacticalPlan.findMany({
       where: { OR: [{ teamId: { in: teamIds } }, { teamId: null, creatorId: user.id }] },
       include: { team: { select: { id: true, name: true, category: true } }, creator: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take: 100
     }),
-    db.clubSettings.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } })
+    db.clubSettings.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } }),
+    teamIds.length > 0 ? db.staff.findMany({
+      where: {
+        status: "ACTIVE",
+        role: { in: ["HEAD_COACH", "ASSISTANT_COACH"] },
+        OR: [
+          { teamId: { in: teamIds } },
+          { teamAssignments: { some: { teamId: { in: teamIds } } } }
+        ]
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        firstNameFr: true,
+        lastNameFr: true,
+        teamId: true,
+        teamAssignments: { select: { teamId: true } }
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
+    }) : Promise.resolve([])
   ]);
   const teams = context.authorizedTeams.map(({ id, name, category }) => ({ id, name, category }));
+  const coaches = coachRecords.map((coach) => ({
+    id: coach.id,
+    label: locale === "fr"
+      ? `${coach.firstNameFr || coach.firstName} ${coach.lastNameFr || coach.lastName}`.trim()
+      : `${coach.firstName} ${coach.lastName}`.trim(),
+    teamIds: [...new Set([coach.teamId, ...coach.teamAssignments.map((assignment) => assignment.teamId)].filter((id): id is string => Boolean(id)))]
+  }));
   return (
     <TacticalBoard
       locale={locale}
       canEdit={hasPermission(user, "training.manage")}
       initialPlanId={initialPlanId}
       teams={teams}
+      coaches={coaches}
       clubLogoUrl={clubSettings?.logoUrl}
       plans={plans.map((plan) => ({
         id: plan.id,
