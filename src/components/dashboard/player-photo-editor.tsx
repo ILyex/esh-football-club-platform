@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { Camera, Trash2, Upload, User, Loader2, Check, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removePlayerPhotoAction } from "@/app/[locale]/(dashboard)/dashboard/players/actions";
@@ -25,6 +25,10 @@ export function PlayerPhotoEditor({
   const [isPending, startTransition] = useTransition();
   const [removeMarked, setRemoveMarked] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const isAr = locale === "ar";
 

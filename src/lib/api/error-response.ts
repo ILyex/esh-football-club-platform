@@ -1,3 +1,6 @@
+import "server-only";
+import { randomUUID } from "node:crypto";
+
 // src/lib/api/error-response.ts
 /**
  * Convert internal errors into a stable JSON payload for the client.
@@ -32,12 +35,20 @@ export function clientErrorResponse(err: unknown) {
 
   // Future custom error mappings can be added here.
 
-  // Fallback for unexpected errors – keep a stable shape.
-  const genericMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+  // Unexpected server errors can contain database details, storage keys, or
+  // provider responses. Keep the response shape stable without exposing those
+  // internals to callers; known, user-actionable errors are mapped above.
+  const requestId = randomUUID();
+  console.error("[GeneratedDocumentDownload] Unexpected server error", {
+    requestId,
+    error: err instanceof Error ? { name: err.name, message: err.message } : "unknown error"
+  });
+  const genericMessage = "An unexpected error occurred.";
   return new Response(
     JSON.stringify({
       code: "UNKNOWN_ERROR",
       message: genericMessage,
+      requestId,
     }),
     { status: 500, headers: { "Content-Type": "application/json" } }
   );

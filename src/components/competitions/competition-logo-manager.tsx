@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { Save,  Upload, Image as ImageIcon, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { uploadCompetitionLogoAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
 
@@ -27,6 +27,10 @@ export function CompetitionLogoManager({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+  }, [preview]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];

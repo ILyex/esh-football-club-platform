@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -113,6 +113,10 @@ export function WebsiteCmsClient({
     selectedMatch?.opponentLogo || null
   );
   const [logoFile, setLogoFile] = useState<File | null>(null);
+
+  useEffect(() => () => {
+    if (previewLogo?.startsWith("blob:")) URL.revokeObjectURL(previewLogo);
+  }, [previewLogo]);
 
   // Save state and form feedback
   const [isSaving, startSaving] = useTransition();

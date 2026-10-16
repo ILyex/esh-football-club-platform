@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Building2,
   Palette,
@@ -56,6 +56,10 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
   const [secondaryColor, setSecondaryColor] = useState(settings.secondaryColor || "#111827");
   const [logoPreview, setLogoPreview] = useState<string | null>(settings.logoUrl || "/branding/esh-logo-128.png");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+  useEffect(() => () => {
+    if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+  }, [logoPreview]);
 
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
