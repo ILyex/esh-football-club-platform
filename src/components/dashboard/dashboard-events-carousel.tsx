@@ -159,8 +159,8 @@ export function DashboardEventsCarousel({
                         </p>
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3" />
-                          <span>
-                            {formatAlgeriaDateTime(m.matchDate, locale, "short")}
+                          <span dir="ltr" className="font-mono tabular-nums">
+                            {formatAlgeriaDateTime(m.matchDate, locale)}
                           </span>
                           {m.competitionName && <span className="min-w-0 truncate">• {m.competitionName}</span>}
                         </p>

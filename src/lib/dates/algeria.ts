@@ -1,12 +1,13 @@
-/** Format an absolute timestamp using Algeria's local time and a 24-hour clock. */
-export function formatAlgeriaDateTime(date: Date | string, locale: string, dateStyle: Intl.DateTimeFormatOptions["dateStyle"] = "medium") {
-  const intlLocale = locale === "ar" ? "ar-DZ-u-ca-gregory-nu-latn" : "fr-DZ";
-  return new Intl.DateTimeFormat(intlLocale, {
-    dateStyle,
-    timeStyle: "short",
-    timeZone: "Africa/Algiers",
-    hourCycle: "h23"
-  }).format(typeof date === "string" ? new Date(date) : date);
+/** Format match date/time in a stable LTR numeric form to prevent RTL reordering. */
+export function formatAlgeriaDateTime(date: Date | string, locale: string) {
+  const value = typeof date === "string" ? new Date(date) : date;
+  const datePart = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Africa/Algiers"
+  }).format(value);
+  return `${datePart} ${formatAlgeriaTime(value, locale)}`;
 }
 
 /** Format a match kickoff in Algeria using a stable 24-hour clock. */
