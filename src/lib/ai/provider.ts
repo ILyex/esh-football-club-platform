@@ -11,7 +11,7 @@ import { CloudflareWorkersAIProvider } from "./providers/cloudflare-workers-ai";
 // ============================================================================
 
 const useCloudflare = process.env.AI_PROVIDER === "cloudflare" ||
-  (!process.env.AI_PROVIDER && process.env.DEPLOY_TARGET === "cloudflare");
+  (!process.env.AI_PROVIDER && (process.env.DEPLOY_TARGET === "cloudflare" || process.env.VERCEL === "1"));
 const activeProvider: AIProvider = !useCloudflare
   ? new OllamaProvider()
   : new CloudflareWorkersAIProvider();

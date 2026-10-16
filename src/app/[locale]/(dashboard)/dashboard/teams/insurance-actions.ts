@@ -8,6 +8,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { enqueueTeamInsuranceCheck } from "@/lib/ai/team-insurance-check-job";
+import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 
 function parseDate(value: FormDataEntryValue | null): Date {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("أدخل تاريخ بداية ونهاية صالحين.");
@@ -61,6 +62,7 @@ export async function uploadTeamInsuranceAction(teamId: string, locale: string, 
       await enqueueTeamInsuranceCheck(tx, createdPolicy.id, user.id);
       return createdPolicy;
     });
+    processQueuedJobAfterResponse("team.insurance_check");
     await writeAuditLog({ userId: user.id, action: "team.insurance_uploaded", entityType: "TeamInsurancePolicy", entityId: policy.id, changes: { teamId: team.id, category: team.category, documentId, startDate, endDate } });
   } catch (error) {
     if (policyId) await db.teamInsurancePolicy.delete({ where: { id: policyId } }).catch(() => {});

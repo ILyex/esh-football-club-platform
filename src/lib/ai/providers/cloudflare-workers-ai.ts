@@ -12,19 +12,23 @@ function isDenoDeploy(): boolean {
   return process.env.DENO_DEPLOY === "true" || process.env.DENO_DEPLOY === "1" || process.env.DEPLOY_TARGET === "deno";
 }
 
-function getDenoApiConfig(): { accountId: string; token: string } | null {
+function getRestApiConfig(): { accountId: string; token: string } | null {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const token = process.env.CLOUDFLARE_AI_API_TOKEN?.trim();
   return accountId && token ? { accountId, token } : null;
+}
+
+function usesRestAPI(): boolean {
+  return isDenoDeploy() || process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 }
 
 function modelPath(model: string): string {
   return model.split("/").map((part) => encodeURIComponent(part)).join("/");
 }
 
-async function runDenoWorkersAI(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
-  const config = getDenoApiConfig();
-  if (!config) throw new AIError("AI_NOT_CONFIGURED", "Cloudflare Workers AI API credentials are missing in Deno Deploy");
+async function runWorkersAIRestAPI(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+  const config = getRestApiConfig();
+  if (!config) throw new AIError("AI_NOT_CONFIGURED", "Cloudflare Workers AI API credentials are missing in this serverless deployment");
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/run/${modelPath(model)}`,
     {
@@ -74,15 +78,15 @@ export class CloudflareWorkersAIProvider implements AIProvider {
   isConfigured(): boolean {
     const enabled = process.env.AI_ENABLED === "true" || process.env.AI_ENABLED === "1";
     if (!enabled || (process.env.AI_PROVIDER || "cloudflare") !== "cloudflare") return false;
-    return !isDenoDeploy() || Boolean(getDenoApiConfig());
+    return !usesRestAPI() || Boolean(getRestApiConfig());
   }
 
   async checkAvailability(): Promise<AIAvailabilityResult> {
     if (!this.isConfigured()) return { available: false, error: "AI is disabled or not configured" };
     try {
-      if (isDenoDeploy()) {
-        const config = getDenoApiConfig();
-        if (!config) return { available: false, error: "Cloudflare Workers AI API credentials are missing in Deno Deploy" };
+      if (usesRestAPI()) {
+        const config = getRestApiConfig();
+        if (!config) return { available: false, error: "Cloudflare Workers AI API credentials are missing in this serverless deployment" };
         const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/models/search`);
         url.searchParams.set("search", process.env.AI_MODEL || DEFAULT_MODEL);
         const response = await fetch(url, {
@@ -144,7 +148,7 @@ export class CloudflareWorkersAIProvider implements AIProvider {
       try {
         result = await Promise.race([
           (async () => {
-            if (isDenoDeploy()) return runDenoWorkersAI(model, modelInput, Math.max(1000, Math.min(params.timeoutMs ?? 30_000, 120_000)));
+            if (usesRestAPI()) return runWorkersAIRestAPI(model, modelInput, Math.max(1000, Math.min(params.timeoutMs ?? 30_000, 120_000)));
             const { env } = await getCloudflareContext({ async: true });
             const binding = (env as WorkersEnv).AI;
             if (!binding) throw new AIError("AI_NOT_CONFIGURED", "Workers AI binding is missing");

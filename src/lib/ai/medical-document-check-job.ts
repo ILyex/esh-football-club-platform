@@ -52,9 +52,12 @@ export function registerMedicalDocumentCheckJob(): void {
         // review; it never interprets values, diagnoses, or decides fitness.
         const buffer = await getPrivateFileBuffer(record.document.storageKey);
         const text = await extractDocumentText(buffer, record.document.mimeType || "application/pdf", (reason) => { aiFailure = reason; });
-        if (!text || !isAIConfigured()) {
-          status = aiFailure ? "UNAVAILABLE" : "NEEDS_REVIEW";
+        if (!isAIConfigured()) {
+          status = "UNAVAILABLE";
           findings = text ? ["TYPE_UNCLEAR", "IDENTITY_UNCLEAR"] : ["UNREADABLE"];
+        } else if (!text) {
+          status = aiFailure ? "UNAVAILABLE" : "NEEDS_REVIEW";
+          findings = ["UNREADABLE"];
         } else {
           const typeLabels: Record<string, string> = {
             MEDICAL_CLEARANCE: "medical fitness or eligibility certificate",

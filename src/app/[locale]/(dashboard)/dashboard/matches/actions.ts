@@ -13,6 +13,7 @@ import { promoteDueMatchesToLive } from "@/lib/matches/lifecycle";
 import { getFAFConfig } from "@/lib/integrations/faf/config";
 import { enqueueFAFMatchSyncJob } from "@/lib/integrations/faf/job-handler";
 import { enqueueJob } from "@/lib/jobs/queue";
+import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
@@ -990,6 +991,7 @@ export async function syncFAFMatchDocumentsAction(matchId: string, locale = "ar"
     priority: "HIGH",
     maxAttempts: 2
   });
+  processQueuedJobAfterResponse("faf.match_sync");
   return {
     success: true,
     matchId,
@@ -1025,6 +1027,7 @@ export async function analyzeRefereeReportWithAIAction(matchId: string, formData
     ...(reportText ? { reportText } : { documentId: reportDocument!.id }),
     userId: user.id
   }, { allowRerun: true });
+  processQueuedJobAfterResponse("match.referee_report_analysis");
   return {
     success: true,
     jobId: job.id,

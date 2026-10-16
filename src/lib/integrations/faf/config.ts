@@ -29,7 +29,7 @@ function sanitizeUrl(rawUrl?: string): string {
     const host = parsed.hostname.toLowerCase();
     if (
       parsed.protocol !== "https:" ||
-      (host !== "fafconnect.dz" && !host.endsWith(".fafconnect.dz")) ||
+      host !== "ems.fafconnect.dz" ||
       parsed.username ||
       parsed.password
     ) {

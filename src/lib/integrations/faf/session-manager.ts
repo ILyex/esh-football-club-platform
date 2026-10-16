@@ -101,9 +101,14 @@ export class FAFSessionManagerImpl {
    */
   private async usesDatabasePersistence(): Promise<boolean> {
     if (this.customFilePath) return false;
-    // Deno Deploy instances can scale to zero and do not share a writable
-    // project directory. Persist the encrypted FAF session in PostgreSQL.
-    if (process.env.DENO_DEPLOY === "true" || process.env.DEPLOY_TARGET === "deno") {
+    // Serverless instances may scale to zero or use separate ephemeral
+    // filesystems. Keep the encrypted session in PostgreSQL on those hosts.
+    if (
+      process.env.DENO_DEPLOY === "true" ||
+      process.env.DEPLOY_TARGET === "deno" ||
+      process.env.VERCEL === "1" ||
+      Boolean(process.env.VERCEL_ENV)
+    ) {
       return true;
     }
     try {

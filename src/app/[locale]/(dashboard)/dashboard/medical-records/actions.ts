@@ -9,6 +9,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { enqueueMedicalDocumentCheck } from "@/lib/ai/medical-document-check-job";
+import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 
 const labels: Record<PlayerMedicalRecordType, string> = {
   INSURANCE_POLICY: "وثيقة تأمين لاعب",
@@ -98,7 +99,8 @@ export async function createPlayerMedicalRecordAction(playerId: string, formData
       data: { playerId, documentId, type, title, issuedAt, expiresAt, status, provider, consentAuthority, consentAuthorityName, consentRecordedAt, createdById: user.id }
     });
     recordId = record.id;
-    await enqueueMedicalDocumentCheck(db, record.id, user.id);
+    const checkJob = await enqueueMedicalDocumentCheck(db, record.id, user.id);
+    processQueuedJobAfterResponse(checkJob.type);
     await writeAuditLog({
       userId: user.id,
       action: "medical_record.created",
