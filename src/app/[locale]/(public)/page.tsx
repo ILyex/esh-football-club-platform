@@ -469,7 +469,7 @@ export default async function HomePage({
               </div>
 
               {recentResults.length > 0 ? (
-                <div className="divide-y divide-border/60">
+                <div className="space-y-1.5">
                   {recentResults.slice(0, 3).map((res) => {
                     const clubScore = res.isHomeFixture ? (res.homeScore ?? 0) : (res.awayScore ?? 0);
                     const opponentScore = res.isHomeFixture ? (res.awayScore ?? 0) : (res.homeScore ?? 0);
