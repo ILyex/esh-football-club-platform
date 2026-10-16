@@ -38,7 +38,7 @@ try {
 const nextConfig = {
   // Give each Cloudflare build a version marker so an open browser tab can
   // detect a newer deployment and reload before invoking stale Server Actions.
-  ...(process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
+  ...(process.env.VERCEL_DEPLOYMENT_ID ? { deploymentId: process.env.VERCEL_DEPLOYMENT_ID } : process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
   // Keep the production runtime small for cPanel shared hosting. The build
   // helper copies public/static assets into this standalone runtime folder.
   output: "standalone",
