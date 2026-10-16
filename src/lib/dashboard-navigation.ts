@@ -18,6 +18,7 @@ export const DASHBOARD_NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/matches", labelKey: "matches", requiredPermission: "matches.view" },
       { href: "/dashboard/competitions", labelKey: "competitions", requiredPermission: "competitions.view" },
       { href: "/dashboard/training", labelKey: "training", requiredPermission: "training.view" },
+      { href: "/dashboard/tactics", labelKey: "tactics", requiredPermission: "training.view" },
       { href: "/dashboard/testing", labelKey: "testing", requiredPermission: "testing.view" },
       { href: "/dashboard/calendar", labelKey: "calendar", requiredPermission: "calendar.view" },
       { href: "/dashboard/inventory", labelKey: "inventory", requiredPermission: "training.view" }

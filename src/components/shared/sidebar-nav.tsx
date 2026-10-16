@@ -59,6 +59,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   matches: Trophy,
   competitions: Medal,
   training: Activity,
+  tactics: ClipboardList,
   testing: Timer,
   calendar: Calendar,
   inventory: Package,

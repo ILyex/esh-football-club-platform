@@ -108,6 +108,7 @@ model User {
   // access always comes from `teamAssignments` (UserTeam) above, never from
   // whatever teams the linked Staff record happens to work with.
   staff                        Staff?
+  tacticalPlans                TacticalPlan[]
 
   @@index([deletedAt, lastSeenAt])
   @@index([roleId])
@@ -245,6 +246,7 @@ model Team {
   expenses          Expense[]
   inventoryItems    InventoryItem[]
   testSessions      TestSession[]
+  tacticalPlans     TacticalPlan[]
   // P1 RBAC foundation — reverse relations for the two new assignment tables.
   userAssignments   UserTeam[]
   staffAssignments  StaffTeam[]
@@ -1007,6 +1009,23 @@ enum TrainingStatus {
   SCHEDULED
   COMPLETED
   CANCELLED
+}
+
+model TacticalPlan {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  formation   String   @default("4-3-3")
+  data        Json
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId, updatedAt])
+  @@index([creatorId, updatedAt])
 }
 
 model TrainingSession {
