@@ -235,9 +235,9 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
       <img src="/branding/esh-logo-128.png" alt="ESH" className="h-20 w-20 object-contain" />
     </header>
 
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
+    <div className="grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_310px]">
       <main className="min-w-0 space-y-3">
-        <section className="tactics-panel grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(180px,1.2fr)_170px_150px] print:hidden">
+        <section className="tactics-panel grid min-w-0 grid-cols-1 gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-4 print:hidden">
           <label className="tactics-field"><span>{t.titlePlaceholder}</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} disabled={!canEditActive} placeholder={t.titlePlaceholder}/></label>
           <label className="tactics-field"><span>{t.description}</span><input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} disabled={!canEditActive} placeholder={t.description}/></label>
           <div className="tactics-field"><span>{t.formation}</span><FormSelect name="tactical-formation" locale={locale} value={formation} onValueChange={applyFormation} disabled={!canEditActive} options={Object.keys(FORMATIONS).map((item) => ({ value: item, label: item }))} ariaLabel={t.formation}/></div>
@@ -272,7 +272,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
         </div>
       </main>
 
-      <aside className="space-y-3 xl:sticky xl:top-4">
+      <aside className="min-w-0 space-y-3 2xl:sticky 2xl:top-4">
         {canEdit && <section className="tactics-panel space-y-3 p-4"><button type="button" onClick={savePlan} disabled={busy || !title.trim() || !canEditActive} className="tactics-action tactics-primary w-full justify-center"><Save size={16}/>{busy ? t.saving : t.save}</button>{message && <p role="status" className="text-center text-sm text-emerald-400">{message}</p>}</section>}
         <section className="tactics-panel overflow-hidden"><div className="border-b border-border p-4"><h2 className="font-bold">{t.plans}</h2></div><div className="max-h-[560px] overflow-auto p-2">{plans.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{t.empty}</p> : plans.map((plan) => { const mayManagePlan = canEdit && (Boolean(plan.teamId) || plan.isOwner); return <div key={plan.id} className={`mb-2 rounded-lg border p-3 ${activeId === plan.id ? "border-club-primary bg-club-primary/5" : "border-border"}`}><button type="button" onClick={() => loadPlan(plan)} className="w-full text-start"><span className="block truncate font-semibold">{plan.title}</span><span className="mt-1 block text-xs text-muted-foreground">{plan.teamName || plan.formation} · {new Date(plan.updatedAt).toLocaleDateString(locale === "ar" ? "ar-DZ" : "fr-DZ", { timeZone: "Africa/Algiers" })}</span></button>{mayManagePlan && <div className="mt-2 flex justify-end gap-1"><button type="button" className="tactics-icon" title={t.copy} onClick={() => void duplicatePlan(plan)}><Copy size={15}/></button><button type="button" className="tactics-icon text-red-400" title={t.delete} onClick={() => void removePlan(plan)}><Trash2 size={15}/></button></div>}</div>})}</div></section>
         <section className="tactics-panel p-4"><h2 className="mb-3 text-sm font-bold">{t.tools}</h2><div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground"><span>↗ {t.arrow}</span><span>⇢ {t.line}</span><span>▱ {t.zone}</span><span>⚽ {t.ball}</span><span>4-3-3</span><span>4-2-3-1</span></div></section>
