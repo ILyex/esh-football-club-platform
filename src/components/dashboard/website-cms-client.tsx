@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
 import { localizedClubName } from "@/lib/public/locale-text";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 interface MatchOption {
   id: string;
@@ -494,7 +495,7 @@ export function WebsiteCmsClient({
                 <div className="flex items-center gap-3 p-2.5 rounded-xl border border-dashed border-border bg-muted/20">
                   <div className="h-10 w-10 shrink-0 rounded-lg border border-border/80 bg-background flex items-center justify-center overflow-hidden">
                     {previewLogo ? (
-                      <img src={previewLogo} alt="Logo" className="h-full w-full object-contain p-1" />
+                      <OpponentCrest src={previewLogo} alt="Logo" className="h-full w-full object-contain p-1" iconClassName="h-5 w-5 text-muted-foreground/50" />
                     ) : (
                       <Shield className="h-5 w-5 text-muted-foreground/50" />
                     )}
@@ -546,7 +547,7 @@ export function WebsiteCmsClient({
                             : "bg-background border-border text-foreground hover:bg-muted"
                         }`}
                       >
-                        <img src={item.logoUrl} alt="" className="h-3.5 w-3.5 object-contain" />
+                        <OpponentCrest src={item.logoUrl} className="h-3.5 w-3.5 object-contain" iconClassName="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{item.name}</span>
                       </button>
                     ))}

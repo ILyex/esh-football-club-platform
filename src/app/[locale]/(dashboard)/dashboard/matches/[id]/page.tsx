@@ -32,6 +32,7 @@ import { MatchEditFixtureFields } from "@/components/matches/match-edit-fixture-
 import { MatchEventForm } from "@/components/matches/match-event-form";
 import { MatchManagementTabs } from "@/components/matches/match-management-tabs";
 import { OpponentNameInputs } from "@/components/matches/opponent-name-inputs";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 import { getMatchClockState } from "@/lib/matches/clock";
 import { ShootoutKickForm } from "@/components/matches/shootout-kick-form";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
@@ -350,8 +351,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               <div className="flex min-w-0 items-center gap-3.5">
                 <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-card shadow-xs">
                   {opponentLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={opponentLogo} alt="" className="h-full w-full object-contain p-1.5" />
+                    <OpponentCrest src={opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-7 w-7 text-muted-foreground" />
                   ) : (
                     <Shield className="h-7 w-7 text-muted-foreground/40" aria-hidden="true" />
                   )}

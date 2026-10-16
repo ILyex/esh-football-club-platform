@@ -27,6 +27,7 @@ import { isVideoUrl } from "@/lib/media-utils";
 import { SocialReelsSection } from "@/components/public/social-reels-section";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubIntroVideo } from "@/components/public/club-intro-video";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export const dynamic = "force-dynamic";
 
@@ -484,11 +485,11 @@ export default async function HomePage({
                         <div dir={locale === "ar" ? "rtl" : "ltr"} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
                           <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex min-w-0 items-center justify-start gap-1.5 text-start">
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 p-1">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               {res.isHomeFixture ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/branding/esh-logo-32.png" alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
                               ) : res.opponentLogo ? (
-                                <img src={res.opponentLogo} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
+                                <OpponentCrest src={res.opponentLogo} className="h-full w-full object-contain" />
                               ) : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
                             </div>
                             <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-1 min-w-0 text-[9px] font-bold text-foreground">{localizedClubName(res.homeTeamName, locale, locale === "ar" ? "الفريق المضيف" : "Équipe locale")}</span>
@@ -499,9 +500,10 @@ export default async function HomePage({
                           <div dir={locale === "ar" ? "ltr" : "rtl"} className="flex min-w-0 items-center justify-start gap-1.5 text-start">
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card p-1">
                               {!res.isHomeFixture ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/branding/esh-logo-32.png" alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
                               ) : res.opponentLogo ? (
-                                <img src={res.opponentLogo} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
+                                <OpponentCrest src={res.opponentLogo} className="h-full w-full object-contain" />
                               ) : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
                             </div>
                             <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-1 min-w-0 text-[9px] font-bold text-foreground">{localizedClubName(res.awayTeamName, locale, locale === "ar" ? "الفريق الضيف" : "Équipe visiteuse")}</span>

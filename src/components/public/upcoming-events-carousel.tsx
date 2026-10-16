@@ -21,6 +21,7 @@ import { MatchLiveClock } from "@/components/matches/match-live-clock";
 import { frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 import { getMatchClockState, type MatchAddedTimeSettings } from "@/lib/matches/clock";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export interface PublicMatchItemData {
   id: string;
@@ -376,8 +377,7 @@ export function UpcomingMatchesCarousel({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain" />
                         ) : m.opponentLogo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.opponentLogo} alt="" className="h-full w-full object-contain" />
+                          <OpponentCrest src={m.opponentLogo} className="h-full w-full object-contain" />
                         ) : <Shield className="h-6 w-6 text-muted-foreground" aria-hidden="true" />}
                       </div>
                       <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground">
@@ -413,8 +413,7 @@ export function UpcomingMatchesCarousel({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain" />
                         ) : m.opponentLogo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.opponentLogo} alt="" className="h-full w-full object-contain" />
+                          <OpponentCrest src={m.opponentLogo} className="h-full w-full object-contain" />
                         ) : <Shield className="h-6 w-6 text-muted-foreground" aria-hidden="true" />}
                       </div>
                       <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground">
@@ -454,12 +453,7 @@ export function UpcomingMatchesCarousel({
                           className="h-full w-full object-contain"
                         />
                       ) : m.opponentLogo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.opponentLogo}
-                          alt={m.homeTeamName}
-                          className="h-full w-full object-contain"
-                        />
+                        <OpponentCrest src={m.opponentLogo} alt={m.homeTeamName} className="h-full w-full object-contain" />
                       ) : (
                         <Shield className="h-10 w-10 text-muted-foreground" />
                       )}
@@ -550,12 +544,7 @@ export function UpcomingMatchesCarousel({
                           className="h-full w-full object-contain"
                         />
                       ) : m.opponentLogo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.opponentLogo}
-                          alt={m.awayTeamName}
-                          className="h-full w-full object-contain"
-                        />
+                        <OpponentCrest src={m.opponentLogo} alt={m.awayTeamName} className="h-full w-full object-contain" />
                       ) : (
                         <Shield className="h-10 w-10 text-muted-foreground" />
                       )}

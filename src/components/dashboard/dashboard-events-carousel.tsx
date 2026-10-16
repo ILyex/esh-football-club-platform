@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
 import { localizedClubName } from "@/lib/public/locale-text";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export interface DashboardMatchItem {
   id: string;
@@ -147,8 +148,7 @@ export function DashboardEventsCarousel({
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {m.opponentLogo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.opponentLogo} alt="" className="h-6 w-6 object-contain shrink-0" />
+                        <OpponentCrest src={m.opponentLogo} className="h-6 w-6 object-contain shrink-0" iconClassName="h-5 w-5 shrink-0 text-muted-foreground" />
                       ) : (
                         <Trophy className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                       )}

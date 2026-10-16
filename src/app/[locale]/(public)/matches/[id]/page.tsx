@@ -13,6 +13,7 @@ import { MatchOperationalStatus } from "@/components/matches/match-operational-s
 import { MatchLineupCarousel } from "@/components/public/match-lineup-carousel";
 import { PublicMatchSections } from "@/components/public/public-match-sections";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export default async function PublicMatchDetailPage({
   params,
@@ -150,8 +151,7 @@ export default async function PublicMatchDetailPage({
             <div className="flex min-w-0 self-start flex-col items-center px-1 sm:px-2">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-transparent shadow-xs sm:h-20 sm:w-20">
                 {homeLogoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={homeLogoUrl} alt={homeTeamName} className="h-full w-full rounded-full object-contain p-1.5" />
+                  <OpponentCrest src={homeLogoUrl} alt={homeTeamName} className="h-full w-full rounded-full object-contain p-1.5" iconClassName="h-8 w-8 text-club-primary sm:h-10 sm:w-10" />
                 ) : (
                   <Shield className="h-8 w-8 text-club-primary sm:h-10 sm:w-10" />
                 )}
@@ -206,8 +206,7 @@ export default async function PublicMatchDetailPage({
             <div className="flex min-w-0 self-start flex-col items-center px-1 sm:px-2">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-transparent shadow-xs sm:h-20 sm:w-20">
                 {awayLogoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={awayLogoUrl} alt={awayTeamName} className="h-full w-full rounded-full object-contain p-1.5" />
+                  <OpponentCrest src={awayLogoUrl} alt={awayTeamName} className="h-full w-full rounded-full object-contain p-1.5" iconClassName="h-8 w-8 text-muted-foreground/60 sm:h-10 sm:w-10" />
                 ) : (
                   <Shield className="h-8 w-8 text-muted-foreground/60 sm:h-10 sm:w-10" />
                 )}
@@ -361,8 +360,7 @@ export default async function PublicMatchDetailPage({
                       className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center overflow-hidden rounded-full border border-border/70 bg-transparent p-0 text-[11px] font-semibold text-muted-foreground sm:h-auto sm:w-auto sm:gap-1.5 sm:rounded-full sm:px-2.5 sm:py-1.5"
                   >
                     {eventTeamLogo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={eventTeamLogo} alt="" className="h-5 w-5 shrink-0 rounded-full object-contain sm:h-4 sm:w-4" />
+                      <OpponentCrest src={eventTeamLogo} className="h-5 w-5 shrink-0 rounded-full object-contain sm:h-4 sm:w-4" iconClassName="h-3.5 w-3.5 shrink-0 text-club-primary" />
                     ) : (
                       <Shield className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
                     )}

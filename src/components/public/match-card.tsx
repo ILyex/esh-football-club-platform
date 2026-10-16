@@ -3,6 +3,7 @@ import { Calendar, MapPin, Trophy, Shield } from "lucide-react";
 import { PublicMatchItem } from "@/lib/public/matches";
 import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 interface MatchCardProps {
   match: PublicMatchItem;
@@ -83,8 +84,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
             ) : match.opponentLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={match.opponentLogo} alt="" className="h-full w-full object-contain p-1.5" />
+              <OpponentCrest src={match.opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />
             ) : <Shield className="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />}
           </div>
           <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">
@@ -126,8 +126,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
             ) : match.opponentLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={match.opponentLogo} alt="" className="h-full w-full object-contain p-1.5" />
+              <OpponentCrest src={match.opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
             ) : <Shield className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />}
           </div>
           <span className="line-clamp-2 w-full break-words text-[11px] font-extrabold leading-4 text-foreground sm:text-[13px] sm:leading-5">

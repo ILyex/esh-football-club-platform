@@ -20,6 +20,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { NewMatchLineup } from "@/components/matches/new-match-lineup";
 import { MatchPeriodOptions } from "@/components/matches/match-period-options";
 import { RefereeNamesInput } from "@/components/matches/referee-names-input";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 import { localizedClubName, splitClubNameVariants } from "@/lib/public/locale-text";
 import { toast } from "sonner";
 
@@ -244,8 +245,7 @@ export function MatchFormClient({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src="/branding/esh-logo-128.png" alt={clubName} className="h-full w-full object-contain" />
               ) : previewLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewLogo} alt={opponent} className="h-full w-full object-contain" />
+                <OpponentCrest src={previewLogo} alt={opponent} className="h-full w-full object-contain" iconClassName="h-8 w-8 text-muted-foreground" />
               ) : (
                 <Shield className="h-8 w-8 text-muted-foreground" />
               )}
@@ -277,8 +277,7 @@ export function MatchFormClient({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src="/branding/esh-logo-128.png" alt={clubName} className="h-full w-full object-contain" />
               ) : previewLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewLogo} alt={opponent} className="h-full w-full object-contain" />
+                <OpponentCrest src={previewLogo} alt={opponent} className="h-full w-full object-contain" iconClassName="h-8 w-8 text-muted-foreground" />
               ) : (
                 <Shield className="h-8 w-8 text-muted-foreground" />
               )}
@@ -386,8 +385,7 @@ export function MatchFormClient({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted px-2.5 py-1 text-xs font-medium text-foreground transition-all"
                   >
                     {item.logoUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.logoUrl} alt="" className="h-3.5 w-3.5 object-contain" />
+                      <OpponentCrest src={item.logoUrl} className="h-3.5 w-3.5 object-contain" iconClassName="h-3.5 w-3.5 text-muted-foreground" />
                     )}
                     <span>{localizedClubName(item.name, locale, isRtl ? "فريق منافس" : "Nom du club adverse")}</span>
                   </button>
@@ -402,8 +400,7 @@ export function MatchFormClient({
               <div className="flex items-center gap-3.5">
                 <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-border bg-card shadow-xs overflow-hidden">
                   {previewLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previewLogo} alt="" className="h-full w-full object-contain p-1.5" />
+                    <OpponentCrest src={previewLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-7 w-7 text-muted-foreground/40" />
                   ) : (
                     <Shield className="h-7 w-7 text-muted-foreground/40" />
                   )}
