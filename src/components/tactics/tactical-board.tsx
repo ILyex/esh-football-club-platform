@@ -89,7 +89,27 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
   function onBoardPointerDown(event: React.PointerEvent<SVGSVGElement>) {
     if (!canEditActive) return;
     const p = point(event);
-    if (tool === "eraser") return;
+    if (tool === "eraser") {
+      const distanceToSegment = (x: number, y: number, x1: number, y1: number, x2: number, y2: number) => {
+        const dx = x2 - x1; const dy = y2 - y1;
+        const lengthSquared = dx * dx + dy * dy;
+        const t = lengthSquared ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSquared)) : 0;
+        return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+      };
+      const hit = [...board.items].reverse().find((item) => {
+        if (item.kind === "player" || item.kind === "opponent") return Math.hypot(p.x - item.x, p.y - item.y) <= 30;
+        if (item.kind === "ball") return Math.hypot(p.x - item.x, p.y - item.y) <= 20;
+        if (item.kind === "zone") return p.x >= Math.min(item.x, item.x2) - 8 && p.x <= Math.max(item.x, item.x2) + 8 && p.y >= Math.min(item.y, item.y2) - 8 && p.y <= Math.max(item.y, item.y2) + 8;
+        if (item.kind !== "arrow" && item.kind !== "line" && item.kind !== "path") return false;
+        const points = item.kind === "path" ? item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }] : [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }];
+        return points.slice(1).some((next, index) => distanceToSegment(p.x, p.y, points[index]!.x, points[index]!.y, next.x, next.y) <= 16);
+      });
+      if (hit) {
+        updateBoard((b) => ({ ...b, items: b.items.filter((item) => item.id !== hit.id) }));
+        setSelected((current) => current === hit.id ? null : current);
+      }
+      return;
+    }
     if (tool === "player" || tool === "opponent") {
       const kind = tool === "player" ? "player" : "opponent";
       updateBoard((b) => ({ ...b, items: [...b.items, { id: uid(), kind, x: p.x, y: p.y, number: String(b.items.filter((it) => it.kind === kind).length + 1), label: kind === "opponent" ? "" : "CM", color }] }));
@@ -186,9 +206,7 @@ export function TacticalBoard({ locale, canEdit, teams, plans: initialPlans }: {
     updateBoard((b) => ({ ...b, items: b.items.map((item) => item.id === id ? { ...item, color: nextColor } as Item : item) }));
   }
   function handleItemPointerDown(event: React.PointerEvent<SVGElement>, id: string) {
-    if (tool === "eraser" && canEditActive) {
-      event.stopPropagation(); updateBoard((b) => ({ ...b, items: b.items.filter((item) => item.id !== id) })); if (selected === id) setSelected(null); return;
-    }
+    if (tool === "eraser") return;
     if (tool === "select") moveItem(event, id);
   }
   const tools: { id: Tool; icon: typeof Move; label: string }[] = [
