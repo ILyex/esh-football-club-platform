@@ -1,7 +1,5 @@
 import { spawnSync } from "node:child_process";
 import pg from "pg";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 
 const tacticalPlansMigration = "20261016110000_tactical_plans";
 
@@ -15,8 +13,8 @@ function normalizeConstraint(value) {
   return value.toLowerCase().replaceAll('"', "").replace(/\s+/g, " ").trim();
 }
 
-async function verifyExistingTacticalPlanTable(prisma) {
-  const columns = await prisma.$queryRawUnsafe(
+async function verifyExistingTacticalPlanTable(pool) {
+  const { rows: columns } = await pool.query(
     `SELECT column_name, data_type, is_nullable
      FROM information_schema.columns
      WHERE table_schema = current_schema() AND table_name = 'TacticalPlan'`
@@ -41,7 +39,7 @@ async function verifyExistingTacticalPlanTable(prisma) {
     throw new Error(`Existing TacticalPlan table does not match migration columns: ${columnMismatches.map(([name]) => name).join(", ")}`);
   }
 
-  const indexes = await prisma.$queryRawUnsafe(
+  const { rows: indexes } = await pool.query(
     `SELECT indexname, indexdef FROM pg_indexes
      WHERE schemaname = current_schema() AND tablename = 'TacticalPlan'`
   );
@@ -56,7 +54,7 @@ async function verifyExistingTacticalPlanTable(prisma) {
     throw new Error(`Existing TacticalPlan table is missing matching indexes: ${indexMismatches.map(([name]) => name).join(", ")}`);
   }
 
-  const constraints = await prisma.$queryRawUnsafe(
+  const { rows: constraints } = await pool.query(
     `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
      FROM pg_constraint WHERE conrelid = to_regclass('"TacticalPlan"')`
   );
@@ -83,21 +81,20 @@ if (process.env.VERCEL_ENV !== "production") {
 } else {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for production migrations.");
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10_000 });
-  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
   try {
-    const migrationRows = await prisma.$queryRawUnsafe(
+    const { rows: migrationRows } = await pool.query(
       `SELECT finished_at, rolled_back_at FROM "_prisma_migrations" WHERE migration_name = $1`,
-      tacticalPlansMigration
+      [tacticalPlansMigration]
     );
     const isApplied = migrationRows.some((row) => row.finished_at && !row.rolled_back_at);
     if (!isApplied) {
       console.log(`Checking pre-existing schema before reconciling ${tacticalPlansMigration}.`);
-      await verifyExistingTacticalPlanTable(prisma);
+      await verifyExistingTacticalPlanTable(pool);
       run("npx", ["prisma", "migrate", "resolve", "--applied", tacticalPlansMigration]);
       console.log(`Verified and recorded ${tacticalPlansMigration} as already applied.`);
     }
   } finally {
-    await prisma.$disconnect();
+    await pool.end();
   }
 
   run("npm", ["run", "db:migrate:deploy"]);
