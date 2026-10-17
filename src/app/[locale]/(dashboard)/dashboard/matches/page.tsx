@@ -148,13 +148,13 @@ export default async function MatchesListPage({
                   <td className="px-2.5 py-2.5 align-middle font-medium sm:px-3">
                     <span dir={locale === "ar" ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-[620px] grid-rows-[1.75rem_1rem] items-center gap-y-1">
                       <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
-                        <span dir="auto" title={homeTeamName} className="min-w-0 truncate text-end leading-tight">{homeTeamName}</span>
+                        <span dir={locale === "ar" ? "rtl" : "ltr"} title={homeTeamName} className="min-w-0 truncate text-start leading-tight">{homeTeamName}</span>
                         <span dir="ltr" className="inline-flex min-w-[48px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-1.5 py-1 text-center font-mono text-[11px] font-extrabold tabular-nums shadow-sm sm:min-w-[56px]">
                           <span>{homeScore}</span>
                           <span className="text-muted-foreground/70">:</span>
                           <span>{awayScore}</span>
                         </span>
-                        <span dir="auto" title={awayTeamName} className="min-w-0 truncate text-start leading-tight">{awayTeamName}</span>
+                        <span dir={locale === "ar" ? "rtl" : "ltr"} title={awayTeamName} className="min-w-0 truncate text-end leading-tight">{awayTeamName}</span>
                       </span>
                       <span className="flex h-4 min-w-0 items-center justify-center overflow-hidden whitespace-nowrap text-center text-[10px] font-bold leading-none text-emerald-600 dark:text-emerald-400">
                         {winnerName ? (
