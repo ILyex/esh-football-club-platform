@@ -10,7 +10,8 @@ import { getFafEmsClient } from "./ems-client";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { saveOpponentClub } from "@/lib/opponents";
 import { isSafeExternalUrl } from "./schemas";
-import { combineClubNameVariants, hasArabicScript } from "@/lib/public/locale-text";
+import { combineClubNameVariants } from "@/lib/public/locale-text";
+import { extractFafClubNameVariants } from "./club-names";
 
 type RemoteMatch = Record<string, any>;
 type LocalTeam = { id: string; category: TeamCategory; active: boolean };
@@ -104,14 +105,8 @@ function clubCode(club: unknown): string {
 }
 
 function opponentName(club: unknown): string {
-  return text(club);
-}
-
-function opponentFrenchName(club: unknown): string {
-  if (!club || typeof club !== "object") return "";
-  const record = club as Record<string, unknown>;
-  return [record.nomFr, record.nameFr, record.denominationFr, record.nom, record.name, record.denomination]
-    .find((value): value is string => typeof value === "string" && Boolean(value.trim()) && !hasArabicScript(value))?.trim() ?? "";
+  const names = extractFafClubNameVariants(club);
+  return names.ar || names.fr || text(club);
 }
 
 function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
@@ -302,8 +297,9 @@ export async function importUpcomingFafMatches(options: {
     }
     const homeFixtureIsUs = clubCode(fixture.clubLoc) === currentClubCode;
     const opponentClubRecord = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
-    const opponent = opponentName(opponentClubRecord);
-    const opponentDisplayName = combineClubNameVariants(opponent, opponentFrenchName(opponentClubRecord));
+    const opponentNames = extractFafClubNameVariants(opponentClubRecord);
+    const opponent = opponentNames.ar || opponentNames.fr || opponentName(opponentClubRecord);
+    const opponentDisplayName = combineClubNameVariants(opponentNames.ar || opponent, opponentNames.fr);
     const kickoff = dateInAlgeria(fixture.dateRencontre ?? remote.dateRencontre, fixture.heureRencontre ?? remote.heureRencontre);
     const competitionName = remoteCompetitionName(fixture) || remoteCompetitionName(remote);
     const category = inferCategory(fixture, competitionName) ?? inferCategory(remote, competitionName);

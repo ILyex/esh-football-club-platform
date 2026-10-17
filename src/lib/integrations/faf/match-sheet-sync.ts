@@ -12,7 +12,8 @@ import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-sec
 import { extractDocumentText } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
-import { combineClubNameVariants, hasArabicScript } from "@/lib/public/locale-text";
+import { combineClubNameVariants } from "@/lib/public/locale-text";
+import { extractFafClubNameVariants } from "./club-names";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -119,16 +120,13 @@ function dateKey(value: unknown): string {
 }
 
 function opponentName(club: any): string {
-  return String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "");
-}
-
-function opponentFrenchName(club: any): string {
-  return [club?.nomFr, club?.nameFr, club?.denominationFr, club?.nom, club?.name, club?.denomination]
-    .find((value): value is string => typeof value === "string" && Boolean(value.trim()) && !hasArabicScript(value))?.trim() || "";
+  const names = extractFafClubNameVariants(club);
+  return names.ar || names.fr || String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "");
 }
 
 function remoteClubNames(club: any): string[] {
-  return [opponentName(club), club?.nomFr, club?.nameFr, club?.nom, club?.name, club?.denomination]
+  const names = extractFafClubNameVariants(club);
+  return [names.ar, names.fr, opponentName(club)]
     .filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
 }
 
@@ -676,8 +674,9 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // isHomeFixture flag must never reverse scores or assign events to a side.
   const clubIsHome = remoteLocIsOurClub;
   const opponentClub = clubIsHome ? remote.clubVis : remote.clubLoc;
-  const opponent = opponentName(opponentClub);
-  const opponentDisplayName = combineClubNameVariants(opponent, opponentFrenchName(opponentClub));
+  const opponentNames = extractFafClubNameVariants(opponentClub);
+  const opponent = opponentNames.ar || opponentNames.fr || opponentName(opponentClub);
+  const opponentDisplayName = combineClubNameVariants(opponentNames.ar || opponent, opponentNames.fr);
   const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponentDisplayName;
   const awayTeamName = clubIsHome ? opponentDisplayName : "نادي أمل سيدي حسني";
   const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
