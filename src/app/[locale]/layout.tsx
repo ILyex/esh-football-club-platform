@@ -15,21 +15,20 @@ const cairo = Cairo({
   weight: "variable",
   variable: "--font-cairo",
   display: "swap",
-  preload: false
+  preload: true
 });
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
   weight: ["400", "700"],
   variable: "--font-ibm-plex-arabic",
   display: "swap",
-  preload: false
+  preload: true
 });
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: "variable",
   variable: "--font-plus-jakarta",
-  display: "swap",
-  preload: false
+  display: "swap"
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
