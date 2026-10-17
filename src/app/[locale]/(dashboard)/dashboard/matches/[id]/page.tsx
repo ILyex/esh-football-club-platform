@@ -11,7 +11,6 @@ import {
   upsertLineupEntryAction,
   removeLineupEntryAction,
   attachMatchSheetAction,
-  importSavedFafLineupAction,
   addShootoutKickAction,
   deleteShootoutKickAction,
   syncPreviousMatchRedCardSuspensionsAction
@@ -165,10 +164,6 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   async function syncLineupSuspensions() {
     "use server";
     return syncPreviousMatchRedCardSuspensionsAction(id);
-  }
-  async function importFafLineup() {
-    "use server";
-    return importSavedFafLineupAction(id);
   }
   async function attachSheet(formData: FormData) {
     "use server";
@@ -524,9 +519,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           }))}
           autoSuspendedPlayerIds={Array.from(previousRedCardPlayerIds)}
           canEdit={canManageLineup}
+          fetchFafLineup={canManageLineup ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
           saveEntry={addLineupEntry}
           removeEntry={removeLineupPlayer}
-          importFafLineup={importFafLineup}
           syncAutomaticSuspensions={syncLineupSuspensions}
         />
 

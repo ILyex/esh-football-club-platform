@@ -150,11 +150,20 @@ function eventMinute(value: unknown): number {
   return match ? Math.min(130, Number(match[0])) : 0;
 }
 
-function remoteLocSideOf(entry: any, match: any): boolean | null {
-  const clubCode = entry?.club?.fifaId || entry?.team?.fifaId || entry?.player?.club?.fifaId
+function remoteLocSideOf(entry: any, match: any, historyMatch: any, clubCode: string, remoteLocIsOurClub: boolean): boolean | null {
+  const eventTeamCode = entry?.club?.fifaId || entry?.team?.fifaId || entry?.player?.club?.fifaId
     || entry?.player?.team?.fifaId || entry?.player?.player?.club?.fifaId
     || entry?.player?.player?.team?.fifaId;
-  if (clubCode && match.clubLoc?.fifaId) return String(clubCode).toUpperCase() === String(match.clubLoc.fifaId).toUpperCase();
+  const eventClubCode = String(eventTeamCode || "").toUpperCase();
+  if (eventClubCode) {
+    if (eventClubCode === String(clubCode || "").toUpperCase()) return remoteLocIsOurClub;
+    const visitingCodes = [historyMatch?.clubVis?.fifaId, match?.clubVis?.fifaId]
+      .filter(Boolean).map((value) => String(value).toUpperCase());
+    const localHomeCodes = [historyMatch?.clubLoc?.fifaId, match?.clubLoc?.fifaId]
+      .filter(Boolean).map((value) => String(value).toUpperCase());
+    if (localHomeCodes.includes(eventClubCode)) return true;
+    if (visitingCodes.includes(eventClubCode)) return false;
+  }
   const side = String(entry?.teamSide || entry?.side || entry?.teamType || "").toLowerCase();
   if (/loc|home|domicile|محلي|مضيف/.test(side)) return true;
   if (/vis|away|extérieur|ضيف/.test(side)) return false;
@@ -163,7 +172,7 @@ function remoteLocSideOf(entry: any, match: any): boolean | null {
   return null;
 }
 
-function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: boolean, localClubIsHome: boolean): ImportedMatchEvent[] {
+function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: boolean, localClubIsHome: boolean, historyMatch: any, clubCode: string): ImportedMatchEvent[] {
   const output: ImportedMatchEvent[] = [];
   const keys = new Map<string, number>();
   const sideFor = (isRemoteLocEvent: boolean): "HOME" | "AWAY" =>
@@ -190,29 +199,28 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
   for (const card of remoteCards(match)) {
     const color = String(card.cardColor || card.color || "").toLocaleLowerCase("ar");
     const type = /red|rouge|حمراء|حمرا/.test(color) || match.redCards?.includes?.(card) ? "RED_CARD" : "YELLOW_CARD";
-    const isLoc = remoteLocSideOf(card, match);
+    const isLoc = remoteLocSideOf(card, match, historyMatch, clubCode, remoteLocIsOurClub);
     add(card, type, isLoc, type === "RED_CARD" ? "بطاقة حمراء" : "بطاقة صفراء");
   }
   for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers"])) {
-    const isLoc = remoteLocSideOf(goal, match);
+    const isLoc = remoteLocSideOf(goal, match, historyMatch, clubCode, remoteLocIsOurClub);
     const ownGoal = Boolean(goal.isOwnGoal || goal.ownGoal || /own|contre son camp|ذاتي/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     const penalty = Boolean(goal.isPenalty || goal.penalty || /penalty|penalty_goal|جزاء/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     add(goal, ownGoal ? "OWN_GOAL" : penalty ? "PENALTY_GOAL" : "GOAL", isLoc, ownGoal ? "هدف عكسي" : penalty ? "هدف من ركلة جزاء" : "هدف");
   }
   for (const substitution of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"])) {
-    const isLoc = remoteLocSideOf(substitution, match);
+    const isLoc = remoteLocSideOf(substitution, match, historyMatch, clubCode, remoteLocIsOurClub);
     const outPlayer = substitution.outPlayer || substitution.playerOut || substitution.playerSortant;
     const inPlayer = substitution.inPlayer || substitution.playerIn || substitution.playerEntrant;
     const minute = eventMinute(substitution.minute ?? substitution.substitutionTime ?? substitution.time);
-    if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match) ?? isLoc, "خروج بالتبديل", undefined, minute);
-    if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match) ?? isLoc, "دخول بالتبديل", undefined, minute);
+    if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "خروج بالتبديل", undefined, minute);
+    if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "دخول بالتبديل", undefined, minute);
   }
   return output;
 }
 
-async function reconcilePlayerEvents(matchId: string, teamId: string | null, official: any, externalId: number, localClubIsHome: boolean, clubCode: string): Promise<number> {
-  const remoteLocIsOurClub = String(official.clubLoc?.fifaId || "").toUpperCase() === clubCode.toUpperCase();
-  const imported = remoteMatchEvents(official, externalId, remoteLocIsOurClub, localClubIsHome);
+async function reconcilePlayerEvents(matchId: string, teamId: string | null, official: any, historyMatch: any, externalId: number, localClubIsHome: boolean, remoteLocIsOurClub: boolean, clubCode: string): Promise<number> {
+  const imported = remoteMatchEvents(official, externalId, remoteLocIsOurClub, localClubIsHome, historyMatch, clubCode);
   if (!imported.length) return 0;
 
   let eligibleTeamIds = teamId ? [teamId] : [];
@@ -273,7 +281,24 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
   // duplicate detection prevents them from being imported again.
   let repairedCount = 0;
   for (const event of imported) {
-    if (!event.playerId || event.side == null) continue;
+    if (event.side == null) continue;
+    const importedRows = existing.filter((row) => row.source === "REFEREE_REPORT" && row.type === event.type
+      && row.minute === event.minute && samePersonName(row.playerName, event.playerName));
+    if (importedRows.length === 1) {
+      const importedRow = importedRows[0]!;
+      if (importedRow.side !== event.side || importedRow.playerId !== event.playerId || importedRow.playerName !== event.playerName) {
+        await db.matchEvent.update({
+          where: { id: importedRow.id },
+          data: { side: event.side, playerId: event.playerId, playerName: event.playerName }
+        });
+        importedRow.side = event.side;
+        importedRow.playerId = event.playerId;
+        importedRow.playerName = event.playerName;
+        repairedCount++;
+      }
+      continue;
+    }
+    if (!event.playerId) continue;
     const unlinked = existing.filter((row) => !row.playerId && row.type === event.type && row.minute === event.minute
       && (row.side === event.side || row.source === "REFEREE_REPORT")
       && samePersonName(row.playerName, event.playerName));
@@ -450,14 +475,19 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // card details. The public summary is built from the curated player events.
   const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const referee = [official.arbitre?.prenomArbitre, official.arbitre?.nomArbitre].filter(Boolean).join(" ") || null;
-  const remoteLocIsOurClub = String(official.clubLoc?.fifaId || "").toUpperCase() === config.clubCode.toUpperCase();
-  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture);
+  // resolveLocalMatch matched the fixture against Historique using the club's
+  // configured FIFA id and the local home/away orientation. Treat that match
+  // orientation as the source of truth; detail responses can omit/change IDs.
+  const remoteLocIsOurClub = local.isHomeFixture;
+  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture, remote, config.clubCode);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
     official,
+    remote,
     externalId,
     local.isHomeFixture,
+    remoteLocIsOurClub,
     config.clubCode
   );
   const officialStatus = String(official.status || official.matchStatus || official.etatRencontre || "").toLocaleLowerCase("ar");
