@@ -209,21 +209,22 @@ export async function parseAndApplyRefereeReportWithAI(params: {
     select: { id: true, firstName: true, lastName: true, shirtNumber: true, teamId: true }
   });
 
-  // Determine report text to analyze
-  let textToAnalyze = (reportText || "").trim();
-  if (!textToAnalyze) {
-    textToAnalyze = match.matchReport || "";
-  }
-  if (!textToAnalyze) {
-    // Read the actual attached report. A filename is not report content and
-    // must never be fed to the event parser as if it were evidence.
-    const refDoc = match.documents.find(
-      (d) =>
-        d.matchDocumentType === "REFEREE_REPORT" ||
-        d.name.includes("تقرير حكم") ||
-        d.name.toLowerCase().includes("rapport") ||
-        d.originalName?.toLowerCase().includes("referee")
-    );
+  // Determine report text to analyze. Explicit human-entered text wins; for
+  // FAF imports, analyze the actual official report before the curated public
+  // event summary already stored on the match.
+  const suppliedReportText = (reportText || "").trim();
+  let textToAnalyze = suppliedReportText;
+  const fafFinalReport = match.documents.find((document) =>
+    document.matchDocumentType === "REFEREE_REPORT" && /^FAF-EMS-.+-final-report-ar\.pdf$/i.test(document.originalName || "")
+  );
+  const refDoc = fafFinalReport || match.documents.find(
+    (document) => document.matchDocumentType === "REFEREE_REPORT"
+      || document.name.includes("تقرير حكم")
+      || document.name.toLowerCase().includes("rapport")
+      || document.originalName?.toLowerCase().includes("referee")
+  );
+  if (!textToAnalyze && refDoc) {
+    // A filename is not report content and must never be fed to the parser as evidence.
     if (refDoc) {
       try {
         const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
@@ -237,6 +238,7 @@ export async function parseAndApplyRefereeReportWithAI(params: {
       }
     }
   }
+  if (!textToAnalyze) textToAnalyze = match.matchReport || "";
 
   if (!textToAnalyze) {
     return {
@@ -344,7 +346,9 @@ ${squadRoster}
   const newEventsToCreate: ParsedEventItem[] = [];
   for (const candidate of validEvents) {
     const alreadyRecorded = existingEvents.some(
-      (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
+      (event) => event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
+        && (event.playerId === candidate.playerId
+          || (!event.playerId && normalizeName(event.playerName || "") === normalizeName(candidate.playerName)))
     );
     const duplicatedInReport = newEventsToCreate.some(
       (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
@@ -370,7 +374,7 @@ ${squadRoster}
   await db.match.update({
     where: { id: matchId },
     data: {
-      matchReport: textToAnalyze,
+      ...(suppliedReportText ? { matchReport: suppliedReportText } : {}),
       ...(detectedScore && match.homeScore === null ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });

@@ -182,7 +182,7 @@ export async function updateWebsiteSocialReelsAction(formData: FormData): Promis
 export async function updateHomepageHeroImageAction(formData: FormData): Promise<{ success: boolean; imageUrl?: string; error?: string; warning?: string }> {
   const user = await requirePermission("settings.manage");
   const file = formData.get("heroImage");
-  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة أو فيديو صالحاً أولاً." };
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة صالحة أولاً." };
   if (file.size > 20 * 1024 * 1024) return { success: false, error: "حجم فيديو الهيدر يجب ألا يتجاوز 20 ميغابايت. الصور بحد أقصى 8 ميغابايت." };
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -211,7 +211,7 @@ export async function updateHomepageHeroImageAction(formData: FormData): Promise
 export async function updateDashboardWelcomeBannerAction(formData: FormData): Promise<{ success: boolean; imageUrl?: string; error?: string; warning?: string }> {
   const user = await requirePermission("settings.manage");
   const file = formData.get("bannerImage");
-  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة صالحة أولاً." };
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة أو فيديو صالحاً أولاً." };
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const { mime, ext } = await validateUploadedBannerImage(buffer);
@@ -250,10 +250,16 @@ export async function updateWebsiteImageSlotAction(formData: FormData): Promise<
   const slot = formData.get("slot");
   const file = formData.get("image");
   if (typeof slot !== "string" || !(slot in websiteImageSlots)) return { success: false, error: "نوع الصورة غير مدعوم." };
-  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة صالحة أولاً." };
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة أو فيديو صالحاً أولاً." };
+  // Vercel rejects function requests over 4.5MB before they reach Next.js.
+  // Keep a margin for multipart/server-action overhead so users get a clear error.
+  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+  if (onVercel && file.size > 4 * 1024 * 1024) {
+    return { success: false, error: "حجم الملف على الاستضافة الحالية يجب ألا يتجاوز 4 ميغابايت." };
+  }
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { mime, ext } = await validateUploadedImage(buffer);
+    const { mime, ext } = await validateUploadedMedia(buffer);
     const config = websiteImageSlots[slot as WebsiteImageSlot];
     const imageUrl = await uploadPublicFile({ key: generatePublicStorageKey(`branding/${config.storageKey}`, ext), buffer, mimeType: mime });
     const before = await db.clubSettings.findUnique({ where: { id: "singleton" }, select: { socialLinks: true } });

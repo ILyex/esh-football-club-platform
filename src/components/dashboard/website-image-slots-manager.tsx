@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "re
 import { ImagePlus, LoaderCircle, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateWebsiteImageSlotAction, type WebsiteImageSlot } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
+import { isVideoUrl } from "@/lib/media-utils";
 
 type Slot = { id: WebsiteImageSlot; title: string; dimensions: string; fallback: string };
 
@@ -15,7 +16,7 @@ const slots: Slot[] = [
   { id: "introPoster", title: "صورة غلاف فيديو التعريف", dimensions: "1920 × 1080 px", fallback: "/branding/esh-intro-poster.jpg" }
 ];
 
-export function WebsiteImageSlotsManager({ images }: { images: Record<string, string> }) {
+export function WebsiteImageSlotsManager({ images, onVercel = false }: { images: Record<string, string>; onVercel?: boolean }) {
   const [saved, setSaved] = useState(images);
   const [selected, setSelected] = useState<Partial<Record<WebsiteImageSlot, File>>>({});
   const [previews, setPreviews] = useState<Partial<Record<WebsiteImageSlot, string>>>({});
@@ -54,9 +55,9 @@ export function WebsiteImageSlotsManager({ images }: { images: Record<string, st
         if (oldPreview) URL.revokeObjectURL(oldPreview);
         delete previewUrls.current[slot.id];
         setPreviews((value) => ({ ...value, [slot.id]: undefined }));
-        setFeedback((value) => ({ ...value, [slot.id]: { ok: true, text: "تم تحديث الصورة بنجاح." } }));
+        setFeedback((value) => ({ ...value, [slot.id]: { ok: true, text: "تم تحديث الوسائط بنجاح." } }));
       } else {
-        setFeedback((value) => ({ ...value, [slot.id]: { ok: false, text: result.error || "تعذر حفظ الصورة." } }));
+        setFeedback((value) => ({ ...value, [slot.id]: { ok: false, text: result.error || "تعذر حفظ الملف." } }));
       }
       setBusySlot(null);
     });
@@ -68,26 +69,31 @@ export function WebsiteImageSlotsManager({ images }: { images: Record<string, st
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary"><ImagePlus className="h-5 w-5" /></span>
         <div>
           <h2 id="website-image-slots-title" className="text-base font-bold text-foreground">صور أقسام الموقع</h2>
-          <p className="mt-1 text-xs text-muted-foreground">بدّل صور الفرق وغلاف فيديو التعريف. تظهر الصورة الجديدة في الموقع بعد الحفظ.</p>
+          <p className="mt-1 text-xs text-muted-foreground">بدّل وسائط أقسام الفرق وغلاف فيديو التعريف. تظهر الصورة أو الفيديو في الموقع بعد الحفظ.</p>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {slots.map((slot) => {
-          const image = previews[slot.id] || saved[slot.id] || slot.fallback;
+          const media = previews[slot.id] || saved[slot.id] || slot.fallback;
+          const video = selected[slot.id]?.type.startsWith("video/") || isVideoUrl(media);
           return (
             <article key={slot.id} className="overflow-hidden rounded-xl border border-border bg-background">
               <div className="relative aspect-video overflow-hidden bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image} alt={slot.title} className="h-full w-full object-cover" />
+                {video ? (
+                  <video src={media} className="h-full w-full object-cover" controls playsInline preload="metadata" aria-label={slot.title} />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={media} alt={slot.title} className="h-full w-full object-cover" />
+                )}
                 <span className="absolute end-2 top-2 rounded-md border border-white/15 bg-black/75 px-2 py-1 text-[11px] font-bold text-white">المقاس المناسب: {slot.dimensions}</span>
                 {previews[slot.id] && <span className="absolute bottom-2 start-2 rounded-md bg-black/75 px-2 py-1 text-[11px] font-semibold text-white">معاينة قبل الحفظ</span>}
               </div>
               <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0"><h3 className="text-sm font-bold">{slot.title}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">JPG أو PNG أو WebP — حتى 8 ميغابايت</p></div>
+                <div className="min-w-0"><h3 className="text-sm font-bold">{slot.title}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">صور JPG وPNG وWebP أو فيديو MP4 وWebM وMOV — حتى {onVercel ? "4" : "8 للصورة و35 للفيديو"} ميغابايت.</p></div>
                 <div className="flex shrink-0 items-center gap-2">
                   <label className="cursor-pointer rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
-                    {selected[slot.id] ? "تغيير الصورة" : "اختيار صورة"}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => pick(slot, event)} disabled={isSaving} />
+                    {selected[slot.id] ? "تغيير الملف" : "اختيار صورة أو فيديو"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov" className="sr-only" onChange={(event) => pick(slot, event)} disabled={isSaving} />
                   </label>
                   <Button type="button" size="sm" disabled={!selected[slot.id] || isSaving} onClick={() => save(slot)} className="gap-1.5">
                     {busySlot === slot.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}

@@ -31,22 +31,39 @@ export class StorageConfigurationError extends Error {
 
 /** Returns true if external S3-compatible private storage is configured in environment. */
 export function isStorageConfigured(): boolean {
-  if (process.env.STORAGE_DRIVER?.trim().toLowerCase() === "local") return false;
+  const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  if (driver === "local" || driver === "database" || driver === "db") return false;
   return Boolean(process.env.STORAGE_PRIVATE_BUCKET?.trim());
 }
 
-/** Private files remain local unless private S3 storage is configured. */
+/** Private files use durable DB storage as a fallback on serverless hosts. */
 export function isLocalStorageMode(): boolean {
+  // Vercel function filesystems are read-only/ephemeral. Even if an old
+  // deployment still says `local`, private and public bytes must use the DB
+  // fallback unless a persistent object bucket is configured.
+  if (isServerlessRuntime() && !isStorageConfigured()) return false;
   const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
   if (driver === "local") return true;
   if (driver === "s3") return false;
   return !isStorageConfigured();
 }
 
+function isServerlessRuntime(): boolean {
+  return process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV)
+    || process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined;
+}
+
+export function isPrivateDatabaseStorageMode(): boolean {
+  const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  return driver === "database" || driver === "db"
+    || (isServerlessRuntime() && !isStorageConfigured());
+}
+
 /** Public uploads default to the database, never the host PC's local disk. */
 export function isDatabaseStorageMode(): boolean {
   const driver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
   if (driver === "database" || driver === "db") return true;
+  if (isServerlessRuntime() && !isPublicStorageConfigured()) return true;
   if (driver === "local" || driver === "s3") return false;
   return !isPublicStorageConfigured();
 }
@@ -502,6 +519,15 @@ export async function uploadPrivateFile(params: {
     return;
   }
 
+  if (isPrivateDatabaseStorageMode()) {
+    await db.privateAsset.upsert({
+      where: { key: params.key },
+      create: { key: params.key, mimeType: params.mimeType, sizeBytes: params.buffer.byteLength, data: Uint8Array.from(params.buffer) },
+      update: { mimeType: params.mimeType, sizeBytes: params.buffer.byteLength, data: Uint8Array.from(params.buffer) }
+    });
+    return;
+  }
+
   if (isLocalStorageMode()) {
     const targetPath = getLocalFilePath(params.key);
     await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
@@ -532,7 +558,7 @@ export async function getPrivateFileDownloadUrl(
     return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
   }
 
-  if (isLocalStorageMode()) {
+  if (isLocalStorageMode() || isPrivateDatabaseStorageMode()) {
     const boundedExpiry = Math.max(1, Math.min(Math.floor(expiresInSeconds), 300));
     const expiresAt = Date.now() + boundedExpiry * 1000;
     const inline = options?.inline === true;
@@ -569,6 +595,12 @@ export async function getPrivateFileBuffer(key: string): Promise<Buffer> {
     return Buffer.from(byteArray);
   }
 
+  if (isPrivateDatabaseStorageMode()) {
+    const asset = await db.privateAsset.findUnique({ where: { key }, select: { data: true } });
+    if (asset?.data) return Buffer.from(asset.data);
+    throw new Error(`Object not found or empty: ${key}`);
+  }
+
   if (isLocalStorageMode()) {
     const targetPath = getLocalFilePath(key);
     if (!fs.existsSync(targetPath)) {
@@ -595,6 +627,11 @@ export async function deletePrivateFile(key: string): Promise<void> {
     if (!bucket) return;
     const s3 = getS3Client();
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    return;
+  }
+
+  if (isPrivateDatabaseStorageMode()) {
+    await db.privateAsset.deleteMany({ where: { key } });
     return;
   }
 

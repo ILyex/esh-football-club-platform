@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
-import { ImagePlus, LoaderCircle, Save } from "lucide-react";
+import { useEffect, useId, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { FileCheck2, ImagePlus, LoaderCircle, Save, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateDashboardWelcomeBannerAction } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
 
@@ -12,6 +12,7 @@ interface DashboardWelcomeBannerManagerProps {
 
 export function DashboardWelcomeBannerManager({ locale, currentImageUrl }: DashboardWelcomeBannerManagerProps) {
   const isAr = locale === "ar";
+  const inputId = useId();
   const [savedUrl, setSavedUrl] = useState(currentImageUrl || "/branding/esh-header-crest.png");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -96,16 +97,37 @@ export function DashboardWelcomeBannerManager({ locale, currentImageUrl }: Dashb
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-semibold text-foreground">
-          <span>{isAr ? "اختر صورة أو GIF" : "Choisir une image ou un GIF"}</span>
+        <div className="min-w-0 flex-1">
+          <span className="mb-1.5 block text-xs font-semibold text-foreground">{isAr ? "اختر صورة أو GIF" : "Choisir une image ou un GIF"}</span>
           <input
+            id={inputId}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={handleFileChange}
             disabled={isSaving}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-foreground"
+            className="sr-only"
           />
-        </label>
+          <label
+            htmlFor={inputId}
+            aria-disabled={isSaving}
+            className={`flex min-h-12 items-center gap-3 rounded-xl border border-dashed border-border bg-background px-3 py-2.5 text-start transition-colors ${isSaving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary/50 hover:bg-primary/[0.03] focus-within:border-primary"} focus-within:ring-2 focus-within:ring-primary/20`}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              {file ? <FileCheck2 className="h-4 w-4" /> : <UploadCloud className="h-4 w-4" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-foreground">
+                {file?.name || (isAr ? "اضغط لاختيار صورة" : "Cliquer pour choisir une image")}
+              </span>
+              <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                {isAr ? "JPG أو PNG أو WebP أو GIF · حتى 2 ميغابايت" : "JPG, PNG, WebP ou GIF · jusqu’à 2 Mo"}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted">
+              {isAr ? (file ? "تغيير الملف" : "اختيار ملف") : (file ? "Changer" : "Parcourir")}
+            </span>
+          </label>
+        </div>
         <Button type="submit" disabled={!file || isSaving} className="shrink-0 gap-2">
           {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           <span>{isAr ? "حفظ البانر" : "Enregistrer la bannière"}</span>

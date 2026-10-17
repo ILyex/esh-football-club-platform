@@ -76,7 +76,7 @@ const nextConfig = {
   experimental: {
     ...(lowMemoryBuild ? { cpus: 1 } : {}),
     serverActions: {
-      bodySizeLimit: "25mb" // allow larger uploads via server actions where used
+      bodySizeLimit: "40mb" // website media videos may be up to 35MB
     }
   },
   async headers() {

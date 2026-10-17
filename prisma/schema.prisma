@@ -43,13 +43,26 @@ datasource db {
 }
 
 // Public media bytes live in the managed database for self-hosted installs,
-// keeping uploaded assets off the administrator's PC. This table is only for
-// public website assets; confidential documents continue using private storage.
+// keeping uploaded assets off the administrator's PC. Confidential documents
+// use the separate PrivateAsset fallback only on serverless hosts without S3.
 model PublicAsset {
   key       String   @id
   mimeType  String
   sizeBytes Int
   data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Private documents uploaded by serverless deployments when no S3-compatible
+// private bucket is configured. This table is never exposed through public
+// media routes; access remains behind the existing permission-checked APIs.
+model PrivateAsset {
+  key       String   @id
+  mimeType  String
+  sizeBytes Int
+  data      Bytes    @db.ByteA
   createdAt DateTime @default(now())
 
   @@index([createdAt])
@@ -875,7 +888,9 @@ model MatchEvent {
   notes        String?
   playerName   String?
   playerNameFr String?
+  fafExternalKey String?
 
+  @@unique([matchId, fafExternalKey])
   @@index([staffId])
 }
 
@@ -947,6 +962,7 @@ model MatchLineup {
   isStarting      Boolean @default(true)
   selectionStatus String  @default("STARTING")
   position        String?
+  shirtNumber     Int?
 
   @@id([matchId, playerId])
 }

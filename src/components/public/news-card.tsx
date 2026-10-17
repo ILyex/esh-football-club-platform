@@ -35,7 +35,6 @@ export function NewsCard({ article, locale, readMoreLabel }: NewsCardProps) {
               </div>
             </div>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
             <SafeImage
               src={article.featuredImageUrl}
               fallbackSrc="/branding/esh-logo-128.png"

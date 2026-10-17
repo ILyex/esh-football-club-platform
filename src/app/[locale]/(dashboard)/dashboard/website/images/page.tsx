@@ -24,7 +24,7 @@ export default async function WebsiteImagesPage({ params }: { params: Promise<{ 
       </header>
       <WebsiteAppearanceManager locale={locale} currentImageUrl={settings?.homepageHeroImageUrl ?? null} />
       <DashboardWelcomeBannerManager locale={locale} currentImageUrl={settings?.dashboardWelcomeBannerUrl ?? null} />
-      <WebsiteImageSlotsManager images={websiteImages} />
+      <WebsiteImageSlotsManager images={websiteImages} onVercel={process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV)} />
     </div>
   );
 }

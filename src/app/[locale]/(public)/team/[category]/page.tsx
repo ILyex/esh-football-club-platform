@@ -8,6 +8,7 @@ import { PositionGroupsCarousel } from "@/components/public/position-groups-caro
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 import { getPublicClubSettings } from "@/lib/public/club";
+import { isVideoUrl } from "@/lib/media-utils";
 
 export default async function TeamCategoryPage({
   params
@@ -81,14 +82,16 @@ export default async function TeamCategoryPage({
     u17: club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg",
     u15: club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg"
   };
-  const catImg = categoryImages[categorySlug];
+  const uploadedCategoryMedia = categoryImages[categorySlug];
+  const uploadedCategoryVideo = isVideoUrl(uploadedCategoryMedia);
+  const catImg = uploadedCategoryVideo ? `/branding/teams/category-${categorySlug}.jpg` : uploadedCategoryMedia;
   const categoryVideos: Record<string, string> = {
     senior: "/branding/teams/category-senior.mp4",
     u20: "/branding/teams/category-u20.mp4",
     u17: "/branding/teams/category-u17.mp4",
     u15: "/branding/teams/category-u15.mp4"
   };
-  const catVideo = categoryVideos[categorySlug];
+  const catVideo = uploadedCategoryVideo ? uploadedCategoryMedia : categoryVideos[categorySlug];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">

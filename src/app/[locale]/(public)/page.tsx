@@ -418,7 +418,8 @@ export default async function HomePage({
 
               <ClubIntroVideo
                 label={locale === "ar" ? "الشعار المتحرك للجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Logo animé de l’Association Sportive Espoir Sidi Hosni de Football"}
-                poster={homeData.club.websiteImages.introPoster || "/branding/esh-intro-poster.jpg"}
+                poster={homeData.club.websiteImages.introPoster && !isVideoUrl(homeData.club.websiteImages.introPoster) ? homeData.club.websiteImages.introPoster : "/branding/esh-intro-poster.jpg"}
+                videoSrc={isVideoUrl(homeData.club.websiteImages.introPoster) ? homeData.club.websiteImages.introPoster : undefined}
               />
 
               <p className="line-clamp-4 text-xs leading-6 text-muted-foreground sm:text-[13px]">

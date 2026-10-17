@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Professional Football Club Website & Management Platform (Next.js, Prisma, PostgreSQL, next-intl AR/FR RTL-LTR)",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "node scripts/start-dev.mjs",
@@ -46,9 +46,6 @@
     "test:ratelimit:integration": "tsx --tsconfig tests/finance/tsconfig.integration.json scripts/check-rate-limit-db.ts",
     "test:all": "npm run test:finance && npm run test:rbac && npm run test:testing && npm run test:security:deps"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
     "@aws-sdk/s3-request-presigner": "^3.700.0",
@@ -64,6 +61,7 @@
     "date-fns": "^4.1.0",
     "docx-preview": "^0.4.1",
     "docxtemplater": "^3.55.0",
+    "dotenv": "^16.6.1",
     "file-type": "^21.3.1",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.9",

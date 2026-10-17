@@ -32,6 +32,7 @@ type LineupEntry = {
   isStarting: boolean;
   selectionStatus: string;
   position: string | null;
+  shirtNumber?: number | null;
 };
 
 type LineupStatus = "STARTING" | "SUBSTITUTE" | "INJURED" | "SUSPENDED" | "NOT_CALLED";
@@ -136,11 +137,11 @@ export function MatchLineupWorkspace({
         playerName: playerDisplayName(player, "ar"),
         playerNameFr: playerDisplayName(player, "fr"),
         photoUrl: player.photoUrl,
-        shirtNumber: player.shirtNumber,
+        shirtNumber: entryById.get(player.id)?.shirtNumber ?? player.shirtNumber,
         position: entry.position || player.position
       };
     })
-    .filter((player): player is NonNullable<typeof player> => player !== null), [entries, playerById]);
+    .filter((player): player is NonNullable<typeof player> => player !== null), [entries, entryById, playerById]);
   const selectedStartingPlayer = startingPlayers.find((player) => player.playerId === selectedPlayerId) ?? null;
   const availablePlayers = players.filter((player) => !entryById.has(player.id));
   const visibleAvailablePlayers = availablePlayers.filter((player) => `${playerDisplayName(player, locale)} ${player.firstName} ${player.lastName}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
@@ -470,7 +471,7 @@ export function MatchLineupWorkspace({
             {benchPlayers.length > 0 ? benchPlayers.map((entry) => {
               const player = playerById.get(entry.playerId);
               if (!player) return null;
-              return <PlayerToken key={entry.playerId} player={player} locale={locale} canEdit={canEdit} busy={savingPlayerId === entry.playerId} selected={selectedPlayerId === player.id} onSelect={() => setSelectedPlayerId(player.id)} onDragStart={(event) => event.dataTransfer.setData("text/plain", player.id)} onRemove={() => void removeFromMatch(player.id)} />;
+              return <PlayerToken key={entry.playerId} player={{ ...player, shirtNumber: entry.shirtNumber ?? player.shirtNumber }} locale={locale} canEdit={canEdit} busy={savingPlayerId === entry.playerId} selected={selectedPlayerId === player.id} onSelect={() => setSelectedPlayerId(player.id)} onDragStart={(event) => event.dataTransfer.setData("text/plain", player.id)} onRemove={() => void removeFromMatch(player.id)} />;
             }) : <p className="w-full rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-[11px] text-muted-foreground">{isAr ? "اسحب لاعباً أو اختره ثم اضغط هنا لإضافته إلى الدكة." : "Glissez un joueur ou sélectionnez-le puis touchez ici pour l’ajouter au banc."}</p>}
           </div>
         </section>
@@ -492,7 +493,7 @@ export function MatchLineupWorkspace({
                     const player = playerById.get(entry.playerId);
                     if (!player) return null;
                     const locked = autoSuspended.has(player.id) || player.status === "INJURED";
-                    return <PlayerToken key={entry.playerId} player={player} locale={locale} canEdit={canEdit && !locked} busy={savingPlayerId === player.id} selected={selectedPlayerId === player.id} onDragStart={(event) => event.dataTransfer.setData("text/plain", player.id)} onRemove={() => void removeFromMatch(player.id)} onSelect={() => { if (!locked) setSelectedPlayerId(player.id); }} compact />;
+                    return <PlayerToken key={entry.playerId} player={{ ...player, shirtNumber: entry.shirtNumber ?? player.shirtNumber }} locale={locale} canEdit={canEdit && !locked} busy={savingPlayerId === player.id} selected={selectedPlayerId === player.id} onDragStart={(event) => event.dataTransfer.setData("text/plain", player.id)} onRemove={() => void removeFromMatch(player.id)} onSelect={() => { if (!locked) setSelectedPlayerId(player.id); }} compact />;
                   })}
                   {groupEntries.length === 0 && <p className="w-full text-center text-[10px] text-muted-foreground">{canEdit ? (isAr ? "أسقط اللاعب هنا" : "Déposez ici") : "—"}</p>}
                 </div>

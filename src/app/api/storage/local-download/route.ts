@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
-import { isLocalStorageMode, getPrivateFileBuffer } from "@/lib/storage";
+import { isLocalStorageMode, isPrivateDatabaseStorageMode, getPrivateFileBuffer } from "@/lib/storage";
 import { verifyLocalDownloadSignature } from "@/lib/storage-signing";
 
 export async function GET(req: NextRequest) {
-  if (!isLocalStorageMode()) {
+  if (!isLocalStorageMode() && !isPrivateDatabaseStorageMode()) {
     return NextResponse.json({ error: "Local storage download is not enabled." }, { status: 403 });
   }
 

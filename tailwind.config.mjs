@@ -1,12 +1,11 @@
-import type { Config } from "tailwindcss";
-
 // IMPORTANT (RTL/LTR): components in this project should prefer Tailwind's
 // logical-property utilities (ms-/me-/ps-/pe-/start-/end-/text-start/text-end)
 // instead of physical left/right utilities (ml-/mr-/pl-/pr-/left-/right-).
 // Logical utilities automatically flip direction based on the `dir` attribute
 // set in src/app/[locale]/layout.tsx, so the SAME markup works correctly for
 // both Arabic (RTL) and French (LTR) without any conditional classes.
-const config: Config = {
+/** @type {import("tailwindcss").Config} */
+const config = {
   darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {

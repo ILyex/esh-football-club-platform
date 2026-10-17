@@ -48,6 +48,7 @@ export async function enqueueFAFSyncJob(
 
 import { FAFSessionManager } from "./session-manager";
 import { dispatchNotification } from "@/lib/notifications/service";
+import { nanoid } from "nanoid";
 
 export const fafKeepAlivePayloadSchema = z.object({
   source: z.string().optional()
@@ -67,11 +68,13 @@ export async function enqueueFAFKeepAliveJob(client: DbOrTx) {
 }
 
 export async function enqueueFAFMatchSyncJob(client: DbOrTx, input: { matchId: string; userId: string }) {
-  const dayKey = new Date().toISOString().slice(0, 10);
   return enqueueJob(client, {
     type: "faf.match_sync",
     payload: input,
-    idempotencyKey: `faf-match-sync-${input.matchId}-${dayKey}`,
+    // Each explicit pull is a reconciliation request. Event and document
+    // identities make the import idempotent, so don't block a second pull
+    // just because the same match was already synchronized earlier today.
+    idempotencyKey: `faf-match-sync-${input.matchId}-${nanoid(12)}`,
     createdById: input.userId,
     priority: "HIGH",
     maxAttempts: 2

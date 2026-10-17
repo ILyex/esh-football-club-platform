@@ -515,7 +515,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             playerId: lineup.playerId,
             isStarting: lineup.isStarting,
             selectionStatus: lineup.selectionStatus,
-            position: lineup.position
+            position: lineup.position,
+            shirtNumber: lineup.shirtNumber
           }))}
           autoSuspendedPlayerIds={Array.from(previousRedCardPlayerIds)}
           canEdit={canManageLineup}

@@ -420,7 +420,6 @@ export default async function DashboardHomePage({
           className="lg:col-span-5 relative overflow-hidden rounded-2xl border border-border/80 bg-zinc-900 p-6 text-white shadow-md flex flex-col justify-between min-h-[220px]"
         >
           {/* The browser decodes only this visible banner; GIF animation uses native image playback. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <SafeImage
             src={dashboardBranding?.dashboardWelcomeBannerUrl || "/branding/esh-header-crest.png"}
             fallbackSrc="/branding/esh-header-crest.png"
@@ -445,7 +444,6 @@ export default async function DashboardHomePage({
 
             {/* Club Crest in Banner */}
             <div className="h-12 w-12 shrink-0 rounded-xl bg-black/40 border border-white/10 p-2 backdrop-blur-xs flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <SafeImage src="/branding/esh-logo-64.png" fallbackSrc="/branding/esh-logo-64.png" alt="ESH" className="h-9 w-9 object-contain" />
             </div>
           </div>

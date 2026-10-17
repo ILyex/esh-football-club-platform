@@ -110,8 +110,8 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   const storageEndpoint = env.STORAGE_ENDPOINT?.trim();
   const storageDriver = env.STORAGE_DRIVER?.trim().toLowerCase() || "s3";
   const localStorageRoot = env.STORAGE_LOCAL_ROOT?.trim();
-  if (storageDriver !== "s3" && storageDriver !== "local") {
-    issues.push("STORAGE_DRIVER must be either 's3' or 'local'.");
+  if (storageDriver !== "s3" && storageDriver !== "local" && storageDriver !== "database" && storageDriver !== "db") {
+    issues.push("STORAGE_DRIVER must be 's3', 'local', or 'database'.");
   }
   if (privateBucket && publicBucket && privateBucket === publicBucket) {
     issues.push("STORAGE_PRIVATE_BUCKET and STORAGE_PUBLIC_BUCKET must NOT be the same bucket (isolation violation).");
@@ -127,6 +127,8 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
         }
         warnings.push("Local file storage is tied to one server and must be included in off-server backups.");
       }
+    } else if (storageDriver === "database" || storageDriver === "db") {
+      warnings.push("Private documents and public media use PostgreSQL storage; include asset tables in database backups.");
     } else {
       if (!privateBucket) {
         issues.push("STORAGE_PRIVATE_BUCKET is required in production for secure private document storage.");

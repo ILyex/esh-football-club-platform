@@ -408,6 +408,9 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       competition: { select: { name: true } },
       team: { select: { category: true, name: true } },
       events: {
+        // Technical staff discipline stays internal; only player events appear
+        // on the public match center.
+        where: { staffId: null },
         select: {
           id: true,
           minute: true,
@@ -437,6 +440,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
         select: {
           playerId: true,
           position: true,
+          shirtNumber: true,
           isStarting: true,
           player: {
             select: {
@@ -489,7 +493,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       playerNameFr: frenchPublicPersonName(l.player, `${l.player.firstName} ${l.player.lastName}`),
       playerSlug: l.player.slug,
       photoUrl: normalizePublicMediaUrl(l.player.photoUrl),
-      shirtNumber: l.player.shirtNumber,
+      shirtNumber: l.shirtNumber ?? l.player.shirtNumber,
       position: l.position || l.player.position,
       isStarting: true
     }));
@@ -502,7 +506,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       playerNameFr: frenchPublicPersonName(l.player, `${l.player.firstName} ${l.player.lastName}`),
       playerSlug: l.player.slug,
       photoUrl: normalizePublicMediaUrl(l.player.photoUrl),
-      shirtNumber: l.player.shirtNumber,
+      shirtNumber: l.shirtNumber ?? l.player.shirtNumber,
       position: l.position || l.player.position,
       isStarting: false
     }));

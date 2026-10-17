@@ -6,6 +6,7 @@ import { getPublicTeams } from "@/lib/public/teams";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 import { getPublicClubSettings } from "@/lib/public/club";
+import { isVideoUrl } from "@/lib/media-utils";
 
 export default async function TeamsOverviewPage({
   params
@@ -23,12 +24,16 @@ export default async function TeamsOverviewPage({
     getPublicClubSettings()
   ]);
 
-  const categoryMedia: Record<string, { video: string; poster: string }> = {
-    senior: { video: "/branding/teams/category-senior.mp4", poster: club.websiteImages.teamSenior || "/branding/teams/category-senior.jpg" },
-    u20: { video: "/branding/teams/category-u20.mp4", poster: club.websiteImages.teamU20 || "/branding/teams/category-u20.jpg" },
-    u17: { video: "/branding/teams/category-u17.mp4", poster: club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg" },
-    u15: { video: "/branding/teams/category-u15.mp4", poster: club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg" }
-  };
+  const categoryMedia: Record<string, { video: string; poster: string }> = Object.fromEntries(
+    (["senior", "u20", "u17", "u15"] as const).map((category) => {
+      const uploaded = club.websiteImages[`team${category === "senior" ? "Senior" : category.toUpperCase()}`];
+      const fallbackPoster = `/branding/teams/category-${category}.jpg`;
+      return [category, {
+        video: isVideoUrl(uploaded) ? uploaded! : `/branding/teams/category-${category}.mp4`,
+        poster: uploaded && !isVideoUrl(uploaded) ? uploaded : fallbackPoster
+      }];
+    })
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">

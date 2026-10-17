@@ -6,6 +6,8 @@ import { writeAuditLog } from "@/lib/audit";
 import { normalizeOpponentName } from "@/lib/opponents";
 import { getFAFConfig } from "./config";
 import { getFafEmsClient } from "./ems-client";
+import { saveOpponentClub } from "@/lib/opponents";
+import { isSafeExternalUrl } from "./schemas";
 
 type RemoteMatch = Record<string, any>;
 type LocalTeam = { id: string; category: TeamCategory; active: boolean };
@@ -100,6 +102,23 @@ function clubCode(club: unknown): string {
 
 function opponentName(club: unknown): string {
   return text(club);
+}
+
+function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
+  const raw = [club.logoUrl, club.logo, club.blason, club.urlLogo, club.urlBlason, club.image]
+    .find((value) => typeof value === "string" && value.trim());
+  if (!raw) return null;
+  try {
+    const url = new URL(String(raw).trim(), portalUrl);
+    return isSafeExternalUrl(url.href) ? url.href : null;
+  } catch { return null; }
+}
+
+function refereeName(match: RemoteMatch): string | null {
+  const referee = match.arbitre || match.referee || match.refereePrincipal;
+  const full = [referee?.prenomArbitre, referee?.nomArbitre, referee?.firstName, referee?.lastName]
+    .filter((part) => typeof part === "string" && part.trim()).join(" ").trim();
+  return full || (typeof referee === "string" ? referee.trim() : null);
 }
 
 function remoteCompetitionName(match: RemoteMatch): string {
@@ -222,13 +241,35 @@ export async function importUpcomingFafMatches(options: {
     const homeTeamName = homeIsUs ? clubName : opponent;
     const awayTeamName = homeIsUs ? opponent : clubName;
     const stadium = text(remote.stade);
+    const referee = refereeName(remote);
+    const opponentClub = homeIsUs ? remote.clubVis : remote.clubLoc;
+    const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
+    if (logoUrl) {
+      try { await saveOpponentClub(opponent, logoUrl, stadium || undefined); }
+      catch { if (result.warnings.length < 5) result.warnings.push(`تعذر حفظ شعار المنافس للمباراة ${externalId}، لكن سيستمر استيراد المباراة.`); }
+    }
     try {
       const outcome = await db.$transaction(async (tx) => {
         const mapped = await tx.integrationState.findUnique({ where: { key: externalKey }, select: { value: true } });
         if (mapped) {
           const mappedId = storedMatchId(mapped.value);
-          const mappedMatchExists = mappedId ? await tx.match.findUnique({ where: { id: mappedId }, select: { id: true } }) : null;
-          if (mappedMatchExists) return "existing" as const;
+          const mappedMatchExists = mappedId ? await tx.match.findUnique({ where: { id: mappedId }, select: { id: true, teamId: true, homeTeamName: true, awayTeamName: true, stadium: true, refereeName: true, refereeNameAr: true } }) : null;
+          if (mappedMatchExists) {
+            await tx.match.update({
+              where: { id: mappedMatchExists.id },
+              data: {
+                matchDate: kickoff,
+                ...(stadium ? { stadium } : {}),
+                ...(referee ? { refereeName: referee, refereeNameAr: referee } : {})
+              }
+            });
+            await tx.calendarEvent.upsert({
+              where: { relatedMatchId: mappedMatchExists.id },
+              update: { startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
+              create: { title: `${mappedMatchExists.homeTeamName} vs ${mappedMatchExists.awayTeamName}`, type: "MATCH", startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null, relatedMatchId: mappedMatchExists.id }
+            });
+            return "existing" as const;
+          }
           await tx.integrationState.delete({ where: { key: externalKey } });
         }
 
@@ -239,7 +280,7 @@ export async function importUpcomingFafMatches(options: {
             competitionId: competition.id,
             matchDate: { gte: bounds.start, lt: bounds.end }
           },
-          select: { id: true, homeTeamName: true, awayTeamName: true, isHomeFixture: true }
+          select: { id: true, homeTeamName: true, awayTeamName: true, isHomeFixture: true, stadium: true, refereeName: true, refereeNameAr: true }
         });
         const existingManual = sameDayMatches.find((match) => {
           const existingOpponent = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
@@ -254,18 +295,31 @@ export async function importUpcomingFafMatches(options: {
             isHomeFixture: homeIsUs,
             matchDate: kickoff,
             stadium: stadium || null,
+            refereeName: referee,
+            refereeNameAr: referee,
             status: "SCHEDULED"
           },
           select: { id: true }
         })).id;
 
-        if (!existingManual) {
-          const title = `${homeTeamName} vs ${awayTeamName}`;
-          await tx.calendarEvent.upsert({
-            where: { relatedMatchId: matchId },
-            update: { title, startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null },
-            create: { title, type: "MATCH", startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null, relatedMatchId: matchId }
+        if (existingManual) {
+          await tx.match.update({
+            where: { id: matchId },
+            data: {
+              matchDate: kickoff,
+              ...(stadium ? { stadium } : {}),
+              ...(referee ? { refereeName: referee, refereeNameAr: referee } : {})
+            }
           });
+        }
+
+        const title = `${homeTeamName} vs ${awayTeamName}`;
+        await tx.calendarEvent.upsert({
+          where: { relatedMatchId: matchId },
+          update: { ...(!existingManual ? { title } : {}), startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
+          create: { title, type: "MATCH", startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null, relatedMatchId: matchId }
+        });
+        if (!existingManual) {
           await writeAuditLog({ userId: options.actorId ?? null, action: "FAF_SCHEDULED_MATCH_IMPORTED", entityType: "Match", entityId: matchId, changes: { externalId, teamCategory: team.category, competitionId: competition.id } }, tx);
         }
         await tx.integrationState.create({ data: { key: externalKey, value: JSON.stringify({ matchId, externalId, syncedAt: new Date().toISOString(), source: existingManual ? "matched-manual" : "faf-ems" }) } });
