@@ -166,6 +166,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
     "use server";
     return syncPreviousMatchRedCardSuspensionsAction(id);
   }
+  async function importFafLineup() {
+    "use server";
+    return importSavedFafLineupAction(id);
+  }
   async function attachSheet(formData: FormData) {
     "use server";
     return await attachMatchSheetAction(id, formData);
@@ -522,7 +526,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           canEdit={canManageLineup}
           saveEntry={addLineupEntry}
           removeEntry={removeLineupPlayer}
-          importFafLineup={() => importSavedFafLineupAction(match.id)}
+          importFafLineup={importFafLineup}
           syncAutomaticSuspensions={syncLineupSuspensions}
         />
 
