@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, CheckCircle2, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route, Play, Pause, Image as ImageIcon, Video, Repeat2, Trash, Gauge, Settings2 } from "lucide-react";
+import { ArrowDown, ArrowRight, CheckCircle2, Circle, Download, Eraser, FilePlus2, Flag, List, Maximize2, Minimize2, Move, Pencil, Printer, Redo2, Save, Shield, Trash2, Undo2, Users, ZoomIn, ZoomOut, Route, Play, Pause, Image as ImageIcon, Video, Repeat2, Trash, Gauge } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
 import { TacticalColorPicker } from "@/components/tactics/color-picker";
 import { saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
@@ -211,8 +211,30 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
   }
   function setAnimationDuration(value: number) {
     const nextDuration = Math.min(60, Math.max(2, value));
-    updateBoard((current) => ({ ...current, animation: { duration: nextDuration, frames: current.animation?.frames ?? [] } }));
-    if (playhead > nextDuration) setPlayhead(nextDuration);
+    const previousDuration = Math.max(2, duration);
+    const ratio = nextDuration / previousDuration;
+    updateBoard((current) => ({
+      ...current,
+      animation: {
+        duration: nextDuration,
+        // A duration change should stretch or compress the existing movement,
+        // not just leave the players frozen at their last keyframe.
+        frames: (current.animation?.frames ?? []).map((frame) => ({
+          ...frame,
+          time: Math.min(nextDuration, Math.round(frame.time * ratio * 10) / 10)
+        })).sort((a, b) => a.time - b.time)
+      }
+    }));
+    setPlayhead(Math.min(nextDuration, Math.round(playhead * ratio * 10) / 10));
+    setDurationDraft(String(nextDuration));
+  }
+  function applyAnimationDuration() {
+    const parsed = Number(durationDraft);
+    if (!Number.isFinite(parsed)) {
+      setDurationDraft(String(duration));
+      return;
+    }
+    setAnimationDuration(parsed);
   }
   const keyframes = board.animation?.frames ?? [];
   const currentKeyframeIndex = keyframes.findIndex((frame) => Math.abs(frame.time - playhead) < 0.06);
@@ -539,23 +561,32 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
             <div className="flex flex-wrap items-center gap-1.5">{tools.map(({ id, icon: Icon, label }) => <button key={id} type="button" title={label} aria-label={label} aria-pressed={tool === id} onClick={() => setTool(id)} className={`tactics-tool ${tool === id ? "tactics-tool-active" : ""}`}><Icon size={17}/><span className="hidden sm:inline">{label}</span></button>)}<span className="mx-1 h-6 w-px bg-border"/><TacticalColorPicker label={t.color} value={color} onChange={chooseColor}/><div className="flex gap-1">{PALETTE.map((swatch) => <button key={swatch} type="button" aria-label={swatch} aria-pressed={color === swatch} onClick={() => chooseColor(swatch)} className={`h-6 w-6 rounded-full border-2 ${color === swatch ? "border-white ring-2 ring-club-primary" : "border-white/20"}`} style={{ background: swatch }}/>)}</div></div>
             <div className="flex items-center gap-1.5"><button type="button" title={t.undo} onClick={undo} disabled={!history.length} className="tactics-icon"><Undo2 size={17}/></button><button type="button" title={t.redo} onClick={redo} disabled={!future.length} className="tactics-icon"><Redo2 size={17}/></button><span className="mx-1 h-6 w-px bg-border"/><button type="button" title="Zoom out" onClick={() => setZoom((z) => Math.max(.75, z - .15))} className="tactics-icon"><ZoomOut size={17}/></button><span className="min-w-10 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span><button type="button" title="Zoom in" onClick={() => setZoom((z) => Math.min(1.45, z + .15))} className="tactics-icon"><ZoomIn size={17}/></button><button type="button" title={expanded ? t.exitFitScreen : t.fitScreen} aria-label={expanded ? t.exitFitScreen : t.fitScreen} onClick={() => { setZoom(1); setExpanded((current) => !current); }} className="tactics-icon">{expanded ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}</button><button type="button" title={t.clear} onClick={() => updateBoard((b) => ({ ...b, items: b.items.filter((item) => item.kind === "player" || item.kind === "opponent") }))} className="tactics-icon text-red-400"><Trash2 size={17}/></button></div>
           </div>
-          {board.mode === "video" && <div className="space-y-2 border-b border-border px-3 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-sm font-semibold"><Video size={16} className="text-club-primary"/>{t.animation}</div><p className="text-xs text-muted-foreground">{t.videoGuide}</p></div>
-            <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background/50 px-2 py-1.5">
-              <button type="button" title={playing ? t.pause : t.play} aria-label={playing ? t.pause : t.play} disabled={!board.animation?.frames.length} onClick={() => setPlaying((value) => !value)} className="tactics-icon">{playing ? <Pause size={17}/> : <Play size={17}/>}</button>
-              <input aria-label={t.animation} type="range" min={0} max={duration} step={0.1} value={Math.min(playhead, duration)} disabled={playing || !board.animation?.frames.length} onChange={(event) => setPlayhead(Number(event.target.value))} className="tactics-timeline min-w-0 flex-1" />
-              <span className="min-w-[82px] text-center font-mono text-xs tabular-nums text-muted-foreground">{playhead.toFixed(1)}s / {duration.toFixed(0)}s</span>
+          {board.mode === "video" && <div className="space-y-3 border-b border-border p-3 sm:p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary"><Video size={16}/></span>{t.animation}</div>
+              <p className="text-xs leading-5 text-muted-foreground">{t.videoGuide}</p>
             </div>
-            <details className="tactics-advanced">
-              <summary><Settings2 size={14}/>{t.advanced}</summary>
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><span>{t.seconds}</span><input aria-label={t.seconds} type="number" min={2} max={60} value={durationDraft} disabled={!canEditActive || playing} onChange={(event) => setDurationDraft(event.target.value)} onBlur={() => setAnimationDuration(Number(durationDraft) || 10)} className="tactics-duration w-16" /></label>
-                <button type="button" title={t.deleteFrame} aria-label={t.deleteFrame} disabled={!canEditActive || currentKeyframeIndex < 0 || playing} onClick={deleteCurrentKeyframe} className="tactics-icon text-red-400"><Trash size={15}/></button>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground"><Gauge size={14}/><span>{t.playbackSpeed}</span><select aria-label={t.playbackSpeed} value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} className="tactics-duration"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
-                <button type="button" aria-pressed={loopPlayback} title={t.loop} onClick={() => setLoopPlayback((value) => !value)} className={`tactics-icon ${loopPlayback ? "tactics-tool-active" : ""}`}><Repeat2 size={16}/><span>{t.loop}</span></button>
+
+            <div className="rounded-xl border border-border bg-background p-3 shadow-xs">
+              <div className="mb-2 flex items-center gap-3">
+                <button type="button" title={playing ? t.pause : t.play} aria-label={playing ? t.pause : t.play} disabled={!board.animation?.frames.length} onClick={() => setPlaying((value) => !value)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">{playing ? <Pause size={18}/> : <Play size={18}/>}</button>
+                <input aria-label={t.animation} type="range" min={0} max={duration} step={0.1} value={Math.min(playhead, duration)} disabled={playing || !board.animation?.frames.length} onChange={(event) => setPlayhead(Number(event.target.value))} className="tactics-timeline min-w-0 flex-1" />
+                <span className="min-w-[98px] text-end font-mono text-xs font-semibold tabular-nums text-foreground">{playhead.toFixed(1)}s <span className="text-muted-foreground">/ {duration}s</span></span>
               </div>
-            </details>
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{keyframes.length === 0 ? t.noFrame : currentKeyframeIndex >= 0 ? `${t.keyframe} ${currentKeyframeIndex + 1} / ${keyframes.length}` : `${keyframes.length} ${t.keyframe}`}</p>{videoExportMessage && <p role="status" className={`text-xs ${videoExportMessage === t.videoExportError || videoExportMessage === t.videoExportUnsupported ? "text-red-400" : "text-emerald-400"}`}>{videoExportMessage}</p>}</div>
+              <div className="flex items-center justify-between ps-[52px] text-[10px] font-medium text-muted-foreground"><span>0s</span><span>{duration}s</span></div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <form onSubmit={(event) => { event.preventDefault(); applyAnimationDuration(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) applyAnimationDuration(); }} className="flex min-w-0 items-end gap-2 rounded-xl border border-border bg-background p-2.5">
+                <label className="min-w-0 flex-1 space-y-1"><span className="block text-[11px] font-semibold text-muted-foreground">{t.seconds} <span className="font-normal">(2–60)</span></span><input aria-label={t.seconds} type="number" min={2} max={60} step={1} value={durationDraft} disabled={!canEditActive || playing} onChange={(event) => setDurationDraft(event.target.value)} className="tactics-duration h-9 w-full" /></label>
+                <button type="submit" disabled={!canEditActive || playing || !durationDraft || Math.min(60, Math.max(2, Number(durationDraft))) === duration} className="h-9 shrink-0 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">{locale === "ar" ? "تطبيق" : "Appliquer"}</button>
+              </form>
+              <label className="flex min-w-0 items-end gap-2 rounded-xl border border-border bg-background p-2.5"><span className="mb-2 flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><Gauge size={14}/>{t.playbackSpeed}</span><select aria-label={t.playbackSpeed} value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} className="tactics-duration h-9 min-w-20"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+              <button type="button" aria-pressed={loopPlayback} title={t.loop} onClick={() => setLoopPlayback((value) => !value)} className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${loopPlayback ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}><Repeat2 size={16}/><span>{t.loop}</span><span className={`ms-auto rounded-full px-2 py-0.5 text-[10px] ${loopPlayback ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{loopPlayback ? (locale === "ar" ? "مفعّل" : "Activé") : (locale === "ar" ? "متوقف" : "Arrêté")}</span></button>
+              <button type="button" title={t.deleteFrame} aria-label={t.deleteFrame} disabled={!canEditActive || currentKeyframeIndex < 0 || playing} onClick={deleteCurrentKeyframe} className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"><Trash size={15}/><span>{t.deleteFrame}</span></button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-2"><p className="text-xs text-muted-foreground">{keyframes.length === 0 ? t.noFrame : currentKeyframeIndex >= 0 ? `${t.keyframe} ${currentKeyframeIndex + 1} / ${keyframes.length}` : `${keyframes.length} ${t.keyframe}`}</p>{videoExportMessage && <p role="status" className={`text-xs ${videoExportMessage === t.videoExportError || videoExportMessage === t.videoExportUnsupported ? "text-red-400" : "text-emerald-400"}`}>{videoExportMessage}</p>}</div>
           </div>}
           <div className="tactics-pitch-wrap p-2 sm:p-4">
             <svg ref={svgRef} viewBox={viewBox} aria-label={t.pitch} className={`tactics-pitch ${board.orientation === "vertical" ? "tactics-pitch-vertical" : ""} ${tool !== "select" ? "tactics-crosshair" : ""}`} onPointerDown={onBoardPointerDown} onPointerMove={onItemMove} onPointerUp={(event) => { onBoardPointerUp(event); finishMove(); }} onPointerCancel={() => { setPending(null); setPendingCurrent(null); setPendingPath(null); dragId.current = null; setDragPreview(null); }}>
