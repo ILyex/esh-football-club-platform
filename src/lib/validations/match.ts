@@ -86,6 +86,7 @@ export type MatchEventInput = z.infer<typeof matchEventSchema>;
 
 export const matchLineupEntrySchema = z.object({
   playerId: z.string().min(1),
+  isCaptain: formBoolean(false),
   isStarting: formBoolean(true),
   selectionStatus: z.enum(["STARTING", "SUBSTITUTE", "INJURED", "SUSPENDED", "NOT_CALLED"]).default("STARTING"),
   position: z.string().max(40).optional()

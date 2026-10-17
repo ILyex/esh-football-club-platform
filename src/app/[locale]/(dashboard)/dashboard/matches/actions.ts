@@ -167,6 +167,8 @@ export async function createMatchAction(formData: FormData) {
     ).map((player) => player.id));
     if (eligibleIds.size !== uniqueEntries.size) throw new Error("invalidLineupPlayer");
     lineupEntries = [...uniqueEntries.values()];
+    const captains = lineupEntries.filter((entry) => entry.isCaptain);
+    if (captains.length > 1 || captains.some((entry) => entry.selectionStatus !== "STARTING")) throw new Error("invalidLineupCaptain");
   }
 
   const match = await db.$transaction(async (tx) => {
@@ -200,6 +202,7 @@ export async function createMatchAction(formData: FormData) {
         data: lineupEntries.map((entry) => ({
           matchId: createdMatch.id,
           playerId: entry.playerId,
+          isCaptain: entry.isCaptain,
           isStarting: entry.selectionStatus === "STARTING",
           selectionStatus: entry.selectionStatus,
           position: entry.position || null
@@ -934,11 +937,17 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
   if (automaticallySuspended && parsed.selectionStatus !== "SUSPENDED") throw new Error("lineupPlayerSuspended");
 
   const isStarting = parsed.selectionStatus === "STARTING";
+  const existingEntry = await db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId: parsed.playerId } }, select: { isCaptain: true } });
+  const updateCaptain = formData.has("isCaptain") || !isStarting;
+  const isCaptain = isStarting && (formData.has("isCaptain") ? parsed.isCaptain : Boolean(existingEntry?.isCaptain));
   await db.$transaction(async (tx) => {
+    if (isCaptain) {
+      await tx.matchLineup.updateMany({ where: { matchId, playerId: { not: parsed.playerId }, isCaptain: true }, data: { isCaptain: false } });
+    }
     await tx.matchLineup.upsert({
       where: { matchId_playerId: { matchId, playerId: parsed.playerId } },
-      update: { isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position },
-      create: { matchId, playerId: parsed.playerId, isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position }
+      update: { isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position, ...(updateCaptain ? { isCaptain } : {}) },
+      create: { matchId, playerId: parsed.playerId, isCaptain, isStarting, selectionStatus: parsed.selectionStatus, position: parsed.position }
     });
     await writeAuditLog({
       userId: user.id,

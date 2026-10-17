@@ -1,0 +1,2 @@
+ALTER TABLE "MatchLineup"
+ADD COLUMN "isCaptain" BOOLEAN NOT NULL DEFAULT false;

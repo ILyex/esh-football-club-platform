@@ -74,6 +74,25 @@ function detectPlayers(text: string, players: SheetPlayer[]): Map<string, "START
   return found;
 }
 
+function detectOfficialCaptain(text: string, players: SheetPlayer[]): string | null {
+  for (const rawLine of text.split(/[\r\n]+/)) {
+    // FAF sheets place C beside the captain's shirt number/name. Requiring a
+    // standalone marker avoids treating the letter in a name or a column as it.
+    if (!/(?:^|\s)\(?C\)?(?=\s|$|[.)])/i.test(rawLine)) continue;
+    const line = normalize(rawLine);
+    const lineCompact = line.replace(/\s/g, "");
+    for (const player of players) {
+      const first = normalize(player.firstName);
+      const last = normalize(player.lastName);
+      const named = first.length > 1 && last.length > 1 && line.includes(first) && line.includes(last);
+      const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
+      const licensed = licence.length >= 5 && lineCompact.includes(licence);
+      if (named || licensed) return player.id;
+    }
+  }
+  return null;
+}
+
 /** Read a jersey only when it is an unambiguous leading column on the same
  * sheet row as a known player. Never infer it from digits inside a licence. */
 function detectOfficialShirtNumbers(text: string, players: SheetPlayer[]): Map<string, number> {
@@ -123,6 +142,8 @@ export async function applyMatchSheetLineup(
   if (players.length === 0) return { applied: false, starters: 0, substitutes: 0, notCalled: 0, injured: 0, suspended: 0, reason: "no_roster" };
 
   const detected = detectPlayers(text, players);
+  const officialCaptainId = detectOfficialCaptain(text, players);
+  if (officialCaptainId) detected.set(officialCaptainId, "STARTING");
   const officialShirtNumbers = detectOfficialShirtNumbers(text, players);
   const starters = [...detected.values()].filter((status) => status === "STARTING").length;
   const substitutes = [...detected.values()].filter((status) => status === "SUBSTITUTE").length;
@@ -131,7 +152,7 @@ export async function applyMatchSheetLineup(
     return { applied: false, starters, substitutes, notCalled: 0, injured: 0, suspended: 0, reason: "insufficient_recognition" };
   }
 
-  const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true } });
+  const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true, isCaptain: true } });
   const previousMatch = match.competitionId
     ? await db.match.findFirst({
         where: { teamId, competitionId: match.competitionId, status: "FINISHED", matchDate: { lt: match.matchDate } },
@@ -144,6 +165,9 @@ export async function applyMatchSheetLineup(
   const counts = { STARTING: 0, SUBSTITUTE: 0, NOT_CALLED: 0, INJURED: 0, SUSPENDED: 0 };
 
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    if (officialCaptainId) {
+      await tx.matchLineup.updateMany({ where: { matchId, isCaptain: true, playerId: { not: officialCaptainId } }, data: { isCaptain: false } });
+    }
     for (const player of players) {
       const detectedStatus = detected.get(player.id);
       const existing = existingById.get(player.id);
@@ -162,8 +186,8 @@ export async function applyMatchSheetLineup(
       counts[selectionStatus as keyof typeof counts]++;
       await tx.matchLineup.upsert({
         where: { matchId_playerId: { matchId, playerId: player.id } },
-        create: { matchId, playerId: player.id, isStarting, selectionStatus, position: player.position, shirtNumber: officialShirtNumbers.get(player.id) ?? null },
-        update: { isStarting, selectionStatus, position: player.position, shirtNumber: officialShirtNumbers.get(player.id) ?? existing?.shirtNumber ?? undefined }
+        create: { matchId, playerId: player.id, isCaptain: isStarting && player.id === officialCaptainId, isStarting, selectionStatus, position: player.position, shirtNumber: officialShirtNumbers.get(player.id) ?? null },
+        update: { isCaptain: isStarting && (officialCaptainId ? player.id === officialCaptainId : existing?.isCaptain ?? false), isStarting, selectionStatus, position: player.position, shirtNumber: officialShirtNumbers.get(player.id) ?? existing?.shirtNumber ?? undefined }
       });
     }
   });

@@ -520,6 +520,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           }))}
           lineups={match.lineups.map((lineup) => ({
             playerId: lineup.playerId,
+            isCaptain: lineup.isCaptain,
             isStarting: lineup.isStarting,
             selectionStatus: lineup.selectionStatus,
             position: lineup.position,

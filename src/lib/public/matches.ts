@@ -61,6 +61,7 @@ export interface PublicLineupItem {
   shirtNumber: number | null;
   position: string | null;
   isStarting: boolean;
+  isCaptain: boolean;
 }
 
 export interface PublicMatchDetail extends PublicMatchItem {
@@ -442,6 +443,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
           position: true,
           shirtNumber: true,
           isStarting: true,
+          isCaptain: true,
           player: {
             select: {
               id: true,
@@ -495,7 +497,8 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       photoUrl: normalizePublicMediaUrl(l.player.photoUrl),
       shirtNumber: l.shirtNumber ?? l.player.shirtNumber,
       position: l.position || l.player.position,
-      isStarting: true
+      isStarting: true,
+      isCaptain: l.isCaptain
     }));
 
   const substitutes: PublicLineupItem[] = match.lineups
@@ -508,7 +511,8 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       photoUrl: normalizePublicMediaUrl(l.player.photoUrl),
       shirtNumber: l.shirtNumber ?? l.player.shirtNumber,
       position: l.position || l.player.position,
-      isStarting: false
+      isStarting: false,
+      isCaptain: l.isCaptain
     }));
 
   const events: PublicMatchEventItem[] = match.events.map((e) => ({

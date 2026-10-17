@@ -123,6 +123,7 @@ function PositionCarousel({
                       {player.shirtNumber ?? "–"}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-xs font-bold leading-snug text-foreground sm:text-sm" title={name}>{name}</span>
+                    {player.isCaptain && <span title={isArabic ? "قائد الفريق" : "Capitaine"} aria-label={isArabic ? "قائد الفريق" : "Capitaine"} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-400/35 bg-amber-400/10 text-[11px] font-black text-amber-400">C</span>}
                   </Link>
                 </li>
               );

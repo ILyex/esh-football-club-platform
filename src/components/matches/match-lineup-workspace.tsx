@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ChevronLeft, ChevronRight, GripVertical, HeartPulse, LoaderCircle, Search, Trash2, UserCheck, UserRoundX, Users } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, GripVertical, HeartPulse, LoaderCircle, Search, Star, Trash2, UserCheck, UserRoundX, Users } from "lucide-react";
 import { toast } from "sonner";
 import { TacticalPitch } from "@/components/football/lineup-pitch-board";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ function playerDisplayName(player: RosterPlayer, locale: string) {
 
 type LineupEntry = {
   playerId: string;
+  isCaptain?: boolean;
   isStarting: boolean;
   selectionStatus: string;
   position: string | null;
@@ -46,6 +47,7 @@ function initialEntries(players: RosterPlayer[], entries: LineupEntry[], autoSus
       const isUnavailable = autoSuspended.has(player.id) || player.status === "INJURED";
       return [{
         ...entry,
+        isCaptain: Boolean(entry.isCaptain) && !isUnavailable && entry.selectionStatus === "STARTING",
         selectionStatus: autoSuspended.has(player.id)
           ? "SUSPENDED"
           : player.status === "INJURED" ? "INJURED" : entry.selectionStatus === "SUSPENDED" ? "NOT_CALLED" : entry.selectionStatus,
@@ -55,6 +57,7 @@ function initialEntries(players: RosterPlayer[], entries: LineupEntry[], autoSus
     if (autoSuspended.has(player.id) || player.status === "INJURED") {
       return [{
         playerId: player.id,
+        isCaptain: false,
         isStarting: false,
         selectionStatus: autoSuspended.has(player.id) ? "SUSPENDED" : "INJURED",
         position: player.position
@@ -89,7 +92,7 @@ export function MatchLineupWorkspace({
 }) {
   const isAr = locale === "ar";
   const router = useRouter();
-  const [entries, setEntries] = useState(() => initialEntries(players, lineups, autoSuspendedPlayerIds));
+  const [entries, setEntries] = useState<LineupEntry[]>(() => initialEntries(players, lineups, autoSuspendedPlayerIds));
   const [query, setQuery] = useState("");
   const [rosterPage, setRosterPage] = useState(0);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -140,7 +143,8 @@ export function MatchLineupWorkspace({
         playerNameFr: playerDisplayName(player, "fr"),
         photoUrl: player.photoUrl,
         shirtNumber: entryById.get(player.id)?.shirtNumber ?? player.shirtNumber,
-        position: entry.position || player.position
+        position: entry.position || player.position,
+        isCaptain: Boolean(entry.isCaptain)
       };
     })
     .filter((player): player is NonNullable<typeof player> => player !== null), [entries, entryById, playerById]);
@@ -176,7 +180,8 @@ export function MatchLineupWorkspace({
       playerId,
       isStarting: selectionStatus === "STARTING",
       selectionStatus,
-      position: current?.position || player.position
+      position: current?.position || player.position,
+      isCaptain: selectionStatus === "STARTING" && Boolean(current?.isCaptain)
     };
     const previousEntries = entries;
     setEntries((currentEntries) => [...currentEntries.filter((entry) => entry.playerId !== playerId), nextEntry]);
@@ -187,6 +192,7 @@ export function MatchLineupWorkspace({
       const formData = new FormData();
       formData.set("playerId", playerId);
       formData.set("isStarting", nextEntry.isStarting ? "true" : "false");
+      formData.set("isCaptain", nextEntry.isCaptain ? "true" : "false");
       formData.set("selectionStatus", selectionStatus);
       formData.set("position", nextEntry.position ?? "");
       await saveEntry(formData);
@@ -203,6 +209,35 @@ export function MatchLineupWorkspace({
         : reason === "lineupPlayerSuspended"
           ? (isAr ? "هذا اللاعب موقوف بسبب بطاقة حمراء في المباراة السابقة من البطولة." : "Ce joueur est suspendu après un carton rouge au match précédent de la compétition.")
           : (isAr ? "تعذر تحديث التشكيلة. حاول مرة أخرى." : "Impossible de mettre à jour la composition. Réessayez."));
+    } finally {
+      setSavingPlayerId(null);
+    }
+  };
+
+  const persistCaptain = async (playerId: string) => {
+    if (!canEdit || savingPlayerId) return;
+    const current = entryById.get(playerId);
+    if (!current || current.selectionStatus !== "STARTING") return;
+    const nextCaptain = !current.isCaptain;
+    const previousEntries = entries;
+    setEntries((currentEntries) => currentEntries.map((entry) => ({
+      ...entry,
+      isCaptain: entry.playerId === playerId ? nextCaptain : false
+    })));
+    setSavingPlayerId(playerId);
+    try {
+      const formData = new FormData();
+      formData.set("playerId", playerId);
+      formData.set("isStarting", "true");
+      formData.set("selectionStatus", "STARTING");
+      formData.set("isCaptain", String(nextCaptain));
+      formData.set("position", current.position ?? playerById.get(playerId)?.position ?? "");
+      await saveEntry(formData);
+      router.refresh();
+    } catch (error) {
+      setEntries(previousEntries);
+      console.error("Match captain update failed:", error);
+      toast.error(isAr ? "تعذر تحديث قائد الفريق." : "Impossible de modifier le capitaine.");
     } finally {
       setSavingPlayerId(null);
     }
@@ -418,6 +453,20 @@ export function MatchLineupWorkspace({
             <h3 className="text-sm font-bold text-foreground">{isAr ? "التشكيل الأساسي" : "Équipe titulaire"}</h3>
           </div>
           <div className="flex items-center gap-2">
+            {selectedStartingPlayer && canEdit && (
+              <button
+                type="button"
+                onClick={() => void persistCaptain(selectedStartingPlayer.playerId)}
+                disabled={Boolean(savingPlayerId)}
+                aria-pressed={Boolean(selectedStartingPlayer.isCaptain)}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${selectedStartingPlayer.isCaptain ? "border-amber-400/35 bg-amber-400/10 text-amber-400" : "border-border bg-card text-muted-foreground hover:border-amber-400/35 hover:text-amber-400"}`}
+              >
+                <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                {selectedStartingPlayer.isCaptain
+                  ? (isAr ? "إلغاء صفة القائد" : "Retirer le brassard")
+                  : (isAr ? "تعيين قائد الفريق" : "Désigner capitaine")}
+              </button>
+            )}
             {selectedStartingPlayer && canEdit && (
               <button
                 type="button"
