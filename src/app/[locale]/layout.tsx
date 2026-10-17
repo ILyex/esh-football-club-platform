@@ -3,9 +3,34 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Cairo, IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans } from "next/font/google";
 import { routing, directionForLocale, type AppLocale } from "@/i18n/routing";
 import { PlatformToaster } from "@/components/shared/platform-toaster";
 import "@/app/globals.css";
+
+// Download fonts at build time and serve them from this deployment. The Arabic
+// dashboard must not wait on a third-party font stylesheet for every session.
+const cairo = Cairo({
+  subsets: ["arabic"],
+  weight: "variable",
+  variable: "--font-cairo",
+  display: "swap",
+  preload: false
+});
+const ibmPlexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-ibm-plex-arabic",
+  display: "swap",
+  preload: false
+});
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: "variable",
+  variable: "--font-plus-jakarta",
+  display: "swap",
+  preload: false
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -53,7 +78,12 @@ export default async function LocaleLayout({
     // text-start/text-end) rather than left/right, so the SAME component
     // tree renders correctly mirrored for Arabic without any per-component
     // RTL branching logic.
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={dir}
+      className={locale === "ar" ? `${cairo.variable} ${ibmPlexArabic.variable}` : plusJakarta.variable}
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @config "../../tailwind.config.mjs";
 @import "tailwindcss";
 
@@ -430,21 +428,21 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 
 /* LTR (French / Latin) Typography (Locked Spec Section A.1) */
 [dir="ltr"] body {
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-plus-jakarta), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
 }
 
 /* Arabic RTL Typography (Locked Spec Section A.1 & A.4) */
 [dir="rtl"] body {
   /* Cairo keeps the two dots of ي visible at normal UI sizes. */
-  font-family: "Cairo", "IBM Plex Sans Arabic", sans-serif;
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
   line-height: 1.85;
   letter-spacing: normal !important;
 }
 
 /* Use the platform's Arabic typesetting for the DZD abbreviation everywhere. */
 [dir="rtl"] .currency-dzd {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
   font-size: 0.9em;
   font-weight: 700;
   white-space: nowrap;
@@ -499,7 +497,7 @@ img[src^="blob:"] {
 [dir="rtl"] h3,
 [dir="rtl"] h4,
 [dir="rtl"] .font-display {
-  font-family: "Cairo", "IBM Plex Sans Arabic", sans-serif;
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
   line-height: 1.35;
   text-transform: none !important;
 }
@@ -507,7 +505,7 @@ img[src^="blob:"] {
 /* Keep every displayed club name on the same Arabic typeface, even when the
    component is rendered outside an element carrying the page direction. */
 .club-name {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
   font-weight: 800;
   font-feature-settings: "kern" 1, "liga" 1;
 }
@@ -515,32 +513,32 @@ img[src^="blob:"] {
 /* The footer identity line uses the same IBM Plex Arabic typeface as the
    association name, including the affiliation text beside it. */
 .footer-identity {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
 }
 
 .sponsor-identity {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
   letter-spacing: normal;
 }
 
 .sponsor-lockup {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
 }
 
 [dir="rtl"] .club-name {
-  font-family: "IBM Plex Sans Arabic", "Cairo", sans-serif !important;
+  font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
   font-weight: 800;
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
 [dir="ltr"] .club-name {
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: var(--font-plus-jakarta), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 /* Monospace & Tabular Numerical Alignment (Locked Spec Section A.1) */
 .font-mono,
 .tabular-nums {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   font-variant-numeric: tabular-nums;
 }
 

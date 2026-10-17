@@ -191,7 +191,9 @@ export function SidebarNav({
     if (prefetchedRoutes.current.has(destination)) return;
     prefetchedRoutes.current.add(destination);
     router.prefetch(destination, {
-      kind: "full" as NonNullable<Parameters<typeof router.prefetch>[1]>["kind"],
+      // Prefetch static content fully, while dynamic pages stop at their
+      // loading boundary instead of eagerly running every page query on hover.
+      kind: "auto" as NonNullable<Parameters<typeof router.prefetch>[1]>["kind"],
       onInvalidate: () => prefetchedRoutes.current.delete(destination)
     });
   };
