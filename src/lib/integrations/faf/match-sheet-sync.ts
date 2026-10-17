@@ -166,6 +166,14 @@ function eventSummary(events: ImportedMatchEvent[], match: { homeTeamName: strin
   });
 }
 
+function mergeFafMatchReport(existing: string | null, generated: string): string | null {
+  if (!generated.trim()) return existing;
+  const marker = "مجريات المباراة من FAF EMS:";
+  const previousFafSection = existing?.indexOf(marker) ?? -1;
+  const manualText = previousFafSection >= 0 ? existing!.slice(0, previousFafSection).trim() : existing?.trim() || "";
+  return [manualText, generated.trim()].filter(Boolean).join("\n\n");
+}
+
 type ImportedMatchEvent = {
   fafExternalKey: string;
   type: "GOAL" | "PENALTY_GOAL" | "OWN_GOAL" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION_IN" | "SUBSTITUTION_OUT";
@@ -402,63 +410,71 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, imp
 
   const existing = await db.matchEvent.findMany({
     where: { matchId },
-    select: { id: true, type: true, side: true, minute: true, playerId: true, playerName: true, playerNameFr: true, source: true }
+    select: { id: true, type: true, side: true, minute: true, playerId: true, playerName: true, playerNameFr: true, source: true, fafExternalKey: true }
   });
-  // Earlier imports could save a card under its display name without linking
-  // it to the local player. Repair those rows during reconciliation before
-  // duplicate detection prevents them from being imported again.
   let repairedCount = 0;
-  const repairedIds = new Set<string>();
+  const reconciledIds = new Set<string>();
+  const reconciledEventKeys = new Set<string>();
+  const ambiguousEvents = new Set<string>();
   for (const event of imported) {
     if (event.side == null) continue;
-    const importedRows = existing.filter((row) => row.source === "REFEREE_REPORT" && row.type === event.type
-      && !repairedIds.has(row.id) && sameImportedPerson(row, event));
-    const exactMinuteRows = importedRows.filter((row) => row.minute === event.minute);
-    const nearestRows = importedRows.filter((row) => Math.abs(row.minute - event.minute) <= 6)
-      .sort((left, right) => Math.abs(left.minute - event.minute) - Math.abs(right.minute - event.minute));
-    const importedRow = exactMinuteRows.length === 1 ? exactMinuteRows[0]
-      : importedRows.length === 1 ? importedRows[0]
-      : nearestRows.length === 1 || (nearestRows.length > 1 && Math.abs(nearestRows[0]!.minute - event.minute) < Math.abs(nearestRows[1]!.minute - event.minute))
-        ? nearestRows[0]
+    const isGoalType = (type: ImportedMatchEvent["type"] | string) => ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(type);
+    const candidates = existing.filter((row) => !reconciledIds.has(row.id) && (
+      row.fafExternalKey === event.fafExternalKey
+      || ((row.type === event.type || (isGoalType(row.type) && isGoalType(event.type))) && (
+        (Boolean(event.playerId) && row.playerId === event.playerId)
+        || ((!row.playerId || !event.playerId) && sameImportedPerson(row, event)
+          && (row.side === event.side || row.source === "REFEREE_REPORT"))
+      ))
+    ));
+    const exact = candidates.filter((row) => row.minute === event.minute && row.side === event.side);
+    const sameSide = candidates.filter((row) => row.side === event.side);
+    const linked = candidates.filter((row) => event.playerId && row.playerId === event.playerId);
+    const pool = exact.length ? exact : linked.length ? linked : sameSide.length ? sameSide : candidates;
+    const nearest = [...pool].sort((left, right) => Math.abs(left.minute - event.minute) - Math.abs(right.minute - event.minute));
+    const matchedRow = nearest.length === 1
+      ? nearest[0]
+      : nearest.length > 1 && Math.abs(nearest[0]!.minute - event.minute) < Math.abs(nearest[1]!.minute - event.minute)
+        ? nearest[0]
         : undefined;
-    if (importedRow) {
-      if (importedRow.side !== event.side || importedRow.playerId !== event.playerId || importedRow.playerName !== event.playerName
-        || importedRow.playerNameFr !== event.playerNameFr || importedRow.minute !== event.minute) {
-        await db.matchEvent.update({
-          where: { id: importedRow.id },
-          data: { side: event.side, playerId: event.playerId, playerName: event.playerName, playerNameFr: event.playerNameFr || null, minute: event.minute }
+    if (matchedRow) {
+      const resolvedPlayerId = event.playerId ?? matchedRow.playerId;
+      if (matchedRow.side !== event.side || matchedRow.playerId !== resolvedPlayerId || matchedRow.playerName !== event.playerName
+        || matchedRow.playerNameFr !== (event.playerNameFr || null) || matchedRow.minute !== event.minute || matchedRow.fafExternalKey !== event.fafExternalKey
+        || matchedRow.type !== event.type) {
+        await db.$transaction(async (tx) => {
+          // EMS is authoritative for fields it supplied; retain the manually
+          // entered source and notes, and attach its external key for stable
+          // idempotent reconciliation on the next fetch.
+          await tx.matchEvent.update({
+            where: { id: matchedRow.id },
+            data: { type: event.type, side: event.side!, playerId: resolvedPlayerId, playerName: event.playerName, playerNameFr: event.playerNameFr || null, minute: event.minute, fafExternalKey: event.fafExternalKey }
+          });
+          await tx.playerShot.updateMany({
+            where: { matchEventId: matchedRow.id },
+            data: { side: event.side!, playerId: resolvedPlayerId, minute: event.minute }
+          });
         });
-        importedRow.side = event.side;
-        importedRow.playerId = event.playerId;
-        importedRow.playerName = event.playerName;
-        importedRow.playerNameFr = event.playerNameFr || null;
-        importedRow.minute = event.minute;
+        matchedRow.type = event.type;
+        matchedRow.side = event.side;
+        matchedRow.playerId = resolvedPlayerId;
+        matchedRow.playerName = event.playerName;
+        matchedRow.playerNameFr = event.playerNameFr || null;
+        matchedRow.minute = event.minute;
+        matchedRow.fafExternalKey = event.fafExternalKey;
         repairedCount++;
       }
-      repairedIds.add(importedRow.id);
+      reconciledIds.add(matchedRow.id);
+      reconciledEventKeys.add(event.fafExternalKey);
       continue;
     }
-    if (!event.playerId) continue;
-    const unlinked = existing.filter((row) => !row.playerId && row.type === event.type && row.minute === event.minute
-      && (row.side === event.side || row.source === "REFEREE_REPORT")
-      && sameImportedPerson(row, event));
-    if (unlinked.length === 1) {
-      const linked = await db.matchEvent.updateMany({
-        where: { id: unlinked[0]!.id, playerId: null },
-        data: { playerId: event.playerId, playerName: event.playerName, playerNameFr: event.playerNameFr || null, side: event.side, source: "REFEREE_REPORT" }
-      });
-      if (linked.count === 1) {
-        unlinked[0]!.playerId = event.playerId;
-        unlinked[0]!.side = event.side;
-        unlinked[0]!.playerName = event.playerName;
-        unlinked[0]!.playerNameFr = event.playerNameFr || null;
-        repairedIds.add(unlinked[0]!.id);
-        repairedCount++;
-      }
-    }
+    if (pool.length > 1) ambiguousEvents.add(event.fafExternalKey);
   }
-  const pendingFresh = imported.filter((event) => event.side !== null && !existing.some((row) => row.type === event.type && row.side === event.side && row.minute === event.minute
-    && ((event.playerId && row.playerId === event.playerId) || sameImportedPerson(row, event))));
+  if (ambiguousEvents.size) warnings.push(`لم أكرر ${ambiguousEvents.size} أحداثاً لأن لها أكثر من سجل يدوي محتمل في المباراة؛ راجع الحدث يدوياً ثم أعد جلب الوثائق.`);
+  const pendingFresh = imported.filter((event) => event.side !== null && !ambiguousEvents.has(event.fafExternalKey)
+    && !reconciledEventKeys.has(event.fafExternalKey)
+    && !existing.some((row) => row.type === event.type && row.side === event.side && row.minute === event.minute
+      && ((event.playerId && row.playerId === event.playerId) || sameImportedPerson(row, event))));
   if (!pendingFresh.length) return repairedCount;
   const created = await db.matchEvent.createMany({
     data: pendingFresh.map((event) => ({
@@ -678,6 +694,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     || finalReportResult.status === "fulfilled";
   const explicitlyLive = /live|en cours|مباشر|جارية/.test(officialStatus);
   const officialResult = officialScore(official, remote, importedEvents);
+  const mergedMatchReport = mergeFafMatchReport(local.matchReport, reportText);
   await db.match.update({
     where: { id: local.id },
     data: {
@@ -686,7 +703,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       refereeName: referee || local.refereeName,
       refereeNameAr: refereeNameAr || previousArabicRefereeNames,
       refereeNameFr: refereeNameFr || local.refereeNameFr,
-      matchReport: reportText || local.matchReport,
+      ...(mergedMatchReport !== local.matchReport ? { matchReport: mergedMatchReport } : {}),
       ...(explicitlyFinished ? { status: "FINISHED" as const } : explicitlyLive ? { status: "LIVE" as const } : {})
     }
   });
@@ -701,6 +718,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       matchId: local.id,
       documentId: refereeReportDocumentId,
       reportText: refereeReportText,
+      preserveExistingMatchData: true,
       userId: actorId
     });
     analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";

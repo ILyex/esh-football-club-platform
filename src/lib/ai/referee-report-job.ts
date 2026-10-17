@@ -10,6 +10,7 @@ export const refereeReportAnalysisSchema = z.object({
   matchId: z.string(),
   documentId: z.string().optional(),
   reportText: z.string().trim().max(5000).optional(),
+  preserveExistingMatchData: z.boolean().optional(),
   userId: z.string()
 }).refine((value) => Boolean(value.documentId || value.reportText), {
   message: "A report document or report text is required."
@@ -51,7 +52,7 @@ export function registerRefereeReportAnalysisJob(): void {
     schema: refereeReportAnalysisSchema,
     defaultPriority: "HIGH",
     defaultMaxAttempts: 2,
-    handler: async ({ matchId, documentId, reportText, userId }) => {
+    handler: async ({ matchId, documentId, reportText, preserveExistingMatchData, userId }) => {
       let sourceText = reportText?.trim() || "";
       if (!sourceText && documentId) {
         const doc = await db.document.findFirst({
@@ -68,7 +69,7 @@ export function registerRefereeReportAnalysisJob(): void {
       if (!sourceText) throw new Error("Could not extract readable text from referee report");
 
       const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
-      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, userId });
+      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, preserveExistingMatchData, userId });
       if (!result.success) throw new Error(result.summary || "Referee report analysis failed");
       return { eventsCreated: result.eventsCreated, provider: result.aiProviderUsed };
     }

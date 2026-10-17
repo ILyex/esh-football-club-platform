@@ -148,9 +148,16 @@ export async function applyMatchSheetLineup(
       const detectedStatus = detected.get(player.id);
       const existing = existingById.get(player.id);
       const existingStatus = existing?.selectionStatus;
+      // EMS only corrects players it can positively identify on the sheet.
+      // Keep manually entered selections for everyone else instead of
+      // rewriting them as NOT_CALLED on every document import.
+      if (!detectedStatus && existing) {
+        if (existingStatus && Object.hasOwn(counts, existingStatus)) counts[existingStatus as keyof typeof counts]++;
+        continue;
+      }
       const selectionStatus = suspendedIds.has(player.id)
         ? "SUSPENDED"
-        : detectedStatus ?? (existingStatus === "INJURED" || player.status === "INJURED" ? "INJURED" : "NOT_CALLED");
+        : detectedStatus ?? (player.status === "INJURED" ? "INJURED" : "NOT_CALLED");
       const isStarting = selectionStatus === "STARTING";
       counts[selectionStatus as keyof typeof counts]++;
       await tx.matchLineup.upsert({

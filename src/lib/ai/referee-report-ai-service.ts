@@ -227,9 +227,10 @@ function parseReportDeterministically(
 export async function parseAndApplyRefereeReportWithAI(params: {
   matchId: string;
   reportText?: string;
+  preserveExistingMatchData?: boolean;
   userId: string;
 }): Promise<RefereeReportAnalysisResult> {
-  const { matchId, reportText, userId } = params;
+  const { matchId, reportText, preserveExistingMatchData = false, userId } = params;
 
   // 1. Fetch match, team, and squad players
   const match = await db.match.findUniqueOrThrow({
@@ -391,16 +392,63 @@ ${squadRoster}
   // Avoid creating exact duplicate events already present in this match
   const existingEvents = match.events;
   const newEventsToCreate: ParsedEventItem[] = [];
+  const reconciledIds = new Set<string>();
+  let eventsCorrected = 0;
+  const isGoalType = (type: string) => ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(type);
   for (const candidate of validEvents) {
-    const alreadyRecorded = existingEvents.some(
-      (event) => event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
-        && (event.playerId === candidate.playerId
-          || (!event.playerId && normalizeName(event.playerName || "") === normalizeName(candidate.playerName)))
-    );
+    const possibleMatches = existingEvents.filter((event) => !reconciledIds.has(event.id)
+      && (event.type === candidate.type || (isGoalType(event.type) && isGoalType(candidate.type)))
+      && (event.playerId === candidate.playerId || (!event.playerId
+        && [event.playerName, event.playerNameFr].some((name) => name && normalizeName(name) === normalizeName(candidate.playerName)))));
+    const exactMatches = possibleMatches.filter((event) => event.minute === candidate.minute);
+    const nearest = [...(exactMatches.length ? exactMatches : possibleMatches)]
+      .sort((left, right) => Math.abs(left.minute - candidate.minute) - Math.abs(right.minute - candidate.minute));
+    const matchedEvent = nearest.length === 1 && Math.abs(nearest[0]!.minute - candidate.minute) <= 10
+      ? nearest[0]
+      : nearest.length > 1 && Math.abs(nearest[0]!.minute - candidate.minute) <= 10
+        && Math.abs(nearest[0]!.minute - candidate.minute) < Math.abs(nearest[1]!.minute - candidate.minute)
+        ? nearest[0]
+        : undefined;
+    if (matchedEvent) {
+      reconciledIds.add(matchedEvent.id);
+      if (matchedEvent.minute !== candidate.minute || matchedEvent.type !== candidate.type
+        || matchedEvent.playerId !== candidate.playerId
+        || matchedEvent.side !== (match.isHomeFixture ? "HOME" : "AWAY")
+        || matchedEvent.playerName !== candidate.playerName || matchedEvent.playerNameFr !== (candidate.playerNameFr || null)) {
+        await db.$transaction(async (tx) => {
+          await tx.matchEvent.update({
+            where: { id: matchedEvent.id },
+            data: {
+              type: candidate.type,
+              minute: candidate.minute,
+              side: match.isHomeFixture ? "HOME" : "AWAY",
+              playerId: candidate.playerId,
+              playerName: candidate.playerName,
+              playerNameFr: candidate.playerNameFr || null
+            }
+          });
+          await tx.playerShot.updateMany({
+            where: { matchEventId: matchedEvent.id },
+            data: { minute: candidate.minute, side: match.isHomeFixture ? "HOME" : "AWAY", playerId: candidate.playerId }
+          });
+        });
+        matchedEvent.minute = candidate.minute;
+        matchedEvent.type = candidate.type;
+        matchedEvent.side = match.isHomeFixture ? "HOME" : "AWAY";
+        matchedEvent.playerId = candidate.playerId;
+        matchedEvent.playerName = candidate.playerName;
+        matchedEvent.playerNameFr = candidate.playerNameFr || null;
+        eventsCorrected++;
+      }
+      continue;
+    }
+    // If several same-player events are plausible but the report cannot match
+    // one confidently, preserve the manual rows instead of adding an overlap.
+    if (possibleMatches.length > 1) continue;
     const duplicatedInReport = newEventsToCreate.some(
       (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
     );
-    if (!alreadyRecorded && !duplicatedInReport) newEventsToCreate.push(candidate);
+    if (!duplicatedInReport) newEventsToCreate.push(candidate);
   }
 
   // Persist into database
@@ -424,8 +472,8 @@ ${squadRoster}
   await db.match.update({
     where: { id: matchId },
     data: {
-      ...(suppliedReportText ? { matchReport: suppliedReportText } : {}),
-      ...(detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
+      ...(!preserveExistingMatchData && suppliedReportText ? { matchReport: suppliedReportText } : {}),
+      ...(!preserveExistingMatchData && detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });
 
@@ -437,6 +485,7 @@ ${squadRoster}
     entityId: match.id,
     changes: {
       eventsCreatedCount: newEventsToCreate.length,
+      eventsCorrectedCount: eventsCorrected,
       aiProviderUsed,
       aiFallback,
       events: newEventsToCreate.map((e) => ({
@@ -454,7 +503,7 @@ ${squadRoster}
   revalidatePath("/[locale]/dashboard/players", "page");
 
   const summary =
-    newEventsToCreate.length > 0
+    newEventsToCreate.length > 0 || eventsCorrected > 0
       ? `تم التعرف بنجاح على ${newEventsToCreate.length} حدث رسمي في تقرير الحكم (أهداف/بطاقات) وتحديث سجلات وإحصائيات اللاعبين تلقائياً.`
       : validEvents.length > 0
       ? `تمت مطابقة الأحداث مع السجلات الحالية؛ الأحداث مسجلة مسبقاً بالفعل في ملفات اللاعبين.`
