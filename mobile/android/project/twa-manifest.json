@@ -1,0 +1,68 @@
+{
+  "packageId": "dz.esh.footballclub.field",
+  "host": "esh-platform-vercel-preview.vercel.app",
+  "name": "مباريات ESH",
+  "launcherName": "مباريات",
+  "display": "standalone",
+  "themeColor": "#D20A2E",
+  "themeColorDark": "#D20A2E",
+  "navigationColor": "#0C0D0E",
+  "navigationColorDark": "#0C0D0E",
+  "navigationDividerColor": "#1F252B",
+  "navigationDividerColorDark": "#1F252B",
+  "backgroundColor": "#0C0D0E",
+  "enableNotifications": true,
+  "startUrl": "/ar/field/matches",
+  "iconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
+  "maskableIconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "esh-matchday"
+  },
+  "appVersionName": "2",
+  "appVersionCode": 2,
+  "shortcuts": [
+    {
+      "name": "المباريات الميدانية",
+      "shortName": "المباريات",
+      "url": "https://esh-platform-vercel-preview.vercel.app/ar/field/matches",
+      "chosenIconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-192.png"
+    },
+    {
+      "name": "Field matches",
+      "shortName": "Matches",
+      "url": "https://esh-platform-vercel-preview.vercel.app/fr/field/matches",
+      "chosenIconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://esh-platform-vercel-preview.vercel.app/field/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://esh-platform-vercel-preview.vercel.app/",
+  "minSdkVersion": 24,
+  "orientation": "portrait-primary",
+  "fingerprints": [
+    {
+      "name": "ESH Matchday preview signing certificate",
+      "value": "26:47:ED:85:C9:47:3D:DA:86:D9:C1:75:FA:93:54:22:80:35:56:D3:67:85:68:B6:F7:CA:6A:96:99:7A:20:10"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "appVersion": "2"
+}

@@ -1,23 +1,31 @@
 {
   "packageId": "dz.esh.footballclub.field",
   "host": "esh-platform-vercel-preview.vercel.app",
-  "name": "ESH Matchday",
-  "launcherName": "مباريات ESH",
+  "name": "مباريات ESH",
+  "launcherName": "مباريات",
   "display": "standalone",
   "orientation": "portrait",
-  "themeColor": "#d20a2e",
-  "navigationColor": "#0c0d0e",
-  "navigationColorDark": "#0c0d0e",
-  "navigationDividerColor": "#1f252b",
-  "navigationDividerColorDark": "#1f252b",
+  "themeColor": "#D20A2E",
+  "themeColorDark": "#D20A2E",
+  "navigationColor": "#0C0D0E",
+  "navigationColorDark": "#0C0D0E",
+  "navigationDividerColor": "#1F252B",
+  "navigationDividerColorDark": "#1F252B",
   "backgroundColor": "#0c0d0e",
   "startUrl": "/ar/field/matches",
   "iconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
   "maskableIconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
   "webManifestUrl": "https://esh-platform-vercel-preview.vercel.app/field/manifest.webmanifest",
   "enableNotifications": true,
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "2",
+  "appVersionCode": 2,
+  "minSdkVersion": 24,
+  "fingerprints": [
+    {
+      "name": "ESH Matchday preview signing certificate",
+      "value": "26:47:ED:85:C9:47:3D:DA:86:D9:C1:75:FA:93:54:22:80:35:56:D3:67:85:68:B6:F7:CA:6A:96:99:7A:20:10"
+    }
+  ],
   "shortcuts": [
     {
       "name": "المباريات الميدانية",
