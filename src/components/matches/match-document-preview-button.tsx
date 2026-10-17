@@ -50,7 +50,7 @@ export function MatchDocumentPreviewButton({
   if (documents.length === 0) {
     return (
       <Link
-        href={`/${locale}/dashboard/matches/${matchId}`}
+        href={`/${locale}/dashboard/matches/${matchId}#match-documents`}
         className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
         title={isAr ? "افتح سجل المباراة لرفع الوثائق أو مراجعتها" : "Ouvrir le match pour ajouter ou consulter ses documents"}
       >
@@ -99,7 +99,7 @@ export function MatchDocumentPreviewButton({
               </div>
               <div className="flex items-center gap-2">
                 <Link
-                  href={`/${locale}/dashboard/matches/${matchId}`}
+                  href={`/${locale}/dashboard/matches/${matchId}#match-documents`}
                   className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted"
                 >
                   {isAr ? "إدارة الوثائق" : "Gérer les documents"}

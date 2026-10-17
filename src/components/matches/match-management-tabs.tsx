@@ -16,7 +16,12 @@ export function MatchManagementTabs({ tabs, ariaLabel }: { tabs: Tab[]; ariaLabe
   useEffect(() => {
     tabs.forEach(({ id }) => {
       const section = document.getElementById(id);
-      if (section) section.hidden = id !== activeId;
+      if (section) {
+        section.hidden = id !== activeId;
+        if (id === "match-documents" && id === activeId && section instanceof HTMLDetailsElement) {
+          section.open = true;
+        }
+      }
     });
   }, [activeId, tabs]);
 
