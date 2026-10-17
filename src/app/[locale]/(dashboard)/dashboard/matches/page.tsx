@@ -111,12 +111,13 @@ export default async function MatchesListPage({
         </Button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-        <table className="w-full text-start text-xs sm:text-sm">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
+        <table className="w-full min-w-[760px] text-start text-xs sm:text-sm">
           <thead className="border-b border-border bg-muted/50 text-start">
             <tr>
-              <th className="w-[132px] px-3 py-3 text-start sm:w-40 sm:px-4">{t("fields.matchDate")}</th>
-              <th className="px-3 py-3 text-start sm:px-4">{t("title")}</th>
+              <th className="w-[220px] px-4 py-3 text-start">{t("fields.matchDate")}</th>
+              <th className="px-4 py-3 text-center">{t("title")}</th>
+              <th className="w-[390px] px-4 py-3 text-start">{locale === "ar" ? "الحالة والإجراءات" : "Statut et actions"}</th>
             </tr>
           </thead>
           <tbody>
@@ -134,13 +135,14 @@ export default async function MatchesListPage({
               }
               return (
                 <tr key={m.id} className="border-b border-border/70 last:border-0 align-middle transition-colors hover:bg-muted/20">
-                  <td className="px-3 py-3 text-start sm:px-4">
-                    <span dir="ltr" className="flex flex-col items-start gap-0.5 whitespace-nowrap font-mono text-[11px] tabular-nums sm:text-xs">
+                  <td className="px-4 py-4 text-start">
+                    <span dir="ltr" className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-border/70 bg-background px-3 py-2 font-mono text-xs tabular-nums">
                       <time dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
+                      <span className="text-muted-foreground/60">·</span>
                       <time className="text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
                     </span>
                   </td>
-                  <td className="px-3 py-3 align-middle font-medium sm:px-4">
+                  <td className="px-4 py-4 align-middle font-medium">
                     <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-3">
                       <span dir="auto" title={homeTeamName} className="min-w-0 truncate text-end leading-tight">{homeTeamName}</span>
                       <span dir="ltr" className="inline-flex min-w-[54px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-2 py-1.5 text-center font-mono text-xs font-extrabold tabular-nums shadow-sm sm:min-w-[68px] sm:px-2.5">
@@ -156,7 +158,9 @@ export default async function MatchesListPage({
                         {outcome.decidedByPenalties && <span dir="ltr" className="ms-1 font-mono">({outcome.homePenaltyScore}–{outcome.awayPenaltyScore})</span>}
                       </p>
                     )}
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
                       <span className="max-w-full truncate rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground sm:max-w-[240px]" title={m.competition.name}>{m.competition.name}</span>
                       <MatchOperationalStatus
@@ -224,7 +228,7 @@ export default async function MatchesListPage({
             })}
             {matches.length === 0 && (
               <tr>
-                <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
                   {tCommon("noResults")}
                 </td>
               </tr>
