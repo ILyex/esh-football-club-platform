@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { ForbiddenError, hasPermission, type SessionUser } from "@/lib/permissions";
 import { getPlayerDisplayName } from "@/lib/utils";
+import { arabicRefereeNames } from "@/lib/matches/referees";
 // Financial documents print enum-backed values (category, payment method,
 // account type...) in the TEMPLATE's own language, using the same finance/teams
 // message catalogs the UI uses — one source of wording, no second dictionary.
@@ -96,7 +97,7 @@ async function resolveMatchReportBundle(matchId: string, context?: ResolverConte
       opponent,
       score: match.homeScore != null && match.awayScore != null ? `${match.homeScore} - ${match.awayScore}` : "",
       stadium: match.stadium ?? "",
-      referee: (lang === "fr" ? match.refereeNameFr || match.refereeNameAr : match.refereeNameAr || match.refereeNameFr) || match.refereeName || "",
+      referee: lang === "fr" ? match.refereeNameFr || match.refereeNameAr || match.refereeName || "" : arabicRefereeNames(match.refereeNameAr, match.refereeNameFr, match.refereeName),
       status: match.status,
       report: match.matchReport ?? "",
       scorers: goals.map((g) => (g.player ? `${getPlayerDisplayName(g.player, lang)} (${g.minute}')` : `(${g.minute}')`)).join(", ")

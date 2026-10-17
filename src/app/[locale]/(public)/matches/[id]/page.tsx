@@ -8,7 +8,7 @@ import { TacticalPitch } from "@/components/football/lineup-pitch-board";
 import { cn } from "@/lib/utils";
 import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
-import { getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
+import { arabicRefereeNames, getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 import { MatchLineupCarousel } from "@/components/public/match-lineup-carousel";
@@ -230,7 +230,7 @@ export default async function PublicMatchDetailPage({
               <span>{locale === "ar" ? stadium : frenchPublicText(stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
             </div>
           )}
-          {splitRefereeNames(locale === "fr" ? match.refereeNameFr || match.refereeNameAr || match.refereeName : match.refereeNameAr || match.refereeNameFr || match.refereeName).map((referee, index) => (
+          {splitRefereeNames(locale === "fr" ? match.refereeNameFr || match.refereeNameAr || match.refereeName : arabicRefereeNames(match.refereeNameAr, match.refereeNameFr, match.refereeName)).map((referee, index) => (
             <div key={`${referee}-${index}`} className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-club-primary" />
               <span className="font-semibold">{getRefereeRoleLabel(index, locale)}:</span>

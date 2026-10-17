@@ -1,7 +1,10 @@
+import { transliterateRefereeName } from "@/lib/matches/referees";
+
 type RefereeNames = { ar: string; fr: string };
 export type FafRefereeCrew = { ar: string[]; fr: string[] };
 
 const hasArabic = (value: string) => /[\u0600-\u06FF]/u.test(value);
+const normalizeKey = (value: string) => value.normalize("NFKD").toLocaleLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 
 export function isArabicRefereeName(value: string | null | undefined): boolean {
   return Boolean(value && hasArabic(value));
@@ -10,6 +13,11 @@ export function isArabicRefereeName(value: string | null | undefined): boolean {
 function firstText(record: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
     const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  const normalized = new Map(Object.entries(record).map(([key, value]) => [normalizeKey(key), value]));
+  for (const key of keys) {
+    const value = normalized.get(normalizeKey(key));
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return "";
@@ -22,32 +30,37 @@ function namesFrom(value: unknown): RefereeNames {
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ar: "", fr: "" };
   const record = value as Record<string, unknown>;
-  const arFull = firstText(record, ["fullNameAr", "nameAr", "nomCompletAr", "nomCompletArabic", "arabicName", "nameArabic", "nomArabe"]);
-  const frFull = firstText(record, ["fullNameFr", "nameFr", "nomCompletFr", "fullName", "displayName", "nomComplet", "name", "nom"]);
+  const localizedName = record.name && typeof record.name === "object" && !Array.isArray(record.name)
+    ? record.name as Record<string, unknown>
+    : {};
+  const arFull = firstText(record, ["fullNameAr", "nameAr", "nomCompletAr", "nomCompletArabic", "arabicName", "nameArabic", "nomArabe", "arabic", "ar"])
+    || firstText(localizedName, ["ar", "arabic"]);
+  const frFull = firstText(record, ["fullNameFr", "nameFr", "nomCompletFr", "fullName", "displayName", "nomComplet", "french", "fr"])
+    || firstText(localizedName, ["fr", "french"]);
   const arFirst = firstText(record, ["firstNameAr", "firstNameArabic", "givenNameAr", "prenomArbitreAr", "prenomAr", "prenomArabe"]);
   const arLast = firstText(record, ["lastNameAr", "lastNameArabic", "familyNameAr", "nomArbitreAr", "nomAr", "nomArabe"]);
   const frFirst = firstText(record, ["firstNameFr", "firstName", "givenName", "prenomArbitre", "prenom", "first_name"]);
   const frLast = firstText(record, ["lastNameFr", "lastName", "familyName", "nomArbitre", "nom", "last_name"]);
-  const generic = firstText(record, ["prenom", "nom", "firstName", "lastName", "name", "fullName", "prenomArbitre", "nomArbitre"]);
-  const detected = [arFull, frFull, arFirst, arLast, frFirst, frLast, generic, record.prenomArbitre, record.nomArbitre]
-    .filter((part): part is string => typeof part === "string" && Boolean(part.trim()));
+  const ar = arFull || [arFirst, arLast].filter(Boolean).join(" ") || "";
+  const fr = [frFirst, frLast].filter(Boolean).join(" ") || frFull || firstText(record, ["name", "nom"]);
   return {
-    ar: arFull || [arFirst, arLast].filter(Boolean).join(" ") || detected.find(hasArabic) || "",
-    fr: frFull && !hasArabic(frFull) ? frFull : [frFirst, frLast].filter((part) => part && !hasArabic(part)).join(" ") || detected.find((part) => !hasArabic(part)) || ""
+    ar: hasArabic(ar) ? ar : "",
+    fr: hasArabic(fr) ? "" : fr
   };
 }
 
 function roleIndex(label: string): number | null {
-  const key = label.normalize("NFKD").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-  if (/remplac|reserve|substitut|quatri|fourth|احتياط|بديل/.test(key) || /(?:arbitre|referee)(?:4|04)$/.test(key)) return 3;
-  if (/deuxieme|second|2e|assistant2|arbitre2|referee2|الثاني|ثاني/.test(key) || /(?:arbitre|referee)(?:assistant)?0?2$/.test(key)) return 2;
-  if (/premier|first|1er|assistant1|arbitre1|referee1|الأول|اول|أول/.test(key) || /(?:arbitre|referee)(?:assistant)?0?1$/.test(key)) return 1;
+  const key = normalizeKey(label).replace(/(?:arabic|french|ar|fr)$/, "");
+  if (/remplac|reserve|substitut|quatri|fourth|احتياط|بديل/.test(key) || /(?:arbitre|referee)(?:assistant)?0?4$/.test(key)) return 3;
+  if (/deuxieme|second|2e|assistant2|adjoint2|الثاني|ثاني/.test(key) || /(?:arbitre|referee)(?:assistant|adjoint)?0?3$/.test(key)) return 2;
+  if (/premier|first|1er|assistant1|adjoint1|الأول|اول/.test(key) || /(?:arbitre|referee)(?:assistant|adjoint)?0?2$/.test(key)) return 1;
+  if (/^(?:arbitre|referee)0?1$/.test(key)) return 0;
   if (/assistant|adjoint/.test(key)) return 1;
   if (/principal|central|main|رئيس/.test(key) || /^(?:arbitre|referee|الحكم)$/.test(key)) return 0;
   return null;
 }
 
-const ARRAY_KEYS = ["arbitres", "referees", "refereeTeam", "equipeArbitrale", "equipeArbitrage", "officielsArbitrage"];
+const ARRAY_KEYS = ["arbitres", "referees", "refereeTeam", "refereeCrew", "refereeOfficials", "equipeArbitrale", "equipeArbitrage", "officielsArbitrage"];
 const ROLE_LABEL_KEYS = ["role", "fonction", "libelle", "label", "type", "poste"];
 
 /** Reads the complete officiating crew, preserving role order and both EMS name variants. */
@@ -60,30 +73,49 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
     if (!slots[index]!.fr && names.fr) slots[index]!.fr = names.fr;
   };
 
-  for (const value of records) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+  const visited = new WeakSet<object>();
+  const walk = (value: unknown, depth = 0): void => {
+    if (!value || typeof value !== "object" || depth > 7 || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((item) => walk(item, depth + 1));
+      return;
+    }
     const record = value as Record<string, unknown>;
     for (const [key, person] of Object.entries(record)) {
-      if (!/(arbit|referee)/iu.test(key) || ARRAY_KEYS.includes(key)) continue;
-      const index = roleIndex(key.replace(/(?:ar|fr|arabic|french)$/iu, ""));
-      if (index !== null) fill(index, person);
+      const normalized = normalizeKey(key);
+      const crewArray = ARRAY_KEYS.some((candidate) => normalizeKey(candidate) === normalized);
+      if (crewArray && Array.isArray(person)) {
+        person.forEach((member, order) => {
+          const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
+          const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
+          fill(roleIndex(label) ?? order, member);
+          walk(member, depth + 1);
+        });
+        continue;
+      }
+      if (/arbit|referee/iu.test(key)) {
+        const index = roleIndex(key);
+        if (Array.isArray(person)) {
+          person.forEach((member, order) => {
+            const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
+            const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
+            fill(roleIndex(label) ?? Math.min(3, (index ?? 0) + order), member);
+            walk(member, depth + 1);
+          });
+          continue;
+        }
+        if (index !== null) fill(index, person);
+      }
+      walk(person, depth + 1);
     }
-    for (const key of ARRAY_KEYS) {
-      const crew = record[key];
-      if (!Array.isArray(crew)) continue;
-      crew.forEach((person, order) => {
-        const personRecord = person && typeof person === "object" ? person as Record<string, unknown> : null;
-        const label = personRecord ? firstText(personRecord, ROLE_LABEL_KEYS) : "";
-        const index = roleIndex(label) ?? order;
-        fill(index, person);
-      });
-    }
-  }
+  };
+  records.forEach((record) => walk(record));
 
   const unique = (language: "ar" | "fr") => {
     const seen = new Set<string>();
-    return slots.map((slot) => slot[language]).filter((name) => {
-      const key = name.normalize("NFKD").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    return slots.map((slot) => slot[language] || (language === "ar" && slot.fr ? transliterateRefereeName(slot.fr) : "")).filter((name) => {
+      const key = normalizeKey(name);
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;

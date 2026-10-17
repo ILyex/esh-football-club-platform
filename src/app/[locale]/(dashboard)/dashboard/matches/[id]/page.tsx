@@ -42,7 +42,7 @@ import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 import { PreMatchSheetUploadGate } from "@/components/matches/pre-match-sheet-upload-gate";
-import { getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
+import { arabicRefereeNames, getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
 import { splitClubNameVariants } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
 import { resolveMatchResult } from "@/lib/matches/result";
@@ -93,7 +93,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   const opponent = opponentNames.ar || opponentStoredName;
   const localizedRefereeNames = locale === "fr"
     ? match.refereeNameFr || match.refereeNameAr || match.refereeName
-    : match.refereeNameAr || match.refereeNameFr || match.refereeName;
+    : arabicRefereeNames(match.refereeNameAr, match.refereeNameFr, match.refereeName);
   const refereeNames = splitRefereeNames(localizedRefereeNames);
   const showRefereeReport = match.status === "FINISHED" || match.status === "CANCELLED";
   const opponentLogo = await getOpponentLogo(opponent);
@@ -462,7 +462,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                 <div className="min-w-0 rounded-xl border border-border/60 bg-card/70 p-3">
                   <p className="mb-2 text-xs font-bold text-foreground">{locale === "ar" ? "العربية" : "Arabe"}</p>
-                  <RefereeNamesInput name="refereeNameAr" defaultValue={match.refereeNameAr || match.refereeName} locale={locale} nameDirection="rtl" disabled={!canUpdate} showOrderHint={false} />
+                  <RefereeNamesInput name="refereeNameAr" defaultValue={arabicRefereeNames(match.refereeNameAr, match.refereeNameFr, match.refereeName)} locale={locale} nameDirection="rtl" disabled={!canUpdate} showOrderHint={false} />
                 </div>
                 <div className="min-w-0 rounded-xl border border-border/60 bg-card/70 p-3">
                   <p className="mb-2 text-xs font-bold text-foreground">{locale === "ar" ? "الفرنسية" : "Français"}</p>
