@@ -107,7 +107,7 @@ export default async function MatchesListPage({
           locale={locale === "ar" ? "ar" : "fr"}
           label={t("fields.competition")}
           value={sp.competitionId ?? ""}
-          options={[{ id: "", label: t("fields.competition") }, ...competitions.map((c) => ({ id: c.id, label: c.name }))]}
+          options={[{ id: "", label: locale === "ar" ? "كل المسابقات" : "Toutes les compétitions" }, ...competitions.map((c) => ({ id: c.id, label: c.name }))]}
           headerTitle={locale === "ar" ? "تصفية حسب المسابقة" : "Filtrer par compétition"}
         />
         <Button type="submit" variant="outline">
