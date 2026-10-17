@@ -42,7 +42,7 @@ function applyCapCreditIcon(widget: CapWidget) {
     const style = document.createElement("style");
     style.dataset.eshCapCredit = "true";
     style.textContent = `
-      .captcha .credits { color: var(--club-primary, #dc1233) !important; text-decoration: none !important; min-width: 24px; min-height: 24px; padding: 4px; justify-content: center !important; }
+      .captcha .credits { color: var(--club-primary, #dc1233) !important; text-decoration: none !important; min-width: 24px; min-height: 24px; padding: 4px; justify-content: center !important; inset-block-end: 8px !important; inset-inline-start: 50% !important; inset-inline-end: auto !important; translate: -50% 0 !important; }
       .captcha .credits .cap-credit-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     `;
     shadowRoot.append(style);
