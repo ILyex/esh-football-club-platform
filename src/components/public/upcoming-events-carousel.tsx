@@ -387,7 +387,7 @@ export function UpcomingMatchesCarousel({
 
                     <div className="flex min-w-[88px] flex-col items-center justify-center gap-1.5 text-center">
                       {hasResult ? (
-                        <div dir="ltr" className="inline-flex items-center gap-2 rounded-xl border border-club-primary/20 bg-club-primary/5 px-3 py-2 font-mono text-2xl font-black leading-none tabular-nums text-foreground">
+                        <div dir={locale === "ar" ? "rtl" : "ltr"} className="inline-flex items-center gap-2 rounded-xl border border-club-primary/20 bg-club-primary/5 px-3 py-2 font-mono text-2xl font-black leading-none tabular-nums text-foreground">
                           <span>{m.homeScore ?? 0}</span>
                           <span className="text-base text-muted-foreground">–</span>
                           <span>{m.awayScore ?? 0}</span>
@@ -480,7 +480,7 @@ export function UpcomingMatchesCarousel({
 
                     <div className="inline-flex min-h-9 min-w-[68px] items-center justify-center rounded-lg bg-club-primary/10 px-2 py-1 transition-transform duration-300 dark:bg-club-primary/15 sm:min-h-0 sm:min-w-36 sm:rounded-2xl sm:border sm:border-zinc-200 sm:bg-white sm:px-5 sm:py-2 sm:shadow-md sm:dark:border-border sm:dark:bg-background">
                       {mFinished ? (
-                        <bdi dir="ltr" className="font-mono text-2xl font-black leading-none tabular-nums text-foreground sm:text-3xl">
+                        <bdi dir={locale === "ar" ? "rtl" : "ltr"} className="font-mono text-2xl font-black leading-none tabular-nums text-foreground sm:text-3xl">
                           {m.homeScore ?? 0}<span className="mx-2 text-muted-foreground">–</span>{m.awayScore ?? 0}
                         </bdi>
                       ) : mIsLive ? (

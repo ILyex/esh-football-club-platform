@@ -489,7 +489,7 @@ export default async function HomePage({
                             <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-1 min-w-0 text-[9px] font-bold text-foreground">{localizedClubName(res.homeTeamName, locale, locale === "ar" ? "الفريق المضيف" : "Équipe locale")}</span>
                           </div>
                           <div className="col-span-1 flex min-w-[58px] flex-col items-center justify-self-center gap-0.5">
-                            <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-black tabular-nums text-foreground" dir="ltr">{res.homeScore ?? 0} - {res.awayScore ?? 0}</span>
+                            <span dir={locale === "ar" ? "rtl" : "ltr"} className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-black tabular-nums text-foreground"><span>{res.homeScore ?? 0}</span><span>-</span><span>{res.awayScore ?? 0}</span></span>
                           </div>
                           <div dir={locale === "ar" ? "ltr" : "rtl"} className="flex min-w-0 items-center justify-start gap-1.5 text-start">
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card p-1">

@@ -174,7 +174,7 @@ export default async function PublicMatchDetailPage({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <div dir="ltr" className="whitespace-nowrap font-mono text-3xl font-black text-foreground sm:text-5xl lg:text-6xl tabular-nums">
+                  <div dir={locale === "ar" ? "rtl" : "ltr"} className="whitespace-nowrap font-mono text-3xl font-black text-foreground sm:text-5xl lg:text-6xl tabular-nums">
                     <span>{match.homeScore ?? 0}</span>
                     <span className="mx-1 text-muted-foreground sm:mx-2">-</span>
                     <span>{match.awayScore ?? 0}</span>
