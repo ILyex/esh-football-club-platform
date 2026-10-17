@@ -10,6 +10,7 @@ import { RetryableError } from "@/lib/jobs/types";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { extractDocumentText } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
+import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -553,7 +554,13 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // Do not publish free-form referee prose; it can contain technical-staff
   // card details. The public summary is built from the curated player events.
   const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
-  const referee = [official.arbitre?.prenomArbitre, official.arbitre?.nomArbitre].filter(Boolean).join(" ") || null;
+  const refereeCrew = extractFafRefereeCrew(official, remote);
+  const refereeNameAr = refereeCrew.ar.join("، ") || null;
+  const refereeNameFr = refereeCrew.fr.join(", ") || null;
+  const referee = refereeCrew.fr[0] || refereeCrew.ar[0] || null;
+  const previousArabicRefereeNames = local.refereeNameAr === local.refereeName && !isArabicRefereeName(local.refereeNameAr)
+    ? null
+    : local.refereeNameAr;
   // resolveLocalMatch matched the fixture against Historique using the club's
   // configured FIFA id and the local home/away orientation. Treat that match
   // orientation as the source of truth; detail responses can omit/change IDs.
@@ -579,7 +586,9 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     data: {
       ...(officialResult ? { homeScore: officialResult.home, awayScore: officialResult.away } : {}),
       stadium: matchStadium(local.isHomeFixture, official.stade?.nomAr || official.stade?.nomStade, local.stadium),
-      refereeNameAr: referee || local.refereeNameAr,
+      refereeName: referee || local.refereeName,
+      refereeNameAr: refereeNameAr || previousArabicRefereeNames,
+      refereeNameFr: refereeNameFr || local.refereeNameFr,
       matchReport: reportText || local.matchReport,
       ...(explicitlyFinished ? { status: "FINISHED" as const } : explicitlyLive ? { status: "LIVE" as const } : {})
     }

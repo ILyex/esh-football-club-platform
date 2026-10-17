@@ -7,6 +7,7 @@ import { normalizeOpponentName } from "@/lib/opponents";
 import { getFAFConfig } from "./config";
 import { matchStadium } from "@/lib/matches/stadium";
 import { getFafEmsClient } from "./ems-client";
+import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { saveOpponentClub } from "@/lib/opponents";
 import { isSafeExternalUrl } from "./schemas";
 
@@ -137,13 +138,6 @@ async function readBoundedImage(response: Response, maxBytes: number): Promise<B
     reader.releaseLock();
   }
   return Buffer.concat(chunks, size);
-}
-
-function refereeName(match: RemoteMatch): string | null {
-  const referee = match.arbitre || match.referee || match.refereePrincipal;
-  const full = [referee?.prenomArbitre, referee?.nomArbitre, referee?.firstName, referee?.lastName]
-    .filter((part) => typeof part === "string" && part.trim()).join(" ").trim();
-  return full || (typeof referee === "string" ? referee.trim() : null);
 }
 
 function remoteCompetitionName(match: RemoteMatch): string {
@@ -285,7 +279,10 @@ export async function importUpcomingFafMatches(options: {
     const awayTeamName = homeFixtureIsUs ? opponent : clubName;
     const fafStadium = text(fixture.stade);
     const stadium = matchStadium(homeFixtureIsUs, fafStadium);
-    const referee = refereeName(fixture);
+    const refereeCrew = extractFafRefereeCrew(fixture, remote);
+    const referee = refereeCrew.fr[0] || refereeCrew.ar[0] || null;
+    const refereeNameAr = refereeCrew.ar.join("، ") || null;
+    const refereeNameFr = refereeCrew.fr.join(", ") || null;
     const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
     const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
     if (logoUrl) {
@@ -314,12 +311,17 @@ export async function importUpcomingFafMatches(options: {
           const mappedId = storedMatchId(mapped.value);
           const mappedMatchExists = mappedId ? await tx.match.findUnique({ where: { id: mappedId }, select: { id: true, teamId: true, homeTeamName: true, awayTeamName: true, stadium: true, refereeName: true, refereeNameAr: true } }) : null;
           if (mappedMatchExists) {
+          const previousArabicRefereeNames = mappedMatchExists.refereeNameAr === mappedMatchExists.refereeName && !isArabicRefereeName(mappedMatchExists.refereeNameAr)
+            ? null
+            : mappedMatchExists.refereeNameAr;
             await tx.match.update({
               where: { id: mappedMatchExists.id },
               data: {
                 matchDate: kickoff,
                 ...(stadium ? { stadium } : {}),
-                ...(referee ? { refereeName: referee, refereeNameAr: referee } : {})
+                ...(referee ? { refereeName: referee } : {}),
+              ...(refereeNameAr ? { refereeNameAr } : refereeNameFr && previousArabicRefereeNames === null ? { refereeNameAr: null } : {}),
+                ...(refereeNameFr ? { refereeNameFr } : {})
               }
             });
             await tx.calendarEvent.upsert({
@@ -345,6 +347,9 @@ export async function importUpcomingFafMatches(options: {
           const existingOpponent = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
           return namesMatch(existingOpponent, opponent);
         });
+        const previousArabicRefereeNames = existingManual?.refereeNameAr === existingManual?.refereeName && !isArabicRefereeName(existingManual?.refereeNameAr)
+          ? null
+          : existingManual?.refereeNameAr;
         const matchId = existingManual?.id ?? (await tx.match.create({
           data: {
             competitionId: competition.id,
@@ -355,7 +360,8 @@ export async function importUpcomingFafMatches(options: {
             matchDate: kickoff,
             stadium: stadium || null,
             refereeName: referee,
-            refereeNameAr: referee,
+            refereeNameAr,
+            refereeNameFr,
             status: "SCHEDULED"
           },
           select: { id: true }
@@ -367,7 +373,9 @@ export async function importUpcomingFafMatches(options: {
             data: {
               matchDate: kickoff,
               ...(stadium ? { stadium } : {}),
-              ...(referee ? { refereeName: referee, refereeNameAr: referee } : {})
+              ...(referee ? { refereeName: referee } : {}),
+              ...(refereeNameAr ? { refereeNameAr } : refereeNameFr && previousArabicRefereeNames === null ? { refereeNameAr: null } : {}),
+              ...(refereeNameFr ? { refereeNameFr } : {})
             }
           });
         }

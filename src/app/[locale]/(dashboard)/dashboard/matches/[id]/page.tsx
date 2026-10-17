@@ -42,7 +42,7 @@ import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 import { PreMatchSheetUploadGate } from "@/components/matches/pre-match-sheet-upload-gate";
-import { splitRefereeNames } from "@/lib/matches/referees";
+import { getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
 import { splitClubNameVariants } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
 import { resolveMatchResult } from "@/lib/matches/result";
@@ -92,7 +92,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   const localizedRefereeNames = locale === "fr"
     ? match.refereeNameFr || match.refereeNameAr || match.refereeName
     : match.refereeNameAr || match.refereeNameFr || match.refereeName;
-  const mainRefereeName = splitRefereeNames(localizedRefereeNames)[0] ?? null;
+  const refereeNames = splitRefereeNames(localizedRefereeNames);
   const showRefereeReport = match.status === "FINISHED" || match.status === "CANCELLED";
   const opponentLogo = await getOpponentLogo(opponent);
   const previousCompetitionMatch = await db.match.findFirst({
@@ -243,12 +243,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </div>
             )}
             <div className="flex min-w-0 justify-center sm:justify-self-center">
-              {mainRefereeName && (
-                <p className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
-                  <UserCheck className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
-                  <span className="shrink-0 text-muted-foreground">{locale === "ar" ? "الحكم الرئيسي" : "Arbitre principal"}:</span>
-                  <span className="truncate">{mainRefereeName}</span>
-                </p>
+              {refereeNames.length > 0 && (
+                <div className="flex max-w-full flex-wrap justify-center gap-2">
+                  {refereeNames.map((name, index) => (
+                    <p key={`${index}-${name}`} className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+                      <UserCheck className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
+                      <span className="shrink-0 text-muted-foreground">{getRefereeRoleLabel(index, locale)}:</span>
+                      <span className="truncate">{name}</span>
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
           </div>
