@@ -56,6 +56,7 @@
     "@prisma/client": "6.19.3",
     "@types/sanitize-html": "^2.16.2",
     "bcryptjs": "^2.4.3",
+    "braces": "file:vendor/braces",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
