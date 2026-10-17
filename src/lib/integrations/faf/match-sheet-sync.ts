@@ -12,6 +12,7 @@ import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-sec
 import { extractDocumentText } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
+import { combineClubNameVariants, hasArabicScript } from "@/lib/public/locale-text";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -119,6 +120,11 @@ function dateKey(value: unknown): string {
 
 function opponentName(club: any): string {
   return String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "");
+}
+
+function opponentFrenchName(club: any): string {
+  return [club?.nomFr, club?.nameFr, club?.denominationFr, club?.nom, club?.name, club?.denomination]
+    .find((value): value is string => typeof value === "string" && Boolean(value.trim()) && !hasArabicScript(value))?.trim() || "";
 }
 
 function remoteClubNames(club: any): string[] {
@@ -669,9 +675,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // The EMS club FIFA IDs are authoritative for orientation. A stale local
   // isHomeFixture flag must never reverse scores or assign events to a side.
   const clubIsHome = remoteLocIsOurClub;
-  const opponent = opponentName(clubIsHome ? remote.clubVis : remote.clubLoc);
-  const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponent;
-  const awayTeamName = clubIsHome ? opponent : "نادي أمل سيدي حسني";
+  const opponentClub = clubIsHome ? remote.clubVis : remote.clubLoc;
+  const opponent = opponentName(opponentClub);
+  const opponentDisplayName = combineClubNameVariants(opponent, opponentFrenchName(opponentClub));
+  const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponentDisplayName;
+  const awayTeamName = clubIsHome ? opponentDisplayName : "نادي أمل سيدي حسني";
   const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,

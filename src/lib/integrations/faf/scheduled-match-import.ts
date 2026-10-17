@@ -10,6 +10,7 @@ import { getFafEmsClient } from "./ems-client";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { saveOpponentClub } from "@/lib/opponents";
 import { isSafeExternalUrl } from "./schemas";
+import { combineClubNameVariants, hasArabicScript } from "@/lib/public/locale-text";
 
 type RemoteMatch = Record<string, any>;
 type LocalTeam = { id: string; category: TeamCategory; active: boolean };
@@ -104,6 +105,13 @@ function clubCode(club: unknown): string {
 
 function opponentName(club: unknown): string {
   return text(club);
+}
+
+function opponentFrenchName(club: unknown): string {
+  if (!club || typeof club !== "object") return "";
+  const record = club as Record<string, unknown>;
+  return [record.nomFr, record.nameFr, record.denominationFr, record.nom, record.name, record.denomination]
+    .find((value): value is string => typeof value === "string" && Boolean(value.trim()) && !hasArabicScript(value))?.trim() ?? "";
 }
 
 function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
@@ -293,7 +301,9 @@ export async function importUpcomingFafMatches(options: {
       }
     }
     const homeFixtureIsUs = clubCode(fixture.clubLoc) === currentClubCode;
-    const opponent = opponentName(homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc);
+    const opponentClubRecord = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
+    const opponent = opponentName(opponentClubRecord);
+    const opponentDisplayName = combineClubNameVariants(opponent, opponentFrenchName(opponentClubRecord));
     const kickoff = dateInAlgeria(fixture.dateRencontre ?? remote.dateRencontre, fixture.heureRencontre ?? remote.heureRencontre);
     const competitionName = remoteCompetitionName(fixture) || remoteCompetitionName(remote);
     const category = inferCategory(fixture, competitionName) ?? inferCategory(remote, competitionName);
@@ -332,8 +342,8 @@ export async function importUpcomingFafMatches(options: {
 
     const externalKey = `faf-ems-scheduled-match:${externalId}`;
     const clubName = "نادي أمل سيدي حسني";
-    const homeTeamName = homeFixtureIsUs ? clubName : opponent;
-    const awayTeamName = homeFixtureIsUs ? opponent : clubName;
+    const homeTeamName = homeFixtureIsUs ? clubName : opponentDisplayName;
+    const awayTeamName = homeFixtureIsUs ? opponentDisplayName : clubName;
     const fafStadium = text(fixture.stade);
     const stadium = matchStadium(homeFixtureIsUs, fafStadium);
     const refereeCrew = extractFafRefereeCrew(fixture, remote);

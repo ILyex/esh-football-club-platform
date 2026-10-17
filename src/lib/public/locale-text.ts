@@ -37,10 +37,20 @@ export function localizedClubName(value: string | null | undefined, locale: stri
   if (!name) return fallback;
 
   const parts = name.split(/[\/|]/u).map((part) => part.trim()).filter(Boolean);
-  if (locale === "fr") return frenchPublicText(name, fallback);
+  if (locale === "fr") {
+    const frenchName = frenchPublicText(name, fallback);
+    if (frenchName !== fallback) return frenchName;
+    // Legacy matches may have only the Arabic club name until the next EMS
+    // sync enriches the record with its French alias. Preserve the real club
+    // identity rather than replacing it with a generic "opponent" label.
+    const variants = splitClubNameVariants(name);
+    return variants.ar || name;
+  }
 
   const arabicParenthetical = name.match(/\(([^()]*)\)/u)?.[1]?.trim();
   if (arabicParenthetical && hasArabicScript(arabicParenthetical)) return arabicParenthetical;
+  const arabicBaseName = name.replace(/\s*\([^()]*\)\s*/gu, " ").trim();
+  if (hasArabicScript(arabicBaseName)) return arabicBaseName;
   const arabicPart = parts.find(hasArabicScript);
   if (arabicPart) return arabicPart.replace(/\s*\([^()]*\)\s*/gu, " ").trim() || fallback;
   if (/^(?:club\s+)?amal\s+sidi\s+hosni$/iu.test(name) || /espoir(?:e)?\s+sidi\s+hosni/iu.test(name)) {
@@ -63,6 +73,19 @@ export function splitClubNameVariants(value: string | null | undefined): { ar: s
   const ar = arabicParenthetical || arabicPart?.replace(/\s*\([^()]*\)\s*/gu, " ").trim() || name.replace(/\s*\([^()]*\)\s*/gu, " ").trim();
   const fr = frenchParenthetical || parts.find((part) => !hasArabicScript(part)) || "";
   return { ar, fr };
+}
+
+/** Store both official club names in one backwards-compatible field for existing match consumers. */
+export function combineClubNameVariants(ar: string | null | undefined, fr: string | null | undefined): string {
+  const arabic = ar?.trim() ?? "";
+  const french = fr?.trim() ?? "";
+  if (!arabic) return french;
+  if (!french || normalizeClubName(arabic) === normalizeClubName(french)) return arabic;
+  return `${arabic} (${french})`;
+}
+
+function normalizeClubName(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
 export function frenchPublicPersonName(person: {
