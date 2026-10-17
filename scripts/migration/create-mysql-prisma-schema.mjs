@@ -11,6 +11,9 @@ const mysql = withoutWorker
     return `${start}${clientBody}\n  output = "../.generated/prisma-mysql"${end}`;
   })
   .replace(/(datasource db\s*\{[\s\S]*?\bprovider\s*=\s*)"postgresql"/, '$1"mysql"')
+  // PostgreSQL's ByteA native type has no MySQL equivalent; Prisma maps Bytes
+  // to the appropriate MySQL blob type when the native annotation is omitted.
+  .replace(/\s+@db\.ByteA\b/g, "")
   .replace(/String\[\]/g, "Json")
   .replace(/\s+@default\(\[\]\)/g, "");
 if (!/generator client\s*\{[^}]*output\s*=\s*"\.\.\/\.generated\/prisma-mysql"/s.test(mysql) ||
