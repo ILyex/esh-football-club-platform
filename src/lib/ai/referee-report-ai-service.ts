@@ -114,6 +114,40 @@ function findBestPlayerMatch(
   return ranked[0]!.player;
 }
 
+function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: SquadPlayer[]): boolean {
+  const eventPattern: Record<ParsedEventItem["type"], RegExp> = {
+    GOAL: /هدف|سجل|أهداف|\bbut\b|\bgoal\b|marqu/iu,
+    ASSIST: /تمريرة\s*حاسمة|صنع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
+    YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|carton\s+jaune|avertissement|\byellow\b/iu,
+    RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|carton\s+rouge|expulsion|\bred\s+card\b/iu,
+    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|remplaçant\s+entrant|entr[eé]\s+en\s+jeu|substitut\s+entrant/iu,
+    SUBSTITUTION_OUT: /خروج|خرج|استبدل|rempla[cç]ant\s+sortant|sorti\s+du\s+terrain|substitu[eé]\s+out/iu
+  };
+
+  const player = squad.find((candidate) => candidate.id === event.playerId);
+  if (!player) return false;
+  const nameVariants = [
+    [player.firstName, player.lastName],
+    [player.lastName, player.firstName],
+    [player.firstNameFr, player.lastNameFr],
+    [player.lastNameFr, player.firstNameFr]
+  ]
+    .map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean))
+    .filter((parts) => parts.length >= 2);
+
+  return text
+    .split(/[\r\n;.!?]+/u)
+    .some((segment) => {
+      const minute = eventMinuteFromReportLine(segment);
+      if (minute !== event.minute || !eventPattern[event.type].test(segment)) return false;
+      const normalizedSegment = normalizeName(segment);
+      const segmentTokens = new Set(normalizedSegment.split(" "));
+      return nameVariants.some((parts) => parts.every((part) =>
+        part.includes(" ") ? normalizedSegment.includes(part) : segmentTokens.has(part)
+      ));
+    });
+}
+
 /**
  * Deterministic NLP rule-based fallback if Ollama is offline or unavailable.
  * Identifies Arabic and French phrases for goals, cards, and penalties.
@@ -349,7 +383,10 @@ ${squadRoster}
         if (Array.isArray(parsed.events)) {
           parsedEvents = parsed.events.map((e: any) => {
             const minute = parseEventMinute(e.minute);
-            if (!minute) return null;
+            const eventType = ["GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"].includes(e.type)
+              ? e.type as ParsedEventItem["type"]
+              : null;
+            if (!minute || !eventType) return null;
             const matchedByName = findBestPlayerMatch(e.playerName || "", e.shirtNumber, squad);
             const matchedById = e.playerId ? squad.find((p) => p.id === e.playerId) : undefined;
             const matched = matchedByName || matchedById;
@@ -359,7 +396,7 @@ ${squadRoster}
               playerName: e.playerName || (matched ? `${matched.firstName} ${matched.lastName}` : "لاعب غير محدد"),
               playerNameFr: matched ? [matched.firstNameFr, matched.lastNameFr].filter(Boolean).join(" ") || undefined : undefined,
               shirtNumber: e.shirtNumber ?? matched?.shirtNumber ?? null,
-              type: ["GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"].includes(e.type) ? e.type : "GOAL",
+              type: eventType,
               minute,
               notes: e.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي",
               matchedPlayerName: matched ? `${matched.firstName} ${matched.lastName}` : undefined
@@ -386,8 +423,12 @@ ${squadRoster}
     aiProviderUsed = "INTELLIGENT_NLP_ENGINE";
   }
 
-  // Filter only matched club player events with valid IDs
-  const validEvents = parsedEvents.filter((e) => e.playerId !== null);
+  // Only persist events that can be verified in the source report itself.
+  // This prevents model guesses or broad mentions in the narrative from
+  // becoming official match events.
+  const validEvents = parsedEvents.filter((event) =>
+    event.playerId !== null && hasExplicitEventEvidence(textToAnalyze, event, squad)
+  );
 
   // Avoid creating exact duplicate events already present in this match
   const existingEvents = match.events;
