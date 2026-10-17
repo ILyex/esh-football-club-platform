@@ -1,6 +1,7 @@
 "use client";
 
 import { formatAlgeriaTime } from "@/lib/dates/algeria";
+import { matchStadium } from "@/lib/matches/stadium";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -361,8 +362,8 @@ export function UpcomingMatchesCarousel({
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-club-primary" />
                     <span className="truncate">
                       {locale === "ar"
-                        ? (m.stadium || "الملعب البلدي طاهري حسني – سيدي حسني")
-                        : frenchPublicText(m.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}
+                        ? matchStadium(m.isHomeFixture, m.stadium)
+                        : frenchPublicText(matchStadium(m.isHomeFixture, m.stadium), "Stade communal Taheri Hosni – Sidi Hosni")}
                     </span>
                   </div>
                 </div>

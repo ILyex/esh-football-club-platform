@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { normalizeOpponentName } from "@/lib/opponents";
 import { getFAFConfig } from "./config";
+import { matchStadium } from "@/lib/matches/stadium";
 import { getFafEmsClient } from "./ems-client";
 import { saveOpponentClub } from "@/lib/opponents";
 import { isSafeExternalUrl } from "./schemas";
@@ -282,7 +283,8 @@ export async function importUpcomingFafMatches(options: {
     const clubName = "نادي أمل سيدي حسني";
     const homeTeamName = homeFixtureIsUs ? clubName : opponent;
     const awayTeamName = homeFixtureIsUs ? opponent : clubName;
-    const stadium = text(fixture.stade);
+    const fafStadium = text(fixture.stade);
+    const stadium = matchStadium(homeFixtureIsUs, fafStadium);
     const referee = refereeName(fixture);
     const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
     const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
@@ -298,10 +300,10 @@ export async function importUpcomingFafMatches(options: {
           buffer: bytes,
           mimeType: image.mime
         });
-        await saveOpponentClub(opponent, storedLogoUrl, stadium || undefined);
+        await saveOpponentClub(opponent, storedLogoUrl, fafStadium || undefined);
       }
       catch {
-        await saveOpponentClub(opponent, logoUrl, stadium || undefined).catch(() => undefined);
+        await saveOpponentClub(opponent, logoUrl, fafStadium || undefined).catch(() => undefined);
         if (result.warnings.length < 5) result.warnings.push(`تعذر رفع شعار المنافس إلى التخزين؛ حفظت رابط FAF كخيار احتياطي للمباراة ${externalId}.`);
       }
     }

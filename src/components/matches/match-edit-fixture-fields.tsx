@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { hasArabicScript } from "@/lib/public/locale-text";
+import { CLUB_HOME_STADIUM } from "@/lib/matches/stadium";
 
 export function MatchEditFixtureFields({
   initialIsHome,
@@ -17,9 +18,9 @@ export function MatchEditFixtureFields({
   stadiumLabel: string;
 }) {
   const isAr = locale === "ar";
-  const homeStadium = "الملعب البلدي طاهري حسني – سيدي حسني";
+  const homeStadium = CLUB_HOME_STADIUM;
   const [isHome, setIsHome] = useState(initialIsHome);
-  const [stadium, setStadium] = useState(initialStadium || (initialIsHome ? homeStadium : ""));
+  const [stadium, setStadium] = useState(initialIsHome ? homeStadium : initialStadium);
   const awayStadium = useRef(initialIsHome ? "" : initialStadium);
   const displayedStadium = !isAr && hasArabicScript(stadium)
     ? (isHome ? "Stade communal Taheri Hosni – Sidi Hosni" : "Stade à confirmer")
@@ -27,7 +28,7 @@ export function MatchEditFixtureFields({
 
   useEffect(() => {
     setIsHome(initialIsHome);
-    setStadium(initialStadium || (initialIsHome ? homeStadium : ""));
+    setStadium(initialIsHome ? homeStadium : initialStadium);
     awayStadium.current = initialIsHome ? "" : initialStadium;
   }, [initialIsHome, initialStadium, homeStadium]);
 

@@ -9,6 +9,7 @@ import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { RetryableError } from "@/lib/jobs/types";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { extractDocumentText } from "@/lib/ai/document-verifier";
+import { matchStadium } from "@/lib/matches/stadium";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -499,7 +500,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     where: { id: local.id },
     data: {
       ...(officialResult ? { homeScore: officialResult.home, awayScore: officialResult.away } : {}),
-      stadium: official.stade?.nomAr || official.stade?.nomStade || local.stadium,
+      stadium: matchStadium(local.isHomeFixture, official.stade?.nomAr || official.stade?.nomStade, local.stadium),
       refereeNameAr: referee || local.refereeNameAr,
       matchReport: reportText || local.matchReport,
       ...(explicitlyFinished ? { status: "FINISHED" as const } : explicitlyLive ? { status: "LIVE" as const } : {})

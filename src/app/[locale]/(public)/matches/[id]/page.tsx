@@ -15,6 +15,7 @@ import { MatchLineupCarousel } from "@/components/public/match-lineup-carousel";
 import { PublicMatchSections } from "@/components/public/public-match-sections";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { matchStadium } from "@/lib/matches/stadium";
 
 export default async function PublicMatchDetailPage({
   params,
@@ -44,6 +45,7 @@ export default async function PublicMatchDetailPage({
   }).format(match.matchDate);
 
   const formattedTime = formatAlgeriaTime(match.matchDate, locale);
+  const stadium = matchStadium(match.isHomeFixture, match.stadium);
   const showOfficialLineup = match.status === "LIVE" || (match.status === "SCHEDULED" && (match.startingLineup.length > 0 || match.substitutes.length > 0));
   const showMatchEvents = match.status === "LIVE" || match.status === "FINISHED";
 
@@ -219,10 +221,10 @@ export default async function PublicMatchDetailPage({
             <Calendar className="h-3.5 w-3.5 text-club-primary" />
             <span>{formattedDate}</span>
           </div>
-          {match.stadium && (
+          {stadium && (
             <div className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-club-primary" />
-              <span>{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
+              <span>{locale === "ar" ? stadium : frenchPublicText(stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
             </div>
           )}
           {splitRefereeNames(locale === "fr" ? match.refereeNameFr || match.refereeNameAr || match.refereeName : match.refereeNameAr || match.refereeNameFr || match.refereeName).map((referee, index) => (

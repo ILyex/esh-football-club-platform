@@ -18,6 +18,7 @@ import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
 import { estimateShotXg } from "@/lib/matches/xg";
+import { matchStadium } from "@/lib/matches/stadium";
 
 function revalidatePath(...args: Parameters<typeof nextRevalidatePath>) {
   try {
@@ -109,6 +110,7 @@ export async function createMatchAction(formData: FormData) {
     return { formError: { field, message } };
   }
   const parsed = validation.data;
+  const stadium = matchStadium(parsed.isHomeFixture, parsed.stadium);
   assertTeamScope(scopeContext, parsed.teamId, "Match");
   await assertMatchCompetitionTeamConsistency(parsed.competitionId, parsed.teamId);
 
@@ -175,7 +177,7 @@ export async function createMatchAction(formData: FormData) {
         awayTeamName,
         isHomeFixture: parsed.isHomeFixture,
         matchDate: parsed.matchDate,
-        stadium: parsed.stadium,
+        stadium,
         refereeName: parsed.refereeNameAr || parsed.refereeName || parsed.refereeNameFr,
         refereeNameAr: parsed.refereeNameAr,
         refereeNameFr: parsed.refereeNameFr,
@@ -207,8 +209,8 @@ export async function createMatchAction(formData: FormData) {
     const endDateTime = new Date(parsed.matchDate.getTime() + 2 * 3600 * 1000);
     await tx.calendarEvent.upsert({
       where: { relatedMatchId: createdMatch.id },
-      update: { title: `${homeTeamName} vs ${awayTeamName}`, startDateTime: parsed.matchDate, endDateTime, teamId: parsed.teamId, location: parsed.stadium || null },
-      create: { title: `${homeTeamName} vs ${awayTeamName}`, type: "MATCH", startDateTime: parsed.matchDate, endDateTime, teamId: parsed.teamId, location: parsed.stadium || null, relatedMatchId: createdMatch.id }
+      update: { title: `${homeTeamName} vs ${awayTeamName}`, startDateTime: parsed.matchDate, endDateTime, teamId: parsed.teamId, location: stadium || null },
+      create: { title: `${homeTeamName} vs ${awayTeamName}`, type: "MATCH", startDateTime: parsed.matchDate, endDateTime, teamId: parsed.teamId, location: stadium || null, relatedMatchId: createdMatch.id }
     });
 
     await writeAuditLog({ userId: user.id, action: "match.create", entityType: "Match", entityId: createdMatch.id, changes: { after: parsed, opponentLogoUrl } }, tx);
@@ -253,6 +255,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = matchSchema.parse(raw);
+  const stadium = matchStadium(parsed.isHomeFixture, parsed.stadium);
   const homeScore = parsed.homeScore ?? before.homeScore;
   const awayScore = parsed.awayScore ?? before.awayScore;
   if (parsed.status === "FINISHED" && parsed.hasExtraTime && parsed.hasPenaltyShootout && homeScore != null && homeScore === awayScore) {
@@ -298,7 +301,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
       awayTeamName,
       isHomeFixture: parsed.isHomeFixture,
       matchDate: parsed.matchDate,
-      stadium: parsed.stadium,
+      stadium,
       refereeName: parsed.refereeNameAr || parsed.refereeName || parsed.refereeNameFr,
       refereeNameAr: parsed.refereeNameAr,
       refereeNameFr: parsed.refereeNameFr,

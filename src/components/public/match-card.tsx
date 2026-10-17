@@ -5,6 +5,7 @@ import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localize
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 import { formatAlgeriaTime } from "@/lib/dates/algeria";
+import { matchStadium } from "@/lib/matches/stadium";
 
 interface MatchCardProps {
   match: PublicMatchItem;
@@ -42,6 +43,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
   }).format(match.matchDate);
 
   const formattedTime = formatAlgeriaTime(match.matchDate, locale);
+  const stadium = matchStadium(match.isHomeFixture, match.stadium);
 
   return (
     <article className="group flex min-h-[270px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-club-primary/50 hover:shadow-lg sm:min-h-[300px]">
@@ -153,10 +155,10 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Calendar className="h-3.5 w-3.5 shrink-0" />
             <span>{formattedDate}</span>
           </div>
-          {match.stadium && (
+          {stadium && (
             <div className="hidden min-w-0 items-center gap-1.5 truncate sm:flex">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{locale === "ar" ? match.stadium : frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
+              <span className="truncate">{locale === "ar" ? stadium : frenchPublicText(stadium, "Stade communal Taheri Hosni – Sidi Hosni")}</span>
             </div>
           )}
         </div>
