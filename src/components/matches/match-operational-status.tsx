@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getMatchClockState, type MatchAddedTimeSettings } from "@/lib/matches/clock";
+import { getMatchDisplayStatus, type MatchDisplayStatus } from "@/lib/matches/display-status";
 
-type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
+type MatchStatus = MatchDisplayStatus;
 
 export function MatchOperationalStatus({
   status,
@@ -41,6 +42,15 @@ export function MatchOperationalStatus({
   const kickoff = new Date(matchDate).getTime();
   const remaining = now === null ? Number.POSITIVE_INFINITY : kickoff - now;
   const isImminent = status === "SCHEDULED" && remaining > 0 && remaining <= 30 * 60 * 1000;
+  const displayStatus: MatchStatus = now === null ? status : getMatchDisplayStatus({
+    status,
+    matchDate,
+    hasExtraTime,
+    hasPenaltyShootout,
+    homeScore,
+    awayScore,
+    addedTime
+  }, new Date(now));
   const clockPhase = status === "LIVE" && now !== null ? getMatchClockState(
     matchDate,
     new Date(now),
@@ -50,8 +60,6 @@ export function MatchOperationalStatus({
     awayScore,
     addedTime
   ).phase : null;
-  const finishedByClock = status === "LIVE" && clockPhase === "FULL_TIME";
-  const displayStatus: MatchStatus = finishedByClock ? "FINISHED" : status;
   const isHalfTime = clockPhase === "HALF_TIME" || clockPhase === "EXTRA_TIME_HALF_TIME";
   const label = isImminent
     ? (isAr ? "تبدأ قريبًا" : "Débute bientôt")

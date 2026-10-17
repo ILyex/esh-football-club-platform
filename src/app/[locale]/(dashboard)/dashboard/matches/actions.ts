@@ -354,6 +354,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
   revalidatePath("/[locale]/competitions", "page");
   revalidatePath(`/[locale]/matches/${match.id}`, "page");
   revalidatePath(`/[locale]/dashboard/matches/${match.id}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
   return { success: true, id: match.id, matchDate: match.matchDate.toISOString() };
@@ -414,6 +415,7 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
   }
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/matches", "page");
@@ -539,6 +541,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
 }
 
 export async function updateMatchEventAction(matchId: string, eventId: string, formData: FormData) {
@@ -682,6 +685,7 @@ export async function addShootoutKickAction(matchId: string, formData: FormData)
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
 }
 
 export async function deleteShootoutKickAction(matchId: string, kickId: string) {
@@ -730,6 +734,7 @@ export async function deleteShootoutKickAction(matchId: string, kickId: string) 
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
+  revalidatePath("/[locale]/field/matches", "page");
 }
 
 export async function upsertLineupEntryAction(matchId: string, formData: FormData) {

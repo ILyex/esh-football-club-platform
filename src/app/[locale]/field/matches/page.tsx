@@ -15,6 +15,8 @@ import { CollapsibleMatchEvents } from "@/components/matches/collapsible-match-e
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
 import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
+import { getMatchDisplayStatus } from "@/lib/matches/display-status";
+import { MatchStatusRefresh } from "@/components/matches/match-status-refresh";
 
 const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15";
 
@@ -51,6 +53,21 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
     orderBy: { matchDate: "desc" },
     take: 20
   });
+  const statusNow = new Date();
+  const getDisplayStatus = (match: (typeof matches)[number]) => getMatchDisplayStatus({
+    status: match.status,
+    matchDate: match.matchDate,
+    hasExtraTime: match.hasExtraTime,
+    hasPenaltyShootout: match.hasPenaltyShootout,
+    homeScore: match.homeScore,
+    awayScore: match.awayScore,
+    addedTime: {
+      firstHalf: match.firstHalfAddedTime,
+      secondHalf: match.secondHalfAddedTime,
+      extraTimeFirstHalf: match.extraTimeFirstHalfAddedTime,
+      extraTimeSecondHalf: match.extraTimeSecondHalfAddedTime
+    }
+  }, statusNow);
   const matchTeamIds = [...new Set(matches.map((match) => match.teamId).filter((teamId): teamId is string => Boolean(teamId)))];
   const visibleMatchTeamIds = scopeContext.isUnrestricted
     ? matchTeamIds
@@ -92,6 +109,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
   }
 
   return <main className="min-h-screen bg-muted/30 px-3 py-4 text-foreground sm:px-6 sm:py-6" dir={isAr ? "rtl" : "ltr"}>
+    <MatchStatusRefresh enabled={matches.some((match) => getDisplayStatus(match) === "LIVE")} />
     <div className="mx-auto w-full max-w-5xl space-y-4">
       <header className="relative z-20 overflow-visible rounded-2xl border border-border bg-card shadow-xs">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-club-primary" />
@@ -125,7 +143,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
             </form>
             <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
               <div className="flex min-h-10 flex-col justify-center rounded-lg bg-muted/40 px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "المعروضة" : "Affichés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums sm:text-base sm:leading-5">{matches.length}</p></div>
-              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-rose-500/[0.045] px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "مباشرة" : "En direct"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-rose-500 sm:text-base sm:leading-5">{matches.filter((match) => match.status === "LIVE").length}</p></div>
+              <div className="flex min-h-10 flex-col justify-center rounded-lg bg-rose-500/[0.045] px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "مباشرة" : "En direct"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-rose-500 sm:text-base sm:leading-5">{matches.filter((match) => getDisplayStatus(match) === "LIVE").length}</p></div>
               <div className="flex min-h-10 flex-col justify-center rounded-lg bg-amber-500/[0.045] px-2 py-1 sm:min-h-[68px] sm:px-3 sm:py-2"><p className="truncate text-[8px] leading-3 text-muted-foreground sm:text-[10px] sm:leading-4">{isAr ? "المؤجلة" : "Reportés"}</p><p className="text-xs font-extrabold leading-4 tabular-nums text-amber-600 dark:text-amber-400 sm:text-base sm:leading-5">{matches.filter((match) => match.status === "POSTPONED").length}</p></div>
             </div>
           </div>
@@ -134,9 +152,10 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
 
       {matches.length === 0 ? <section className="rounded-2xl border border-border bg-card px-4 py-10 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground"><CalendarDays className="h-4 w-4" /></span><p className="mt-3 text-sm font-bold">{isAr ? "لا توجد مباريات لعرضها" : "Aucun match à afficher"}</p><p className="mt-1 text-xs text-muted-foreground">{isAr ? "ستظهر هنا المباريات القادمة والمباشرة والمنتهية حديثاً." : "Les matchs à venir, en direct et récemment terminés apparaîtront ici."}</p></section> : <div className="space-y-3">{matches.map((match) => {
         const names = getMatchDisplayNames(match, locale);
-        const isLive = match.status === "LIVE";
-        const isFinished = match.status === "FINISHED";
-        const isPostponed = match.status === "POSTPONED";
+        const displayStatus = getDisplayStatus(match);
+        const isLive = displayStatus === "LIVE";
+        const isFinished = displayStatus === "FINISHED";
+        const isPostponed = displayStatus === "POSTPONED";
         const homeSide = match.isHomeFixture ? "HOME" : "AWAY";
         const statusActions = isLive
           ? [
@@ -146,7 +165,9 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
           : isPostponed
             ? [{ status: "SCHEDULED", label: isAr ? "إعادة المباراة إلى الجدول" : "Remettre au calendrier", icon: CalendarDays, primary: true }]
             : isFinished
-              ? [{ status: "LIVE", label: isAr ? "إعادة فتح المباراة" : "Rouvrir le match", icon: RotateCcw, primary: false }]
+              ? match.status === "LIVE"
+                ? [{ status: "FINISHED", label: isAr ? "تأكيد إنهاء المباراة" : "Confirmer la fin du match", icon: Flag, primary: true }]
+                : [{ status: "LIVE", label: isAr ? "إعادة فتح المباراة" : "Rouvrir le match", icon: RotateCcw, primary: false }]
               : [
                   { status: "LIVE", label: isAr ? "بدء المباراة" : "Démarrer le match", icon: Play, primary: true },
                   { status: "POSTPONED", label: isAr ? "تأجيل المباراة" : "Reporter le match", icon: CalendarClock, primary: false }
