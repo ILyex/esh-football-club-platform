@@ -34,7 +34,7 @@ export default async function PlayerStatsPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ category?: string; season?: string; player?: string }>;
+  searchParams: Promise<{ category?: string; season?: string; player?: string; page?: string }>;
 }) {
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   const isAr = locale !== "fr";
@@ -141,6 +141,12 @@ export default async function PlayerStatsPage({
     if (assister && shot.outcome === "GOAL") assister.assists += 1;
   }
   const rankedPlayers = [...rows.values()].sort((left, right) => right.goals - left.goals || right.xg - left.xg || right.assists - left.assists || right.appearances - left.appearances);
+  const pageSize = 20;
+  const requestedPage = Number.parseInt(query.page ?? "1", 10);
+  const pageCount = Math.max(1, Math.ceil(rankedPlayers.length / pageSize));
+  const currentPage = Number.isFinite(requestedPage) ? Math.min(pageCount, Math.max(1, requestedPage)) : 1;
+  const pagePlayers = rankedPlayers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageHref = (page: number) => `/${locale}/dashboard/player-stats?${new URLSearchParams({ ...(selectedCategory !== "ALL" ? { category: selectedCategory } : {}), ...(selectedSeasonId ? { season: selectedSeasonId } : {}), page: String(page) }).toString()}`;
   const selectedPlayer = rankedPlayers.find((row) => row.player.id === query.player) ?? null;
   const matchInfoById = new Map(shotMatches.map((match) => [match.id, match]));
   const selectedPlayerShots = selectedPlayer
@@ -216,14 +222,22 @@ export default async function PlayerStatsPage({
         <thead className="bg-muted/40 text-[10px] font-bold text-muted-foreground"><tr>
           <th className="px-4 py-3 text-start"># / {isAr ? "اللاعب" : "Joueur"}</th><th className="px-3 py-3 text-center">{isAr ? "مباريات" : "MJ"}</th><th className="px-3 py-3 text-center">⚽</th><th className="px-3 py-3 text-center">{isAr ? "تمريرات حاسمة" : "PD"}</th><th className="px-3 py-3 text-center">{isAr ? "تسديدات" : "Tirs"}</th><th className="px-3 py-3 text-center">xG</th><th className="px-3 py-3 text-center">{isAr ? "دقة التسديد" : "Cadrés"}</th><th className="px-3 py-3 text-center">🟨</th><th className="px-3 py-3 text-center">🟥</th><th className="px-4 py-3 text-end">{isAr ? "تحليل" : "Analyse"}</th>
         </tr></thead>
-        <tbody className="divide-y divide-border/80">{rankedPlayers.map((row, index) => {
+        <tbody className="divide-y divide-border/80">{pagePlayers.map((row, index) => {
           const href = `/${locale}/dashboard/player-stats?${new URLSearchParams({ ...(selectedCategory !== "ALL" ? { category: selectedCategory } : {}), ...(selectedSeasonId ? { season: selectedSeasonId } : {}), player: row.player.id }).toString()}`;
           return <tr key={row.player.id} className="transition-colors hover:bg-muted/30">
-            <td className="px-4 py-3"><div className="flex items-center gap-2.5"><span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-[10px] font-bold text-muted-foreground">{row.player.shirtNumber ?? index + 1}</span><span className="min-w-0"><span className="block truncate font-bold">{locale === "fr" ? `${row.player.firstNameFr || row.player.firstName} ${row.player.lastNameFr || row.player.lastName}` : `${row.player.firstName} ${row.player.lastName}`}</span><span className="mt-0.5 block text-[9px] text-muted-foreground">{categoryLabel(row.player.team?.category, locale)} · {row.starts} {isAr ? "أساسي" : "titul."}</span></span></div></td>
+            <td className="px-4 py-3"><div className="flex items-center gap-2.5"><span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-[10px] font-bold text-muted-foreground">{row.player.shirtNumber ?? (currentPage - 1) * pageSize + index + 1}</span><span className="min-w-0"><span className="block truncate font-bold">{locale === "fr" ? `${row.player.firstNameFr || row.player.firstName} ${row.player.lastNameFr || row.player.lastName}` : `${row.player.firstName} ${row.player.lastName}`}</span><span className="mt-0.5 block text-[9px] text-muted-foreground">{categoryLabel(row.player.team?.category, locale)} · {row.starts} {isAr ? "أساسي" : "titul."}</span></span></div></td>
             <td className="px-3 py-3 text-center tabular-nums">{row.appearances}</td><td className="px-3 py-3 text-center font-black tabular-nums">{row.goals}</td><td className="px-3 py-3 text-center tabular-nums">{row.assists}</td><td className="px-3 py-3 text-center tabular-nums">{row.shots}</td><td className="px-3 py-3 text-center font-bold tabular-nums">{row.xg.toFixed(2)}</td><td className="px-3 py-3 text-center tabular-nums">{row.shotsOnTarget}/{row.shots}</td><td className="px-3 py-3 text-center tabular-nums">{row.yellowCards}</td><td className="px-3 py-3 text-center tabular-nums">{row.redCards}</td><td className="px-4 py-3 text-end"><Link href={href} className="inline-flex items-center justify-center rounded-lg border border-club-primary/30 px-3 py-2 text-[10px] font-bold text-club-primary transition hover:border-club-primary hover:bg-club-primary/10">{isAr ? "عرض التحليل" : "Voir l’analyse"}</Link></td>
           </tr>;
         })}</tbody>
       </table></div>}
+      {rankedPlayers.length > pageSize && <nav aria-label={isAr ? "صفحات ترتيب اللاعبين" : "Pages du classement"} className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <span className="text-[10px] text-muted-foreground">{isAr ? `عرض ${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, rankedPlayers.length)} من ${rankedPlayers.length} لاعب` : `Affichage de ${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, rankedPlayers.length)} sur ${rankedPlayers.length} joueurs`}</span>
+        <div className="flex items-center gap-2">
+          {currentPage > 1 ? <Link href={pageHref(currentPage - 1)} className="rounded-lg border border-border px-3 py-2 text-[10px] font-bold transition hover:border-club-primary hover:text-club-primary">{isAr ? "السابق" : "Précédent"}</Link> : <span aria-disabled="true" className="rounded-lg border border-border/60 px-3 py-2 text-[10px] font-bold text-muted-foreground/50">{isAr ? "السابق" : "Précédent"}</span>}
+          <span className="min-w-16 text-center text-[10px] font-bold tabular-nums text-muted-foreground">{currentPage} / {pageCount}</span>
+          {currentPage < pageCount ? <Link href={pageHref(currentPage + 1)} className="rounded-lg border border-border px-3 py-2 text-[10px] font-bold transition hover:border-club-primary hover:text-club-primary">{isAr ? "التالي" : "Suivant"}</Link> : <span aria-disabled="true" className="rounded-lg border border-border/60 px-3 py-2 text-[10px] font-bold text-muted-foreground/50">{isAr ? "التالي" : "Suivant"}</span>}
+        </div>
+      </nav>}
     </section>}
 
     {selectedPlayer && <section className="space-y-4">
