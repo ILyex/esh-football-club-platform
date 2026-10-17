@@ -10,6 +10,45 @@ type CapLoginWidgetProps = {
   onToken: (token: string) => void;
 };
 
+/** Keeps Cap's attribution link while replacing its visible wordmark with a club-colored shield. */
+function applyCapCreditIcon(widget: CapWidget) {
+  const shadowRoot = widget.shadowRoot;
+  const credits = shadowRoot?.querySelector<HTMLAnchorElement>(".credits");
+  if (!shadowRoot || !credits || credits.querySelector("svg")) return;
+
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("width", "16");
+  icon.setAttribute("height", "16");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "1.8");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.setAttribute("aria-hidden", "true");
+
+  const shield = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shield.setAttribute("d", "M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z");
+  icon.append(shield);
+
+  // Keep the service attribution available to assistive technology and to the
+  // widget's own integrity check, which restores the label if it is removed.
+  const label = document.createElement("span");
+  label.className = "cap-credit-label";
+  label.textContent = "Cap";
+  credits.replaceChildren(icon, label);
+
+  if (!shadowRoot.querySelector("style[data-esh-cap-credit]")) {
+    const style = document.createElement("style");
+    style.dataset.eshCapCredit = "true";
+    style.textContent = `
+      .captcha .credits { color: var(--club-primary, #dc1233) !important; text-decoration: none !important; min-width: 24px; min-height: 24px; padding: 4px; justify-content: center !important; }
+      .captcha .credits .cap-credit-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    `;
+    shadowRoot.append(style);
+  }
+}
+
 export function CapLoginWidget({ endpoint, locale, onReady, onToken }: CapLoginWidgetProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CapWidget | null>(null);
@@ -93,6 +132,7 @@ export function CapLoginWidget({ endpoint, locale, onReady, onToken }: CapLoginW
       requestAnimationFrame(() => {
         if (!mounted) return;
         if (widget?.shadowRoot?.querySelector(".captcha-trigger")) {
+          applyCapCreditIcon(widget);
           setStatus("ready");
           onReady(true);
         } else {
