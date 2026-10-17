@@ -51,6 +51,8 @@ function namesFrom(value: unknown): RefereeNames {
 
 function roleIndex(label: string): number | null {
   const key = normalizeKey(label).replace(/(?:arabic|french|ar|fr)$/, "");
+  const numberedOfficial = key.match(/^(?:arbitre|referee)0?([1-4])$/);
+  if (numberedOfficial) return Number(numberedOfficial[1]) - 1;
   if (/remplac|reserve|substitut|quatri|fourth|احتياط|بديل/.test(key) || /(?:arbitre|referee)(?:assistant)?0?4$/.test(key)) return 3;
   if (/deuxieme|second|2e|assistant2|adjoint2|الثاني|ثاني/.test(key) || /(?:arbitre|referee)(?:assistant|adjoint)?0?3$/.test(key)) return 2;
   if (/premier|first|1er|assistant1|adjoint1|الأول|اول/.test(key) || /(?:arbitre|referee)(?:assistant|adjoint)?0?2$/.test(key)) return 1;
@@ -60,8 +62,11 @@ function roleIndex(label: string): number | null {
   return null;
 }
 
-const ARRAY_KEYS = ["arbitres", "referees", "refereeTeam", "refereeCrew", "refereeOfficials", "equipeArbitrale", "equipeArbitrage", "officielsArbitrage"];
-const ROLE_LABEL_KEYS = ["role", "fonction", "libelle", "label", "type", "poste"];
+const ARRAY_KEYS = [
+  "arbitres", "referees", "refereeTeam", "refereeCrew", "refereeOfficials", "equipeArbitrale", "equipeArbitrage", "officielsArbitrage",
+  "arbitresAssistants", "assistantsArbitres", "assistantReferees", "arbitreAssistants", "assistants", "adjoints", "arbitresRemplacants", "arbitresRemplaçants"
+];
+const ROLE_LABEL_KEYS = ["role", "roleName", "fonction", "libelle", "libelleFonction", "label", "type", "poste", "designation", "nomFonction", "roleArbitre"];
 
 /** Reads the complete officiating crew, preserving role order and both EMS name variants. */
 export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
@@ -74,23 +79,26 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
   };
 
   const visited = new WeakSet<object>();
-  const walk = (value: unknown, depth = 0): void => {
+  const walk = (value: unknown, depth = 0, inheritedIndex: number | null = null): void => {
     if (!value || typeof value !== "object" || depth > 7 || visited.has(value)) return;
     visited.add(value);
     if (Array.isArray(value)) {
-      value.forEach((item) => walk(item, depth + 1));
+      value.forEach((item, index) => walk(item, depth + 1, inheritedIndex === null ? null : Math.min(3, inheritedIndex + index)));
       return;
     }
+    if (inheritedIndex !== null) fill(inheritedIndex, value);
     const record = value as Record<string, unknown>;
     for (const [key, person] of Object.entries(record)) {
       const normalized = normalizeKey(key);
       const crewArray = ARRAY_KEYS.some((candidate) => normalizeKey(candidate) === normalized);
       if (crewArray && Array.isArray(person)) {
+        const baseIndex = /assistant|adjoint/.test(normalized) ? 1 : /remplac|reserve|substitut/.test(normalized) ? 3 : 0;
         person.forEach((member, order) => {
           const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
           const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
-          fill(roleIndex(label) ?? order, member);
-          walk(member, depth + 1);
+          const index = roleIndex(label) ?? Math.min(3, baseIndex + order);
+          fill(index, member);
+          walk(member, depth + 1, index);
         });
         continue;
       }
@@ -100,14 +108,21 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
           person.forEach((member, order) => {
             const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
             const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
-            fill(roleIndex(label) ?? Math.min(3, (index ?? 0) + order), member);
-            walk(member, depth + 1);
+            const memberIndex = roleIndex(label) ?? Math.min(3, (index ?? 0) + order);
+            fill(memberIndex, member);
+            walk(member, depth + 1, memberIndex);
           });
           continue;
         }
         if (index !== null) fill(index, person);
+        walk(person, depth + 1, index ?? inheritedIndex);
+        continue;
       }
-      walk(person, depth + 1);
+      const nestedRole = roleIndex(key);
+      if (nestedRole !== null && /assistant|adjoint|principal|central|main|fourth|quatri|remplac|reserve|substitut/i.test(key)) {
+        fill(nestedRole, person);
+      }
+      walk(person, depth + 1, nestedRole ?? inheritedIndex);
     }
   };
   records.forEach((record) => walk(record));
