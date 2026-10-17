@@ -54,25 +54,62 @@ async function verifyExistingTacticalPlanTable(pool) {
     throw new Error(`Existing TacticalPlan table is missing matching indexes: ${indexMismatches.map(([name]) => name).join(", ")}`);
   }
 
-  const { rows: constraints } = await pool.query(
+  let { rows: constraints } = await pool.query(
     `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
      FROM pg_constraint WHERE conrelid = to_regclass('"TacticalPlan"')`
   );
-  const actualConstraints = new Map(constraints.map((constraint) => [
-    constraint.conname,
-    { type: constraint.contype, definition: normalizeConstraint(constraint.definition) }
-  ]));
   const expectedConstraints = [
     ["TacticalPlan_pkey", "p", "primary key (id)"],
     ["TacticalPlan_teamId_fkey", "f", "foreign key (teamid) references team(id) on delete set null on update cascade"],
     ["TacticalPlan_creatorId_fkey", "f", "foreign key (creatorid) references user(id) on delete cascade on update cascade"]
   ];
+  let actualConstraints = new Map(constraints.map((constraint) => [
+    constraint.conname,
+    { type: constraint.contype, definition: normalizeConstraint(constraint.definition) }
+  ]));
   const constraintMismatches = expectedConstraints.filter(([name, type, definition]) => {
+    const actual = actualConstraints.get(name);
+    return actual && (actual.type !== type || actual.definition !== definition);
+  });
+  if (constraintMismatches.length) {
+    throw new Error(`Existing TacticalPlan table has conflicting constraints: ${constraintMismatches.map(([name]) => name).join(", ")}`);
+  }
+
+  const foreignKeys = [
+    {
+      name: "TacticalPlan_teamId_fkey",
+      orphanQuery: `SELECT EXISTS (SELECT 1 FROM "TacticalPlan" p LEFT JOIN "Team" t ON t."id" = p."teamId" WHERE p."teamId" IS NOT NULL AND t."id" IS NULL) AS has_orphans`,
+      addSql: `ALTER TABLE "TacticalPlan" ADD CONSTRAINT "TacticalPlan_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE`
+    },
+    {
+      name: "TacticalPlan_creatorId_fkey",
+      orphanQuery: `SELECT EXISTS (SELECT 1 FROM "TacticalPlan" p LEFT JOIN "User" u ON u."id" = p."creatorId" WHERE u."id" IS NULL) AS has_orphans`,
+      addSql: `ALTER TABLE "TacticalPlan" ADD CONSTRAINT "TacticalPlan_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`
+    }
+  ];
+  for (const foreignKey of foreignKeys) {
+    if (actualConstraints.has(foreignKey.name)) continue;
+    const { rows } = await pool.query(foreignKey.orphanQuery);
+    if (rows[0].has_orphans) {
+      throw new Error(`Cannot safely add ${foreignKey.name}: TacticalPlan contains orphaned references.`);
+    }
+    await pool.query(foreignKey.addSql);
+    console.log(`Added verified missing constraint ${foreignKey.name}.`);
+  }
+  ({ rows: constraints } = await pool.query(
+    `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
+     FROM pg_constraint WHERE conrelid = to_regclass('"TacticalPlan"')`
+  ));
+  actualConstraints = new Map(constraints.map((constraint) => [
+    constraint.conname,
+    { type: constraint.contype, definition: normalizeConstraint(constraint.definition) }
+  ]));
+  const remainingMismatches = expectedConstraints.filter(([name, type, definition]) => {
     const actual = actualConstraints.get(name);
     return !actual || actual.type !== type || actual.definition !== definition;
   });
-  if (constraintMismatches.length) {
-    throw new Error(`Existing TacticalPlan table is missing matching constraints: ${constraintMismatches.map(([name]) => name).join(", ")}`);
+  if (remainingMismatches.length) {
+    throw new Error(`TacticalPlan constraints still differ after reconciliation: ${remainingMismatches.map(([name]) => name).join(", ")}`);
   }
 }
 
