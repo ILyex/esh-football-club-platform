@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const tacticalPlansMigration = "20261016110000_tactical_plans";
@@ -127,11 +130,55 @@ async function verifyExistingTacticalPlanTable(pool) {
   }
 }
 
+async function getPendingMigrations(pool) {
+  const migrationsDirectory = fileURLToPath(new URL("../prisma/migrations/", import.meta.url));
+  const migrationEntries = await readdir(migrationsDirectory, { withFileTypes: true });
+  const localMigrationNames = [];
+  for (const entry of migrationEntries) {
+    if (!entry.isDirectory()) continue;
+    const files = await readdir(join(migrationsDirectory, entry.name));
+    if (files.includes("migration.sql")) localMigrationNames.push(entry.name);
+  }
+
+  const { rows } = await pool.query(
+    `SELECT migration_name, finished_at, rolled_back_at FROM "_prisma_migrations"`
+  );
+  const successfullyApplied = new Set(
+    rows
+      .filter((row) => row.finished_at && !row.rolled_back_at)
+      .map((row) => row.migration_name)
+  );
+  return localMigrationNames.filter((name) => !successfullyApplied.has(name));
+}
+
+async function runMigrationsWithLockRetry() {
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = spawnSync("npm", ["run", "db:migrate:deploy"], {
+      encoding: "utf8",
+      env: process.env
+    });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    if (result.error) throw result.error;
+    if (result.status === 0) return;
+
+    const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+    const isAdvisoryLockTimeout = /Timed out trying to acquire a postgres advisory lock/i.test(output);
+    if (!isAdvisoryLockTimeout || attempt === maxAttempts) process.exit(result.status ?? 1);
+
+    const delayMs = attempt * 5_000;
+    console.warn(`Another deployment is applying database migrations; retrying in ${delayMs / 1_000}s (${attempt}/${maxAttempts - 1}).`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
 if (process.env.VERCEL_ENV !== "production") {
   console.log("Skipping production database migrations outside Vercel production.");
 } else {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for production migrations.");
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10_000 });
+  let pendingMigrations;
   try {
     const { rows: migrationRows } = await pool.query(
       `SELECT finished_at, rolled_back_at FROM "_prisma_migrations" WHERE migration_name = $1`,
@@ -144,9 +191,15 @@ if (process.env.VERCEL_ENV !== "production") {
       run("npx", ["prisma", "migrate", "resolve", "--applied", tacticalPlansMigration]);
       console.log(`Verified and recorded ${tacticalPlansMigration} as already applied.`);
     }
+    pendingMigrations = await getPendingMigrations(pool);
   } finally {
     await pool.end();
   }
 
-  run("npm", ["run", "db:migrate:deploy"]);
+  if (pendingMigrations.length === 0) {
+    console.log("No pending production migrations; skipping Prisma migrate deploy.");
+  } else {
+    console.log(`Applying ${pendingMigrations.length} pending production migration(s).`);
+    await runMigrationsWithLockRetry();
+  }
 }
