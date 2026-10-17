@@ -455,6 +455,17 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     { kind: "REFEREE_REPORT" as const, label: "final-report-ar", title: "تقرير المباراة النهائي", bytes: finalReportResult.status === "fulfilled" ? finalReportResult.value : null }
   ];
   const warnings: string[] = [];
+  let refereeReportText: string | null = null;
+  const finalReportBytes = documentSpecs.find((item) => item.kind === "REFEREE_REPORT")?.bytes;
+  if (finalReportBytes) {
+    try {
+      refereeReportText = (await extractDocumentText(finalReportBytes, "application/pdf"))?.trim().slice(0, 5000) || null;
+      if (!refereeReportText) warnings.push("حُفظ التقرير النهائي، لكن لم يُستخرج منه نص قابل للتحليل الآلي.");
+    } catch (error) {
+      console.warn("[FAF EMS] Referee report text extraction failed", error);
+      warnings.push("حُفظ التقرير النهائي، لكن تعذر استخراج نصه للتحليل الآلي.");
+    }
+  }
   if (firstReportResult.status === "rejected") warnings.push(`تعذر جلب وثيقة بداية المباراة: ${firstReportResult.reason instanceof Error ? firstReportResult.reason.message : "خطأ غير معروف"}`);
   if (finalReportResult.status === "rejected") warnings.push(`تعذر جلب التقرير النهائي: ${finalReportResult.reason instanceof Error ? finalReportResult.reason.message : "خطأ غير معروف"}`);
   const hasDocumentsToImport = documentSpecs.some((item) => item.bytes);
@@ -574,10 +585,18 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   });
   let analysisMessage = "";
-  if (refereeReportDocumentId) {
-    // Queue report analysis only after imported player events exist, so its
-    // duplicate check sees this reconciliation pass before it creates events.
-    await enqueueRefereeReportAnalysis(db, { matchId: local.id, documentId: refereeReportDocumentId, userId: actorId });
+  if (refereeReportDocumentId && refereeReportText) {
+    // The report bytes came directly from FAF EMS in this request. Pass the
+    // extracted text to the job so analysis does not depend on a cross-function
+    // object-storage read immediately after the document was uploaded.
+    // Queue only after imported player events exist, so duplicate detection
+    // sees this reconciliation pass before it creates events.
+    await enqueueRefereeReportAnalysis(db, {
+      matchId: local.id,
+      documentId: refereeReportDocumentId,
+      reportText: refereeReportText,
+      userId: actorId
+    });
     analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";
   }
   await db.integrationState.upsert({
