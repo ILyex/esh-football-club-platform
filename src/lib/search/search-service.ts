@@ -435,7 +435,7 @@ export async function executeGlobalSearch(
         type: "document",
         title: d.name,
         subtitle: `${d.category} • ${d.classification}`,
-        href: `/${locale}/dashboard/documents/${d.id}`,
+        href: `/${locale}/dashboard/documents`,
         category: "documents",
         badge: d.status,
         score: calculateRelevanceScore(d.name, query)

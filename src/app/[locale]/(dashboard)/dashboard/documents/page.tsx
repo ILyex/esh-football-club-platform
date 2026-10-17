@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { deleteDocumentAction } from "./actions";
 import { localizedClubName } from "@/lib/public/locale-text";
 import {
   FileText,
@@ -24,7 +26,7 @@ import {
   Calendar,
   CheckCircle2,
   Filter,
-  Eye
+  Trash2
 } from "lucide-react";
 
 const CLASSIFICATION_TONE = { PUBLIC: "success", INTERNAL: "neutral", RESTRICTED: "danger" } as const;
@@ -57,6 +59,7 @@ export default async function DocumentsListPage({
   const tCommon = await getTranslations("common");
 
   const canSeeRestricted = hasPermission(user, "documents.view.restricted");
+  const canDeleteDocuments = hasPermission(user, "documents.delete");
   const canViewContracts = hasPermission(user, "contracts.view");
   const canViewCorrespondence = hasPermission(user, "correspondence.view");
   const canViewMeetings = hasPermission(user, "meetings.view");
@@ -451,13 +454,28 @@ export default async function DocumentsListPage({
                       <Download className="h-3.5 w-3.5" />
                       <span>{tCommon("download")}</span>
                     </a>
-                    <Link
-                      href={`/${locale}/dashboard/documents/${doc.id}`}
-                      className="inline-flex items-center rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      title={tCommon("view")}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </Link>
+                    {canDeleteDocuments && (
+                      <ConfirmDialog
+                        onConfirm={deleteDocumentAction.bind(null, doc.id)}
+                        title={locale === "ar" ? "حذف الوثيقة نهائيًا؟" : "Supprimer définitivement le document ?"}
+                        body={locale === "ar"
+                          ? `سيتم حذف «${doc.name}» وملفها نهائيًا من الأرشيف. لا يمكن التراجع عن هذا الإجراء.`
+                          : `« ${doc.name} » et son fichier seront supprimés définitivement des archives. Cette action est irréversible.`}
+                        successMessage={locale === "ar" ? "تم حذف الوثيقة نهائيًا" : "Document supprimé définitivement"}
+                        errorMessage={locale === "ar" ? "تعذر حذف الوثيقة" : "Impossible de supprimer le document"}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title={locale === "ar" ? "حذف الوثيقة" : "Supprimer le document"}
+                          aria-label={locale === "ar" ? "حذف الوثيقة" : "Supprimer le document"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                      </ConfirmDialog>
+                    )}
                   </div>
                 </td>
               </tr>

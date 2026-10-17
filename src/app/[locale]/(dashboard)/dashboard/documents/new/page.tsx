@@ -28,8 +28,8 @@ export default async function NewDocumentPage({ params }: { params: Promise<{ lo
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await uploadDocumentAction(formData);
-    redirect(`/${locale}/dashboard/documents/${id}`);
+    await uploadDocumentAction(formData);
+    redirect(`/${locale}/dashboard/documents`);
   }
 
   return (
