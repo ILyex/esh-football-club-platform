@@ -16,7 +16,6 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
 import { getPlayerDisplayName } from "@/lib/utils";
-import { localizedClubName } from "@/lib/public/locale-text";
 
 const ROLES = [
   "HEAD_COACH",
@@ -268,7 +267,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
                     <li key={a.teamId} className="group flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 transition-colors hover:border-club-primary/40 hover:bg-club-primary/[0.03]">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
-                        <span className="truncate text-sm font-semibold text-foreground">{localizedClubName(a.team.name, locale, a.team.category)}</span>
+                        <span className="truncate text-sm font-semibold text-foreground">{tTeam(`categories.${a.team.category}` as any)}</span>
                       </div>
                       {canUpdate && (
                         <form action={remove}>
@@ -298,7 +297,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
                       locale={locale}
                       ariaLabel={tTeam("addTeam")}
                       defaultValue={unassignedTeams[0]?.id ?? ""}
-                      options={unassignedTeams.map((team) => ({ value: team.id, label: localizedClubName(team.name, locale, team.category) }))}
+                      options={unassignedTeams.map((team) => ({ value: team.id, label: tTeam(`categories.${team.category}` as any) }))}
                     />
                   </div>
                   <Button type="submit" className="h-10 shrink-0 gap-2 px-4">

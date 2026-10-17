@@ -6,6 +6,7 @@ import { requirePagePermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
+import { roleDisplayName } from "@/lib/roles/display-name";
 
 export default async function RolesListPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -32,7 +33,7 @@ export default async function RolesListPage({ params }: { params: Promise<{ loca
         {roles.map((role) => (
           <Link key={role.id} href={`/${locale}/dashboard/roles/${role.id}`} className="block rounded-lg border border-border bg-card p-4">
             <div className="mb-1 flex items-center justify-between">
-              <h2 className="font-semibold">{role.name}</h2>
+              <h2 className="font-semibold">{roleDisplayName(role.key, role.name)}</h2>
               {role.isSystem && <Badge tone="neutral">{t("systemRole")}</Badge>}
             </div>
             {role.description && <p className="mb-2 text-sm text-muted-foreground">{role.description}</p>}

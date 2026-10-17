@@ -9,6 +9,7 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { UserListActions } from "@/components/users/user-list-actions";
 import { UsersPresenceRefresh } from "@/components/users/users-presence-refresh";
 import { userDetailsHref } from "@/lib/user-route";
+import { roleDisplayName } from "@/lib/roles/display-name";
 
 const USERS_PER_PAGE = 25;
 
@@ -37,7 +38,7 @@ export default async function UsersListPage({
       image: true,
       isActive: true,
       lastSeenAt: true,
-      role: { select: { name: true } }
+      role: { select: { key: true, name: true } }
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     skip: (page - 1) * USERS_PER_PAGE,
@@ -90,7 +91,7 @@ export default async function UsersListPage({
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3 text-center">
-                  <Badge tone="neutral" className="text-xs">{u.role.name}</Badge>
+                  <Badge tone="neutral" className="text-xs">{roleDisplayName(u.role.key, u.role.name)}</Badge>
                 </td>
                 <td className="px-4 py-3 text-center">
                   {(() => {

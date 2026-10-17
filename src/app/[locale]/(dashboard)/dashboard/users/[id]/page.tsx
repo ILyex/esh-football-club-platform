@@ -17,7 +17,7 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
-import { localizedClubName } from "@/lib/public/locale-text";
+import { roleDisplayName } from "@/lib/roles/display-name";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -95,7 +95,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
               {user.isActive ? (locale === "ar" ? "الحساب مفعّل" : "Compte activé") : (locale === "ar" ? "الحساب معطّل" : "Compte désactivé")}
             </Badge>
             <Badge tone="neutral" className="text-[11px]">
-              {user.role.name}
+              {roleDisplayName(user.role.key, user.role.name)}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -154,7 +154,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
               locale={locale}
               ariaLabel={t("fields.role")}
               defaultValue={user.roleId}
-              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              options={roles.map((r) => ({ value: r.id, label: roleDisplayName(r.key, r.name) }))}
             />
           </div>
           <div className="min-w-0 space-y-2">
@@ -224,7 +224,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
                   <li key={a.teamId} className="group flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 transition-colors hover:border-club-primary/40 hover:bg-club-primary/[0.03]">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
-                      <span className="truncate text-sm font-semibold text-foreground">{localizedClubName(a.team.name, locale, a.team.category)}</span>
+                      <span className="truncate text-sm font-semibold text-foreground">{tTeam(`categories.${a.team.category}` as any)}</span>
                     </div>
                     <form action={remove}>
                       <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
@@ -251,7 +251,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
                     name="teamId"
                     locale={locale}
                     ariaLabel={tTeam("addTeam")}
-                    options={unassignedTeams.map((team) => ({ value: team.id, label: localizedClubName(team.name, locale, team.category) }))}
+                    options={unassignedTeams.map((team) => ({ value: team.id, label: tTeam(`categories.${team.category}` as any) }))}
                   />
                 </div>
                 <Button type="submit" className="h-10 shrink-0 gap-2 px-4">
