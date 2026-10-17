@@ -66,9 +66,8 @@ export default async function DashboardHomePage({
   const teamWhere = teamId ? { teamId } : {};
 
   const canViewFinance = hasPermission(user, "finance.view");
-  const canViewTacticsCard =
-    (user.roleKey === "coach" || user.roleKey === "assistant_coach") &&
-    hasPermission(user, "training.view");
+  // Keep this shortcut aligned with the tactics section's actual access rule.
+  const canViewTacticsCard = hasPermission(user, "training.view");
   const canViewMatches = hasPermission(user, "matches.view");
   const canViewTraining = hasPermission(user, "training.view");
   const canViewPlayers = hasPermission(user, "players.view");
