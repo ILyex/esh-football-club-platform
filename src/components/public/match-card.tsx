@@ -100,7 +100,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             {isLive ? (locale === "ar" ? "النتيجة الحالية" : "Score en direct") : (locale === "ar" ? "موعد المباراة" : "Coup d’envoi")}
           </span>
           {isFinished || isLive ? (
-            <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-base font-black tracking-tight text-foreground shadow-sm font-mono tabular-nums sm:gap-1.5 sm:px-3 sm:text-lg">
+            <div dir="ltr" className="flex items-center justify-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-base font-black tracking-tight text-foreground shadow-sm font-mono tabular-nums sm:gap-1.5 sm:px-3 sm:text-lg">
               <span className="min-w-4 text-center">{match.homeScore ?? 0}</span>
               <span className="text-muted-foreground text-xs font-normal">-</span>
               <span className="min-w-4 text-center">{match.awayScore ?? 0}</span>
