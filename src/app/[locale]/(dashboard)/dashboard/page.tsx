@@ -22,7 +22,6 @@ import {
   Wallet,
   Receipt,
   FileText,
-  Target,
   ArrowRight,
   ArrowLeft,
   ArrowUpRight,
@@ -32,6 +31,7 @@ import {
   Clock,
   Shield,
   Layers,
+  ClipboardList,
   CheckCircle2,
   AlertTriangle,
   Megaphone
@@ -66,6 +66,9 @@ export default async function DashboardHomePage({
   const teamWhere = teamId ? { teamId } : {};
 
   const canViewFinance = hasPermission(user, "finance.view");
+  const canViewTacticsCard =
+    (user.roleKey === "coach" || user.roleKey === "assistant_coach") &&
+    hasPermission(user, "training.view");
   const canViewMatches = hasPermission(user, "matches.view");
   const canViewTraining = hasPermission(user, "training.view");
   const canViewPlayers = hasPermission(user, "players.view");
@@ -98,6 +101,7 @@ export default async function DashboardHomePage({
     postedExpensesAgg,
     withdrawalsAgg,
     budgets,
+    tacticalPlansCount,
     monthlyTransactionTotals,
     expenseCategoriesGrouped,
     recentTransactions,
@@ -154,6 +158,7 @@ export default async function DashboardHomePage({
     canViewFinance ? db.expense.aggregate({ where: { status: "POSTED" }, _sum: { amount: true } }) : Promise.resolve({ _sum: { amount: 0 } }),
     canViewFinance ? db.treasuryTransaction.aggregate({ where: { type: "WITHDRAWAL" }, _sum: { amount: true } }) : Promise.resolve({ _sum: { amount: 0 } }),
     canViewFinance ? db.budget.findMany({ where: { status: "ACTIVE" } }) : Promise.resolve([]),
+    canViewTacticsCard ? db.tacticalPlan.count({ where: { creatorId: user.id } }) : Promise.resolve(0),
     canViewFinance ? getDashboardFinancialTrend(oneYearAgo) : Promise.resolve([]),
     canViewFinance
       ? db.expense.groupBy({
@@ -556,22 +561,22 @@ export default async function DashboardHomePage({
       </section>
 
       {/* 2. ROW 2: 4 QUICK-ACTION NAVIGATION CARDS (Concept Image 1) */}
-      <section className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${canViewFinance ? "md:grid-cols-4" : "md:grid-cols-1"}`}>
-        {/* Action 1: Budgets */}
-        {canViewFinance && <Link
-          href={`/${locale}/dashboard/finance/budgets`}
+      <section className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${canViewFinance ? (canViewTacticsCard ? "md:grid-cols-4" : "md:grid-cols-3") : (canViewTacticsCard ? "md:grid-cols-2" : "md:grid-cols-1")}`}>
+        {/* Coach-only action: Tactical planning */}
+        {canViewTacticsCard && <Link
+          href={`/${locale}/dashboard/tactics`}
           className="group flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-xs transition-all hover:border-club-primary/40 hover:-translate-y-0.5"
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-club-primary">
-              <Target className="h-5 w-5" />
+              <ClipboardList className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground group-hover:text-club-primary transition-colors truncate">
-                {locale === "ar" ? "الميزانيات" : "Budgets"}
+                {locale === "ar" ? "الخطط والتكتيك" : "Plans & tactiques"}
               </h3>
               <p className="text-[11px] text-muted-foreground truncate">
-                {locale === "ar" ? "إدارة ميزانيات الفرق والأنشطة" : "Gestion des allocations"}
+                {locale === "ar" ? `${tacticalPlansCount} خطة محفوظة` : `${tacticalPlansCount} plan(s) enregistré(s)`}
               </p>
             </div>
           </div>
