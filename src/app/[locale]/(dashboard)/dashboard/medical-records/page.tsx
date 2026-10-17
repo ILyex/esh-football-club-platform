@@ -17,6 +17,7 @@ export default async function MedicalRecordsPage({
   const filters = await searchParams;
   const user = await requirePagePermission("medical.records.view", locale);
   const t = await getTranslations("dashboard.nav");
+  const tTeams = await getTranslations("teams");
   const isAr = locale === "ar";
   const pageSize = 20;
   const requestedPage = Math.max(1, Number.parseInt(filters.page || "1", 10) || 1);
@@ -96,7 +97,7 @@ export default async function MedicalRecordsPage({
             const analyses = records.get("LAB_ANALYSIS");
             const profileHref = `/${locale}/dashboard/medical-records/${player.id}`;
             return <article key={player.id} className="grid gap-3 px-4 py-3 transition hover:bg-muted/20 sm:grid-cols-[minmax(210px,1.2fr)_minmax(145px,.8fr)_minmax(170px,.9fr)_auto] sm:items-center">
-              <div className="flex min-w-0 items-center gap-3">{player.photoUrl ? <img src={player.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full border border-border object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{player.firstName.slice(0, 1)}{player.lastName.slice(0, 1)}</span>}<div className="min-w-0"><p className="truncate text-sm font-bold">{isAr ? `${player.firstName} ${player.lastName}` : `${player.firstNameFr || player.firstName} ${player.lastNameFr || player.lastName}`}</p><p className="truncate text-[11px] text-muted-foreground">{player.team?.name || (isAr ? "بدون فئة" : "Sans catégorie")}</p></div></div>
+              <div className="flex min-w-0 items-center gap-3">{player.photoUrl ? <img src={player.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full border border-border object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{player.firstName.slice(0, 1)}{player.lastName.slice(0, 1)}</span>}<div className="min-w-0"><p className="truncate text-sm font-bold">{isAr ? `${player.firstName} ${player.lastName}` : `${player.firstNameFr || player.firstName} ${player.lastNameFr || player.lastName}`}</p><p className="truncate text-[11px] text-muted-foreground">{player.team ? tTeams(`categories.${player.team.category}` as any) : (isAr ? "بدون فئة" : "Sans catégorie")}</p></div></div>
               <p className="text-xs"><span className="text-muted-foreground">{typeNames.MEDICAL_CLEARANCE}: </span><span className={clearance?.status === "FIT" && clearance.document?.status === "APPROVED" ? "text-emerald-500" : "text-amber-500"}>{clearance ? clearanceLabel : (isAr ? "ناقص" : "Manquante")}</span></p>
               <p className="text-xs"><span className="text-muted-foreground">{typeNames.DRUG_TEST_RESULT} / {typeNames.LAB_ANALYSIS}: </span><span className={drugTest?.document?.status === "APPROVED" && analyses?.document?.status === "APPROVED" ? "text-emerald-500" : "text-amber-500"}>{drugTest || analyses ? (isAr ? "قيد المتابعة" : "En suivi") : (isAr ? "ناقصتان" : "Manquants")}</span></p>
               <div className="flex flex-wrap items-center gap-2">

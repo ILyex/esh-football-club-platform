@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { getTranslations } from "next-intl/server";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { assertTeamScope, getMutationScopeContext } from "@/lib/mutation-guards";
 import { approveMedicalDocumentAction, createPlayerMedicalRecordAction, updateMedicalClearanceStatusAction } from "../actions";
@@ -18,6 +19,7 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
   const { locale, playerId } = await params;
   const notice = await searchParams;
   const user = await requirePagePermission("medical.records.view", locale);
+  const tTeams = await getTranslations("teams");
   const canManage = hasPermission(user, "medical.records.manage");
   const scope = await getMutationScopeContext();
   const player = await db.player.findUnique({
@@ -117,7 +119,7 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
               </div>
               <div><h1 className="text-xl font-black sm:text-2xl">{isAr ? "الملف الطبي للاعب" : "Dossier médical du joueur"}</h1><p className="mt-1 text-sm text-muted-foreground">{heading}</p><p className="mt-1 text-[11px] text-muted-foreground">{isAr ? `${uploadedDocumentTypes.size} من ${recordTypes.length} وثائق مرفوعة` : `${uploadedDocumentTypes.size} document(s) sur ${recordTypes.length}`}</p></div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{player.team ? <span className="rounded-full border border-border px-3 py-1.5">{player.team.name || player.team.category}</span> : <span className="rounded-full border border-border px-3 py-1.5">{isAr ? "بدون فئة" : "Sans catégorie"}</span>}</div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{player.team ? <span className="rounded-full border border-border px-3 py-1.5">{tTeams(`categories.${player.team.category}` as any)}</span> : <span className="rounded-full border border-border px-3 py-1.5">{isAr ? "بدون فئة" : "Sans catégorie"}</span>}</div>
           </div>
         </div>
         <div className="grid border-t border-border bg-muted/20 sm:grid-cols-3">
