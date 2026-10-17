@@ -450,7 +450,9 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 }
 
 .language-label-latin {
-  font-family: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif !important;
+  /* Cairo is bundled with both Arabic and Latin subsets for consistent
+     typography in the language switcher on either locale. */
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
   letter-spacing: normal !important;
 }
 

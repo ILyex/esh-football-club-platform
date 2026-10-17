@@ -11,7 +11,9 @@ import "@/app/globals.css";
 // Download fonts at build time and serve them from this deployment. The Arabic
 // dashboard must not wait on a third-party font stylesheet for every session.
 const cairo = Cairo({
-  subsets: ["arabic"],
+  // Include Latin glyphs too so bilingual controls never fall back to a
+  // platform font when the active locale is Arabic.
+  subsets: ["arabic", "latin"],
   weight: "variable",
   variable: "--font-cairo",
   display: "swap",
