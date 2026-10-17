@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
+import pg from "pg";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const tacticalPlansMigration = "20261016110000_tactical_plans";
 
@@ -79,7 +81,9 @@ async function verifyExistingTacticalPlanTable(prisma) {
 if (process.env.VERCEL_ENV !== "production") {
   console.log("Skipping production database migrations outside Vercel production.");
 } else {
-  const prisma = new PrismaClient();
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for production migrations.");
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10_000 });
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
   try {
     const migrationRows = await prisma.$queryRawUnsafe(
       `SELECT finished_at, rolled_back_at FROM "_prisma_migrations" WHERE migration_name = $1`,
