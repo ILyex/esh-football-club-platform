@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { Bell, Download, LoaderCircle, Smartphone, X } from "lucide-react";
+import { toast } from "sonner";
 
 type Props = { locale: string };
 type PushConfig = { enabled: boolean; publicKey: string | null };
@@ -63,6 +64,7 @@ export function MatchPushOptIn({ locale }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -86,6 +88,7 @@ export function MatchPushOptIn({ locale }: Props) {
       }
     }
     setDismissed(window.sessionStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1");
+    setPermissionGranted("Notification" in window && Notification.permission === "granted");
     setPermissionDenied("Notification" in window && Notification.permission === "denied");
     let cancelled = false;
     setInstalled(isStandalone());
@@ -108,13 +111,17 @@ export function MatchPushOptIn({ locale }: Props) {
         // Ignore malformed links.
       }
     };
-    const onPageShow = () => {
+    const refreshPermissionState = () => {
       setDismissed(window.sessionStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1");
+      const permission = "Notification" in window ? Notification.permission : "default";
+      setPermissionGranted(permission === "granted");
+      setPermissionDenied(permission === "denied");
     };
     window.addEventListener("beforeinstallprompt", onInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     document.addEventListener("click", onExternalNavigation, true);
-    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pageshow", refreshPermissionState);
+    window.addEventListener("focus", refreshPermissionState);
     void Promise.all([
       fetch("/api/push/config", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<PushConfig> : { enabled: false, publicKey: null }).catch(() => ({ enabled: false, publicKey: null })),
       Promise.resolve().then(async () => {
@@ -153,11 +160,12 @@ export function MatchPushOptIn({ locale }: Props) {
       window.removeEventListener("beforeinstallprompt", onInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       document.removeEventListener("click", onExternalNavigation, true);
-      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pageshow", refreshPermissionState);
+      window.removeEventListener("focus", refreshPermissionState);
     };
   }, []);
 
-  const showPushPrompt = isNotificationPromptPage(pathname) && !dismissed && !permissionDenied && !enabled && subscriptionChecked;
+  const showPushPrompt = isNotificationPromptPage(pathname) && !dismissed && !permissionDenied && !permissionGranted && !enabled && subscriptionChecked;
   const isIOS = isAppleMobile();
   const showInstallPrompt = !installed && !installDismissed && (Boolean(installPrompt) || isIOS);
 
@@ -209,6 +217,11 @@ export function MatchPushOptIn({ locale }: Props) {
         return;
       }
 
+      // The browser's durable permission is the user's opt-in. Hide the prompt
+      // immediately even if server-side subscription registration needs a retry.
+      setPermissionGranted(true);
+      setDismissed(true);
+      window.sessionStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, "1");
       const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
       await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
@@ -222,9 +235,10 @@ export function MatchPushOptIn({ locale }: Props) {
       });
       if (!response.ok) throw new Error("subscription-save-failed");
       setEnabled(true);
-      setDismissed(true);
     } catch {
-      setMessage(isAr ? "تعذر تفعيل التنبيهات الآن. تحقق من الاتصال وحاول مجددًا." : "Impossible d’activer les alertes. Vérifiez la connexion et réessayez.");
+      toast.error(isAr
+        ? "الإذن مفعل، لكن تعذر ربط هذا الجهاز بالإشعارات. ستتم إعادة المحاولة عند فتح الموقع."
+        : "L’autorisation est accordée, mais l’appareil n’a pas pu être relié. Une nouvelle tentative aura lieu à la prochaine visite.");
     } finally {
       setBusy(false);
     }
