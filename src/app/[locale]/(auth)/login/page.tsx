@@ -30,12 +30,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
   const [captchaWidgetVersion, setCaptchaWidgetVersion] = useState(0);
   const captchaEnabled = process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true" || process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "1";
   const captchaEndpoint = "/api/captcha/";
 
   useEffect(() => {
-    if (state?.error) setCaptchaWidgetVersion((version) => version + 1);
+    if (state?.error) {
+      setCaptchaToken("");
+      setCaptchaWidgetVersion((version) => version + 1);
+    }
   }, [state]);
 
   useEffect(() => {
@@ -261,6 +265,7 @@ export default function LoginPage() {
                     endpoint={captchaEndpoint}
                     locale={locale}
                     onReady={setCaptchaReady}
+                    onToken={setCaptchaToken}
                   />
                 </div>
               )}
@@ -318,7 +323,7 @@ export default function LoginPage() {
               {/* Submit / Login Button */}
               <button
                 type="submit"
-                disabled={pending || (captchaEnabled && !captchaReady)}
+                disabled={pending || (captchaEnabled && (!captchaReady || !captchaToken))}
                 className="w-full mt-2 rounded-xl bg-club-primary hover:bg-club-primary-hover py-2.5 text-sm font-bold text-white shadow-md shadow-club-primary/25 transition-all active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
               >
                 {pending ? (
