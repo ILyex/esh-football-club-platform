@@ -62,20 +62,20 @@ export function ReportsClientHub({
   return (
     <div className="space-y-8">
       {/* ── Search & Filter Bar ── */}
-      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-xs">
-        <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="relative min-w-0">
+      <div className="mx-auto w-full max-w-6xl rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <div className="relative min-w-[220px] flex-[1_1_280px] max-w-lg">
             <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isAr ? "ابحث في التقارير..." : "Rechercher un rapport..."}
-              className="w-full rounded-xl border border-border bg-background ps-9 pe-3 py-2 text-sm focus:border-club-primary focus:ring-1 focus:ring-club-primary"
+              className="h-9 w-full rounded-xl border border-border bg-background ps-9 pe-3 py-2 text-sm focus:border-club-primary focus:ring-1 focus:ring-club-primary"
             />
           </div>
 
-          <form method="get" className="flex min-w-0 flex-wrap items-center gap-2">
+          <form method="get" className="flex shrink-0 items-center gap-2">
             <DashboardTeamCategorySelect
               value={teamFilter.value}
               options={teamFilter.options}
@@ -89,7 +89,7 @@ export function ReportsClientHub({
               {isAr ? "تصفية" : "Filtrer"}
             </button>
           </form>
-          <div className="flex min-w-0 items-center gap-3 lg:col-span-2">
+          <div className="ms-auto flex min-w-0 items-center gap-2">
             <MasterFilterSelect
               label={isAr ? "القسم:" : "Pôle:"}
               locale={isAr ? "ar" : "fr"}
