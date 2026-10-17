@@ -5,11 +5,11 @@ The login page uses Cap Core inside the application. Production enables the widg
 ## Security flow
 
 1. The widget requests a short-lived, login-scoped challenge from the application.
-2. Cap verifies the proof of work and browser instrumentation on redeem.
+2. Cap verifies the proof of work on redeem. The login flow keeps the original Cap widget and omits the optional instrumentation stage, which was timing out in real browsers after the proof-of-work progress reached 99%.
 3. The verified token is stored in the existing shared `RateLimitBucket` table with its expiry.
 4. The credentials provider atomically consumes that token before processing any password. This also protects direct Auth.js credential requests and blocks token reuse.
 
-Challenge nonces are inserted under a unique key, so parallel replays cannot pass. Challenge issuance is rate limited per hashed client address. Database or signing-secret failures reject login while the feature is enabled.
+Challenge nonces are inserted under a unique key, so parallel replays cannot pass. Challenge issuance is rate limited per hashed client address. Login uses 30 proof-of-work challenges at difficulty 3 to keep verification responsive on phones while preserving the proof and rate limits. Database or signing-secret failures reject login while the feature is enabled.
 
 Cap derives its signing key from the required `AUTH_SECRET` using a separate HMAC purpose string. An optional dedicated `CAP_SECRET` can override it, but it must be at least 32 characters and consistent across all app instances.
 

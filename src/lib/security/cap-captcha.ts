@@ -89,7 +89,13 @@ export async function createLoginChallenge(request: Request) {
   const challenge = await generateChallenge(secret, {
     scope: LOGIN_SCOPE,
     expiresMs: 5 * 60 * 1000,
-    instrumentation: true
+    // Keep the native Cap flow quick on low-power phones and slower networks.
+    // Login is additionally protected by per-IP challenge and credential
+    // rate limits; the optional instrumentation stage was timing out in real
+    // browsers after the proof-of-work had already reached 99%.
+    challengeCount: 30,
+    challengeSize: 32,
+    challengeDifficulty: 3
   });
   await recordCaptchaAuditEvent("challenge_issued");
   return challenge;
