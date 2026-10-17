@@ -111,17 +111,12 @@ export default async function MatchesListPage({
         </Button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full min-w-[650px] text-start text-sm">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <table className="w-full text-start text-xs sm:text-sm">
           <thead className="border-b border-border bg-muted/50 text-start">
             <tr>
-              <th className="px-4 py-2 text-start">{t("fields.matchDate")}</th>
-              <th className="px-4 py-2 text-start">{t("title")}</th>
-              <th className="px-4 py-2 text-start">{tTeams("title")}</th>
-              <th className="px-4 py-2 text-start">{t("fields.competition")}</th>
-              <th className="px-4 py-2 text-start">{tCommon("status")}</th>
-              <th className="px-4 py-2 text-start">{locale === "ar" ? "وثائق المباراة" : "Documents du match"}</th>
-              <th className="px-4 py-2 text-start">{tCommon("actions")}</th>
+              <th className="w-[132px] px-3 py-3 text-start sm:w-40 sm:px-4">{t("fields.matchDate")}</th>
+              <th className="px-3 py-3 text-start sm:px-4">{t("title")}</th>
             </tr>
           </thead>
           <tbody>
@@ -138,88 +133,90 @@ export default async function MatchesListPage({
                 await deleteMatchAction(m.id);
               }
               return (
-                <tr key={m.id} className="border-b border-border last:border-0 align-middle hover:bg-muted/20">
-                  <td className="px-4 py-2 text-start"><span dir="ltr" className="inline-flex flex-row items-center gap-1 whitespace-nowrap font-mono text-xs tabular-nums"><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaDate(m.matchDate)}</time><span aria-hidden="true">·</span><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaTime(m.matchDate, locale)}</time></span></td>
-                  <td className="px-4 py-2 align-middle font-medium">
-                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[240px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+                <tr key={m.id} className="border-b border-border/70 last:border-0 align-middle transition-colors hover:bg-muted/20">
+                  <td className="px-3 py-3 text-start sm:px-4">
+                    <span dir="ltr" className="flex flex-col items-start gap-0.5 whitespace-nowrap font-mono text-[11px] tabular-nums sm:text-xs">
+                      <time dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
+                      <time className="text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 align-middle font-medium sm:px-4">
+                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-3">
                       <span dir="auto" title={homeTeamName} className="min-w-0 truncate text-end leading-tight">{homeTeamName}</span>
-                      <span dir="ltr" className="inline-flex min-w-[68px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-2.5 py-1.5 text-center font-mono text-xs font-extrabold tabular-nums shadow-sm">
+                      <span dir="ltr" className="inline-flex min-w-[54px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-2 py-1.5 text-center font-mono text-xs font-extrabold tabular-nums shadow-sm sm:min-w-[68px] sm:px-2.5">
                         <span>{homeScore}</span>
                         <span className="text-muted-foreground/70">:</span>
                         <span>{awayScore}</span>
                       </span>
                       <span dir="auto" title={awayTeamName} className="min-w-0 truncate text-start leading-tight">{awayTeamName}</span>
                     </span>
-                  {winnerName && (
-                    <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                      {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
-                      {outcome.decidedByPenalties && <span dir="ltr" className="ms-1 font-mono">({outcome.homePenaltyScore}–{outcome.awayPenaltyScore})</span>}
-                    </p>
-                  )}
-                  </td>
-                  <td className="px-4 py-2 align-middle">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</td>
-                  <td className="px-4 py-2 align-middle">{m.competition.name}</td>
-                  <td className="px-4 py-2 align-middle">
-                    <MatchOperationalStatus
-                      status={m.status}
-                      matchDate={m.matchDate}
-                      locale={locale}
-                      labels={{
-                        SCHEDULED: t("statuses.SCHEDULED"),
-                        LIVE: t("statuses.LIVE"),
-                        FINISHED: t("statuses.FINISHED"),
-                        POSTPONED: t("statuses.POSTPONED"),
-                        CANCELLED: t("statuses.CANCELLED")
-                      }}
-                      hasExtraTime={m.hasExtraTime}
-                      hasPenaltyShootout={m.hasPenaltyShootout}
-                      homeScore={m.homeScore}
-                      awayScore={m.awayScore}
-                      addedTime={{
-                        firstHalf: m.firstHalfAddedTime,
-                        secondHalf: m.secondHalfAddedTime,
-                        extraTimeFirstHalf: m.extraTimeFirstHalfAddedTime,
-                        extraTimeSecondHalf: m.extraTimeSecondHalfAddedTime
-                      }}
-                    />
-                  </td>
-                  <td className="px-4 py-2 text-xs">
-                    <MatchDocumentPreviewButton
-                      matchId={m.id}
-                      matchTitle={matchTitle}
-                      locale={locale}
-                      existingDocuments={m.documents}
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <Link
-                        href={`/${locale}/dashboard/matches/${m.id}`}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:border-club-primary/40 hover:bg-club-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
-                        aria-label={t("manage")}
-                        title={t("manage")}
-                      >
-                        <Settings2 className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                      {canDelete && (
-                        <ConfirmDialog
-                          onConfirm={removeMatch}
-                          title={locale === "ar" ? "حذف المباراة؟" : "Supprimer le match ?"}
-                          body={locale === "ar" ? `سيتم حذف مباراة ${matchTitle} نهائياً.` : `Le match ${matchTitle} sera supprimé définitivement.`}
-                          successMessage={locale === "ar" ? "تم حذف المباراة بنجاح" : "Match supprimé avec succès"}
-                          errorMessage={locale === "ar" ? "تعذر حذف المباراة" : "Impossible de supprimer le match"}
+                    {winnerName && (
+                      <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
+                        {outcome.decidedByPenalties && <span dir="ltr" className="ms-1 font-mono">({outcome.homePenaltyScore}–{outcome.awayPenaltyScore})</span>}
+                      </p>
+                    )}
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
+                      <span className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
+                      <span className="max-w-full truncate rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground sm:max-w-[240px]" title={m.competition.name}>{m.competition.name}</span>
+                      <MatchOperationalStatus
+                        status={m.status}
+                        matchDate={m.matchDate}
+                        locale={locale}
+                        labels={{
+                          SCHEDULED: t("statuses.SCHEDULED"),
+                          LIVE: t("statuses.LIVE"),
+                          FINISHED: t("statuses.FINISHED"),
+                          POSTPONED: t("statuses.POSTPONED"),
+                          CANCELLED: t("statuses.CANCELLED")
+                        }}
+                        hasExtraTime={m.hasExtraTime}
+                        hasPenaltyShootout={m.hasPenaltyShootout}
+                        homeScore={m.homeScore}
+                        awayScore={m.awayScore}
+                        addedTime={{
+                          firstHalf: m.firstHalfAddedTime,
+                          secondHalf: m.secondHalfAddedTime,
+                          extraTimeFirstHalf: m.extraTimeFirstHalfAddedTime,
+                          extraTimeSecondHalf: m.extraTimeSecondHalfAddedTime
+                        }}
+                      />
+                      <MatchDocumentPreviewButton
+                        matchId={m.id}
+                        matchTitle={matchTitle}
+                        locale={locale}
+                        existingDocuments={m.documents}
+                      />
+                      <div className="ms-auto flex items-center gap-1.5">
+                        <Link
+                          href={`/${locale}/dashboard/matches/${m.id}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[11px] font-semibold text-club-primary transition-colors hover:border-club-primary/40 hover:bg-club-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 sm:h-9 sm:px-3 sm:text-xs"
+                          aria-label={t("manage")}
+                          title={t("manage")}
                         >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-9 w-9 rounded-lg border border-border p-0 text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                            aria-label={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
-                            title={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
+                          <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>{t("manage")}</span>
+                        </Link>
+                        {canDelete && (
+                          <ConfirmDialog
+                            onConfirm={removeMatch}
+                            title={locale === "ar" ? "حذف المباراة؟" : "Supprimer le match ?"}
+                            body={locale === "ar" ? `سيتم حذف مباراة ${matchTitle} نهائياً.` : `Le match ${matchTitle} sera supprimé définitivement.`}
+                            successMessage={locale === "ar" ? "تم حذف المباراة بنجاح" : "Match supprimé avec succès"}
+                            errorMessage={locale === "ar" ? "تعذر حذف المباراة" : "Impossible de supprimer le match"}
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </ConfirmDialog>
-                      )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-lg border border-border p-0 text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive sm:h-9 sm:w-9"
+                              aria-label={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
+                              title={locale === "ar" ? "حذف المباراة" : "Supprimer le match"}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                          </ConfirmDialog>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -227,7 +224,7 @@ export default async function MatchesListPage({
             })}
             {matches.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground">
                   {tCommon("noResults")}
                 </td>
               </tr>
@@ -236,22 +233,22 @@ export default async function MatchesListPage({
         </table>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-        <p>
-          {total} • {tCommon("view")} {page}/{totalPages}
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-xs text-muted-foreground">
+        <p className="rounded-full bg-muted/60 px-3 py-1.5 font-semibold">
+          {locale === "ar" ? `${total} مباراة · الصفحة ${page} من ${totalPages}` : `${total} matchs · page ${page} sur ${totalPages}`}
         </p>
-        <div className="flex gap-2">
+        <nav aria-label={locale === "ar" ? "صفحات المباريات" : "Pages des matchs"} className="flex gap-1.5">
           {page > 1 && (
-            <Link href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="text-club-primary underline">
+            <Link aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:bg-club-primary/10">
               ‹
             </Link>
           )}
           {page < totalPages && (
-            <Link href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="text-club-primary underline">
+            <Link aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:bg-club-primary/10">
               ›
             </Link>
           )}
-        </div>
+        </nav>
       </div>
     </div>
   );

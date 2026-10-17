@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef } from "react";
-import { Save,  Upload, Image as ImageIcon, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Save, Upload, Image as ImageIcon, AlertCircle, X } from "lucide-react";
 import { uploadCompetitionLogoAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
 
 interface CompetitionLogoManagerProps {
@@ -25,6 +25,7 @@ export function CompetitionLogoManager({
   const [urlInput, setUrlInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,18 +33,25 @@ export function CompetitionLogoManager({
     if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
   }, [preview]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setError(isAr ? "حجم الصورة يتجاوز الحد المسموح به (5MB)" : "Image trop grande (max 5MB)");
-        return;
-      }
-      setFile(selected);
-      setError(null);
-      const url = URL.createObjectURL(selected);
-      setPreview(url);
+  const selectFile = (selected?: File) => {
+    if (!selected) return;
+    if (!selected.type.startsWith("image/")) {
+      setError(isAr ? "يرجى اختيار ملف صورة صالح" : "Veuillez choisir un fichier image valide");
+      return;
     }
+    if (selected.size > 5 * 1024 * 1024) {
+      setError(isAr ? "حجم الصورة يتجاوز الحد المسموح به (5MB)" : "Image trop grande (max 5MB)");
+      return;
+    }
+    setFile(selected);
+    setUrlInput("");
+    setError(null);
+    setPreview(URL.createObjectURL(selected));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    selectFile(e.target.files?.[0]);
+    e.target.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,7 +121,35 @@ export function CompetitionLogoManager({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Preview Box */}
-              <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-border bg-muted/20">
+              <div
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.dataTransfer.dropEffect = "copy";
+                  setIsDragging(true);
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsDragging(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setIsDragging(false);
+                  selectFile(event.dataTransfer.files?.[0]);
+                }}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-colors ${
+                  isDragging
+                    ? "border-club-primary bg-club-primary/10"
+                    : "border-border bg-muted/20"
+                }`}
+              >
                 <div className="h-20 w-20 rounded-2xl border border-border bg-background p-2 flex items-center justify-center overflow-hidden shadow-2xs mb-2">
                   {preview ? (
                     <img src={preview} alt="Logo" className="h-full w-full object-contain" />
@@ -129,6 +165,11 @@ export function CompetitionLogoManager({
                   <Upload className="h-3.5 w-3.5 text-club-primary" />
                   <span>{isAr ? "اختيار صورة من الجهاز" : "Choisir un fichier"}</span>
                 </button>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {isDragging
+                    ? isAr ? "أفلت الصورة هنا" : "Déposez l’image ici"
+                    : isAr ? "أو اسحب الصورة وأفلتها هنا (حتى 5MB)" : "Ou glissez-déposez une image ici (5 Mo max)"}
+                </p>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -149,6 +190,7 @@ export function CompetitionLogoManager({
                   value={urlInput}
                   onChange={(e) => {
                     setUrlInput(e.target.value);
+                    setFile(null);
                     if (e.target.value.startsWith("http") || e.target.value.startsWith("/")) {
                       setPreview(e.target.value);
                     }

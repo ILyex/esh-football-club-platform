@@ -2,14 +2,19 @@ import { db } from "@/lib/db";
 import { requirePagePermission } from "@/lib/permissions";
 import { WebsiteAppearanceManager } from "@/components/dashboard/website-appearance-manager";
 import { DashboardWelcomeBannerManager } from "@/components/dashboard/dashboard-welcome-banner-manager";
+import { WebsiteImageSlotsManager } from "@/components/dashboard/website-image-slots-manager";
 
 export default async function WebsiteImagesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   await requirePagePermission("settings.manage", locale);
   const settings = await db.clubSettings.findUnique({
     where: { id: "singleton" },
-    select: { homepageHeroImageUrl: true, dashboardWelcomeBannerUrl: true }
+    select: { homepageHeroImageUrl: true, dashboardWelcomeBannerUrl: true, socialLinks: true }
   });
+  const socialLinks = settings?.socialLinks && typeof settings.socialLinks === "object" && !Array.isArray(settings.socialLinks)
+    ? settings.socialLinks as Record<string, unknown> : {};
+  const websiteImages = socialLinks.websiteImages && typeof socialLinks.websiteImages === "object" && !Array.isArray(socialLinks.websiteImages)
+    ? socialLinks.websiteImages as Record<string, string> : {};
 
   return (
     <div className="space-y-6">
@@ -19,6 +24,7 @@ export default async function WebsiteImagesPage({ params }: { params: Promise<{ 
       </header>
       <WebsiteAppearanceManager locale={locale} currentImageUrl={settings?.homepageHeroImageUrl ?? null} />
       <DashboardWelcomeBannerManager locale={locale} currentImageUrl={settings?.dashboardWelcomeBannerUrl ?? null} />
+      <WebsiteImageSlotsManager images={websiteImages} />
     </div>
   );
 }

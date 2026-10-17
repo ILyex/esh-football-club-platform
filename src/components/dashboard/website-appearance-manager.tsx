@@ -91,6 +91,9 @@ export function WebsiteAppearanceManager({ locale, currentImageUrl }: WebsiteApp
           {isAr ? (previewUrl ? "معاينة قبل الحفظ" : displayedVideo ? "فيديو الهيدر الحالي" : "صورة الهيدر الحالية") : (previewUrl ? "Aperçu avant enregistrement" : displayedVideo ? "Vidéo d’en-tête actuelle" : "Image d’en-tête actuelle")}
           {displayedVideo && <Video className="ms-1.5 inline h-3.5 w-3.5" aria-hidden="true" />}
         </span>
+        <span className="absolute end-3 top-3 rounded-lg border border-white/15 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-white">
+          {isAr ? "المقاس المناسب: 1920 × 700 px" : "Format conseillé : 1920 × 700 px"}
+        </span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

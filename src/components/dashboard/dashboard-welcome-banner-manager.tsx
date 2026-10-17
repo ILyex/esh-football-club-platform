@@ -90,6 +90,9 @@ export function DashboardWelcomeBannerManager({ locale, currentImageUrl }: Dashb
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/branding/esh-logo-64.png" alt="ESH" className="h-11 w-11 rounded-lg bg-black/40 p-1.5 object-contain" />
         </div>
+        <span className="absolute end-3 top-3 rounded-lg border border-white/15 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-white">
+          {isAr ? "المقاس المناسب: 1920 × 1080 px" : "Format conseillé : 1920 × 1080 px"}
+        </span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

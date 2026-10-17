@@ -5,6 +5,7 @@ import { Users, ArrowRight, ArrowLeft } from "lucide-react";
 import { getPublicTeams } from "@/lib/public/teams";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { getPublicClubSettings } from "@/lib/public/club";
 
 export default async function TeamsOverviewPage({
   params
@@ -15,17 +16,18 @@ export default async function TeamsOverviewPage({
   const isRtl = locale === "ar";
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
 
-  const [tPublic, tTeams, teams] = await Promise.all([
+  const [tPublic, tTeams, teams, club] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
     getTranslations({ locale, namespace: "teams" }),
-    getPublicTeams()
+    getPublicTeams(),
+    getPublicClubSettings()
   ]);
 
   const categoryMedia: Record<string, { video: string; poster: string }> = {
-    senior: { video: "/branding/teams/category-senior.mp4", poster: "/branding/teams/category-senior.jpg" },
-    u20: { video: "/branding/teams/category-u20.mp4", poster: "/branding/teams/category-u20.jpg" },
-    u17: { video: "/branding/teams/category-u17.mp4", poster: "/branding/teams/category-u17.jpg" },
-    u15: { video: "/branding/teams/category-u15.mp4", poster: "/branding/teams/category-u15.jpg" }
+    senior: { video: "/branding/teams/category-senior.mp4", poster: club.websiteImages.teamSenior || "/branding/teams/category-senior.jpg" },
+    u20: { video: "/branding/teams/category-u20.mp4", poster: club.websiteImages.teamU20 || "/branding/teams/category-u20.jpg" },
+    u17: { video: "/branding/teams/category-u17.mp4", poster: club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg" },
+    u15: { video: "/branding/teams/category-u15.mp4", poster: club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg" }
   };
 
   return (

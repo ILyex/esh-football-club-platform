@@ -14,6 +14,7 @@ export interface PublicClubSettings {
   shortName: string;
   logoUrl: string | null;
   homepageHeroImageUrl: string | null;
+  websiteImages: Record<string, string>;
   primaryColor: string;
   secondaryColor: string;
   description: string | null;
@@ -52,6 +53,7 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
       shortName: "ESH",
       logoUrl: "/branding/esh-logo-128.png",
       homepageHeroImageUrl: null,
+      websiteImages: {},
       primaryColor: "#B31B1B",
       secondaryColor: "#111111",
       description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
@@ -71,11 +73,17 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
   const socialLinks = Object.fromEntries(["facebook", "instagram", "tiktok"].flatMap((key) =>
     typeof rawSocialLinks[key] === "string" ? [[key, rawSocialLinks[key] as string]] : []
   ));
+  const rawWebsiteImages = rawSocialLinks.websiteImages && typeof rawSocialLinks.websiteImages === "object" && !Array.isArray(rawSocialLinks.websiteImages)
+    ? rawSocialLinks.websiteImages as Record<string, unknown> : {};
+  const websiteImages = Object.fromEntries(Object.entries(rawWebsiteImages).flatMap(([key, value]) =>
+    typeof value === "string" ? [[key, normalizePublicMediaUrl(value) ?? value]] : []
+  ));
   return {
     ...settings,
     // Keep the association crest identical across public pages, match cards and metadata.
     logoUrl: "/branding/esh-logo-128.png",
     homepageHeroImageUrl: normalizePublicMediaUrl(settings.homepageHeroImageUrl),
+    websiteImages,
     socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,
     socialReels: readSocialReels(rawSocialLinks)
   };

@@ -7,6 +7,7 @@ import { getPublicTeams, getPublicTeamByCategory } from "@/lib/public/teams";
 import { PositionGroupsCarousel } from "@/components/public/position-groups-carousel";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { getPublicClubSettings } from "@/lib/public/club";
 
 export default async function TeamCategoryPage({
   params
@@ -21,12 +22,13 @@ export default async function TeamCategoryPage({
     notFound();
   }
 
-  const [tPublic, allTeams, teamDetail, tStaff, tTeams] = await Promise.all([
+  const [tPublic, allTeams, teamDetail, tStaff, tTeams, club] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
     getPublicTeams(),
     getPublicTeamByCategory(categoryUpper),
     getTranslations({ locale, namespace: "staff" }),
-    getTranslations({ locale, namespace: "teams" })
+    getTranslations({ locale, namespace: "teams" }),
+    getPublicClubSettings()
   ]);
 
   if (!teamDetail) {
@@ -74,10 +76,10 @@ export default async function TeamCategoryPage({
   );
 
   const categoryImages: Record<string, string> = {
-    senior: "/branding/teams/category-senior.jpg",
-    u20: "/branding/teams/category-u20.jpg",
-    u17: "/branding/teams/category-u17.jpg",
-    u15: "/branding/teams/category-u15.jpg"
+    senior: club.websiteImages.teamSenior || "/branding/teams/category-senior.jpg",
+    u20: club.websiteImages.teamU20 || "/branding/teams/category-u20.jpg",
+    u17: club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg",
+    u15: club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg"
   };
   const catImg = categoryImages[categorySlug];
   const categoryVideos: Record<string, string> = {

@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react";
 
 interface ClubIntroVideoProps {
   label: string;
+  poster?: string;
 }
 
-export function ClubIntroVideo({ label }: ClubIntroVideoProps) {
+export function ClubIntroVideo({ label, poster = "/branding/esh-intro-poster.jpg" }: ClubIntroVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function ClubIntroVideo({ label }: ClubIntroVideoProps) {
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
         src="/branding/esh-intro-loop.mp4"
-        poster="/branding/esh-intro-poster.jpg"
+        poster={poster}
         muted
         loop
         playsInline

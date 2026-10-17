@@ -235,6 +235,45 @@ export async function updateDashboardWelcomeBannerAction(formData: FormData): Pr
   }
 }
 
+const websiteImageSlots = {
+  teamSenior: { storageKey: "team-senior", label: "فريق الأكابر" },
+  teamU20: { storageKey: "team-u20", label: "فريق U20" },
+  teamU17: { storageKey: "team-u17", label: "فريق U17" },
+  teamU15: { storageKey: "team-u15", label: "فريق U15" },
+  introPoster: { storageKey: "intro-poster", label: "ملصق فيديو التعريف" }
+} as const;
+
+export type WebsiteImageSlot = keyof typeof websiteImageSlots;
+
+export async function updateWebsiteImageSlotAction(formData: FormData): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  const user = await requirePermission("settings.manage");
+  const slot = formData.get("slot");
+  const file = formData.get("image");
+  if (typeof slot !== "string" || !(slot in websiteImageSlots)) return { success: false, error: "نوع الصورة غير مدعوم." };
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: "اختر صورة صالحة أولاً." };
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { mime, ext } = await validateUploadedImage(buffer);
+    const config = websiteImageSlots[slot as WebsiteImageSlot];
+    const imageUrl = await uploadPublicFile({ key: generatePublicStorageKey(`branding/${config.storageKey}`, ext), buffer, mimeType: mime });
+    const before = await db.clubSettings.findUnique({ where: { id: "singleton" }, select: { socialLinks: true } });
+    const current = before?.socialLinks && typeof before.socialLinks === "object" && !Array.isArray(before.socialLinks)
+      ? before.socialLinks as Record<string, unknown> : {};
+    const currentWebsiteImages = current.websiteImages && typeof current.websiteImages === "object" && !Array.isArray(current.websiteImages)
+      ? current.websiteImages as Record<string, unknown> : {};
+    const websiteImages = { ...currentWebsiteImages, [slot]: imageUrl };
+    await db.clubSettings.update({ where: { id: "singleton" }, data: { socialLinks: { ...current, websiteImages } as Prisma.InputJsonObject } });
+    await writeAuditLog({ userId: user.id, action: "website.image.update", entityType: "ClubSettings", entityId: "singleton", changes: { slot, label: config.label, before: currentWebsiteImages[slot] ?? null, after: imageUrl } });
+    revalidatePath("/[locale]", "layout");
+    revalidatePath("/[locale]/team", "page");
+    revalidatePath("/[locale]/team/[category]", "page");
+    revalidatePath("/[locale]/dashboard/website/images", "page");
+    return { success: true, imageUrl };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "تعذر حفظ الصورة." };
+  }
+}
+
 export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: string; aiFallback?: "quota" | "unavailable" } | { ok: false; error: string }> {
   await requirePermission("news.view");
   if (!isAIConfigured()) return { ok: false, error: "الذكاء الاصطناعي غير متاح حالياً." };

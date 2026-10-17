@@ -118,28 +118,28 @@ export default async function HomePage({
       category: "SENIOR",
       href: `/${locale}/team/senior`,
       video: "/branding/teams/category-senior.mp4",
-      poster: "/branding/teams/category-senior.jpg",
+      poster: homeData.club.websiteImages.teamSenior || "/branding/teams/category-senior.jpg",
     },
     {
       id: "u20",
       category: "U20",
       href: `/${locale}/team/u20`,
       video: "/branding/teams/category-u20.mp4",
-      poster: "/branding/teams/category-u20.jpg",
+      poster: homeData.club.websiteImages.teamU20 || "/branding/teams/category-u20.jpg",
     },
     {
       id: "u17",
       category: "U17",
       href: `/${locale}/team/u17`,
       video: "/branding/teams/category-u17.mp4",
-      poster: "/branding/teams/category-u17.jpg",
+      poster: homeData.club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg",
     },
     {
       id: "u15",
       category: "U15",
       href: `/${locale}/team/u15`,
       video: "/branding/teams/category-u15.mp4",
-      poster: "/branding/teams/category-u15.jpg",
+      poster: homeData.club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg",
     }
   ];
 
@@ -418,6 +418,7 @@ export default async function HomePage({
 
               <ClubIntroVideo
                 label={locale === "ar" ? "الشعار المتحرك للجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Logo animé de l’Association Sportive Espoir Sidi Hosni de Football"}
+                poster={homeData.club.websiteImages.introPoster || "/branding/esh-intro-poster.jpg"}
               />
 
               <p className="line-clamp-4 text-xs leading-6 text-muted-foreground sm:text-[13px]">

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
@@ -123,6 +123,7 @@ export function SidebarNav({
   const t = useTranslations("dashboard.nav");
   const tGroups = useTranslations("dashboard.navGroups");
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -131,7 +132,7 @@ export function SidebarNav({
   const mobileMenuDialogRef = useRef<HTMLDivElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const prefetchedRoutes = useRef(new Set<string>());
 
   // Clear the visual pending state as soon as the App Router commits the new
   // route. This gives slower server-rendered sections immediate feedback
@@ -184,6 +185,15 @@ export function SidebarNav({
   }, [mobileOpen]);
 
   const isActive = (href: string) => isDashboardNavHrefActive(href, pathname, searchParams);
+  const prefetchRoute = (href: string) => {
+    const destination = `/${locale}${href}`;
+    if (prefetchedRoutes.current.has(destination)) return;
+    prefetchedRoutes.current.add(destination);
+    router.prefetch(destination, {
+      kind: "full" as NonNullable<Parameters<typeof router.prefetch>[1]>["kind"],
+      onInvalidate: () => prefetchedRoutes.current.delete(destination)
+    });
+  };
 
   const nav = (
     <nav aria-label={tGroups("navigation")} className="flex flex-col gap-4 p-3">
@@ -213,12 +223,15 @@ export function SidebarNav({
                     <Link
                       key={item.href}
                       href={`/${locale}${item.href}`}
+                      prefetch={false}
+                      onPointerEnter={() => prefetchRoute(item.href)}
+                      onFocus={() => prefetchRoute(item.href)}
                       aria-current={active ? "page" : undefined}
                       onClick={() => {
                         setMobileOpen(false);
-                        startTransition(() => setPendingHref(item.href));
+                        if (!active) setPendingHref(item.href);
                       }}
-                      aria-busy={isPending && pendingHref === item.href}
+                      aria-busy={pendingHref === item.href}
                       className={cn(
                         "group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-start transition-all md:min-h-0",
                         active
@@ -226,7 +239,7 @@ export function SidebarNav({
                           : "text-foreground/80 hover:bg-muted hover:text-foreground dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
                       )}
                     >
-                      {isPending && pendingHref === item.href ? (
+                      {pendingHref === item.href ? (
                         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-current" aria-hidden="true" />
                       ) : Icon ? (
                         <Icon
