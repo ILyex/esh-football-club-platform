@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
-import { roleDisplayName } from "@/lib/roles/display-name";
 
 export default async function NewUserPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -73,7 +72,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
               locale={locale}
               ariaLabel={t("fields.role")}
               defaultValue={roles[0]?.id ?? ""}
-              options={roles.map((role) => ({ value: role.id, label: roleDisplayName(role.key, role.name) }))}
+              options={roles.map((role) => ({ value: role.id, label: role.name }))}
               placeholder={locale === "ar" ? "اختر الدور" : "Sélectionner un rôle"}
             />
           </div>

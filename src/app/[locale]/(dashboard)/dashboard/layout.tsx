@@ -25,7 +25,6 @@ import { SafeImage } from "@/components/shared/safe-image";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
 import { DhikrReminder } from "@/components/shared/dhikr-reminder";
-import { roleDisplayName } from "@/lib/roles/display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -247,7 +246,7 @@ export default async function DashboardLayout({
                   {user.name}
                 </span>
                 <span className="inline-block text-[10px] font-medium text-club-primary dark:text-club-primary/90 leading-tight truncate max-w-[130px]">
-                  {roleDisplayName(user.roleKey, user.roleName)}
+                  {user.roleName}
                 </span>
               </div>
             </div>

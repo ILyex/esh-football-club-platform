@@ -17,7 +17,6 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
-import { roleDisplayName } from "@/lib/roles/display-name";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -95,7 +94,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
               {user.isActive ? (locale === "ar" ? "الحساب مفعّل" : "Compte activé") : (locale === "ar" ? "الحساب معطّل" : "Compte désactivé")}
             </Badge>
             <Badge tone="neutral" className="text-[11px]">
-              {roleDisplayName(user.role.key, user.role.name)}
+              {user.role.name}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -154,7 +153,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
               locale={locale}
               ariaLabel={t("fields.role")}
               defaultValue={user.roleId}
-              options={roles.map((r) => ({ value: r.id, label: roleDisplayName(r.key, r.name) }))}
+              options={roles.map((r) => ({ value: r.id, label: r.name }))}
             />
           </div>
           <div className="min-w-0 space-y-2">
