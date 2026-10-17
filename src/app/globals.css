@@ -184,7 +184,23 @@ html.theme-transition body *::after {
 
 .dashboard-filter-toolbar input:not([type="hidden"]) {
   min-height: 2.25rem;
-  border-radius: 0.625rem;
+  border-radius: 0.75rem;
+  color: hsl(var(--foreground));
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.dashboard-filter-toolbar input:not([type="hidden"]):focus,
+.dashboard-filter-toolbar textarea:focus,
+.dashboard-filter-toolbar select:focus {
+  border-color: var(--club-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--club-primary-rgb) / 0.16);
+}
+
+.dashboard-filter-toolbar input:not([type="hidden"]):focus-visible,
+.dashboard-filter-toolbar textarea:focus-visible,
+.dashboard-filter-toolbar select:focus-visible {
+  outline: none;
 }
 
 .dashboard-filter-toolbar > button {
