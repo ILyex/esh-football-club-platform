@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
 import { Toaster } from "sonner";
 
 /** Keeps Sonner's rich colours synchronized with the platform's user theme. */
 export function PlatformToaster({ position }: { position: "top-left" | "top-right" }) {
+  const locale = useLocale();
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -16,5 +18,5 @@ export function PlatformToaster({ position }: { position: "top-left" | "top-righ
     return () => observer.disconnect();
   }, []);
 
-  return <Toaster position={position} theme={isDark ? "dark" : "light"} richColors />;
+  return <Toaster position={position} dir={locale === "ar" ? "rtl" : "ltr"} theme={isDark ? "dark" : "light"} richColors />;
 }

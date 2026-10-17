@@ -264,6 +264,39 @@ export function WebsiteAnalyticsDashboard({
         </div>
       </div>
 
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">{isRtl ? "نشاط CAPTCHA" : "Activité CAPTCHA"}</h2>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {isRtl ? "أحداث تحقق الدخول الفعلية المسجلة في الإنتاج خلال آخر 14 يوماً" : "Événements réels de vérification de connexion enregistrés en production sur 14 jours"}
+            </p>
+          </div>
+          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+            {isRtl ? "سجل قاعدة البيانات" : "Journal de base de données"}
+          </span>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+          {[
+            [isRtl ? "تحديات صادرة" : "Défis émis", analytics.captcha.challengesIssued],
+            [isRtl ? "اجتياز التحدي" : "Défis réussis", analytics.captcha.challengesSolved],
+            [isRtl ? "رموز مقبولة" : "Jetons acceptés", analytics.captcha.tokensAccepted],
+            [isRtl ? "تحديات مرفوضة" : "Défis refusés", analytics.captcha.challengesRejected],
+            [isRtl ? "رموز مرفوضة" : "Jetons refusés", analytics.captcha.tokensRejected],
+            [isRtl ? "طلبات محدودة" : "Requêtes limitées", analytics.captcha.rateLimited],
+            [isRtl ? "غير متاح" : "Indisponible", analytics.captcha.unavailable]
+          ].map(([label, count]) => (
+            <div key={String(label)} className="rounded-xl border border-border/70 bg-background/50 p-3">
+              <p className="text-[10px] leading-4 text-muted-foreground">{label}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-foreground">{Number(count).toLocaleString(locale === "ar" ? "ar-DZ" : "fr-FR")}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[10px] leading-5 text-muted-foreground">
+          {isRtl ? "كل رقم هو عدد أحداث مسجلة، وليس عدد أشخاص أو دليلاً منفرداً على هجوم. لا تُسجل الرموز أو عناوين IP في هذه الأحداث." : "Chaque valeur compte des événements enregistrés, pas des personnes ni une preuve d’attaque. Les jetons et adresses IP ne sont pas stockés dans ces événements."}
+        </p>
+      </section>
+
       {/* 3. Main Chart: Traffic & Interactions Over Time */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">

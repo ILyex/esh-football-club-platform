@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
+import { getDeploymentEnvironment } from "@/lib/deployment-environment";
 
 // ============================================================================
 // AUDIT LOG (spec section 42)
@@ -48,6 +49,7 @@ export async function writeAuditLog(
       entityType: entry.entityType,
       entityId: entry.entityId ?? null,
       changes: entry.changes as any,
+      deploymentEnvironment: getDeploymentEnvironment(),
       ipAddress
     }
   });

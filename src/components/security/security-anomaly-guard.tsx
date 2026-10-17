@@ -78,8 +78,8 @@ export function SecurityAnomalyGuard({ report, locale }: SecurityAnomalyGuardPro
 
       <div className="mt-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3.5 py-2.5 text-[11px] leading-5 text-muted-foreground">
         {isAr
-          ? "طريقة القياس: تُراجع أحداث سجل التدقيق لآخر 24 ساعة. رفض صلاحية واحد يُعرض كحالة متابعة منخفضة؛ لا يصبح التصنيف مرتفعاً إلا مع تكرار الرفض أو اجتماع ذلك مع محاولات دخول فاشلة متكررة."
-          : "Méthode : les événements d’audit des dernières 24 h sont examinés. Un seul refus de permission reste un signal de suivi faible ; le niveau élevé exige des refus répétés ou leur combinaison avec des échecs de connexion répétés."}
+          ? `المصدر: سجل قاعدة البيانات لبيئة ${report.environmentLabelAr} خلال آخر 24 ساعة. السجلات القديمة مجهولة المصدر مستبعدة (${report.stats.unattributedAuditEventsCount}). التصنيف إشارة أولية وليس شهادة أمان.`
+          : `Source : journaux de base de données de l’environnement ${report.environmentLabelFr} sur 24 h. Anciens journaux sans provenance exclus (${report.stats.unattributedAuditEventsCount}). Le classement est indicatif, pas une certification.`}
       </div>
 
       {report.aiInsight && (
@@ -95,12 +95,12 @@ export function SecurityAnomalyGuard({ report, locale }: SecurityAnomalyGuardPro
                   ? "تكرار فشل الدخول"
                   : evidence === "REPEATED_AUTH_DENIAL"
                     ? "تكرار رفض الصلاحية"
-                    : "رفض صلاحية منفرد"
+                    : evidence === "CAPTCHA_REJECTIONS" ? "رفض CAPTCHA متكرر" : "رفض صلاحية منفرد"
                 : evidence === "FAILED_LOGIN_BURST"
                   ? "échecs de connexion répétés"
                   : evidence === "REPEATED_AUTH_DENIAL"
                     ? "refus d’autorisation répétés"
-                    : "refus d’autorisation isolé"}
+                    : evidence === "CAPTCHA_REJECTIONS" ? "rejets CAPTCHA répétés" : "refus d’autorisation isolé"}
             </span>
           ))}
           <span className="block mt-1">
@@ -110,7 +110,7 @@ export function SecurityAnomalyGuard({ report, locale }: SecurityAnomalyGuardPro
       )}
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 my-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 my-5">
         <div className="rounded-xl border border-border/50 bg-background/50 p-3.5 flex flex-col">
           <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5 text-primary" />
@@ -118,6 +118,19 @@ export function SecurityAnomalyGuard({ report, locale }: SecurityAnomalyGuardPro
           </span>
           <span className="text-xl font-bold font-mono text-foreground mt-1">
             {report.stats.recentActions24h}
+          </span>
+        </div>
+
+        <div className="rounded-xl border border-border/50 bg-background/50 p-3.5 flex flex-col">
+          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 text-violet-500" />
+            {isAr ? "CAPTCHA: تحديات / مرفوضة" : "CAPTCHA : défis / refus"}
+          </span>
+          <span className="text-xl font-bold font-mono text-foreground mt-1">
+            {report.stats.captchaChallenges24h} / {report.stats.captchaRejected24h}
+          </span>
+          <span className="text-[10px] text-muted-foreground mt-1">
+            {isAr ? `مقبولة ${report.stats.captchaTokensAccepted24h} · محدودة ${report.stats.captchaRateLimited24h}` : `Acceptés ${report.stats.captchaTokensAccepted24h} · limités ${report.stats.captchaRateLimited24h}`}
           </span>
         </div>
 

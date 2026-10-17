@@ -4,12 +4,31 @@ import { createHash, createHmac } from "node:crypto";
 import { generateChallenge, validateChallenge, type ValidateChallengeBody } from "capjs-core";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getDeploymentEnvironment } from "@/lib/deployment-environment";
 
 const LOGIN_SCOPE = "esh-login-v1";
 const TOKEN_PREFIX = "cap:login-token:";
 const NONCE_PREFIX = "cap:login-challenge:";
 
 export type CapVerificationResult = "disabled" | "verified" | "rejected" | "unavailable";
+export type CaptchaAuditEvent = "challenge_issued" | "rate_limited" | "challenge_solved" | "challenge_rejected" | "token_accepted" | "token_rejected" | "unavailable";
+
+/** Records only aggregate-worthy outcomes; never persist CAPTCHA tokens, emails, or raw client addresses. */
+export async function recordCaptchaAuditEvent(event: CaptchaAuditEvent): Promise<void> {
+  try {
+    await db.auditLog.create({
+      data: {
+        userId: null,
+        action: `security.captcha.${event}`,
+        entityType: "CAPTCHA",
+        deploymentEnvironment: getDeploymentEnvironment(),
+        changes: { flow: "login" }
+      }
+    });
+  } catch {
+    // Telemetry must never change whether a valid solve or login is accepted.
+  }
+}
 
 export function isLoginCaptchaEnabled(): boolean {
   return process.env.NODE_ENV === "production" ||
@@ -62,18 +81,24 @@ export async function createLoginChallenge(request: Request) {
     "unknown";
   const ipHash = createHash("sha256").update(address.slice(0, 128)).digest("hex");
   const limit = await checkRateLimit({ key: `cap:challenge-ip:${ipHash}`, limit: 40, windowMs: 10 * 60 * 1000 });
-  if (!limit.allowed) return null;
+  if (!limit.allowed) {
+    await recordCaptchaAuditEvent("rate_limited");
+    return null;
+  }
 
-  return generateChallenge(secret, {
+  const challenge = await generateChallenge(secret, {
     scope: LOGIN_SCOPE,
     expiresMs: 5 * 60 * 1000,
     instrumentation: true
   });
+  await recordCaptchaAuditEvent("challenge_issued");
+  return challenge;
 }
 
 export async function redeemLoginChallenge(value: unknown) {
   if (!isLoginCaptchaEnabled()) throw new Error("CAPTCHA is disabled");
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    await recordCaptchaAuditEvent("challenge_rejected");
     return { success: false as const, error: "invalid_challenge" };
   }
 
@@ -84,6 +109,7 @@ export async function redeemLoginChallenge(value: unknown) {
     consumeNonce: consumeChallengeNonce
   });
   if (!result.success || !result.tokenKey) {
+    await recordCaptchaAuditEvent("challenge_rejected");
     return { success: false as const, error: "verification_failed" };
   }
 
@@ -98,16 +124,21 @@ export async function redeemLoginChallenge(value: unknown) {
     }
   });
 
+  await recordCaptchaAuditEvent("challenge_solved");
   return { success: true as const, token: result.token, expires: result.expires };
 }
 
 /** A valid solve is single-use, including when auth is called directly. */
 export async function verifyLoginCaptcha(token: string): Promise<CapVerificationResult> {
   if (!isLoginCaptchaEnabled()) return "disabled";
-  if (token.length < 12 || token.length > 256) return "rejected";
+  if (token.length < 12 || token.length > 256) {
+    await recordCaptchaAuditEvent("token_rejected");
+    return "rejected";
+  }
 
   const [id, verificationSecret, ...extra] = token.split(":");
   if (!id || !verificationSecret || extra.length > 0 || !/^[a-f0-9]{16}$/i.test(id) || !/^[a-f0-9]{30}$/i.test(verificationSecret)) {
+    await recordCaptchaAuditEvent("token_rejected");
     return "rejected";
   }
 
@@ -122,8 +153,11 @@ export async function verifyLoginCaptcha(token: string): Promise<CapVerification
       },
       data: { count: 1 }
     });
-    return consumed.count === 1 ? "verified" : "rejected";
+    const verified = consumed.count === 1;
+    await recordCaptchaAuditEvent(verified ? "token_accepted" : "token_rejected");
+    return verified ? "verified" : "rejected";
   } catch {
+    await recordCaptchaAuditEvent("unavailable");
     return "unavailable";
   }
 }

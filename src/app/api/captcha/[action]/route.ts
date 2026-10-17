@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createLoginChallenge, redeemLoginChallenge } from "@/lib/security/cap-captcha";
+import { createLoginChallenge, recordCaptchaAuditEvent, redeemLoginChallenge } from "@/lib/security/cap-captcha";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,14 +32,27 @@ export async function POST(request: Request, context: { params: Promise<{ action
     }
 
     if (action === "redeem") {
+      const address = request.headers.get("cf-connecting-ip") ??
+        request.headers.get("x-real-ip") ??
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        "unknown";
+      const addressHash = createHash("sha256").update(address.slice(0, 128)).digest("hex");
+      const requestLimit = await checkRateLimit({ key: `cap:redeem-ip:${addressHash}`, limit: 60, windowMs: 10 * 60 * 1000 });
+      if (!requestLimit.allowed) {
+        await recordCaptchaAuditEvent("rate_limited");
+        return NextResponse.json({ success: false, error: "rate_limited" }, { status: 429, headers: { "Cache-Control": "no-store" } });
+      }
+
       const bodyText = await request.text();
       if (bodyText.length > 512_000) {
+        await recordCaptchaAuditEvent("challenge_rejected");
         return NextResponse.json({ success: false, error: "invalid_challenge" }, { status: 413 });
       }
       let body: unknown;
       try {
         body = JSON.parse(bodyText);
       } catch {
+        await recordCaptchaAuditEvent("challenge_rejected");
         return NextResponse.json({ success: false, error: "invalid_challenge" }, { status: 400 });
       }
 
@@ -50,6 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ action
 
     return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
   } catch {
+    await recordCaptchaAuditEvent("unavailable");
     return NextResponse.json({ success: false, error: "captcha_unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }

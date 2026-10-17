@@ -284,7 +284,8 @@ export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: 
   await requirePermission("news.view");
   if (!isAIConfigured()) return { ok: false, error: "الذكاء الاصطناعي غير متاح حالياً." };
   const analytics = await getWebsiteAnalytics();
-  if (!analytics.hasData) return { ok: false, error: "لا توجد أحداث مسجلة لتحليلها بعد." };
+  const hasCaptchaData = Object.values(analytics.captcha).some((count) => count > 0);
+  if (!analytics.hasData && !hasCaptchaData) return { ok: false, error: "لا توجد أحداث مسجلة لتحليلها بعد." };
 
   const facts = {
     periodDays: 14,
@@ -294,7 +295,8 @@ export async function summarizeWebsiteAnalytics(): Promise<{ ok: true; summary: 
     daily: analytics.dailyTraffic,
     topPages: analytics.topPages,
     devices: analytics.deviceBreakdown.map(({ device, visits }) => ({ device, visits })),
-    referrers: analytics.referrerBreakdown
+    referrers: analytics.referrerBreakdown,
+    captcha: analytics.captcha
   };
   try {
     const summary = await runAICompletion({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -27,6 +27,8 @@ export function ConfirmDialog({
   successMessage?: string;
   errorMessage?: string;
 }) {
+  const locale = useLocale();
+  const isAr = locale === "ar";
   const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -44,7 +46,6 @@ export function ConfirmDialog({
 
   async function confirm() {
     setPending(true);
-    const isAr = typeof document !== "undefined" && document.documentElement.lang.toLowerCase().startsWith("ar");
     try {
       const result = await onConfirm();
       if (result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === false) {
@@ -86,7 +87,7 @@ export function ConfirmDialog({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={bodyId}
-            dir="rtl"
+            dir={isAr ? "rtl" : "ltr"}
           >
             <div className="flex items-start gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">

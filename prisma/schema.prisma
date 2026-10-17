@@ -1642,6 +1642,7 @@ model TreasuryTransaction {
 
 model AuditLog {
   id         String   @id @default(cuid())
+  deploymentEnvironment String @default("unknown")
   userId     String?
   user       User?    @relation(fields: [userId], references: [id])
   action     String // e.g. "player.create", "document.download"
@@ -1654,6 +1655,7 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@index([createdAt])
+  @@index([deploymentEnvironment, createdAt])
 }
 
 // ============================================================================

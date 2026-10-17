@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { getActiveAIProvider, isAIConfigured } from "@/lib/ai/provider";
+import { getDeploymentEnvironment } from "@/lib/deployment-environment";
 
 export type ThreatLevel = "NORMAL" | "LOW" | "HIGH" | "CRITICAL" | "INSUFFICIENT_DATA";
 
@@ -12,8 +13,10 @@ export interface AnomalyReport {
   primaryReasonAr: string;
   primaryReasonFr: string;
   hasSufficientData: boolean;
+  environmentLabelAr: string;
+  environmentLabelFr: string;
   aiInsight?: {
-    evidence: ("FAILED_LOGIN_BURST" | "REPEATED_AUTH_DENIAL" | "SINGLE_AUTH_DENIAL")[];
+    evidence: ("FAILED_LOGIN_BURST" | "REPEATED_AUTH_DENIAL" | "SINGLE_AUTH_DENIAL" | "CAPTCHA_REJECTIONS")[];
   };
   detectedAnomalies: {
     id: string;
@@ -34,6 +37,11 @@ export interface AnomalyReport {
     unauthorizedAttemptsCount: number;
     roleChangesCount: number;
     sensitiveOperationsCount: number;
+    captchaChallenges24h: number;
+    captchaRejected24h: number;
+    captchaTokensAccepted24h: number;
+    captchaRateLimited24h: number;
+    unattributedAuditEventsCount: number;
   };
   charts: {
     activityByHour: { hour: string; count: number; sensitiveCount: number }[];
@@ -54,27 +62,38 @@ export interface AnomalyReport {
 export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const since2h = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const environment = getDeploymentEnvironment();
 
-  const [recentLogs, enabledAccountsCount, totalRecentAuditEvents, failedLogins24h, failedLoginsRecent, unauthorizedAttemptsCount] = await Promise.all([
+  const [recentLogs, enabledAccountsCount, totalRecentAuditEvents, failedLogins24h, failedLoginsRecent, unauthorizedAttemptsCount, unauthorizedAttemptsRecent, securitySignals24h, captchaRows, unattributedAuditEventsCount] = await Promise.all([
     db.auditLog.findMany({
-      where: { createdAt: { gte: since24h } },
+      where: { deploymentEnvironment: environment, createdAt: { gte: since24h } },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       take: 1000
     }),
-    db.user.count({ where: { isActive: true } }),
-    db.auditLog.count({ where: { createdAt: { gte: since24h } } }),
-    db.auditLog.count({ where: { action: "auth.login_failed", createdAt: { gte: since24h } } }),
-    db.auditLog.count({ where: { action: "auth.login_failed", createdAt: { gte: since2h } } }),
-    db.auditLog.count({ where: { action: "authorization.denied", createdAt: { gte: since24h } } })
+    db.user.count({ where: { isActive: true, deletedAt: null } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, createdAt: { gte: since24h } } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, action: "auth.login_failed", createdAt: { gte: since24h } } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, action: "auth.login_failed", createdAt: { gte: since2h } } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, action: "authorization.denied", createdAt: { gte: since24h } } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, action: "authorization.denied", createdAt: { gte: since2h } } }),
+    db.auditLog.count({ where: { deploymentEnvironment: environment, createdAt: { gte: since24h }, OR: [
+      { action: { in: ["auth.login_failed", "auth.login_success", "authorization.denied"] } },
+      { action: { startsWith: "security.captcha." } }
+    ] } }),
+    db.auditLog.groupBy({
+      by: ["action"],
+      where: { deploymentEnvironment: environment, createdAt: { gte: since24h }, action: { startsWith: "security.captcha." } },
+      _count: { _all: true }
+    }),
+    db.auditLog.count({ where: { deploymentEnvironment: "unknown", createdAt: { gte: since24h } } })
   ]);
 
-  // A single denied request is a normal authorization outcome.  Keep a
-  // separate short-window count so repeated denials can be distinguished from
-  // an isolated permissions mistake.
-  const unauthorizedAttemptsRecent = recentLogs.filter(
-    (log) => log.action.toLowerCase() === "authorization.denied" && log.createdAt >= since2h
-  ).length;
+  const captchaCounts = new Map(captchaRows.map((row) => [row.action, row._count._all]));
+  const captchaChallenges24h = captchaCounts.get("security.captcha.challenge_issued") ?? 0;
+  const captchaRejected24h = (captchaCounts.get("security.captcha.challenge_rejected") ?? 0) + (captchaCounts.get("security.captcha.token_rejected") ?? 0);
+  const captchaTokensAccepted24h = captchaCounts.get("security.captcha.token_accepted") ?? 0;
+  const captchaRateLimited24h = captchaCounts.get("security.captcha.rate_limited") ?? 0;
 
   const anomalies: AnomalyReport["detectedAnomalies"] = [];
 
@@ -132,7 +151,9 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
   }
 
   // Determine institutional threat level and explicit reason
-  const hasSufficientData = totalRecentAuditEvents >= 5;
+  // Benign CRUD traffic is not evidence that the security detector is observing
+  // meaningful signals. Require security-relevant observations instead.
+  const hasSufficientData = securitySignals24h >= 5;
   let threatLevel: ThreatLevel = hasSufficientData ? "NORMAL" : "INSUFFICIENT_DATA";
   let threatLevelLabelAr = "لا تنبيهات مرصودة";
   let threatLevelLabelFr = "Aucune alerte observée";
@@ -142,8 +163,8 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     threatLevel = "INSUFFICIENT_DATA";
     threatLevelLabelAr = "بيانات غير كافية";
     threatLevelLabelFr = "Données insuffisantes";
-    primaryReasonAr = `سُجلت ${totalRecentAuditEvents} أحداث تدقيق فقط خلال 24 ساعة؛ لا يمكن اعتبار غياب التنبيهات دليلاً على سلامة النظام.`;
-    primaryReasonFr = `${totalRecentAuditEvents} événements d'audit observés en 24h ; l'absence d'alerte ne prouve pas que le système est sûr.`;
+    primaryReasonAr = `سُجلت ${securitySignals24h} مؤشرات أمنية ذات صلة فقط خلال 24 ساعة في بيئة ${environment === "production" ? "الإنتاج" : environment === "preview" ? "المعاينة" : "التطوير"}؛ لا يمكن اعتبار غياب التنبيهات دليلاً على سلامة النظام.`;
+    primaryReasonFr = `${securitySignals24h} signaux de sécurité pertinents observés en 24h dans l’environnement ${environment} ; l'absence d'alerte ne prouve pas que le système est sûr.`;
   } else if (failedLoginsRecent >= 8 && (unauthorizedAttemptsRecent >= 3 || unauthorizedAttemptsCount >= 5)) {
     threatLevel = "CRITICAL";
     threatLevelLabelAr = "حرج";
@@ -188,11 +209,12 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
           failedLoginsRecent,
           unauthorizedAttemptsCount,
           unauthorizedAttemptsRecent,
-          allowedEvidence: ["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL"]
+          captchaRejected24h,
+          allowedEvidence: ["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL", "CAPTCHA_REJECTIONS"]
         }),
         schema: z.object({
           evidence: z.array(
-            z.enum(["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL"])
+            z.enum(["FAILED_LOGIN_BURST", "REPEATED_AUTH_DENIAL", "SINGLE_AUTH_DENIAL", "CAPTCHA_REJECTIONS"])
           ).max(3)
         }),
         timeoutMs: 4000,
@@ -201,7 +223,9 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
       const evidence = insight.evidence.filter((key) =>
         key === "FAILED_LOGIN_BURST"
           ? failedLoginsRecent >= 5
-          : key === "REPEATED_AUTH_DENIAL"
+          : key === "CAPTCHA_REJECTIONS"
+            ? captchaRejected24h >= 10
+            : key === "REPEATED_AUTH_DENIAL"
             ? unauthorizedAttemptsCount >= 2
             : unauthorizedAttemptsCount === 1
       );
@@ -314,6 +338,8 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
     primaryReasonAr,
     primaryReasonFr,
     hasSufficientData,
+    environmentLabelAr: environment === "production" ? "الإنتاج" : environment === "preview" ? "المعاينة" : "التطوير",
+    environmentLabelFr: environment === "production" ? "production" : environment === "preview" ? "prévisualisation" : "développement",
     aiInsight,
     detectedAnomalies: anomalies,
     stats: {
@@ -323,6 +349,11 @@ export async function detectSecurityAnomalies(): Promise<AnomalyReport> {
       unauthorizedAttemptsCount,
       roleChangesCount,
       sensitiveOperationsCount,
+      captchaChallenges24h,
+      captchaRejected24h,
+      captchaTokensAccepted24h,
+      captchaRateLimited24h,
+      unattributedAuditEventsCount,
     },
     charts: {
       activityByHour,

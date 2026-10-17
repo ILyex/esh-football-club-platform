@@ -20,6 +20,7 @@ import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
 import { estimateShotXg } from "@/lib/matches/xg";
 import { matchStadium } from "@/lib/matches/stadium";
+import { deletePrivateFile } from "@/lib/storage";
 
 function revalidatePath(...args: Parameters<typeof nextRevalidatePath>) {
   try {
@@ -439,11 +440,68 @@ export async function deleteMatchAction(matchId: string) {
   const before = await db.match.findUniqueOrThrow({ where: { id: matchId } });
   assertTeamScope(scopeContext, before.teamId, "Match");
 
+  const [matchDocuments, generatedDocuments] = await Promise.all([
+    db.document.findMany({ where: { relatedMatchId: matchId }, select: { id: true, storageKey: true } }),
+    db.generatedDocument.findMany({
+      where: { relatedEntityType: "Match", relatedEntityId: matchId },
+      select: { id: true, storageKey: true, documentId: true }
+    })
+  ]);
+  const linkedDocumentIds = [...new Set([
+    ...matchDocuments.map((document) => document.id),
+    ...generatedDocuments.flatMap((document) => document.documentId ? [document.documentId] : [])
+  ])];
+  const linkedDocuments = linkedDocumentIds.length
+    ? await db.document.findMany({ where: { id: { in: linkedDocumentIds } }, select: { id: true, storageKey: true } })
+    : [];
+  const privateStorageKeys = [...new Set([
+    ...linkedDocuments.map((document) => document.storageKey),
+    ...generatedDocuments.map((document) => document.storageKey)
+  ])];
+
   await db.$transaction(async (tx) => {
+    // Remove match-specific inbox notifications (including insight dedup keys)
+    // and queued public push notifications before deleting the match itself.
+    await tx.notification.deleteMany({
+      where: {
+        OR: [
+          { dedupKey: { startsWith: `insight:match:${matchId}:` } },
+          { type: { in: ["MATCH_REPORT_MISSING", "MATCH_MISSING_INFO", "UPCOMING_MATCH"] }, link: { endsWith: `/matches/${matchId}` } }
+        ]
+      }
+    });
+    await tx.matchPushOutbox.deleteMany({ where: { matchId } });
+
+    // Keep financial/correspondence/media records, but remove their reference
+    // to the deleted fixture so unrelated records remain intact.
+    await tx.expense.updateMany({ where: { relatedMatchId: matchId }, data: { relatedMatchId: null } });
+    await tx.correspondence.updateMany({ where: { relatedMatchId: matchId }, data: { relatedMatchId: null } });
+    await tx.media.updateMany({ where: { matchId }, data: { matchId: null } });
+
+    // Delete match documents from both the central archive and generated-docs
+    // history. Detach any surviving records that reused a document pointer.
+    if (linkedDocumentIds.length) {
+      await tx.contract.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
+      await tx.expense.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
+      await tx.treasuryTransaction.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
+      await tx.correspondenceAttachment.deleteMany({ where: { documentId: { in: linkedDocumentIds } } });
+      await tx.meetingAttachment.deleteMany({ where: { documentId: { in: linkedDocumentIds } } });
+    }
+    await tx.generatedDocument.deleteMany({ where: { relatedEntityType: "Match", relatedEntityId: matchId } });
+    if (linkedDocumentIds.length) await tx.document.deleteMany({ where: { id: { in: linkedDocumentIds } } });
     await tx.calendarEvent.deleteMany({ where: { relatedMatchId: matchId } });
     await tx.match.delete({ where: { id: matchId } });
     await writeAuditLog({ userId: user.id, action: "match.delete", entityType: "Match", entityId: matchId, changes: { before } }, tx);
-  }); // MatchEvent and MatchLineup cascade with the match.
+  }); // Match events, shots, lineup, and shootout kicks cascade with the match.
+
+  const storageCleanup = await Promise.allSettled(privateStorageKeys.map((key) => deletePrivateFile(key)));
+  const failedStorageDeletes = storageCleanup.filter((result) => result.status === "rejected");
+  if (failedStorageDeletes.length) {
+    console.error("Match deleted but one or more related document files could not be removed:", {
+      matchId,
+      failedCount: failedStorageDeletes.length
+    });
+  }
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/dashboard/calendar", "page");
   revalidatePath("/[locale]/dashboard/competitions", "page");

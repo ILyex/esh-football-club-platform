@@ -23,6 +23,15 @@ export interface WebsiteAnalyticsData {
   topPages: PageStat[];
   deviceBreakdown: { device: string; visits: number; percentage: number }[];
   referrerBreakdown: { source: string; visits: number }[];
+  captcha: {
+    challengesIssued: number;
+    challengesSolved: number;
+    challengesRejected: number;
+    tokensAccepted: number;
+    tokensRejected: number;
+    unavailable: number;
+    rateLimited: number;
+  };
   hasData: boolean;
 }
 
@@ -34,7 +43,7 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
   from.setUTCHours(0, 0, 0, 0);
   const activeSince = new Date(now.getTime() - 5 * 60 * 1000);
 
-  const [dailyRows, totals, activeNow, pageRows, deviceRows, sourceRows] = await Promise.all([
+  const [dailyRows, totals, activeNow, pageRows, deviceRows, sourceRows, captchaRows] = await Promise.all([
     db.$queryRaw<Array<{ date: Date; visitors: bigint; pageViews: bigint; clicks: bigint }>>`
       SELECT date_trunc('day', "createdAt") AS date,
         COUNT(DISTINCT "visitorKey") FILTER (WHERE type = 'PAGE_VIEW') AS visitors,
@@ -74,8 +83,19 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
       WHERE type = 'PAGE_VIEW' AND "createdAt" >= ${from}
         AND "deploymentEnvironment" = 'production'
       GROUP BY source ORDER BY visits DESC LIMIT 8
-    `
+    `,
+    db.auditLog.groupBy({
+      by: ["action"],
+      where: {
+        deploymentEnvironment: "production",
+        createdAt: { gte: from },
+        action: { startsWith: "security.captcha." }
+      },
+      _count: { _all: true }
+    })
   ]);
+
+  const captchaCounts = new Map(captchaRows.map((row) => [row.action, row._count._all]));
 
   const totalVisitors = Number(totals[0]?.visitors ?? 0n);
   const totalPageViews = Number(totals[0]?.pageViews ?? 0n);
@@ -111,6 +131,15 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
       };
     }),
     referrerBreakdown: sourceRows.map((row) => ({ source: row.source, visits: Number(row.visits) })),
+    captcha: {
+      challengesIssued: captchaCounts.get("security.captcha.challenge_issued") ?? 0,
+      challengesSolved: captchaCounts.get("security.captcha.challenge_solved") ?? 0,
+      challengesRejected: captchaCounts.get("security.captcha.challenge_rejected") ?? 0,
+      tokensAccepted: captchaCounts.get("security.captcha.token_accepted") ?? 0,
+      tokensRejected: captchaCounts.get("security.captcha.token_rejected") ?? 0,
+      unavailable: captchaCounts.get("security.captcha.unavailable") ?? 0,
+      rateLimited: captchaCounts.get("security.captcha.rate_limited") ?? 0
+    },
     hasData: totalPageViews > 0 || totalClicks > 0
   };
 }

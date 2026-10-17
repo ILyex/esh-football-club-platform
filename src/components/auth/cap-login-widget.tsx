@@ -17,6 +17,9 @@ export function CapLoginWidget({ endpoint, locale, onReady }: CapLoginWidgetProp
     let mounted = true;
     onReady(false);
     import("cap-widget").then(() => {
+      if (!customElements.get("cap-widget")) {
+        throw new Error("Cap widget custom element did not register");
+      }
       if (!mounted) return;
       setLoaded(true);
       onReady(true);
@@ -34,7 +37,7 @@ export function CapLoginWidget({ endpoint, locale, onReady }: CapLoginWidgetProp
 
   if (!loaded) {
     return (
-      <div role={loadFailed ? "alert" : "status"} className="rounded-xl border border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+      <div role={loadFailed ? "alert" : "status"} className="flex min-h-14 items-center rounded-xl border border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
         {loadFailed
           ? (isArabic ? "تعذر تحميل التحقق الأمني. حدّث الصفحة وحاول مجددًا." : "Impossible de charger la vérification. Actualisez la page et réessayez.")
           : (isArabic ? "جارٍ تحميل التحقق الأمني…" : "Chargement de la vérification…")}
@@ -43,8 +46,9 @@ export function CapLoginWidget({ endpoint, locale, onReady }: CapLoginWidgetProp
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-muted/30 p-2.5">
+    <div className="flex min-h-14 items-center overflow-x-auto rounded-xl border border-border bg-muted/30 p-2.5">
       <cap-widget
+        className="block w-full"
         required
         data-cap-api-endpoint={endpoint}
         data-cap-hidden-field-name="cap-token"
@@ -60,10 +64,14 @@ export function CapLoginWidget({ endpoint, locale, onReady }: CapLoginWidgetProp
         data-cap-i18n-required-label={isArabic ? "يرجى إكمال التحقق الأمني" : "Veuillez terminer la vérification"}
         data-cap-i18n-error-aria-label={isArabic ? "حدث خطأ، حاول مجددًا" : "Une erreur est survenue, réessayez"}
         style={{
+          display: "block",
+          width: "100%",
+          minHeight: "44px",
           "--cap-background": "hsl(var(--card))",
           "--cap-border-color": "hsl(var(--border))",
           "--cap-border-radius": "10px",
           "--cap-widget-width": "100%",
+          "--cap-widget-height": "44px",
           "--cap-widget-padding": "10px",
           "--cap-color": "hsl(var(--foreground))",
           "--cap-font": "inherit",
