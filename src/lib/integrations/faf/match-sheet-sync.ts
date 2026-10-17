@@ -13,7 +13,7 @@ import { extractDocumentText } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { combineClubNameVariants } from "@/lib/public/locale-text";
-import { extractFafClubNameVariants } from "./club-names";
+import { extractFafClubNameVariants, isFafClubNamePlaceholder } from "./club-names";
 
 export interface FafMatchSyncResult {
   success: boolean;
@@ -121,7 +121,8 @@ function dateKey(value: unknown): string {
 
 function opponentName(club: any): string {
   const names = extractFafClubNameVariants(club);
-  return names.ar || names.fr || String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "");
+  const fallback = String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "").trim();
+  return names.ar || names.fr || (isFafClubNamePlaceholder(fallback) ? "" : fallback);
 }
 
 function remoteClubNames(club: any): string[] {
@@ -676,7 +677,10 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   const opponentClub = clubIsHome ? remote.clubVis : remote.clubLoc;
   const opponentNames = extractFafClubNameVariants(opponentClub);
   const opponent = opponentNames.ar || opponentNames.fr || opponentName(opponentClub);
-  const opponentDisplayName = combineClubNameVariants(opponentNames.ar || opponent, opponentNames.fr);
+  const hasAuthoritativeOpponentName = Boolean(opponent && !isFafClubNamePlaceholder(opponent));
+  const opponentDisplayName = hasAuthoritativeOpponentName
+    ? combineClubNameVariants(opponentNames.ar || opponent, opponentNames.fr)
+    : "";
   const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponentDisplayName;
   const awayTeamName = clubIsHome ? opponentDisplayName : "نادي أمل سيدي حسني";
   const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
@@ -698,8 +702,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   await db.match.update({
     where: { id: local.id },
     data: {
-      homeTeamName,
-      awayTeamName,
+      ...(hasAuthoritativeOpponentName ? { homeTeamName, awayTeamName } : {}),
       isHomeFixture: clubIsHome,
       ...(officialResult ? { homeScore: officialResult.home, awayScore: officialResult.away } : {}),
       stadium: matchStadium(clubIsHome, official.stade?.nomAr || official.stade?.nomStade, local.stadium),

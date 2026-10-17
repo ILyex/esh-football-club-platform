@@ -11,7 +11,7 @@ import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { saveOpponentClub } from "@/lib/opponents";
 import { isSafeExternalUrl } from "./schemas";
 import { combineClubNameVariants } from "@/lib/public/locale-text";
-import { extractFafClubNameVariants } from "./club-names";
+import { extractFafClubNameVariants, isFafClubNamePlaceholder } from "./club-names";
 
 type RemoteMatch = Record<string, any>;
 type LocalTeam = { id: string; category: TeamCategory; active: boolean };
@@ -106,7 +106,8 @@ function clubCode(club: unknown): string {
 
 function opponentName(club: unknown): string {
   const names = extractFafClubNameVariants(club);
-  return names.ar || names.fr || text(club);
+  const fallback = text(club);
+  return names.ar || names.fr || (isFafClubNamePlaceholder(fallback) ? "" : fallback);
 }
 
 function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
@@ -413,9 +414,20 @@ export async function importUpcomingFafMatches(options: {
         // A previously imported/manual fixture can already have the wrong
         // home/away flag. Identify it by either stored team name, then repair
         // its orientation from the authoritative EMS club IDs below.
-        const existingManual = sameDayMatches.find((match) =>
+        const nameMatches = sameDayMatches.filter((match) =>
           namesMatch(match.homeTeamName, opponent) || namesMatch(match.awayTeamName, opponent)
         );
+        const placeholderMatches = sameDayMatches.filter((match) =>
+          isFafClubNamePlaceholder(match.homeTeamName) || isFafClubNamePlaceholder(match.awayTeamName)
+        );
+        const existingManual = nameMatches.length === 1
+          ? nameMatches[0]
+          : nameMatches.length === 0 && placeholderMatches.length === 1
+            ? placeholderMatches[0]
+            : undefined;
+        if (!existingManual && sameDayMatches.length > 0) {
+          return "skipped" as const;
+        }
         const previousArabicRefereeNames = existingManual?.refereeNameAr === existingManual?.refereeName && !isArabicRefereeName(existingManual?.refereeNameAr)
           ? null
           : existingManual?.refereeNameAr;
@@ -466,7 +478,11 @@ export async function importUpcomingFafMatches(options: {
         return existingManual ? "existing" as const : "created" as const;
       });
       if (outcome === "created") result.created++;
-      else result.alreadyPresent++;
+      else if (outcome === "existing") result.alreadyPresent++;
+      else {
+        result.skipped++;
+        if (result.warnings.length < 5) result.warnings.push(`لم أربط مباراة FAF EMS ${externalId} بمباراة محلية في اليوم نفسه لأن أكثر من سجل محتمل موجود؛ لم أنشئ مباراة مكررة.`);
+      }
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         result.alreadyPresent++;
