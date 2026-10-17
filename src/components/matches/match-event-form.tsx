@@ -107,12 +107,30 @@ export function MatchEventForm({
         <FormSelect
           name="playerId"
           value={playerId}
+          required={isClubEvent && entityType === "PLAYER" && ["GOAL", "PENALTY_GOAL"].includes(type)}
           disabled={!isClubEvent || entityType !== "PLAYER"}
           locale={locale}
           ariaLabel={labels.player}
           placeholder={labels.playerPlaceholder}
           onValueChange={setPlayerId}
           options={[{ value: "", label: "—" }, ...eligiblePlayers.map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}` }))]}
+        />
+      </div>}
+      {isClubEvent && entityType === "PLAYER" && ["GOAL", "PENALTY_GOAL"].includes(type) && <div>
+        <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{isArabic ? "طريقة تسجيل الهدف" : "Finition du but"}</label>
+        <FormSelect
+          name="bodyPart"
+          defaultValue=""
+          required
+          locale={locale}
+          ariaLabel={isArabic ? "طريقة تسجيل الهدف" : "Finition du but"}
+          options={[
+            { value: "", label: isArabic ? "اختر طريقة التسجيل" : "Choisir la finition" },
+            { value: "RIGHT_FOOT", label: isArabic ? "القدم اليمنى" : "Pied droit" },
+            { value: "LEFT_FOOT", label: isArabic ? "القدم اليسرى" : "Pied gauche" },
+            { value: "HEAD", label: isArabic ? "الرأس" : "Tête" },
+            { value: "OTHER", label: isArabic ? "طريقة أخرى" : "Autre" }
+          ]}
         />
       </div>}
       {!isSubstitution && entityType === "PLAYER" && (

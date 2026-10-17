@@ -50,7 +50,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
   const selectedCategory = selectedTeam?.category ?? null;
   const matches = await db.match.findMany({
     where: { status: { in: ["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"] }, ...(selectedTeam ? { teamId: selectedTeam.id } : {}) },
-    include: { competition: true, lineups: { include: { player: { select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true } } } }, events: { orderBy: { minute: "asc" }, select: { id: true, type: true, side: true, minute: true, playerName: true, playerNameFr: true, source: true, notes: true } } },
+    include: { competition: true, lineups: { include: { player: { select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true } } } }, events: { orderBy: { minute: "asc" }, select: { id: true, type: true, side: true, minute: true, playerName: true, playerNameFr: true, source: true, notes: true, shot: { select: { bodyPart: true } } } } },
     orderBy: { matchDate: "desc" },
     take: 20
   });
@@ -245,6 +245,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                   <SelectField locale={locale} label={isAr ? "الفريق" : "Équipe"} name="side" defaultValue={event.side} options={[{ value: "HOME", label: names.homeTeamName }, { value: "AWAY", label: names.awayTeamName }]} />
                   <label className="block text-[10px] font-semibold text-muted-foreground"><span className="mb-1 block">{isAr ? "الدقيقة" : "Minute"}</span><input name="minute" type="number" min="0" max="130" defaultValue={event.minute} className={`${fieldControl} px-2 text-center`} /></label>
                   <label className="col-span-2 block min-w-0 text-[10px] font-semibold text-muted-foreground sm:col-span-1"><span className="mb-1 block">{isAr ? "اسم اللاعب" : "Joueur"}</span><input name="playerName" required maxLength={120} defaultValue={event.playerName ?? ""} className={`${fieldControl} placeholder:font-normal`} /></label>
+                  {event.side === (match.isHomeFixture ? "HOME" : "AWAY") && ["GOAL", "PENALTY_GOAL"].includes(event.type) && <SelectField locale={locale} label={isAr ? "طريقة تسجيل الهدف" : "Finition du but"} name="bodyPart" defaultValue={event.shot?.bodyPart && event.shot.bodyPart !== "UNKNOWN" ? event.shot.bodyPart : ""} options={[{ value: "", label: isAr ? "اختر طريقة التسجيل" : "Choisir la finition" }, { value: "RIGHT_FOOT", label: isAr ? "القدم اليمنى" : "Pied droit" }, { value: "LEFT_FOOT", label: isAr ? "القدم اليسرى" : "Pied gauche" }, { value: "HEAD", label: isAr ? "الرأس" : "Tête" }, { value: "OTHER", label: isAr ? "أخرى" : "Autre" }]} />}
                   <button type="submit" className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-club-primary px-3 text-[10px] font-bold text-white transition hover:bg-club-primary-hover sm:col-span-1"><Save className="h-3.5 w-3.5" />{isAr ? "حفظ" : "Enregistrer"}</button>
                 </form>}
               </details>)}

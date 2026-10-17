@@ -1,7 +1,7 @@
 import { formatAlgeriaTime } from "@/lib/dates/algeria";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Trophy, Calendar, MapPin, User, Shield, Target, CircleDot, CircleCheck, CircleX, Square, ArrowRightLeft, Sparkles, UsersRound } from "lucide-react";
+import { Trophy, Calendar, MapPin, User, Shield, Target, CircleCheck, CircleX, Square, ArrowRightLeft, Sparkles, UsersRound } from "lucide-react";
 import { getPublicMatchDetail } from "@/lib/public/matches";
 import { getPublicClubSettings } from "@/lib/public/club";
 import { TacticalPitch } from "@/components/football/lineup-pitch-board";
@@ -71,6 +71,7 @@ export default async function PublicMatchDetailPage({
     : match.teamCategory ? frenchPublicCategory(match.teamCategory) : null;
 
   const eventTypeLabel = (type: string) => {
+    if (["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(type)) return locale === "ar" ? "هدف" : "But";
     return tPublic(`eventTypes.${type}`) || type;
   };
   const eventTypeTone = (type: string) => {
@@ -81,7 +82,7 @@ export default async function PublicMatchDetailPage({
     return "border-border bg-muted text-muted-foreground";
   };
   const eventTypeIcon = (type: string) => {
-    if (type === "PENALTY_GOAL") return <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />;
+    if (type === "PENALTY_GOAL") return <Target className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "PENALTY_MISSED") return <CircleX className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "GOAL" || type === "OWN_GOAL") return <Target className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "YELLOW_CARD") return <Square className="h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-hidden="true" />;
@@ -350,7 +351,7 @@ export default async function PublicMatchDetailPage({
                           <span>{eventTypeLabel(event.type)}</span>
                         </span>
                       </div>}
-                      {!isSubstitution && (locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
+                      {!isSubstitution && !["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(event.type) && (locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
                         <p className="mt-1 break-words text-xs text-muted-foreground">{locale === "ar" ? event.notes : frenchPublicText(event.notes, "")}</p>
                       )}
                     </div>

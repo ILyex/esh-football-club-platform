@@ -522,6 +522,10 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   }
 
   const isShotRecord = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED"].includes(parsed.type);
+  const isTrackedShotRecord = isShotRecord && !isOpponentEvent;
+  const isTrackedGoal = ["GOAL", "PENALTY_GOAL"].includes(parsed.type) && !isOpponentEvent;
+  if (isTrackedGoal && (!parsed.bodyPart || parsed.bodyPart === "UNKNOWN")) throw new Error("goalBodyPartRequired");
+  if (isTrackedGoal && !playerId) throw new Error("matchEventPlayerRequired");
   if (isShotRecord && parsed.entityType !== "PLAYER") throw new Error("shotRequiresPlayerEvent");
   if (assistPlayerId) {
     if (!playerId || parsed.side !== clubSide || assistPlayerId === playerId || !["GOAL", "PENALTY_GOAL"].includes(parsed.type)) {
@@ -541,7 +545,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
     : parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL"
       ? "GOAL"
       : parsed.shotOutcome ?? "SAVED";
-  const shotXg = isShotRecord ? estimateShotXg({ x: parsed.shotX, y: parsed.shotY, bodyPart: parsed.bodyPart, situation: shotSituation }) : null;
+  const shotXg = isTrackedShotRecord ? estimateShotXg({ x: parsed.shotX, y: parsed.shotY, bodyPart: parsed.bodyPart, situation: shotSituation }) : null;
 
   const { event, outbox } = await db.$transaction(async (tx) => {
     const substitutionPairKey = isPairedSubstitution ? `__SUBSTITUTION_PAIR__:${randomUUID()}` : null;
@@ -574,7 +578,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
         }
       });
     }
-    if (isShotRecord) {
+    if (isTrackedShotRecord) {
       await tx.playerShot.create({
         data: {
           matchId,
@@ -645,9 +649,11 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
 /** The field-operations screen records detailed shot metadata for player stats. */
 export async function addFieldMatchEventAction(matchId: string, formData: FormData) {
   await requirePermission("matches.report");
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, select: { isHomeFixture: true } });
+  const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
   const fieldFormData = new FormData();
   formData.forEach((value, key) => fieldFormData.append(key, value));
-  fieldFormData.set("shotDetailsRequired", "true");
+  fieldFormData.set("shotDetailsRequired", formData.get("side") === clubSide ? "true" : "false");
   await addMatchEventAction(matchId, fieldFormData);
 }
 
@@ -668,7 +674,10 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
   });
   const clubSide = event.match.isHomeFixture ? "HOME" : "AWAY";
   const isOpponentEvent = parsed.side !== clubSide;
+  const isTrackedGoal = !isOpponentEvent && parsed.entityType === "PLAYER" && ["GOAL", "PENALTY_GOAL"].includes(parsed.type);
+  if (isTrackedGoal && raw.bodyPart !== undefined && (!parsed.bodyPart || parsed.bodyPart === "UNKNOWN")) throw new Error("goalBodyPartRequired");
   let playerId: string | null = parsed.entityType === "PLAYER" && !isOpponentEvent ? parsed.playerId || null : null;
+  if (isTrackedGoal && !playerId) throw new Error("matchEventPlayerRequired");
   let staffId: string | null = parsed.entityType === "STAFF" && !isOpponentEvent ? parsed.staffId || null : null;
   let playerName = parsed.playerName?.trim() || null;
   let playerNameFr = parsed.playerNameFr?.trim() || null;
@@ -712,7 +721,9 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
       }
     });
     if (event.shot) {
-      if (["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
+      if (isOpponentEvent) {
+        await tx.playerShot.delete({ where: { id: event.shot.id } });
+      } else if (["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
         const situation = parsed.type === "PENALTY_GOAL" || parsed.type === "PENALTY_MISSED" ? "PENALTY" : event.shot.situation;
         await tx.playerShot.update({
           where: { id: event.shot.id },
@@ -720,6 +731,7 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
             side: parsed.side,
             minute: parsed.minute,
             playerId,
+            bodyPart: parsed.bodyPart || event.shot.bodyPart,
             assistPlayerId: parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL" ? event.shot.assistPlayerId : null,
             outcome: parsed.type === "PENALTY_MISSED" ? "PENALTY_MISSED" : parsed.type === "SHOT" ? (parsed.shotOutcome || "SAVED") : "GOAL",
             situation,
@@ -731,7 +743,7 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
       } else {
         await tx.playerShot.delete({ where: { id: event.shot.id } });
       }
-    } else if (["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
+    } else if (!isOpponentEvent && ["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
       const situation = parsed.type === "PENALTY_GOAL" || parsed.type === "PENALTY_MISSED" ? "PENALTY" : parsed.shotSituation || "OPEN_PLAY";
       await tx.playerShot.create({
         data: {

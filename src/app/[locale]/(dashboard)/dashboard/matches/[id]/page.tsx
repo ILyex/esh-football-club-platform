@@ -65,7 +65,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
       where: { id },
       include: {
         competition: true,
-        events: { include: { player: true, staff: true }, orderBy: { minute: "asc" } },
+        events: { include: { player: true, staff: true, shot: true }, orderBy: { minute: "asc" } },
         lineups: { include: { player: true } },
         documents: { orderBy: { createdAt: "desc" } },
         shootoutKicks: { orderBy: [{ attemptNumber: "asc" }, { createdAt: "asc" }] }
@@ -778,7 +778,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                 {canReport && <div className="flex shrink-0 items-center gap-2">
                   {!isSubstitution && (match.status === "LIVE" || match.status === "FINISHED") && <MatchEventEditDialog
                     locale={locale}
-                    event={{ id: e.id, type: e.type, side: e.side, minute: e.minute, playerId: e.playerId, staffId: e.staffId, playerName: e.playerName, playerNameFr: e.playerNameFr }}
+                    event={{ id: e.id, type: e.type, side: e.side, minute: e.minute, playerId: e.playerId, staffId: e.staffId, playerName: e.playerName, playerNameFr: e.playerNameFr, bodyPart: e.shot?.bodyPart }}
                     homeTeamName={homeTeamName}
                     awayTeamName={awayTeamName}
                     clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
@@ -789,7 +789,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                   />}
                   {isSubstitution && eventGroup.map((groupedEvent) => <MatchEventEditDialog key={groupedEvent.id}
                     locale={locale}
-                    event={{ id: groupedEvent.id, type: groupedEvent.type, side: groupedEvent.side, minute: groupedEvent.minute, playerId: groupedEvent.playerId, staffId: groupedEvent.staffId, playerName: groupedEvent.playerName, playerNameFr: groupedEvent.playerNameFr }}
+                    event={{ id: groupedEvent.id, type: groupedEvent.type, side: groupedEvent.side, minute: groupedEvent.minute, playerId: groupedEvent.playerId, staffId: groupedEvent.staffId, playerName: groupedEvent.playerName, playerNameFr: groupedEvent.playerNameFr, bodyPart: groupedEvent.shot?.bodyPart }}
                     homeTeamName={homeTeamName}
                     awayTeamName={awayTeamName}
                     clubSide={match.isHomeFixture ? "HOME" : "AWAY"}

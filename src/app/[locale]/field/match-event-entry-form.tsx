@@ -56,7 +56,7 @@ export function MatchEventEntryForm({
       ? [player.firstNameFr || player.firstName, player.lastNameFr || player.lastName].join(" ")
       : `${player.firstName} ${player.lastName}`
   }));
-  const isShotEvent = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED"].includes(type);
+  const isShotEvent = side === clubSide && ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED"].includes(type);
   const isGoalEvent = ["GOAL", "PENALTY_GOAL"].includes(type);
   const isSubstitution = type === "SUBSTITUTION_IN";
 
@@ -93,9 +93,9 @@ export function MatchEventEntryForm({
     {isSubstitution && (side === clubSide ? <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground sm:col-span-2 lg:col-span-1"><span className="mb-1.5 block">{isAr ? "اللاعب الخارج" : "Joueur sortant"}</span><FormSelect locale={locale} name="outPlayerId" value={selectedOutPlayerId} onValueChange={setSelectedOutPlayerId} required disabled={startingPlayers.length === 0} options={startingPlayers.filter((player) => player.id !== selectedPlayerId).map((player) => ({ value: player.id, label: locale === "fr" ? [player.firstNameFr || player.firstName, player.lastNameFr || player.lastName].join(" ") : `${player.firstName} ${player.lastName}` }))} placeholder={isAr ? "اختر اللاعب الخارج" : "Choisir le joueur sortant"} compact triggerClassName="!h-10 !px-3 !text-sm" ariaLabel={isAr ? "اختيار اللاعب الخارج" : "Choisir le joueur sortant"} /></label> : <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground sm:col-span-2 lg:col-span-1"><span className="mb-1.5 block">{isAr ? "اللاعب الخارج (الخصم)" : "Joueur sortant (adverse)"}</span><input name="outPlayerName" required maxLength={120} placeholder={isAr ? "اكتب اسم اللاعب" : "Saisir le nom du joueur"} className={controlClass} /></label>)}
     {isShotEvent && <div className="grid gap-3 rounded-lg border border-border/70 bg-background/70 p-3 sm:col-span-2 lg:col-span-5 lg:grid-cols-[minmax(130px,0.7fr)_minmax(220px,1.2fr)_minmax(145px,0.8fr)_minmax(150px,0.8fr)] lg:items-center">
       <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
-        <span className="mb-1.5 block">{isAr ? "طريقة التسديد" : "Partie du corps"}</span>
-        <FormSelect locale={locale} name="bodyPart" defaultValue="" options={[
-          { value: "", label: isAr ? "اختر طريقة التسديد" : "Choisir" },
+        <span className="mb-1.5 block">{isAr ? "طريقة التسديد / تسجيل الهدف" : "Frappe / finition"}</span>
+        <FormSelect locale={locale} name="bodyPart" required={isGoalEvent} defaultValue="" options={[
+          { value: "", label: isAr ? "اختر طريقة التسجيل" : "Choisir la finition" },
           { value: "UNKNOWN", label: isAr ? "غير محدد" : "Non précisé" },
           { value: "RIGHT_FOOT", label: isAr ? "القدم اليمنى" : "Pied droit" },
           { value: "LEFT_FOOT", label: isAr ? "القدم اليسرى" : "Pied gauche" },
@@ -116,7 +116,7 @@ export function MatchEventEntryForm({
         </svg>
         <input type="hidden" name="shotX" value={shotLocation?.x ?? ""} />
         <input type="hidden" name="shotY" value={shotLocation?.y ?? ""} />
-        <p className="mt-1 text-[10px] text-muted-foreground">{shotLocation ? (isAr ? `الموقع التقريبي: ${shotLocation.x}% من طول الملعب` : `Position approximative : ${shotLocation.x}% du terrain`) : type === "GOAL" || type === "SHOT" ? (isAr ? "اختر الموقع لحفظ التسديدة وحساب xG" : "Requis pour enregistrer le tir et calculer le xG") : (isAr ? "اختياري، ويحتسب xG للجزاء تلقائيًا" : "Facultatif ; le xG du penalty est calculé automatiquement")}</p>
+        <p className="mt-1 text-[10px] text-muted-foreground">{shotLocation ? (isAr ? `الموقع التقريبي: ${shotLocation.x}% من طول الملعب` : `Position approximative : ${shotLocation.x}% du terrain`) : type === "GOAL" || type === "SHOT" ? (isAr ? "اختر موقع التسديدة لحفظ الحدث وحساب xG" : "Choisissez le lieu du tir pour calculer le xG") : (isAr ? "الموقع اختياري، ويحتسب xG للجزاء تلقائيًا" : "Position facultative ; le xG du penalty est calculé automatiquement")}</p>
       </div>
       {type === "PENALTY_GOAL" || type === "PENALTY_MISSED" ? <input type="hidden" name="shotSituation" value="PENALTY" /> : <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
         <span className="mb-1.5 block">{isAr ? "نوع الهجمة" : "Phase de jeu"}</span>

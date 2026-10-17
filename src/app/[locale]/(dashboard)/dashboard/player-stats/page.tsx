@@ -162,6 +162,11 @@ export default async function PlayerStatsPage({
   const rightFootShots = selectedPlayerShots.filter((shot) => shot.bodyPart === "RIGHT_FOOT").length;
   const leftFootShots = selectedPlayerShots.filter((shot) => shot.bodyPart === "LEFT_FOOT").length;
   const headShots = selectedPlayerShots.filter((shot) => shot.bodyPart === "HEAD").length;
+  const recordedGoals = selectedPlayerShots.filter((shot) => shot.outcome === "GOAL");
+  const rightFootGoals = recordedGoals.filter((shot) => shot.bodyPart === "RIGHT_FOOT").length;
+  const leftFootGoals = recordedGoals.filter((shot) => shot.bodyPart === "LEFT_FOOT").length;
+  const headGoals = recordedGoals.filter((shot) => shot.bodyPart === "HEAD").length;
+  const otherGoals = recordedGoals.filter((shot) => shot.bodyPart === "OTHER").length;
   const shotHeatCells = new Map<string, { x: number; y: number; count: number }>();
   for (const shot of locatedShots) {
     const x = Math.min(99, Math.max(1, Math.floor(shot.x! / 5) * 5 + 2.5));
@@ -275,11 +280,21 @@ export default async function PlayerStatsPage({
         </div>
         <div className={`${cardClass} min-w-0 space-y-2`}><div className="flex items-center justify-between gap-2"><h3 className="text-sm font-extrabold">{isAr ? "كل التسديدات المسجلة" : "Tous les tirs enregistrés"}</h3><span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{selectedPlayerShots.length}</span></div>{selectedPlayerShots.length === 0 ? <p className="py-8 text-center text-xs text-muted-foreground">{isAr ? "لم تسجل تسديدات بعد لهذا اللاعب." : "Aucun tir enregistré pour ce joueur."}</p> : <ul className="max-h-[34rem] divide-y divide-border/70 overflow-y-auto pe-1">{selectedPlayerShots.map((shot, index) => <li key={`${shot.matchId}-${shot.minute}-${index}`} className="flex items-center justify-between gap-3 py-2.5 text-[10px]"><span className="min-w-0"><span className="block truncate font-bold">{shot.match.homeTeamName} – {shot.match.awayTeamName}</span><span className="mt-0.5 block text-muted-foreground">{shot.minute}{"'"} · {shot.bodyPart === "RIGHT_FOOT" ? (isAr ? "القدم اليمنى" : "Pied droit") : shot.bodyPart === "LEFT_FOOT" ? (isAr ? "القدم اليسرى" : "Pied gauche") : shot.bodyPart === "HEAD" ? (isAr ? "الرأس" : "Tête") : isAr ? "غير محدد" : "Non précisé"}{shot.x === null || shot.y === null ? (isAr ? " · الموقع غير مسجل" : " · position non renseignée") : ""}</span></span><span className="shrink-0 text-end"><span className="block font-bold">{shot.xG === null ? "—" : shot.xG.toFixed(2)} xG</span><span className="text-muted-foreground">{shot.outcome === "GOAL" ? (isAr ? "هدف" : "But") : shot.outcome === "SAVED" ? (isAr ? "تصدٍ" : "Arrêt") : shot.outcome === "BLOCKED" ? (isAr ? "مصدودة" : "Contré") : shot.outcome === "WOODWORK" ? (isAr ? "قائم/عارضة" : "Poteau/barre") : isAr ? "خارج المرمى" : "Hors cadre"}</span></span></li>)}</ul>}</div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <div className={cardClass}><div className="text-xs text-muted-foreground">{isAr ? "الفرق بين الأهداف وxG" : "Buts − xG"}</div><p className="mt-3 text-xl font-black tabular-nums">{(selectedPlayer.goals - selectedPlayer.xg).toFixed(2)}</p></div>
         <div className={cardClass}><div className="text-xs text-muted-foreground">{isAr ? "تسديدات بالقدم" : "Tirs du pied"}</div><p className="mt-3 text-xl font-black tabular-nums">{rightFootShots} <span className="text-xs font-medium text-muted-foreground">{isAr ? "يمين" : "droit"}</span> / {leftFootShots} <span className="text-xs font-medium text-muted-foreground">{isAr ? "يسار" : "gauche"}</span></p></div>
         <div className={cardClass}><div className="text-xs text-muted-foreground">{isAr ? "تسديدات بالرأس" : "Tirs de la tête"}</div><p className="mt-3 text-xl font-black tabular-nums">{headShots}</p></div>
         <div className={cardClass}><div className="text-xs text-muted-foreground">{isAr ? "نسبة التسديدات على المرمى" : "Tirs cadrés"}</div><p className="mt-3 text-xl font-black tabular-nums">{selectedPlayer.shots ? `${Math.round((selectedPlayer.shotsOnTarget / selectedPlayer.shots) * 100)}%` : "—"}</p></div>
+        <div className={`${cardClass} sm:col-span-2 xl:col-span-2`}>
+          <div className="text-xs font-bold text-muted-foreground">{isAr ? "الأهداف حسب طريقة التسجيل" : "Buts selon la finition"}</div>
+          <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+            <div><p className="text-lg font-black tabular-nums">{rightFootGoals}</p><p className="text-[10px] text-muted-foreground">{isAr ? "يمين" : "Droit"}</p></div>
+            <div><p className="text-lg font-black tabular-nums">{leftFootGoals}</p><p className="text-[10px] text-muted-foreground">{isAr ? "يسار" : "Gauche"}</p></div>
+            <div><p className="text-lg font-black tabular-nums">{headGoals}</p><p className="text-[10px] text-muted-foreground">{isAr ? "رأس" : "Tête"}</p></div>
+            <div><p className="text-lg font-black tabular-nums">{otherGoals}</p><p className="text-[10px] text-muted-foreground">{isAr ? "أخرى" : "Autre"}</p></div>
+          </div>
+          {recordedGoals.length < selectedPlayer.goals && <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400">{selectedPlayer.goals - recordedGoals.length} {isAr ? "هدف دون طريقة تسجيل مسجلة" : "but(s) sans finition renseignée"}</p>}
+        </div>
       </div>
     </section>}
 

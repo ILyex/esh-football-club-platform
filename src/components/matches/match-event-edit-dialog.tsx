@@ -22,7 +22,7 @@ export function MatchEventEditDialog({
   action
 }: {
   locale: string;
-  event: { id: string; type: string; side: "HOME" | "AWAY"; minute: number; playerId: string | null; staffId: string | null; playerName: string | null; playerNameFr: string | null };
+  event: { id: string; type: string; side: "HOME" | "AWAY"; minute: number; playerId: string | null; staffId: string | null; playerName: string | null; playerNameFr: string | null; bodyPart?: string | null };
   homeTeamName: string;
   awayTeamName: string;
   clubSide: "HOME" | "AWAY";
@@ -36,6 +36,7 @@ export function MatchEventEditDialog({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [side, setSide] = useState(event.side);
+  const [type, setType] = useState(event.type);
   const [entityType, setEntityType] = useState(event.staffId ? "STAFF" : "PLAYER");
   const isOurSide = side === clubSide;
 
@@ -56,7 +57,7 @@ export function MatchEventEditDialog({
   }
 
   return <>
-    <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 px-2.5 text-xs" onClick={() => { setSide(event.side); setEntityType(event.staffId ? "STAFF" : "PLAYER"); setOpen(true); }}>
+    <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 px-2.5 text-xs" onClick={() => { setSide(event.side); setType(event.type); setEntityType(event.staffId ? "STAFF" : "PLAYER"); setOpen(true); }}>
       <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
       <span>{isAr ? "تعديل" : "Modifier"}</span>
     </Button>
@@ -73,7 +74,7 @@ export function MatchEventEditDialog({
           </label>
           <div className="space-y-1.5 text-xs font-semibold text-muted-foreground">
             <span>{isAr ? "نوع الحدث" : "Type d’événement"}</span>
-            <FormSelect name="type" defaultValue={event.type} locale={locale} ariaLabel={isAr ? "نوع الحدث" : "Type d’événement"} options={eventTypes} />
+            <FormSelect name="type" value={type} onValueChange={setType} locale={locale} ariaLabel={isAr ? "نوع الحدث" : "Type d’événement"} options={eventTypes} />
           </div>
           <div className="space-y-1.5 text-xs font-semibold text-muted-foreground">
             <span>{isAr ? "الفريق" : "Équipe"}</span>
@@ -87,6 +88,16 @@ export function MatchEventEditDialog({
             <span>{isAr ? "اللاعب" : "Joueur"}</span>
             <FormSelect name="playerId" defaultValue={event.playerId ?? ""} required locale={locale} ariaLabel={isAr ? "اللاعب" : "Joueur"} options={[{ value: "", label: isAr ? "اختر اللاعب" : "Choisir un joueur" }, ...players.map((player) => ({ value: player.id, label: player.label }))]} />
           </div> : null}
+          {entityType === "PLAYER" && isOurSide && ["GOAL", "PENALTY_GOAL"].includes(type) && <div className="space-y-1.5 text-xs font-semibold text-muted-foreground sm:col-span-2">
+            <span>{isAr ? "طريقة تسجيل الهدف" : "Finition du but"}</span>
+            <FormSelect name="bodyPart" defaultValue={event.bodyPart && event.bodyPart !== "UNKNOWN" ? event.bodyPart : ""} required locale={locale} ariaLabel={isAr ? "طريقة تسجيل الهدف" : "Finition du but"} options={[
+              { value: "", label: isAr ? "اختر طريقة التسجيل" : "Choisir la finition" },
+              { value: "RIGHT_FOOT", label: isAr ? "القدم اليمنى" : "Pied droit" },
+              { value: "LEFT_FOOT", label: isAr ? "القدم اليسرى" : "Pied gauche" },
+              { value: "HEAD", label: isAr ? "الرأس" : "Tête" },
+              { value: "OTHER", label: isAr ? "طريقة أخرى" : "Autre" }
+            ]} />
+          </div>}
           {entityType === "STAFF" && isOurSide ? <div className="space-y-1.5 text-xs font-semibold text-muted-foreground sm:col-span-2">
             <span>{isAr ? "عضو الطاقم" : "Membre du staff"}</span>
             <FormSelect name="staffId" defaultValue={event.staffId ?? ""} required locale={locale} ariaLabel={isAr ? "عضو الطاقم" : "Membre du staff"} options={[{ value: "", label: isAr ? "اختر عضو الطاقم" : "Choisir un membre" }, ...staff.map((member) => ({ value: member.id, label: member.label }))]} />
