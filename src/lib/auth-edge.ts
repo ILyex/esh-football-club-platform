@@ -11,9 +11,14 @@ export const { auth: edgeAuth } = NextAuth({
   providers: [],
   callbacks: {
     async jwt({ token }) {
-      if (token.roleKey !== "super_admin" && Array.isArray(token.permissions)) {
-        token.permissions = token.permissions.filter((key) => typeof key === "string" && key !== "*");
-      }
+      // The edge middleware only needs the user ID. Strip role/profile claims
+      // from legacy cookies as they are refreshed so every request stays small.
+      delete token.name;
+      delete token.email;
+      delete token.picture;
+      delete token.roleKey;
+      delete token.roleName;
+      delete token.permissions;
       return token;
     },
     async session({ session, token }) {
@@ -23,14 +28,6 @@ export const { auth: edgeAuth } = NextAuth({
       }
       session.user.id = token.userId as string;
       (session as any).rememberMe = token.rememberMe === true;
-      (session.user as any).roleKey = token.roleKey;
-      (session.user as any).roleName = token.roleName;
-      const permissions = Array.isArray(token.permissions)
-        ? token.permissions.filter((key): key is string => typeof key === "string")
-        : [];
-      (session.user as any).permissions = token.roleKey === "super_admin"
-        ? permissions
-        : permissions.filter((key) => key !== "*");
       return session;
     }
   }

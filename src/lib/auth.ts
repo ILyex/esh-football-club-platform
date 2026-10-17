@@ -13,9 +13,10 @@ import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 // Design notes:
 //  - Credentials provider + bcrypt password hashing (never plaintext, never
 //    reversible encryption for passwords).
-//  - JWT session strategy. The JWT embeds the user's role KEY and a flattened
-//    array of permission KEYS at login time, so every server action/route can
-//    check permissions synchronously without a DB round-trip on every request.
+//  - JWT session strategy. The browser cookie contains only the user ID,
+//    token version, and remember-me flag. Role and permission data is loaded
+//    from the database into the server-side session, keeping request headers
+//    small while preserving current RBAC checks.
 //  - `tokenVersion`: every issued JWT carries the User.tokenVersion value at
 //    login time. On each request we compare it against the current DB value;
 //    if they differ (password changed, user disabled, role changed by an
@@ -126,73 +127,21 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // Freshly authenticated — seed the token.
+        // Keep only compact, security-relevant claims in the browser cookie.
         token.userId = user.id;
-        token.roleKey = (user as any).roleKey;
-        token.roleName = (user as any).roleName;
-        token.permissions = (user as any).permissions;
         token.tokenVersion = (user as any).tokenVersion;
         token.rememberMe = (user as any).rememberMe === true;
-      } else if (token.userId) {
-        // Skip DB check if running in Edge Runtime (Middleware) because PrismaClient is Node.js only.
-        // Full permission and revocation checks will execute on the Node.js server component / route handler.
-        if (process.env.NEXT_RUNTIME === "edge") {
-          return token;
-        }
-
-        try {
-          // Re-read the current account and role on every Node request. The
-          // tokenVersion check revokes sessions after account-level security
-          // changes, while refreshing the role snapshot keeps role renames and
-          // grants/revocations from leaving stale names or permissions in the
-          // session JWT.
-          const current = await db.user.findUnique({
-            where: { id: token.userId as string },
-            select: {
-              name: true,
-              email: true,
-              image: true,
-              isActive: true,
-              tokenVersion: true,
-              deletedAt: true,
-              role: {
-                select: {
-                  key: true,
-                  name: true,
-                  permissions: { select: { permission: { select: { key: true } } } }
-                }
-              }
-            }
-          });
-          if (!current || !current.isActive || current.deletedAt || current.tokenVersion !== token.tokenVersion) {
-            return {}; // empty token -> treated as unauthenticated by `auth()`
-          }
-
-          // Keep profile fields in sync with the account record as well as
-          // role data. The profile chip and dashboard greeting read from the
-          // Auth.js session, so without refreshing these JWT claims a name
-          // edit appeared saved in Users while the rest of the platform kept
-          // showing the old name until the next sign-in.
-          token.name = current.name;
-          token.email = current.email;
-          token.picture = current.image;
-          token.roleKey = current.role.key;
-          token.roleName = current.role.name;
-          token.permissions = current.role.permissions
-            .map(({ permission }) => permission.key)
-            .filter((key) => key !== "*" || current.role.key === "super_admin");
-        } catch {
-          // The session validity check is an authorization boundary. If the
-          // database cannot confirm the user's active state and tokenVersion,
-          // fail closed instead of accepting potentially revoked credentials.
-          return {};
-        }
       }
-      // Older JWTs may predate the wildcard guard. Strip "*" from every
-      // non-super-admin token as well as newly-issued credentials.
-      if (token.roleKey !== "super_admin" && Array.isArray(token.permissions)) {
-        token.permissions = token.permissions.filter((key) => typeof key === "string" && key !== "*");
-      }
+
+      // Remove bulky legacy claims as old cookies are refreshed. Session data
+      // is rebuilt from the current database record below, never from these
+      // client-held snapshots.
+      delete token.name;
+      delete token.email;
+      delete token.picture;
+      delete token.roleKey;
+      delete token.roleName;
+      delete token.permissions;
       return token;
     },
     async session({ session, token }) {
@@ -201,16 +150,49 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         (session as any).invalid = true;
         return session;
       }
-      session.user.id = token.userId as string;
-      (session as any).rememberMe = token.rememberMe === true;
-      (session.user as any).roleKey = token.roleKey;
-      (session.user as any).roleName = token.roleName;
-      const permissions = Array.isArray(token.permissions)
-        ? token.permissions.filter((key): key is string => typeof key === "string")
-        : [];
-      (session.user as any).permissions = token.roleKey === "super_admin"
-        ? permissions
-        : permissions.filter((key) => key !== "*");
+      try {
+        // Load the authoritative account and role for this request. This also
+        // keeps immediate account disablement, token revocation, and permission
+        // changes effective without storing large permission arrays in cookies.
+        const current = await db.user.findUnique({
+          where: { id: token.userId as string },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            isActive: true,
+            tokenVersion: true,
+            deletedAt: true,
+            role: {
+              select: {
+                key: true,
+                name: true,
+                permissions: { select: { permission: { select: { key: true } } } }
+              }
+            }
+          }
+        });
+
+        if (!current || !current.isActive || current.deletedAt || current.tokenVersion !== token.tokenVersion) {
+          (session as any).invalid = true;
+          return session;
+        }
+
+        session.user.id = current.id;
+        session.user.name = current.name;
+        session.user.email = current.email;
+        session.user.image = current.image;
+        (session as any).rememberMe = token.rememberMe === true;
+        (session.user as any).roleKey = current.role.key;
+        (session.user as any).roleName = current.role.name;
+        (session.user as any).permissions = current.role.permissions
+          .map(({ permission }) => permission.key)
+          .filter((key) => key !== "*" || current.role.key === "super_admin");
+      } catch {
+        // Fail closed if the database cannot confirm the account or role.
+        (session as any).invalid = true;
+      }
       return session;
     }
   }
