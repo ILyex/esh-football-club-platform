@@ -38,9 +38,9 @@ const config = {
         DEFAULT: "0.625rem"
       },
       fontFamily: {
-        sans: ["Plus Jakarta Sans", "IBM Plex Sans Arabic", "Cairo", "system-ui", "-apple-system", "sans-serif"],
-        display: ["Cairo", "Plus Jakarta Sans", "sans-serif"],
-        arabic: ["IBM Plex Sans Arabic", "Cairo", "sans-serif"],
+        sans: ["var(--font-plus-jakarta)", "var(--font-ibm-plex-arabic)", "var(--font-cairo)", "system-ui", "-apple-system", "sans-serif"],
+        display: ["var(--font-plus-jakarta)", "var(--font-cairo)", "sans-serif"],
+        arabic: ["var(--font-ibm-plex-arabic)", "var(--font-cairo)", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"]
       }
     }

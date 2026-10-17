@@ -428,7 +428,9 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 
 /* LTR (French / Latin) Typography (Locked Spec Section A.1) */
 [dir="ltr"] body {
-  font-family: var(--font-plus-jakarta), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Keep the Latin UI font first while giving Arabic glyphs the same bundled
+     Arabic face used by the RTL interface instead of a platform fallback. */
+  font-family: var(--font-plus-jakarta), var(--font-ibm-plex-arabic), var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
 }
 
@@ -532,7 +534,7 @@ img[src^="blob:"] {
 }
 
 [dir="ltr"] .club-name {
-  font-family: var(--font-plus-jakarta), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: var(--font-plus-jakarta), var(--font-ibm-plex-arabic), var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 /* Monospace & Tabular Numerical Alignment (Locked Spec Section A.1) */

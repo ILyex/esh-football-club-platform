@@ -81,7 +81,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={locale === "ar" ? `${cairo.variable} ${ibmPlexArabic.variable}` : plusJakarta.variable}
+      className={`${plusJakarta.variable} ${cairo.variable} ${ibmPlexArabic.variable}`}
       suppressHydrationWarning
     >
       <head>
