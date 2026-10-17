@@ -287,7 +287,7 @@ export default function LoginPage() {
                         } catch {}
                       }
                     }}
-                    className="h-4 w-4 rounded border-border text-club-primary accent-club-primary focus:ring-club-primary/20 cursor-pointer"
+                    className="login-remember-checkbox"
                   />
                   <span className="font-medium">{isRtl ? "تذكّرني" : "Se souvenir de moi"}</span>
                 </label>
