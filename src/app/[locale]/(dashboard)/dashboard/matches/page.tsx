@@ -141,14 +141,14 @@ export default async function MatchesListPage({
                 <tr key={m.id} className="border-b border-border last:border-0 align-middle hover:bg-muted/20">
                   <td className="px-4 py-2 text-start"><span dir="ltr" className="inline-flex flex-row items-center gap-1 whitespace-nowrap font-mono text-xs tabular-nums"><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaDate(m.matchDate)}</time><span aria-hidden="true">·</span><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaTime(m.matchDate, locale)}</time></span></td>
                   <td className="px-4 py-2 align-middle font-medium">
-                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[280px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                      <span dir="auto" className="truncate">{homeTeamName}</span>
-                      <span dir="ltr" className="inline-flex min-w-[72px] items-center justify-center gap-1 whitespace-nowrap rounded-md bg-muted/60 px-2 py-1 text-center font-mono text-xs font-bold tabular-nums">
+                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[240px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+                      <span dir="auto" title={homeTeamName} className="min-w-0 truncate text-end leading-tight">{homeTeamName}</span>
+                      <span dir="ltr" className="inline-flex min-w-[68px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-2.5 py-1.5 text-center font-mono text-xs font-extrabold tabular-nums shadow-sm">
                         <span>{homeScore}</span>
-                        <span className="text-muted-foreground">:</span>
+                        <span className="text-muted-foreground/70">:</span>
                         <span>{awayScore}</span>
                       </span>
-                      <span dir="auto" className="truncate">{awayTeamName}</span>
+                      <span dir="auto" title={awayTeamName} className="min-w-0 truncate text-start leading-tight">{awayTeamName}</span>
                     </span>
                   {winnerName && (
                     <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
