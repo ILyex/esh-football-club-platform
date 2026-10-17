@@ -345,7 +345,7 @@ export default function LoginPage() {
       </main>
 
       {/* Footer Line */}
-      <footer className="w-full border-t border-border/70 bg-background py-4 text-center text-xs text-muted-foreground">
+      <footer className="login-copyright w-full border-t border-border/70 bg-background py-4 text-center text-xs text-muted-foreground">
         <p>
           {isRtl ? (
             <><span className="club-name">الجمعية الرياضية أمل سيدي حسني لكرة القدم</span>. جميع الحقوق محفوظة. <bdi dir="ltr">© {new Date().getFullYear()}</bdi></>

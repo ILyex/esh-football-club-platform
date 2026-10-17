@@ -537,6 +537,14 @@ img[src^="blob:"] {
   font-family: var(--font-plus-jakarta), var(--font-ibm-plex-arabic), var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
+/* Keep every script in the login copyright line, including the Latin year,
+   on Cairo so mixed Arabic/Latin text does not switch typefaces mid-line. */
+.login-copyright,
+.login-copyright .club-name {
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
+  font-weight: inherit;
+}
+
 /* Monospace & Tabular Numerical Alignment (Locked Spec Section A.1) */
 .font-mono,
 .tabular-nums {
