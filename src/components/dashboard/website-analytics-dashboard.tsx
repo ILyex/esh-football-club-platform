@@ -116,15 +116,15 @@ export function WebsiteAnalyticsDashboard({
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-400 mb-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{isRtl ? "قياس من أحداث فعلية" : "Mesure à partir d’événements réels"}</span>
+              <span>{isRtl ? "بيانات الموقع الحي فقط" : "Données du site en production uniquement"}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {isRtl ? "لوحة حالة وإحصائيات الموقع العام" : "Tableau de Bord & Métriques du Site Public"}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-zinc-300 max-w-xl">
               {isRtl
-                ? "أرقام الزيارات والنقرات تُحسب من أحداث فعلية بعد تفعيل القياس؛ لا توجد بيانات تاريخية أو تقديرية."
-                : "Visites et clics calculés à partir des événements réels depuis l’activation du suivi, sans historique estimé."}
+                ? "تعرض هذه اللوحة زيارات نسخة الإنتاج فقط؛ زيارات التطوير والمعاينة والبيانات القديمة غير المميّزة مستبعدة."
+                : "Cette page affiche uniquement les visites de production ; le développement, les aperçus et les anciennes données non identifiées sont exclus."}
             </p>
           </div>
 

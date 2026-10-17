@@ -7,7 +7,7 @@ import { Download, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { importUpcomingFafMatchesAction } from "@/app/[locale]/(dashboard)/dashboard/matches/actions";
 
-export function FafScheduledMatchImportButton({ locale }: { locale: string }) {
+export function FafScheduledMatchImportButton({ locale, compact = false }: { locale: string; compact?: boolean }) {
   const ar = locale === "ar";
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -36,14 +36,14 @@ export function FafScheduledMatchImportButton({ locale }: { locale: string }) {
   });
 
   return (
-    <div className="space-y-2">
-      <Button type="button" variant="outline" onClick={importMatches} disabled={pending}>
+    <div className={compact ? "flex flex-wrap items-center gap-2" : "space-y-2"}>
+      <Button type="button" size={compact ? "sm" : "default"} variant="outline" onClick={importMatches} disabled={pending}>
         {pending ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <Download className="me-2 h-4 w-4" />}
-        {pending ? (ar ? "جارٍ البحث في FAF EMS…" : "Recherche dans FAF EMS…") : (ar ? "جلب المباراة من FAF EMS" : "Importer les matchs FAF EMS")}
+        {pending ? (ar ? "جارٍ البحث في FAF EMS…" : "Recherche dans FAF EMS…") : (ar ? (compact ? "جلب من FAF EMS" : "جلب المباراة من FAF EMS") : "Importer les matchs FAF EMS")}
       </Button>
-      <p className="text-xs text-muted-foreground">
+      {!compact && <p className="text-xs text-muted-foreground">
         {ar ? "يفحص المباريات المبرمجة خلال 14 يومًا، وينشئ الناقص فقط دون تعديل مبارياتكم." : "Recherche les rencontres des 14 prochains jours et ajoute uniquement celles qui manquent, sans modifier vos matchs."}
-      </p>
+      </p>}
       {warnings.length > 0 && <ul className="space-y-1 text-xs text-amber-600" role="status">{warnings.map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}</ul>}
     </div>
   );

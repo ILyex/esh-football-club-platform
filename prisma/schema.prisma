@@ -337,6 +337,8 @@ model Player {
   documents              Document[]
   medicalRecords         PlayerMedicalRecord[]
   matchEvents            MatchEvent[]
+  assistedShots          PlayerShot[] @relation("ShotPlayer")
+  assistedByShots        PlayerShot[] @relation("ShotAssist")
   matchLineups           MatchLineup[]
   shootoutKicks          MatchShootoutKick[]
   trainingAttendances    TrainingAttendance[]
@@ -825,6 +827,7 @@ model Match {
   updatedAt                    DateTime    @updatedAt
 
   events          MatchEvent[]
+  shots           PlayerShot[]
   lineups         MatchLineup[]
   shootoutKicks   MatchShootoutKick[]
   documents       Document[]
@@ -853,6 +856,7 @@ model OpponentClub {
 
 enum MatchEventType {
   GOAL
+  SHOT
   PENALTY_GOAL
   PENALTY_MISSED
   OWN_GOAL
@@ -889,9 +893,38 @@ model MatchEvent {
   playerName   String?
   playerNameFr String?
   fafExternalKey String?
+  shot           PlayerShot?
 
   @@unique([matchId, fafExternalKey])
   @@index([staffId])
+}
+
+/// One record per shot attempt. Goal attempts link back to their MatchEvent;
+/// xG is stored with a model version so historical totals remain reproducible.
+model PlayerShot {
+  id             String          @id @default(cuid())
+  matchId        String
+  match          Match           @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchEventId   String?         @unique
+  matchEvent     MatchEvent?     @relation(fields: [matchEventId], references: [id], onDelete: Cascade)
+  playerId       String?
+  player         Player?         @relation("ShotPlayer", fields: [playerId], references: [id], onDelete: SetNull)
+  assistPlayerId String?
+  assistPlayer   Player?         @relation("ShotAssist", fields: [assistPlayerId], references: [id], onDelete: SetNull)
+  side           MatchEventSide
+  minute         Int
+  bodyPart       String          @default("UNKNOWN")
+  situation      String          @default("OPEN_PLAY")
+  outcome        String          // GOAL | SAVED | OFF_TARGET | BLOCKED | WOODWORK | PENALTY_MISSED
+  x              Float?          // 0–100 along pitch length, from the shooter’s own half
+  y              Float?          // 0–100 across pitch width
+  xG             Float?
+  xgModelVersion String          @default("esh-xg-v1")
+  createdAt      DateTime        @default(now())
+
+  @@index([matchId, minute])
+  @@index([playerId, matchId])
+  @@index([assistPlayerId])
 }
 
 /// Durable event record for public match push notifications. Written in the
@@ -1830,18 +1863,20 @@ model Measurement {
 // Anonymous first-party public-site metrics. No IP address, account identity,
 // page query string, or link text is stored.
 model WebsiteAnalyticsEvent {
-  id         String   @id @default(cuid())
-  type       String
-  path       String
-  targetPath String?
-  visitorKey String
-  device     String
-  source     String
-  createdAt  DateTime @default(now())
+  id                    String   @id @default(cuid())
+  type                  String
+  path                  String
+  targetPath            String?
+  visitorKey            String
+  device                String
+  source                String
+  deploymentEnvironment String   @default("unknown")
+  createdAt             DateTime @default(now())
 
   @@index([createdAt, type])
   @@index([path, createdAt, type])
   @@index([visitorKey, createdAt])
+  @@index([deploymentEnvironment, createdAt, type])
 }
 
 // Shared atomic request counters for login/search throttling across app replicas.

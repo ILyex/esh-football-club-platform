@@ -589,10 +589,34 @@ export async function getPrivateFileBuffer(key: string): Promise<Buffer> {
     }
     const s3 = getS3Client();
     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-    const response = await s3.send(command);
-    const byteArray = await response.Body?.transformToByteArray();
-    if (!byteArray) throw new Error(`Object not found or empty: ${key}`);
-    return Buffer.from(byteArray);
+    try {
+      const response = await s3.send(command);
+      const byteArray = await response.Body?.transformToByteArray();
+      if (!byteArray) throw new Error(`Object not found or empty: ${key}`);
+      return Buffer.from(byteArray);
+    } catch (error) {
+      const storageError = error as { name?: string; Code?: string; code?: string; $metadata?: { httpStatusCode?: number }; message?: string };
+      const missingObject = storageError.$metadata?.httpStatusCode === 404
+        || [storageError.name, storageError.Code, storageError.code].some((code) => code === "NoSuchKey" || code === "NotFound" || code === "NoSuchObject")
+        || /specified key does not exist|no such key|object not found/i.test(storageError.message || "");
+      if (!missingObject) throw error;
+
+      // Deployments sometimes switch from DB/local storage to S3 while older
+      // document rows still point to files in the previous backend. Recover
+      // those bytes once and copy them into the active bucket under the same
+      // key so every later read (including signed downloads) works normally.
+      const legacyAsset = await db.privateAsset.findUnique({ where: { key }, select: { data: true, mimeType: true } });
+      let recovered: Buffer | null = legacyAsset?.data ? Buffer.from(legacyAsset.data) : null;
+      let recoveredMime = legacyAsset?.mimeType || "application/octet-stream";
+      if (!recovered) {
+        const localPath = getLocalFilePath(key);
+        if (fs.existsSync(localPath)) recovered = await fs.promises.readFile(localPath);
+      }
+      if (!recovered?.byteLength) throw error;
+
+      await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: recovered, ContentType: recoveredMime }));
+      return recovered;
+    }
   }
 
   if (isPrivateDatabaseStorageMode()) {

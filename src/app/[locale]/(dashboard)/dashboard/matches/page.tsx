@@ -9,6 +9,7 @@ import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { Button } from "@/components/ui/button";
 import { Plus, Settings2, Trash2 } from "lucide-react";
 import { MatchDocumentPreviewButton } from "@/components/matches/match-document-preview-button";
+import { FafScheduledMatchImportButton } from "@/components/matches/faf-scheduled-match-import-button";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteMatchAction } from "./actions";
@@ -73,12 +74,15 @@ export default async function MatchesListPage({
         <div aria-hidden="true" className="hidden sm:col-start-1 sm:row-start-1 sm:block" />
         <div className="flex items-center justify-center gap-2 sm:col-start-3 sm:row-start-1 sm:justify-self-end">
           {canCreate && (
-            <Link href={`/${locale}/dashboard/matches/new`}>
-              <Button size="sm" className="gap-1.5 text-xs font-bold">
-                <Plus className="h-3.5 w-3.5" />
-                <span>{t("addMatch")}</span>
-              </Button>
-            </Link>
+            <>
+              <FafScheduledMatchImportButton locale={locale} compact />
+              <Link href={`/${locale}/dashboard/matches/new`}>
+                <Button size="sm" className="gap-1.5 text-xs font-bold">
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{t("addMatch")}</span>
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -112,12 +116,12 @@ export default async function MatchesListPage({
       </form>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-        <table className="w-full min-w-[680px] text-start text-xs sm:text-sm">
+        <table className="w-full min-w-[760px] text-start text-xs sm:text-sm">
           <thead className="border-b border-border bg-muted/50 text-start">
             <tr>
-              <th className="w-[190px] px-2.5 py-2.5 text-start sm:px-3">{t("fields.matchDate")}</th>
+              <th className="w-[170px] px-3 py-3 text-start">{t("fields.matchDate")}</th>
               <th className="px-2.5 py-2.5 text-center sm:px-3">{t("title")}</th>
-              <th className="w-[330px] px-2.5 py-2.5 text-start sm:px-3">{locale === "ar" ? "الحالة والإجراءات" : "Statut et actions"}</th>
+              <th className="w-[390px] px-3 py-3 text-start">{locale === "ar" ? "الحالة والإجراءات" : "Statut et actions"}</th>
             </tr>
           </thead>
           <tbody>
@@ -135,15 +139,14 @@ export default async function MatchesListPage({
               }
               return (
                 <tr key={m.id} className="border-b border-border/70 last:border-0 align-middle transition-colors hover:bg-muted/20">
-                  <td className="px-2.5 py-2.5 text-start sm:px-3">
-                    <span dir="ltr" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/70 bg-background px-2 py-1.5 font-mono text-[11px] tabular-nums sm:px-2.5">
-                      <time dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
-                      <span className="text-muted-foreground/60">·</span>
-                      <time className="text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
+                  <td className="px-3 py-3 text-start">
+                    <span dir="ltr" className="inline-flex min-w-[132px] flex-col gap-1 rounded-xl border border-border/70 bg-background px-3 py-2 font-mono tabular-nums">
+                      <time className="text-xs font-bold text-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
+                      <time className="text-[11px] text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
                     </span>
                   </td>
                   <td className="px-2.5 py-2.5 align-middle font-medium sm:px-3">
-                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-3">
+                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-[620px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
                       <span dir="auto" title={homeTeamName} className="min-w-0 truncate text-end leading-tight">{homeTeamName}</span>
                       <span dir="ltr" className="inline-flex min-w-[48px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-1.5 py-1 text-center font-mono text-[11px] font-extrabold tabular-nums shadow-sm sm:min-w-[56px]">
                         <span>{homeScore}</span>
@@ -153,17 +156,16 @@ export default async function MatchesListPage({
                       <span dir="auto" title={awayTeamName} className="min-w-0 truncate text-start leading-tight">{awayTeamName}</span>
                     </span>
                     {winnerName && (
-                      <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      <p className="mt-1 text-center text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                         {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
                         {outcome.decidedByPenalties && <span dir="ltr" className="ms-1 font-mono">({outcome.homePenaltyScore}–{outcome.awayPenaltyScore})</span>}
                       </p>
                     )}
                   </td>
-                  <td className="px-2.5 py-2 sm:px-3">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
-                      <span className="max-w-full truncate rounded-full bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground sm:max-w-[240px]" title={m.competition.name}>{m.competition.name}</span>
-                      <MatchOperationalStatus
+                  <td className="px-3 py-3">
+                    <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <MatchOperationalStatus
                         status={m.status}
                         matchDate={m.matchDate}
                         locale={locale}
@@ -185,13 +187,16 @@ export default async function MatchesListPage({
                           extraTimeSecondHalf: m.extraTimeSecondHalfAddedTime
                         }}
                       />
+                        <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
+                        <span className="min-w-0 max-w-full truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={m.competition.name}>{m.competition.name}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 border-t border-border/60 pt-2 xl:border-0 xl:pt-0">
                       <MatchDocumentPreviewButton
                         matchId={m.id}
                         matchTitle={matchTitle}
                         locale={locale}
                         existingDocuments={m.documents}
                       />
-                      <div className="ms-auto flex items-center gap-1">
                         <Link
                           href={`/${locale}/dashboard/matches/${m.id}`}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background p-0 text-club-primary transition-colors hover:border-club-primary/40 hover:bg-club-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"

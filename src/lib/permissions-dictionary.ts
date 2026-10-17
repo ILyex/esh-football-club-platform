@@ -62,6 +62,14 @@ export const PERMISSION_METAS: Record<string, PermissionMeta> = {
     descAr: "الاطلاع على قوائم وبيانات اللاعبين",
     descFr: "Voir la liste et profils des joueurs"
   },
+  "player.stats.view": {
+    key: "player.stats.view",
+    category: "sporting",
+    labelAr: "إحصائيات أداء اللاعبين",
+    labelFr: "Statistiques de performance des joueurs",
+    descAr: "مشاهدة الأهداف والتسديدات وxG والبطاقات للاعبين ضمن الفئات المسندة",
+    descFr: "Voir buts, tirs, xG et cartons des joueurs des catégories autorisées"
+  },
   "players.create": {
     key: "players.create",
     category: "sporting",

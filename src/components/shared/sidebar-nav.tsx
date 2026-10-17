@@ -55,6 +55,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   notifications: Bell,
   teams: Shield,
   players: UserCheck,
+  playerStats: BarChart3,
   staff: Users,
   matches: Trophy,
   competitions: Medal,

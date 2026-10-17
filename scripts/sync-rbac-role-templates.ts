@@ -15,7 +15,7 @@ const templates = [
     description: "عرض التدريب وقائمة لاعبي الفرق المسندة للمدرب دون تعديل.",
     teamScoped: true,
     isSystem: false,
-    permissions: ["players.view", "teams.view", "matches.view", "training.view", "calendar.view"]
+    permissions: ["players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"]
   },
   {
     key: "treasurer",
@@ -62,7 +62,7 @@ async function main() {
   const allPermissions = await db.permission.findMany({ orderBy: { key: "asc" } });
   const permissionByKey = new Map(allPermissions.map((permission) => [permission.key, permission]));
   const viewPermissions = allPermissions
-    .filter((permission) => permission.key.endsWith(".view") && permission.key !== "audit.view" && permission.key !== "medical.records.view")
+    .filter((permission) => permission.key.endsWith(".view") && permission.key !== "audit.view" && permission.key !== "medical.records.view" && permission.key !== "player.stats.view")
     .map((permission) => permission.key);
   const president = templates.find((role) => role.key === "president")!;
   president.permissions = [...viewPermissions, "medical.records.view", "documents.view.restricted"];

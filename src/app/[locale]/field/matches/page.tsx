@@ -13,7 +13,7 @@ import { LogoutButton } from "@/components/shared/logout-button";
 import { MatchEventEntryForm } from "../match-event-entry-form";
 import { CollapsibleMatchEvents } from "@/components/matches/collapsible-match-events";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { updateMatchStatusAction, addMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
+import { updateMatchStatusAction, addFieldMatchEventAction, updateMatchEventAction, deleteMatchEventAction } from "../../(dashboard)/dashboard/matches/actions";
 import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 import { getMatchDisplayStatus } from "@/lib/matches/display-status";
 import { MatchStatusRefresh } from "@/components/matches/match-status-refresh";
@@ -95,7 +95,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
   }
   async function addEvent(matchId: string, formData: FormData) {
     "use server";
-    await addMatchEventAction(matchId, formData);
+    await addFieldMatchEventAction(matchId, formData);
     redirect(`/${locale}/field/matches`);
   }
   async function editEvent(matchId: string, eventId: string, formData: FormData) {
@@ -204,7 +204,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
             >
               {match.events.map((event) => <details key={event.id} className="group relative rounded-lg border border-border/80 bg-background">
                 <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 pe-14 ps-2.5 text-[11px] font-semibold marker:hidden">
-                  <span className="flex min-w-0 items-center gap-2"><span className={event.type === "RED_CARD" ? "text-rose-500" : event.type === "YELLOW_CARD" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>{event.type === "GOAL" || event.type === "PENALTY_GOAL" || event.type === "OWN_GOAL" ? "⚽" : event.type === "RED_CARD" ? "🟥" : event.type === "YELLOW_CARD" ? "🟨" : "•"}</span><span className="shrink-0 font-mono tabular-nums">{event.minute}{"'"}</span><span className="truncate">{event.playerName || (isAr ? "بدون اسم" : "Sans nom")}</span><span className="hidden text-[10px] font-normal text-muted-foreground sm:inline">{event.side === "HOME" ? names.homeTeamName : names.awayTeamName}</span></span>
+                  <span className="flex min-w-0 items-center gap-2"><span className={event.type === "RED_CARD" ? "text-rose-500" : event.type === "YELLOW_CARD" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>{event.type === "GOAL" || event.type === "PENALTY_GOAL" || event.type === "OWN_GOAL" ? "⚽" : event.type === "SHOT" ? "🎯" : event.type === "RED_CARD" ? "🟥" : event.type === "YELLOW_CARD" ? "🟨" : "•"}</span><span className="shrink-0 font-mono tabular-nums">{event.minute}{"'"}</span><span className="truncate">{event.playerName || (isAr ? "بدون اسم" : "Sans nom")}</span><span className="hidden text-[10px] font-normal text-muted-foreground sm:inline">{event.type === "SHOT" ? (isAr ? "تسديدة" : "Tir") : event.side === "HOME" ? names.homeTeamName : names.awayTeamName}</span></span>
                   {canReport && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-club-primary"><Pencil className="h-3 w-3" />{isAr ? "تعديل" : "Modifier"}</span>}
                 </summary>
                 {canReport && <div className="absolute end-1.5 top-0.5">
@@ -221,7 +221,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
                   </ConfirmDialog>
                 </div>}
                 {canReport && <form action={editEvent.bind(null, match.id, event.id)} className="grid grid-cols-2 gap-2 border-t border-border/70 p-2 sm:grid-cols-[1fr_1fr_72px_minmax(100px,1.3fr)_auto] sm:items-end">
-                  <SelectField locale={locale} label={isAr ? "نوع الحدث" : "Type"} name="type" defaultValue={event.type} options={[{ value: "GOAL", label: isAr ? "هدف" : "But" }, { value: "PENALTY_GOAL", label: isAr ? "هدف جزاء" : "Penalty" }, { value: "PENALTY_MISSED", label: isAr ? "جزاء ضائع" : "Penalty manqué" }, { value: "OWN_GOAL", label: isAr ? "هدف عكسي" : "But contre son camp" }, { value: "YELLOW_CARD", label: isAr ? "بطاقة صفراء" : "Carton jaune" }, { value: "RED_CARD", label: isAr ? "بطاقة حمراء" : "Carton rouge" }, { value: "ASSIST", label: isAr ? "تمريرة حاسمة" : "Passe décisive" }, { value: "SUBSTITUTION_IN", label: isAr ? "دخول لاعب" : "Entrée" }, { value: "SUBSTITUTION_OUT", label: isAr ? "خروج لاعب" : "Sortie" }]} />
+                  <SelectField locale={locale} label={isAr ? "نوع الحدث" : "Type"} name="type" defaultValue={event.type} options={[{ value: "GOAL", label: isAr ? "هدف" : "But" }, { value: "SHOT", label: isAr ? "تسديدة" : "Tir" }, { value: "PENALTY_GOAL", label: isAr ? "هدف جزاء" : "Penalty" }, { value: "PENALTY_MISSED", label: isAr ? "جزاء ضائع" : "Penalty manqué" }, { value: "OWN_GOAL", label: isAr ? "هدف عكسي" : "But contre son camp" }, { value: "YELLOW_CARD", label: isAr ? "بطاقة صفراء" : "Carton jaune" }, { value: "RED_CARD", label: isAr ? "بطاقة حمراء" : "Carton rouge" }, { value: "ASSIST", label: isAr ? "تمريرة حاسمة" : "Passe décisive" }, { value: "SUBSTITUTION_IN", label: isAr ? "دخول لاعب" : "Entrée" }, { value: "SUBSTITUTION_OUT", label: isAr ? "خروج لاعب" : "Sortie" }]} />
                   <SelectField locale={locale} label={isAr ? "الفريق" : "Équipe"} name="side" defaultValue={event.side} options={[{ value: "HOME", label: names.homeTeamName }, { value: "AWAY", label: names.awayTeamName }]} />
                   <label className="block text-[10px] font-semibold text-muted-foreground"><span className="mb-1 block">{isAr ? "الدقيقة" : "Minute"}</span><input name="minute" type="number" min="0" max="130" defaultValue={event.minute} className={`${fieldControl} px-2 text-center`} /></label>
                   <label className="col-span-2 block min-w-0 text-[10px] font-semibold text-muted-foreground sm:col-span-1"><span className="mb-1 block">{isAr ? "اسم اللاعب" : "Joueur"}</span><input name="playerName" required maxLength={120} defaultValue={event.playerName ?? ""} className={`${fieldControl} placeholder:font-normal`} /></label>

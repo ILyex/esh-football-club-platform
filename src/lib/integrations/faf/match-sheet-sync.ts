@@ -1,5 +1,6 @@
 import "server-only";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { getFAFConfig } from "./config";
@@ -24,6 +25,65 @@ function normalize(value: unknown): string {
     .replace(/[\u064B-\u065F\u0670]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 }
 
+function normalizedNameTokens(value: unknown): string {
+  return String(value ?? "").normalize("NFKC").toLocaleLowerCase("ar")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .match(/[\p{L}\p{N}]+/gu)?.sort().join(" ") ?? "";
+}
+
+function samePersonName(left: unknown, right: unknown): boolean {
+  const a = normalizedNameTokens(left);
+  return a.length > 0 && a === normalizedNameTokens(right);
+}
+
+function remoteArray(match: any, keys: string[]): any[] {
+  const records = [match, match?.events, match?.evenements, match?.matchEvents, match?.rencontre, match?.details]
+    .filter((value) => value && typeof value === "object");
+  let emptyArray: any[] | undefined;
+  for (const record of records) {
+    for (const key of keys) {
+      if (!Array.isArray(record[key])) continue;
+      if (record[key].length) return record[key];
+      emptyArray ??= record[key];
+    }
+  }
+  return emptyArray ?? [];
+}
+
+function remoteCards(match: any): any[] {
+  const completeCards = remoteArray(match, ["cards", "cartons", "cardEvents"]);
+  if (completeCards.length) return completeCards;
+  return [
+    ...remoteArray(match, ["yellowCards", "cartonsJaunes"]).map((card) => ({ ...card, cardColor: card.cardColor || "yellow" })),
+    ...remoteArray(match, ["redCards", "cartonsRouges"]).map((card) => ({ ...card, cardColor: card.cardColor || "red" }))
+  ];
+}
+
+function scoreValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 99) return value;
+  if (typeof value === "string" && /^\d{1,2}$/.test(value.trim())) return Number(value.trim());
+  return null;
+}
+
+function officialScore(match: any, historyMatch: any, fallbackEvents: ImportedMatchEvent[]): { home: number; away: number } | null {
+  const records = [match, match?.score, match?.resultat, historyMatch, historyMatch?.score, historyMatch?.resultat]
+    .filter((value) => value && typeof value === "object");
+  for (const record of records) {
+    const home = scoreValue(record.scoreLoc ?? record.scoreLocal ?? record.homeScore ?? record.scoreHome ?? record.butsLoc ?? record.local ?? record.home);
+    const away = scoreValue(record.scoreVis ?? record.scoreVisiteur ?? record.awayScore ?? record.scoreAway ?? record.butsVis ?? record.visiteur ?? record.away);
+    if (home !== null && away !== null) return { home, away };
+    const resultText = [record.resultat, record.score, record.result, record.scoreFinal].find((value) => typeof value === "string");
+    const pair = typeof resultText === "string" ? resultText.match(/(?:^|\D)(\d{1,2})\s*[-–:]\s*(\d{1,2})(?:\D|$)/) : null;
+    if (pair) return { home: Number(pair[1]), away: Number(pair[2]) };
+  }
+  const goals = fallbackEvents.filter((event) => ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(event.type));
+  if (goals.length) return {
+    home: goals.filter((event) => event.side === "HOME").length,
+    away: goals.filter((event) => event.side === "AWAY").length
+  };
+  return null;
+}
+
 function dateKey(value: unknown): string {
   const text = String(value ?? "");
   const iso = text.match(/\d{4}-\d{2}-\d{2}/)?.[0];
@@ -43,21 +103,18 @@ function namesMatch(local: string, remote: string): boolean {
 
 function eventSummary(match: any): string[] {
   const lines: string[] = [];
-  for (const card of match.cards || []) {
+  for (const card of remoteCards(match)) {
     if (card.staff || card.staffMember || card.coach || card.encadreur) continue;
-    const p = card.player?.player?.personne;
-    const name = [p?.prenomAr, p?.nomAr, p?.firstName, p?.lastName].filter(Boolean).join(" ") || "لاعب";
+    const name = playerFromRemoteEvent(card).name;
     lines.push(`${card.cardColor || "بطاقة"} — ${name} (${card.cardTime || "؟"})`);
   }
-  for (const goal of match.goals || []) {
-    const p = goal.player?.player?.personne || goal.player?.personne;
-    const name = [p?.prenomAr, p?.nomAr, p?.firstName, p?.lastName].filter(Boolean).join(" ") || "لاعب";
+  for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers"])) {
+    const name = playerFromRemoteEvent(goal).name;
     lines.push(`هدف — ${name} (${goal.goalTime || goal.minute || "؟"})`);
   }
-  for (const sub of match.substitution || []) {
+  for (const sub of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"])) {
     const playerName = (entry: any) => {
-      const p = entry?.player?.personne;
-      return [p?.prenomAr, p?.nomAr, p?.firstName, p?.lastName].filter(Boolean).join(" ") || "لاعب";
+      return playerFromRemoteEvent(entry).name;
     };
     lines.push(`تبديل — ${playerName(sub.outPlayer)} ← ${playerName(sub.inPlayer)} (${sub.substitutionTime || "؟"})`);
   }
@@ -111,13 +168,14 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
   const keys = new Map<string, number>();
   const sideFor = (isRemoteLocEvent: boolean): "HOME" | "AWAY" =>
     isRemoteLocEvent === (remoteLocIsOurClub === localClubIsHome) ? "HOME" : "AWAY";
-  const add = (raw: any, type: ImportedMatchEvent["type"], remoteLocSide: boolean | null, label: string, nameOverride?: string) => {
+  const add = (raw: any, type: ImportedMatchEvent["type"], remoteLocSide: boolean | null, label: string, nameOverride?: string, minuteOverride?: number) => {
     // Match staff cards are intentionally excluded from player match events.
     if (raw?.staff || raw?.staffMember || raw?.coach || raw?.encadreur) return;
     const player = playerFromRemoteEvent(raw);
     const playerName = nameOverride || player.name;
-    const minute = eventMinute(raw?.minute ?? raw?.goalTime ?? raw?.cardTime ?? raw?.substitutionTime ?? raw?.time);
-    const side = remoteLocSide == null ? null : sideFor(remoteLocSide);
+    const minute = minuteOverride ?? eventMinute(raw?.minute ?? raw?.goalTime ?? raw?.cardTime ?? raw?.substitutionTime ?? raw?.time);
+    let side = remoteLocSide == null ? null : sideFor(remoteLocSide);
+    if (side && type === "OWN_GOAL") side = side === "HOME" ? "AWAY" : "HOME";
     const identity = `${type}|${side || "unknown"}|${minute}|${player.licence || normalize(playerName)}`;
     const occurrence = keys.get(identity) ?? 0;
     keys.set(identity, occurrence + 1);
@@ -129,24 +187,25 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     });
   };
 
-  for (const card of match.cards || []) {
+  for (const card of remoteCards(match)) {
     const color = String(card.cardColor || card.color || "").toLocaleLowerCase("ar");
-    const type = /red|rouge|حمراء|حمرا/.test(color) ? "RED_CARD" : "YELLOW_CARD";
+    const type = /red|rouge|حمراء|حمرا/.test(color) || match.redCards?.includes?.(card) ? "RED_CARD" : "YELLOW_CARD";
     const isLoc = remoteLocSideOf(card, match);
     add(card, type, isLoc, type === "RED_CARD" ? "بطاقة حمراء" : "بطاقة صفراء");
   }
-  for (const goal of match.goals || []) {
+  for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers"])) {
     const isLoc = remoteLocSideOf(goal, match);
     const ownGoal = Boolean(goal.isOwnGoal || goal.ownGoal || /own|contre son camp|ذاتي/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     const penalty = Boolean(goal.isPenalty || goal.penalty || /penalty|penalty_goal|جزاء/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     add(goal, ownGoal ? "OWN_GOAL" : penalty ? "PENALTY_GOAL" : "GOAL", isLoc, ownGoal ? "هدف عكسي" : penalty ? "هدف من ركلة جزاء" : "هدف");
   }
-  for (const substitution of match.substitution || match.substitutions || []) {
+  for (const substitution of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"])) {
     const isLoc = remoteLocSideOf(substitution, match);
     const outPlayer = substitution.outPlayer || substitution.playerOut || substitution.playerSortant;
     const inPlayer = substitution.inPlayer || substitution.playerIn || substitution.playerEntrant;
-    if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", isLoc, "خروج بالتبديل");
-    if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", isLoc, "دخول بالتبديل");
+    const minute = eventMinute(substitution.minute ?? substitution.substitutionTime ?? substitution.time);
+    if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match) ?? isLoc, "خروج بالتبديل", undefined, minute);
+    if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match) ?? isLoc, "دخول بالتبديل", undefined, minute);
   }
   return output;
 }
@@ -166,7 +225,7 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
   }
   const players = eligibleTeamIds.length ? await db.player.findMany({
     where: { teamId: { in: eligibleTeamIds }, status: { not: "ARCHIVED" } },
-    select: { id: true, firstName: true, lastName: true, licenceNumber: true }
+    select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, licenceNumber: true }
   }) : [];
   const byLicence = new Map<string, typeof players>();
   for (const player of players) {
@@ -174,31 +233,68 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
     const key = normalize(player.licenceNumber);
     byLicence.set(key, [...(byLicence.get(key) ?? []), player]);
   }
-  for (const event of imported) {
-    const names = players.filter((player) => normalize(`${player.firstName} ${player.lastName}`) === normalize(event.playerName));
+  const resolvePlayer = (event: ImportedMatchEvent) => {
     const licenceCandidates = event.playerLicence ? byLicence.get(normalize(event.playerLicence)) ?? [] : [];
-    const player = event.playerLicence
-      ? (licenceCandidates.length === 1 ? licenceCandidates[0] : undefined)
-      : (names.length === 1 ? names[0] : undefined);
+    if (licenceCandidates.length === 1) return { player: licenceCandidates[0], ambiguous: false };
+    if (licenceCandidates.length > 1) return { player: undefined, ambiguous: true };
+
+    const eventName = normalizedNameTokens(event.playerName);
+    if (!eventName) return { player: undefined, ambiguous: false };
+    const candidates = players.filter((player) => {
+      const names = [
+        `${player.firstName} ${player.lastName}`,
+        `${player.lastName} ${player.firstName}`,
+        player.firstNameFr && player.lastNameFr ? `${player.firstNameFr} ${player.lastNameFr}` : "",
+        player.firstNameFr && player.lastNameFr ? `${player.lastNameFr} ${player.firstNameFr}` : ""
+      ];
+      return names.some((name) => normalizedNameTokens(name) === eventName);
+    });
+    return { player: candidates.length === 1 ? candidates[0] : undefined, ambiguous: candidates.length > 1 };
+  };
+  for (const event of imported) {
+    const resolved = resolvePlayer(event);
+    const player = resolved.player;
     const localSide = localClubIsHome ? "HOME" : "AWAY";
     if (event.side == null) {
-      if (player) event.side = localSide;
-      else if (licenceCandidates.length > 1 || names.length > 1) continue;
+      if (player) event.side = event.type === "OWN_GOAL" ? (localSide === "HOME" ? "AWAY" : "HOME") : localSide;
+      else if (resolved.ambiguous) continue;
       else event.side = localSide === "HOME" ? "AWAY" : "HOME";
     }
-    event.playerId = event.side === localSide ? player?.id ?? null : null;
+    const actorIsLocal = event.remoteLocSide == null ? Boolean(player) : event.remoteLocSide === remoteLocIsOurClub;
+    event.playerId = actorIsLocal ? player?.id ?? null : null;
   }
 
   const existing = await db.matchEvent.findMany({
     where: { matchId },
-    select: { type: true, side: true, minute: true, playerId: true, playerName: true }
+    select: { id: true, type: true, side: true, minute: true, playerId: true, playerName: true, source: true }
   });
-  const fresh = imported.filter((event) => event.side !== null && !existing.some((row) => row.type === event.type && row.side === event.side && row.minute === event.minute
-    && ((event.playerId && row.playerId === event.playerId) || normalize(row.playerName || "") === normalize(event.playerName))));
-  if (!fresh.length) return 0;
+  // Earlier imports could save a card under its display name without linking
+  // it to the local player. Repair those rows during reconciliation before
+  // duplicate detection prevents them from being imported again.
+  let repairedCount = 0;
+  for (const event of imported) {
+    if (!event.playerId || event.side == null) continue;
+    const unlinked = existing.filter((row) => !row.playerId && row.type === event.type && row.minute === event.minute
+      && (row.side === event.side || row.source === "REFEREE_REPORT")
+      && samePersonName(row.playerName, event.playerName));
+    if (unlinked.length === 1) {
+      const linked = await db.matchEvent.updateMany({
+        where: { id: unlinked[0]!.id, playerId: null },
+        data: { playerId: event.playerId, playerName: event.playerName, side: event.side, source: "REFEREE_REPORT" }
+      });
+      if (linked.count === 1) {
+        unlinked[0]!.playerId = event.playerId;
+        unlinked[0]!.side = event.side;
+        repairedCount++;
+      }
+    }
+  }
+  const pendingFresh = imported.filter((event) => event.side !== null && !existing.some((row) => row.type === event.type && row.side === event.side && row.minute === event.minute
+    && ((event.playerId && row.playerId === event.playerId) || samePersonName(row.playerName, event.playerName))));
+  if (!pendingFresh.length) return repairedCount;
   const localSide = localClubIsHome ? "HOME" : "AWAY";
   const created = await db.matchEvent.createMany({
-    data: fresh.map((event) => ({
+    data: pendingFresh.map((event) => ({
       matchId,
       fafExternalKey: event.fafExternalKey,
       type: event.type,
@@ -211,7 +307,7 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
     })),
     skipDuplicates: true
   });
-  return created.count;
+  return repairedCount + created.count;
 }
 
 async function resolveLocalMatch(matchId: string, clubCode: string) {
@@ -349,12 +445,13 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
 
   const refereeReportDocumentId = documentIdsByKind.get("REFEREE_REPORT");
 
-  const isLocalHome = String((local.isHomeFixture ? official.clubLoc : official.clubVis)?.fifaId || "").toUpperCase() === config.clubCode.toUpperCase();
   const events = eventSummary(official);
   // Do not publish free-form referee prose; it can contain technical-staff
   // card details. The public summary is built from the curated player events.
   const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const referee = [official.arbitre?.prenomArbitre, official.arbitre?.nomArbitre].filter(Boolean).join(" ") || null;
+  const remoteLocIsOurClub = String(official.clubLoc?.fifaId || "").toUpperCase() === config.clubCode.toUpperCase();
+  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
@@ -367,11 +464,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   const explicitlyFinished = /finished|termin|jouee|joué|clotur|final|انتهت|منتهية|نهائي/.test(officialStatus)
     || finalReportResult.status === "fulfilled";
   const explicitlyLive = /live|en cours|مباشر|جارية/.test(officialStatus);
+  const officialResult = officialScore(official, remote, importedEvents);
   await db.match.update({
     where: { id: local.id },
     data: {
-      homeScore: isLocalHome ? official.scoreLoc : official.scoreVis,
-      awayScore: isLocalHome ? official.scoreVis : official.scoreLoc,
+      ...(officialResult ? { homeScore: officialResult.home, awayScore: officialResult.away } : {}),
       stadium: official.stade?.nomAr || official.stade?.nomStade || local.stadium,
       refereeNameAr: referee || local.refereeNameAr,
       matchReport: reportText || local.matchReport,
@@ -390,6 +487,12 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     create: { key: `faf-ems-match-${externalId}`, value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) },
     update: { value: JSON.stringify({ matchId: local.id, syncedAt: new Date().toISOString() }) }
   });
+  revalidatePath("/[locale]/dashboard/matches", "page");
+  revalidatePath("/[locale]/dashboard/matches/[id]", "page");
+  revalidatePath("/[locale]/dashboard/players", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
+  revalidatePath("/[locale]/matches", "page");
+  revalidatePath("/[locale]", "page");
   await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length, importedEventCount, lineupSummary, warnings } });
   const lineupMessage = lineupSummary?.applied
     ? ` تم تحديث قائمة المباراة تلقائياً: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مدعو، ${lineupSummary.injured} مصاب يدوياً، ${lineupSummary.suspended} موقوف.`

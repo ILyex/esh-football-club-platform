@@ -30,6 +30,7 @@ export function TeamSwitcher({
   // Pages where team/category switching is irrelevant or handled in-page (matches, training, club-wide, administrative, finance, inventory, governance, audit, calendar, mail):
   const isClubWidePage =
     pathname.endsWith("/dashboard") ||
+    pathname.endsWith("/dashboard/announcements/new") ||
     pathname.includes("/dashboard/mail") ||
     pathname.includes("/dashboard/training") ||
     pathname.includes("/dashboard/testing") ||

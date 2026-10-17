@@ -11,6 +11,7 @@ import {
   upsertLineupEntryAction,
   removeLineupEntryAction,
   attachMatchSheetAction,
+  importSavedFafLineupAction,
   addShootoutKickAction,
   deleteShootoutKickAction,
   syncPreviousMatchRedCardSuspensionsAction
@@ -19,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
-import { RefereeReportAiModal } from "@/components/matches/referee-report-ai-modal";
 import { FormSelect } from "@/components/ui/form-select";
 import { MatchEditStatusFields } from "@/components/matches/match-edit-status-fields";
 import { Save, FileCheck, FileText, Download, Upload, Target, CircleDot, Square, UserCheck, Trophy, MapPin, CalendarDays, Sparkles, Trash2, CircleCheck, CircleX, Shield, ChevronDown } from "lucide-react";
@@ -46,7 +46,7 @@ import { splitClubNameVariants } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
 import { resolveMatchResult } from "@/lib/matches/result";
 
-const EVENT_TYPES = ["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
+const EVENT_TYPES = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -522,6 +522,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           canEdit={canManageLineup}
           saveEntry={addLineupEntry}
           removeEntry={removeLineupPlayer}
+          importFafLineup={() => importSavedFafLineupAction(match.id)}
           syncAutomaticSuspensions={syncLineupSuspensions}
         />
 
@@ -656,7 +657,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </h3>
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {locale === "ar" ? "ارفع التقرير الرسمي لتثبيت نتيجة المباراة والبطاقات." : "Déposez le rapport officiel pour confirmer le résultat et les sanctions."}
+                {locale === "ar" ? "يجلب التقرير والنتيجة والأحداث مباشرة من FAF EMS عبر زر الجلب أعلى الصفحة." : "Le rapport, le score et les événements sont importés directement depuis FAF EMS avec le bouton en haut de page."}
               </p>
             </div>
             {refereeReport ? (
@@ -702,30 +703,6 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             </div>
           ) : null}
 
-          {canReport && (
-              <ActionFeedbackForm action={attachSheet} successMessage={locale === "ar" ? "تم رفع تقرير الحكم بنجاح" : "Le rapport d’arbitrage a été téléversé"} errorMessage={locale === "ar" ? "تعذر رفع الوثيقة. تحقق من الملف ثم أعد المحاولة." : "Impossible de téléverser le document. Vérifiez le fichier puis réessayez."} className="grid min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(0,1fr)_auto_auto]">
-                <input type="hidden" name="sheetType" value="REFEREE_REPORT" />
-                <input type="hidden" name="locale" value={locale} />
-                <DocumentUploadPicker
-                    name="sheetFile"
-                    locale={locale}
-                    required
-                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    label={locale === "ar" ? "اختيار الوثيقة" : "Choisir le document"}
-                    emptyLabel={locale === "ar" ? "لم يتم اختيار ملف" : "Aucun fichier sélectionné"}
-                  />
-                <RefereeReportAiModal
-                  matchId={match.id}
-                  defaultText={match.matchReport || ""}
-                  locale={locale}
-                  hasAttachedReport={Boolean(refereeReport)}
-                />
-                  <Button type="submit" size="sm" className="h-8 min-h-8 shrink-0 gap-1.5 rounded-md px-3 text-xs">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>{locale === "ar" ? "رفع تقرير الحكم" : "Déposer"}</span>
-                  </Button>
-              </ActionFeedbackForm>
-          )}
         </div>
         )}
         </div>

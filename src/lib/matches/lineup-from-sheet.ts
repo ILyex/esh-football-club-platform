@@ -54,12 +54,12 @@ function detectPlayers(text: string, players: SheetPlayer[]): Map<string, "START
       const first = normalize(player.firstName);
       const last = normalize(player.lastName);
       const named = first.length > 1 && last.length > 1 && line.includes(first) && line.includes(last);
-      const number = player.shirtNumber == null ? null : String(player.shirtNumber);
-      const numbered = Boolean(number && new RegExp(`(?:^|\\s)${number}(?:\\s|$)`).test(line));
       const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
       const lineCompact = line.replace(/\s/g, "");
       const licensed = licence.length >= 5 && lineCompact.includes(licence);
-      if (!named && !numbered && !licensed) continue;
+      // Names and licence numbers identify roster members. Shirt numbers alone
+      // are not reliable identity keys and can silently select the wrong player.
+      if (!named && !licensed) continue;
 
       const explicitStarting = STARTING.test(line);
       const explicitSubstitute = SUBSTITUTE.test(line);

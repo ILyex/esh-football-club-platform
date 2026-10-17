@@ -23,9 +23,10 @@ export function PublicAnalyticsTracker() {
 
   useEffect(() => {
     if (!pathname || lastPath.current === pathname) return;
-    lastPath.current = pathname;
     const isFirstPage = lastPath.current === null;
-    send("PAGE_VIEW", pathname, undefined, isFirstPage ? document.referrer : undefined);
+    const referrer = isFirstPage ? document.referrer : undefined;
+    lastPath.current = pathname;
+    send("PAGE_VIEW", pathname, undefined, referrer);
   }, [pathname]);
 
   useEffect(() => {

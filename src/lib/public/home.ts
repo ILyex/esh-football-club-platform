@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { getPublicClubSettings, PublicClubSettings } from "./club";
 import { getPublicNextMatch, getPublicMatches, getPublicUpcomingMatches, PublicMatchItem } from "./matches";
 import { getPublicNewsList, PublicNewsItem } from "./news";
-import { hasArabicScript } from "./locale-text";
 
 // ============================================================================
 // PUBLIC HOMEPAGE DATA AGGREGATOR
@@ -48,8 +47,8 @@ export async function getPublicHomeData(locale: string): Promise<PublicHomeData>
         id: true,
         priority: true,
         translations: {
-          where: { locale },
-          select: { title: true, content: true }
+          where: { locale: { in: [locale, "ar", "fr"] } },
+          select: { locale: true, title: true, content: true }
         }
       },
       orderBy: { createdAt: "desc" },
@@ -73,8 +72,12 @@ export async function getPublicHomeData(locale: string): Promise<PublicHomeData>
   };
 
   for (const a of rawAnnouncements) {
-    const trans = a.translations[0];
-    if (trans && !hasArabicScript(trans.title) && !hasArabicScript(trans.content) && !isInternalAdministrative(trans.title) && !isInternalAdministrative(trans.content)) {
+    const trans = a.translations.find((item) => item.locale === locale)
+      ?? a.translations.find((item) => item.locale === "ar")
+      ?? a.translations[0];
+    // Arabic is the primary site language; do not treat Arabic script itself
+    // as a reason to hide an announcement. Only omit administrative notices.
+    if (trans && !isInternalAdministrative(trans.title) && !isInternalAdministrative(trans.content)) {
       announcements.push({
         id: a.id,
         title: trans.title,

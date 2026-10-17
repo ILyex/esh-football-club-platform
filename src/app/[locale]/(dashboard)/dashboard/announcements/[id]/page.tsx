@@ -10,6 +10,7 @@ import { actionControlClass } from "@/components/shared/action-controls";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
 import { DateInput } from "@/components/ui/date-input";
 import { Save, Trash2, Eye, EyeOff } from "lucide-react";
+import { AnnouncementCreatedNotice } from "@/components/announcements/announcement-created-notice";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -18,8 +19,8 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
   ARCHIVED: "danger"
 };
 
-export default async function AnnouncementEditPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
-  const { locale, id } = await params;
+export default async function AnnouncementEditPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ created?: string }> }) {
+  const [{ locale, id }, query] = await Promise.all([params, searchParams]);
   const user = await requirePagePermission("announcements.view", locale);
   const t = await getTranslations("announcements");
   const tTeams = await getTranslations("teams");
@@ -55,6 +56,7 @@ export default async function AnnouncementEditPage({ params }: { params: Promise
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <AnnouncementCreatedNotice locale={locale} created={query.created === "1"} />
       {/* ── Header Bar ────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card shadow-xs">
         <div className="flex items-center gap-2.5">

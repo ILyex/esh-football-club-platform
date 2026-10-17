@@ -66,8 +66,10 @@ export function FafEmsSyncButton({ matchId, locale }: { matchId: string; locale:
   }, [jobId, matchId, locale, ar, router]);
 
   const jobActive = Boolean(jobId);
-  return <div className="space-y-2">
-  <Button type="button" size="sm" variant="outline" onClick={async () => {
+  const isLoading = pending || jobActive;
+  return <div className="w-full max-w-[32rem] space-y-2">
+  <div className="flex justify-end">
+  <Button type="button" size="sm" variant="outline" className="w-44 justify-center" aria-label={isLoading ? (ar ? "جارٍ جلب وثائق FAF EMS" : "Import FAF EMS en cours") : (ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS")} onClick={async () => {
     setPending(true);
     try {
       const result = await syncFAFMatchDocumentsAction(matchId, locale);
@@ -80,9 +82,9 @@ export function FafEmsSyncButton({ matchId, locale }: { matchId: string; locale:
       toast.error(error instanceof Error ? error.message : (ar ? "تعذر الاتصال بمنصة FAF EMS." : "Impossible de synchroniser avec FAF EMS."));
     } finally { setPending(false); }
   }} disabled={pending || jobActive}>
-    {pending || jobActive ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <Download className="me-2 h-4 w-4" />}
-    {pending || jobActive ? (ar ? "جارٍ الجلب والمعالجة..." : "Import en cours…") : (ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS")}
+    {isLoading ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <><Download className="me-2 h-4 w-4" aria-hidden="true" />{ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS"}</>}
   </Button>
-  {jobMessage && <p role="status" className={`text-xs ${jobStatus === "FAILED" ? "text-destructive" : jobStatus === "SUCCEEDED" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>{jobMessage}</p>}
+  </div>
+  {jobMessage && <p role="status" className={`w-full break-words text-xs ${jobStatus === "FAILED" ? "text-destructive" : jobStatus === "SUCCEEDED" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>{jobMessage}</p>}
   </div>;
 }

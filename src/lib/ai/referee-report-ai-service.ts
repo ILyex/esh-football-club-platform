@@ -9,7 +9,7 @@ export interface ParsedEventItem {
   playerId: string | null;
   playerName: string;
   shirtNumber?: number | null;
-  type: "GOAL" | "ASSIST" | "YELLOW_CARD" | "RED_CARD";
+  type: "GOAL" | "ASSIST" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION_IN" | "SUBSTITUTION_OUT";
   minute: number;
   notes?: string;
   matchedPlayerName?: string;
@@ -115,8 +115,22 @@ function parseReportDeterministically(
     const numberMatch = line.match(/(?:رقم|n°|#)\s*(\d{1,2})/i);
     const shirtNumber = numberMatch ? parseInt(numberMatch[1]!, 10) : null;
 
+    if (/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant/i.test(line)) {
+      const matched = findBestPlayerMatch(line, shirtNumber, squad);
+      if (matched) {
+        const fullName = `${matched.firstName} ${matched.lastName}`;
+        events.push({ playerId: matched.id, playerName: fullName, shirtNumber, type: "SUBSTITUTION_IN", minute, notes: `دخول بالتبديل (${line.slice(0, 40)})`, matchedPlayerName: fullName });
+      }
+    } else if (/خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line)) {
+      const matched = findBestPlayerMatch(line, shirtNumber, squad);
+      if (matched) {
+        const fullName = `${matched.firstName} ${matched.lastName}`;
+        events.push({ playerId: matched.id, playerName: fullName, shirtNumber, type: "SUBSTITUTION_OUT", minute, notes: `خروج بالتبديل (${line.slice(0, 40)})`, matchedPlayerName: fullName });
+      }
+    }
+
     // Goal detection: "هدف", "سجل", "but", "goal", "marqué par"
-    if (/هدف|سجل|أهداف|but|goal|marqu/i.test(line)) {
+    if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /هدف|سجل|أهداف|but|goal|marqu/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
       const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
       events.push({
@@ -130,7 +144,7 @@ function parseReportDeterministically(
       });
     }
     // Yellow card detection: "بطاقة صفراء", "إنذار", "carton jaune", "avertissement"
-    else if (/صفراء|إنذار|انذار|jaune|avertissement|yellow/i.test(line)) {
+    else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /صفراء|إنذار|انذار|jaune|avertissement|yellow/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
       const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
       events.push({
@@ -144,7 +158,7 @@ function parseReportDeterministically(
       });
     }
     // Red card detection: "بطاقة حمراء", "طرد", "carton rouge", "expulsion"
-    else if (/حمراء|طرد|rouge|expulsion|red card/i.test(line)) {
+    else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /حمراء|طرد|rouge|expulsion|red card/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
       const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
       events.push({
@@ -158,7 +172,7 @@ function parseReportDeterministically(
       });
     }
     // Assist detection: "تمريرة حاسمة", "صنع", "passe d", "assist"
-    else if (/تمريرة|صنع|passe d|assist/i.test(line)) {
+    else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /تمريرة|صنع|passe d|assist/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
       if (matched) {
         const fullName = `${matched.firstName} ${matched.lastName}`;
@@ -266,6 +280,7 @@ export async function parseAndApplyRefereeReportWithAI(params: {
 2. التمريرات الحاسمة (ASSIST): اسم اللاعب والدقيقة.
 3. البطاقات الصفراء (YELLOW_CARD): اسم اللاعب والدقيقة والسبب.
 4. البطاقات الحمراء (RED_CARD): اسم اللاعب والدقيقة والسبب.
+5. التبديلات: سجّل اللاعب الخارج كـ SUBSTITUTION_OUT واللاعب الداخل كـ SUBSTITUTION_IN، كل واحد في حدث مستقل وبالدقيقة نفسها.
 
 طابق أسماء اللاعبين الواردة في التقرير مع قائمة لاعبي النادي التالية فقط:
 ${squadRoster}
@@ -311,7 +326,7 @@ ${squadRoster}
               playerId: matched?.id || null,
               playerName: e.playerName || (matched ? `${matched.firstName} ${matched.lastName}` : "لاعب غير محدد"),
               shirtNumber: e.shirtNumber ?? matched?.shirtNumber ?? null,
-              type: ["GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD"].includes(e.type) ? e.type : "GOAL",
+              type: ["GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"].includes(e.type) ? e.type : "GOAL",
               minute: Number(e.minute) || 45,
               notes: e.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي",
               matchedPlayerName: matched ? `${matched.firstName} ${matched.lastName}` : undefined
@@ -362,6 +377,7 @@ ${squadRoster}
       data: {
         matchId: match.id,
         playerId: item.playerId,
+        side: match.isHomeFixture ? "HOME" : "AWAY",
         type: item.type,
         source: "REFEREE_REPORT",
         minute: item.minute,
@@ -375,7 +391,7 @@ ${squadRoster}
     where: { id: matchId },
     data: {
       ...(suppliedReportText ? { matchReport: suppliedReportText } : {}),
-      ...(detectedScore && match.homeScore === null ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
+      ...(detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });
 

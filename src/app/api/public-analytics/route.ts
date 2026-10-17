@@ -42,6 +42,10 @@ function sourceFrom(request: NextRequest, candidate?: unknown): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Preview deployments and local development can share the production
+  // database; never mix their traffic into the live-site reporting tables.
+  if (process.env.VERCEL_ENV !== "production") return new NextResponse(null, { status: 204 });
+
   let payload: unknown;
   try {
     if (Number(request.headers.get("content-length") || 0) > 2048) {
@@ -74,7 +78,8 @@ export async function POST(request: NextRequest) {
         targetPath,
         visitorKey,
         device,
-        source: data.type === "PAGE_VIEW" ? sourceFrom(request, data.referrer) : "Internal"
+        source: data.type === "PAGE_VIEW" ? sourceFrom(request, data.referrer) : "Internal",
+        deploymentEnvironment: "production"
       }
     });
   } catch {

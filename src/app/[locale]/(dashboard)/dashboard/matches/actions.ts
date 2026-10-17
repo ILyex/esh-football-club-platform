@@ -17,6 +17,7 @@ import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
+import { estimateShotXg } from "@/lib/matches/xg";
 
 function revalidatePath(...args: Parameters<typeof nextRevalidatePath>) {
   try {
@@ -355,6 +356,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
   revalidatePath(`/[locale]/matches/${match.id}`, "page");
   revalidatePath(`/[locale]/dashboard/matches/${match.id}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
   return { success: true, id: match.id, matchDate: match.matchDate.toISOString() };
@@ -416,6 +418,7 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
 
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/matches", "page");
@@ -455,9 +458,17 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
   const isOpponentEvent = parsed.side !== clubSide;
   const playerId = parsed.entityType === "PLAYER" ? parsed.playerId || null : null;
+  const assistPlayerId = parsed.assistPlayerId || null;
   const staffId = parsed.entityType === "STAFF" && !isOpponentEvent ? parsed.staffId || null : null;
   let playerName = parsed.entityType === "PLAYER" || isOpponentEvent ? parsed.playerName || parsed.playerNameFr || null : null;
   let playerNameFr = parsed.entityType === "PLAYER" || isOpponentEvent ? parsed.playerNameFr || null : null;
+
+  // A club player's card must be tied to the canonical Player row so that it
+  // appears in their profile and season statistics. Free-text names are only
+  // acceptable for opponent events, which do not belong to our player records.
+  if (parsed.entityType === "PLAYER" && !isOpponentEvent && !playerId && (parsed.type === "YELLOW_CARD" || parsed.type === "RED_CARD")) {
+    throw new Error("matchEventPlayerRequired");
+  }
 
   if (parsed.entityType === "STAFF" && !isOpponentEvent && !staffId) throw new Error("staffMemberRequired");
   if (parsed.entityType === "STAFF" && isOpponentEvent && !playerName) throw new Error("opponentStaffNameRequired");
@@ -481,6 +492,28 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
     }
   }
 
+  const isShotRecord = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED"].includes(parsed.type);
+  if (isShotRecord && parsed.entityType !== "PLAYER") throw new Error("shotRequiresPlayerEvent");
+  if (assistPlayerId) {
+    if (!playerId || parsed.side !== clubSide || assistPlayerId === playerId || !["GOAL", "PENALTY_GOAL"].includes(parsed.type)) {
+      throw new Error("invalidGoalAssist");
+    }
+    const assist = await db.player.findUniqueOrThrow({ where: { id: assistPlayerId }, select: { id: true, teamId: true, team: { select: { category: true } } } });
+    const isMatchPlayer = assist.teamId === match.teamId || (match.team?.category === "SENIOR" && assist.team?.category === "U20");
+    const isSelectedForMatch = await db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId: assistPlayerId } }, select: { playerId: true } });
+    if (!isMatchPlayer || (assist.teamId !== match.teamId && !isSelectedForMatch)) throw new Error("matchAssistPlayerMismatch");
+  }
+
+  const shotSituation = parsed.type === "PENALTY_GOAL" || parsed.type === "PENALTY_MISSED"
+    ? "PENALTY"
+    : parsed.shotSituation ?? "OPEN_PLAY";
+  const shotOutcome = parsed.type === "PENALTY_MISSED"
+    ? "PENALTY_MISSED"
+    : parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL"
+      ? "GOAL"
+      : parsed.shotOutcome ?? "SAVED";
+  const shotXg = isShotRecord ? estimateShotXg({ x: parsed.shotX, y: parsed.shotY, bodyPart: parsed.bodyPart, situation: shotSituation }) : null;
+
   const { event, outbox } = await db.$transaction(async (tx) => {
     const created = await tx.matchEvent.create({
       data: {
@@ -496,6 +529,25 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
         notes: parsed.notes
       }
     });
+    if (isShotRecord) {
+      await tx.playerShot.create({
+        data: {
+          matchId,
+          matchEventId: created.id,
+          playerId,
+          assistPlayerId,
+          side: parsed.side,
+          minute: parsed.minute,
+          bodyPart: parsed.bodyPart ?? "UNKNOWN",
+          situation: shotSituation,
+          outcome: shotOutcome,
+          x: parsed.shotX,
+          y: parsed.shotY,
+          xG: shotXg,
+          xgModelVersion: "esh-xg-v1"
+        }
+      });
+    }
     const isGoal = parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL" || parsed.type === "OWN_GOAL";
     let homeScore = match.homeScore ?? 0;
     let awayScore = match.awayScore ?? 0;
@@ -542,12 +594,22 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
+}
+
+/** The field-operations screen records detailed shot metadata for player stats. */
+export async function addFieldMatchEventAction(matchId: string, formData: FormData) {
+  await requirePermission("matches.report");
+  const fieldFormData = new FormData();
+  formData.forEach((value, key) => fieldFormData.append(key, value));
+  fieldFormData.set("shotDetailsRequired", "true");
+  await addMatchEventAction(matchId, fieldFormData);
 }
 
 export async function updateMatchEventAction(matchId: string, eventId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
-  const event = await db.matchEvent.findUniqueOrThrow({ where: { id: eventId }, include: { match: true } });
+  const event = await db.matchEvent.findUniqueOrThrow({ where: { id: eventId }, include: { match: true, shot: true } });
   if (event.matchId !== matchId) throw new Error("eventMatchMismatch");
   assertTeamScope(scopeContext, event.match.teamId, "Match");
   if (event.match.status !== "LIVE" && event.match.status !== "FINISHED") throw new Error("matchEventNotEditable");
@@ -557,7 +619,8 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
     playerName: formData.get("playerName"),
     type: formData.get("type"),
     side: formData.get("side"),
-    minute: formData.get("minute")
+    minute: formData.get("minute"),
+    shotOutcome: event.shot && ["SAVED", "OFF_TARGET", "BLOCKED", "WOODWORK"].includes(event.shot.outcome) ? event.shot.outcome : "SAVED"
   });
   const playerName = parsed.playerName?.trim() || null;
   const keepLinkedPlayer = Boolean(event.playerId && playerName === event.playerName);
@@ -580,6 +643,24 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
         staffId: null
       }
     });
+    if (event.shot) {
+      if (["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
+        const situation = parsed.type === "PENALTY_GOAL" || parsed.type === "PENALTY_MISSED" ? "PENALTY" : event.shot.situation;
+        await tx.playerShot.update({
+          where: { id: event.shot.id },
+          data: {
+            side: parsed.side,
+            minute: parsed.minute,
+            playerId: keepLinkedPlayer ? event.playerId : null,
+            outcome: parsed.type === "PENALTY_MISSED" ? "PENALTY_MISSED" : parsed.type === "SHOT" ? event.shot.outcome : "GOAL",
+            situation,
+            xG: estimateShotXg({ x: event.shot.x, y: event.shot.y, bodyPart: event.shot.bodyPart, situation })
+          }
+        });
+      } else {
+        await tx.playerShot.delete({ where: { id: event.shot.id } });
+      }
+    }
     if (homeDelta || awayDelta) {
       await tx.match.update({
         where: { id: matchId },
@@ -600,6 +681,7 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
 }
@@ -628,6 +710,7 @@ export async function deleteMatchEventAction(matchId: string, eventId: string) {
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
   revalidatePath("/[locale]/field/matches", "page");
+  revalidatePath("/[locale]/dashboard/player-stats", "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
 }
@@ -862,6 +945,45 @@ export async function removeLineupEntryAction(matchId: string, playerId: string)
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
+}
+
+/** Re-apply the already saved FAF starting sheet without fetching all match documents again. */
+export async function importSavedFafLineupAction(matchId: string) {
+  const user = await requirePermission("matches.report");
+  const scopeContext = await getMutationScopeContext();
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, select: { id: true, teamId: true, status: true } });
+  if (!match.teamId) throw new Error("matchTeamMissing");
+  assertTeamScope(scopeContext, match.teamId, "Match");
+  if (match.status !== "SCHEDULED" && match.status !== "LIVE") throw new Error("lineupNotAvailable");
+
+  const document = await db.document.findFirst({
+    where: { relatedMatchId: matchId, teamId: match.teamId, matchDocumentType: "PRE_MATCH_SHEET" },
+    orderBy: { createdAt: "desc" },
+    select: { storageKey: true, mimeType: true }
+  });
+  if (!document) throw new Error("lineupSheetMissing");
+
+  const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
+    import("@/lib/storage"),
+    import("@/lib/ai/document-verifier")
+  ]);
+  const bytes = await getPrivateFileBuffer(document.storageKey);
+  const text = await extractDocumentText(bytes, document.mimeType);
+  if (!text?.trim()) throw new Error("lineupSheetUnreadable");
+
+  const result = await applyMatchSheetLineup(matchId, match.teamId, text);
+  if (result.applied) {
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.lineup.import_faf_sheet",
+      entityType: "Match",
+      entityId: matchId,
+      changes: { starters: result.starters, substitutes: result.substitutes, source: "saved_faf_pre_match_sheet" }
+    });
+    revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
+    revalidatePath(`/[locale]/matches/${matchId}`, "page");
+  }
+  return result;
 }
 
 export async function attachMatchSheetAction(matchId: string, formData: FormData) {

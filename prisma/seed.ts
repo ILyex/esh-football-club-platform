@@ -16,6 +16,7 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "*", group: "system", description: "Full access (Super Admin only)" },
 
   { key: "players.view", group: "players", description: "View players" },
+  { key: "player.stats.view", group: "players", description: "View team-scoped player performance and match statistics" },
   { key: "players.create", group: "players", description: "Create players" },
   { key: "players.update", group: "players", description: "Edit players" },
   { key: "players.archive", group: "players", description: "Archive (soft-delete) players" },
@@ -114,7 +115,7 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "inventory.manage", group: "inventory", description: "Manage club inventory, sports gear, and warehouse items" }
 ];
 
-const ALL_VIEW_PERMS = PERMISSIONS.filter((p) => p.key.endsWith(".view") && p.key !== "medical.records.view").map((p) => p.key);
+const ALL_VIEW_PERMS = PERMISSIONS.filter((p) => p.key.endsWith(".view") && p.key !== "medical.records.view" && p.key !== "player.stats.view").map((p) => p.key);
 
 const ROLE_DEFINITIONS: {
   key: string;
@@ -213,7 +214,7 @@ const ROLE_DEFINITIONS: {
     teamScoped: true,
     syncPermissions: true,
     permissions: [
-      "players.view", "teams.view", "matches.view", "training.view", "calendar.view"
+      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"
     ]
   },
   {
@@ -223,7 +224,7 @@ const ROLE_DEFINITIONS: {
     teamScoped: true,
     syncPermissions: true,
     permissions: [
-      "players.view", "teams.view", "matches.view", "training.view", "calendar.view"
+      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"
     ]
   },
   {

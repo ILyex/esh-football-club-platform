@@ -46,6 +46,7 @@ import {
   deleteThreadAction
 } from "@/lib/actions/mail";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 interface MailClientProps {
   initialStatus: {
@@ -240,43 +241,27 @@ export function MailClient({
 
   // Delete / Trash Thread
   const handleDeleteThread = async (threadId: string) => {
-    if (!window.confirm(locale === "ar" ? "هل أنت متأكد من نقل هذه المحادثة إلى سلة المهملات؟" : "Déplacer cette conversation vers la corbeille ?")) return;
-    startTransition(async () => {
-      try {
-        await deleteThreadAction(threadId);
-        setMessages((prev) => prev.filter((m) => m.threadId !== threadId));
-        if (selectedThreadId === threadId) {
-          setSelectedThreadId(null);
-          setSelectedThread(null);
-        }
-        toast.success(locale === "ar" ? "تم نقل المحادثة إلى سلة المهملات" : "Conversation déplacée dans la corbeille");
-      } catch (err: any) {
-        toast.error(err.message || "Failed to delete thread");
-      }
-    });
+    await deleteThreadAction(threadId);
+    setMessages((prev) => prev.filter((m) => m.threadId !== threadId));
+    if (selectedThreadId === threadId) {
+      setSelectedThreadId(null);
+      setSelectedThread(null);
+    }
   };
 
   // Delete / Trash Single Message
   const handleDeleteMessage = async (messageId: string, threadId: string) => {
-    if (!window.confirm(locale === "ar" ? "هل أنت متأكد من حذف هذه الرسالة؟" : "Supprimer ce message ?")) return;
-    startTransition(async () => {
-      try {
-        await deleteMessageAction(messageId);
-        if (selectedThread) {
-          const remaining = selectedThread.messages.filter((m) => m.id !== messageId);
-          if (remaining.length === 0) {
-            setSelectedThreadId(null);
-            setSelectedThread(null);
-            setMessages((prev) => prev.filter((m) => m.threadId !== threadId));
-          } else {
-            setSelectedThread({ ...selectedThread, messages: remaining });
-          }
-        }
-        toast.success(locale === "ar" ? "تم نقل الرسالة إلى سلة المهملات" : "Message déplacé dans la corbeille");
-      } catch (err: any) {
-        toast.error(err.message || "Failed to delete message");
+    await deleteMessageAction(messageId);
+    if (selectedThread) {
+      const remaining = selectedThread.messages.filter((m) => m.id !== messageId);
+      if (remaining.length === 0) {
+        setSelectedThreadId(null);
+        setSelectedThread(null);
+        setMessages((prev) => prev.filter((m) => m.threadId !== threadId));
+      } else {
+        setSelectedThread({ ...selectedThread, messages: remaining });
       }
-    });
+    }
   };
 
   const handleUnsubscribe = (url: string) => {
@@ -586,17 +571,19 @@ export function MailClient({
                             day: "numeric"
                           })}
                         </span>
-                        {canManage && <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteThread(msg.threadId);
-                          }}
-                          title={locale === "ar" ? "حذف" : "Supprimer"}
-                          className="opacity-0 group-hover:opacity-100 hover:text-destructive p-0.5 rounded transition-opacity"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>}
+                        {canManage && <div onClick={(event) => event.stopPropagation()}>
+                          <ConfirmDialog
+                            onConfirm={() => handleDeleteThread(msg.threadId)}
+                            title={locale === "ar" ? "نقل المحادثة إلى المهملات؟" : "Déplacer la conversation vers la corbeille ?"}
+                            body={locale === "ar" ? "يمكنك استعادتها لاحقًا من سلة المهملات." : "Vous pourrez la restaurer depuis la corbeille."}
+                            successMessage={locale === "ar" ? "تم نقل المحادثة إلى سلة المهملات" : "Conversation déplacée dans la corbeille"}
+                            errorMessage={locale === "ar" ? "تعذر نقل المحادثة إلى سلة المهملات" : "Impossible de déplacer la conversation vers la corbeille"}
+                          >
+                            <button type="button" title={locale === "ar" ? "حذف" : "Supprimer"} className="opacity-0 group-hover:opacity-100 hover:text-destructive p-0.5 rounded transition-opacity">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </ConfirmDialog>
+                        </div>}
                       </div>
                     </div>
 
@@ -730,14 +717,17 @@ export function MailClient({
                 >
                   {selectedThread.isUnread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                 </button>
-                {canManage && <button
-                  type="button"
-                  onClick={() => handleDeleteThread(selectedThread.id)}
-                  title={locale === "ar" ? "حذف المحادثة بالكامل" : "Supprimer la conversation"}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors"
+                {canManage && <ConfirmDialog
+                  onConfirm={() => handleDeleteThread(selectedThread.id)}
+                  title={locale === "ar" ? "نقل المحادثة إلى المهملات؟" : "Déplacer la conversation vers la corbeille ?"}
+                  body={locale === "ar" ? "يمكنك استعادتها لاحقًا من سلة المهملات." : "Vous pourrez la restaurer depuis la corbeille."}
+                  successMessage={locale === "ar" ? "تم نقل المحادثة إلى سلة المهملات" : "Conversation déplacée dans la corbeille"}
+                  errorMessage={locale === "ar" ? "تعذر نقل المحادثة إلى سلة المهملات" : "Impossible de déplacer la conversation vers la corbeille"}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>}
+                  <button type="button" title={locale === "ar" ? "حذف المحادثة بالكامل" : "Supprimer la conversation"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </ConfirmDialog>}
                 <button
                   type="button"
                   onClick={() => {
@@ -779,14 +769,17 @@ export function MailClient({
                           <Unlink className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      {canManage && <button
-                        type="button"
-                        onClick={() => handleDeleteMessage(msg.id, msg.threadId)}
-                        title={locale === "ar" ? "حذف هذه الرسالة" : "Supprimer ce message"}
-                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      {canManage && <ConfirmDialog
+                        onConfirm={() => handleDeleteMessage(msg.id, msg.threadId)}
+                        title={locale === "ar" ? "نقل الرسالة إلى المهملات؟" : "Déplacer le message vers la corbeille ?"}
+                        body={locale === "ar" ? "سيتم نقل هذه الرسالة إلى سلة المهملات." : "Ce message sera déplacé dans la corbeille."}
+                        successMessage={locale === "ar" ? "تم نقل الرسالة إلى سلة المهملات" : "Message déplacé dans la corbeille"}
+                        errorMessage={locale === "ar" ? "تعذر نقل الرسالة إلى سلة المهملات" : "Impossible de déplacer le message vers la corbeille"}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>}
+                        <button type="button" title={locale === "ar" ? "حذف هذه الرسالة" : "Supprimer ce message"} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </ConfirmDialog>}
                     </div>
                   </div>
 

@@ -10,7 +10,6 @@ import { getAllOpponentsList } from "@/lib/opponents";
 import { MatchFormClient } from "@/components/matches/match-form-client";
 import { localizedClubName } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
-import { FafScheduledMatchImportButton } from "@/components/matches/faf-scheduled-match-import-button";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -49,10 +48,6 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
             : "Planification d'un nouveau match, gestion des logos et publication directe sur le portail public"}
         </p>
       </div>
-
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <FafScheduledMatchImportButton locale={locale} />
-      </section>
 
       {competitions.length === 0 ? (
         <section className="rounded-xl border border-border bg-card p-6 sm:p-8">

@@ -26,7 +26,7 @@ export interface WebsiteAnalyticsData {
   hasData: boolean;
 }
 
-/** Return aggregates exclusively from recorded public-site events. */
+/** Return aggregates exclusively from production public-site events. */
 export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
   const now = new Date();
   const from = new Date(now);
@@ -41,7 +41,7 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
         COUNT(*) FILTER (WHERE type = 'PAGE_VIEW') AS "pageViews",
         COUNT(*) FILTER (WHERE type = 'CLICK') AS clicks
       FROM "WebsiteAnalyticsEvent"
-      WHERE "createdAt" >= ${from}
+      WHERE "deploymentEnvironment" = 'production' AND "createdAt" >= ${from}
       GROUP BY date_trunc('day', "createdAt")
       ORDER BY date_trunc('day', "createdAt") ASC
     `,
@@ -49,10 +49,10 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
       SELECT COUNT(DISTINCT "visitorKey") FILTER (WHERE type = 'PAGE_VIEW') AS visitors,
         COUNT(*) FILTER (WHERE type = 'PAGE_VIEW') AS "pageViews",
         COUNT(*) FILTER (WHERE type = 'CLICK') AS clicks
-      FROM "WebsiteAnalyticsEvent" WHERE "createdAt" >= ${from}
+      FROM "WebsiteAnalyticsEvent" WHERE "deploymentEnvironment" = 'production' AND "createdAt" >= ${from}
     `,
     db.websiteAnalyticsEvent.findMany({
-      where: { type: "PAGE_VIEW", createdAt: { gte: activeSince } },
+      where: { deploymentEnvironment: "production", type: "PAGE_VIEW", createdAt: { gte: activeSince } },
       distinct: ["visitorKey"],
       select: { visitorKey: true }
     }),
@@ -60,17 +60,19 @@ export async function getWebsiteAnalytics(): Promise<WebsiteAnalyticsData> {
       SELECT path,
         COUNT(*) FILTER (WHERE type = 'PAGE_VIEW') AS views,
         COUNT(*) FILTER (WHERE type = 'CLICK') AS clicks
-      FROM "WebsiteAnalyticsEvent" WHERE "createdAt" >= ${from}
+      FROM "WebsiteAnalyticsEvent" WHERE "deploymentEnvironment" = 'production' AND "createdAt" >= ${from}
       GROUP BY path ORDER BY views DESC LIMIT 8
     `,
     db.$queryRaw<Array<{ device: string; visits: bigint }>>`
       SELECT device, COUNT(*) AS visits FROM "WebsiteAnalyticsEvent"
       WHERE type = 'PAGE_VIEW' AND "createdAt" >= ${from}
+        AND "deploymentEnvironment" = 'production'
       GROUP BY device ORDER BY visits DESC
     `,
     db.$queryRaw<Array<{ source: string; visits: bigint }>>`
       SELECT source, COUNT(*) AS visits FROM "WebsiteAnalyticsEvent"
       WHERE type = 'PAGE_VIEW' AND "createdAt" >= ${from}
+        AND "deploymentEnvironment" = 'production'
       GROUP BY source ORDER BY visits DESC LIMIT 8
     `
   ]);

@@ -105,13 +105,37 @@ function opponentName(club: unknown): string {
 }
 
 function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
-  const raw = [club.logoUrl, club.logo, club.blason, club.urlLogo, club.urlBlason, club.image]
-    .find((value) => typeof value === "string" && value.trim());
-  if (!raw) return null;
+  const values = [club.logoUrl, club.logo, club.blason, club.urlLogo, club.urlBlason, club.image, club.crest, club.embleme];
+  const raw = values.map((value) => typeof value === "string" ? value : value && typeof value === "object"
+    ? (value.url || value.href || value.path || value.src || value.urlLogo || value.logoUrl)
+    : null).find((value) => typeof value === "string" && value.trim());
+  if (typeof raw !== "string" || !raw.trim()) return null;
   try {
     const url = new URL(String(raw).trim(), portalUrl);
     return isSafeExternalUrl(url.href) ? url.href : null;
   } catch { return null; }
+}
+
+async function readBoundedImage(response: Response, maxBytes: number): Promise<Buffer> {
+  if (!response.body) throw new Error("Opponent logo response had no body.");
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        throw new Error("Opponent logo exceeds the image size limit.");
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, size);
 }
 
 function refereeName(match: RemoteMatch): string | null {
@@ -199,11 +223,29 @@ export async function importUpcomingFafMatches(options: {
 
   for (const remote of candidates) {
     const externalId = String(remote.id ?? "").trim();
-    const homeIsUs = clubCode(remote.clubLoc) === currentClubCode;
-    const opponent = opponentName(homeIsUs ? remote.clubVis : remote.clubLoc);
-    const kickoff = dateInAlgeria(remote.dateRencontre, remote.heureRencontre);
-    const competitionName = remoteCompetitionName(remote);
-    const category = inferCategory(remote, competitionName);
+    let fixture: RemoteMatch = remote;
+    if (/^\d+$/.test(externalId)) {
+      try {
+        const details = await getFafEmsClient().matchInfo(Number(externalId));
+        const detailedMatch = details.match as RemoteMatch;
+        fixture = {
+          ...remote,
+          ...detailedMatch,
+          clubLoc: { ...(remote.clubLoc ?? {}), ...(detailedMatch.clubLoc ?? {}) },
+          clubVis: { ...(remote.clubVis ?? {}), ...(detailedMatch.clubVis ?? {}) },
+          competition: detailedMatch.competition ?? remote.competition,
+          stade: detailedMatch.stade ?? remote.stade,
+          arbitre: detailedMatch.arbitre ?? remote.arbitre
+        };
+      } catch {
+        if (result.warnings.length < 5) result.warnings.push(`تعذر جلب التفاصيل الكاملة لمباراة FAF رقم ${externalId}؛ سأستخدم بيانات الجدول المتاحة.`);
+      }
+    }
+    const homeFixtureIsUs = clubCode(fixture.clubLoc) === currentClubCode;
+    const opponent = opponentName(homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc);
+    const kickoff = dateInAlgeria(fixture.dateRencontre ?? remote.dateRencontre, fixture.heureRencontre ?? remote.heureRencontre);
+    const competitionName = remoteCompetitionName(fixture) || remoteCompetitionName(remote);
+    const category = inferCategory(fixture, competitionName) ?? inferCategory(remote, competitionName);
     const exactCompetitionMatches = competitionName
       ? competitions.filter((competition) => namesMatch(competition.name, competitionName))
       : [];
@@ -238,15 +280,30 @@ export async function importUpcomingFafMatches(options: {
 
     const externalKey = `faf-ems-scheduled-match:${externalId}`;
     const clubName = "نادي أمل سيدي حسني";
-    const homeTeamName = homeIsUs ? clubName : opponent;
-    const awayTeamName = homeIsUs ? opponent : clubName;
-    const stadium = text(remote.stade);
-    const referee = refereeName(remote);
-    const opponentClub = homeIsUs ? remote.clubVis : remote.clubLoc;
+    const homeTeamName = homeFixtureIsUs ? clubName : opponent;
+    const awayTeamName = homeFixtureIsUs ? opponent : clubName;
+    const stadium = text(fixture.stade);
+    const referee = refereeName(fixture);
+    const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
     const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
     if (logoUrl) {
-      try { await saveOpponentClub(opponent, logoUrl, stadium || undefined); }
-      catch { if (result.warnings.length < 5) result.warnings.push(`تعذر حفظ شعار المنافس للمباراة ${externalId}، لكن سيستمر استيراد المباراة.`); }
+      try {
+        const { uploadPublicFile, generatePublicStorageKey, validateUploadedImage } = await import("@/lib/storage");
+        const response = await fetch(logoUrl, { signal: AbortSignal.timeout(8000), redirect: "error" });
+        if (!response.ok) throw new Error(`Opponent logo fetch returned HTTP ${response.status}`);
+        const bytes = await readBoundedImage(response, 8 * 1024 * 1024);
+        const image = await validateUploadedImage(bytes);
+        const storedLogoUrl = await uploadPublicFile({
+          key: generatePublicStorageKey("opponents/faf", image.ext),
+          buffer: bytes,
+          mimeType: image.mime
+        });
+        await saveOpponentClub(opponent, storedLogoUrl, stadium || undefined);
+      }
+      catch {
+        await saveOpponentClub(opponent, logoUrl, stadium || undefined).catch(() => undefined);
+        if (result.warnings.length < 5) result.warnings.push(`تعذر رفع شعار المنافس إلى التخزين؛ حفظت رابط FAF كخيار احتياطي للمباراة ${externalId}.`);
+      }
     }
     try {
       const outcome = await db.$transaction(async (tx) => {
@@ -292,7 +349,7 @@ export async function importUpcomingFafMatches(options: {
             teamId: team.id,
             homeTeamName,
             awayTeamName,
-            isHomeFixture: homeIsUs,
+            isHomeFixture: homeFixtureIsUs,
             matchDate: kickoff,
             stadium: stadium || null,
             refereeName: referee,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ChevronLeft, ChevronRight, GripVertical, HeartPulse, LoaderCircle, Search, Trash2, UserCheck, UserRoundX, Users } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Download, GripVertical, HeartPulse, LoaderCircle, Search, Trash2, UserCheck, UserRoundX, Users } from "lucide-react";
 import { toast } from "sonner";
 import { TacticalPitch } from "@/components/football/lineup-pitch-board";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,7 @@ export function MatchLineupWorkspace({
   canEdit,
   saveEntry,
   removeEntry,
+  importFafLineup,
   syncAutomaticSuspensions
 }: {
   matchId: string;
@@ -83,6 +84,7 @@ export function MatchLineupWorkspace({
   canEdit: boolean;
   saveEntry: (formData: FormData) => Promise<unknown>;
   removeEntry: (playerId: string) => Promise<void>;
+  importFafLineup: () => Promise<{ applied: boolean; starters: number; substitutes: number; reason?: string }>;
   syncAutomaticSuspensions: () => Promise<string[]>;
 }) {
   const isAr = locale === "ar";
@@ -92,6 +94,7 @@ export function MatchLineupWorkspace({
   const [rosterPage, setRosterPage] = useState(0);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [savingPlayerId, setSavingPlayerId] = useState<string | null>(null);
+  const [importingFafLineup, setImportingFafLineup] = useState(false);
   const [touchDrag, setTouchDrag] = useState<{ playerId: string; x: number; y: number } | null>(null);
   const touchDragRef = useRef<{ playerId: string; x: number; y: number } | null>(null);
   const suppressRosterClick = useRef(false);
@@ -150,6 +153,33 @@ export function MatchLineupWorkspace({
   const pagedAvailablePlayers = visibleAvailablePlayers.slice(rosterPage * rosterPageSize, (rosterPage + 1) * rosterPageSize);
   const benchPlayers = entries.filter((entry) => entry.selectionStatus === "SUBSTITUTE");
   const playerCount = (status: string) => entries.filter((entry) => entry.selectionStatus === status).length;
+
+  const handleFafLineupImport = async () => {
+    if (!canEdit || importingFafLineup) return;
+    setImportingFafLineup(true);
+    try {
+      const result = await importFafLineup();
+      if (!result.applied) {
+        toast.error(result.reason === "no_roster"
+          ? (isAr ? "لا يوجد لاعبون مسجلون في قائمة الفريق لمطابقتهم." : "Aucun joueur du club n’est disponible pour la correspondance.")
+          : (isAr ? "تعذر التعرف على التشكيلة بوضوح. تحقق من وثيقة بداية المباراة." : "La composition n’a pas pu être reconnue. Vérifiez la feuille de match."));
+        return;
+      }
+      toast.success(isAr
+        ? `تم جلب التشكيلة: ${result.starters} أساسي و${result.substitutes} احتياط.`
+        : `Composition importée : ${result.starters} titulaires et ${result.substitutes} remplaçants.`);
+      router.refresh();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "";
+      toast.error(reason === "lineupSheetMissing"
+        ? (isAr ? "لا توجد وثيقة بداية مباراة محفوظة. اجلب وثائق FAF EMS أولاً." : "Aucune feuille FAF enregistrée. Importez d’abord les documents FAF EMS.")
+        : reason === "lineupSheetUnreadable"
+          ? (isAr ? "تعذرت قراءة وثيقة بداية المباراة." : "Impossible de lire la feuille de match.")
+          : (isAr ? "تعذر جلب التشكيلة. حاول مرة أخرى." : "Impossible d’importer la composition. Réessayez."));
+    } finally {
+      setImportingFafLineup(false);
+    }
+  };
 
   const persistStatus = async (playerId: string, selectionStatus: LineupStatus) => {
     if (!canEdit || savingPlayerId) return;
@@ -308,6 +338,10 @@ export function MatchLineupWorkspace({
           <p className="mt-1 text-[11px] text-muted-foreground">{isAr ? "وزّع اللاعبين بين التشكيلة الأساسية والدكة والحالات." : "Répartissez les joueurs entre les titulaires, le banc et les statuts."}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+          {canEdit && <button type="button" onClick={handleFafLineupImport} disabled={importingFafLineup} className="inline-flex h-9 items-center gap-2 rounded-xl border border-club-primary/35 bg-club-primary/10 px-3 text-xs font-semibold text-club-primary transition-colors hover:bg-club-primary/15 disabled:cursor-wait disabled:opacity-60">
+            {importingFafLineup ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+            {isAr ? "جلب التشكيلة" : "Importer la composition"}
+          </button>}
           <Badge tone="neutral">{isAr ? `أساسي ${startingPlayers.length}/11` : `Titulaires ${startingPlayers.length}/11`}</Badge>
           <Badge tone="neutral">{isAr ? `احتياط ${benchPlayers.length}` : `Remplaçants ${benchPlayers.length}`}</Badge>
           <Badge tone="neutral">{isAr ? `متاح ${availablePlayers.length}` : `Disponibles ${availablePlayers.length}`}</Badge>
