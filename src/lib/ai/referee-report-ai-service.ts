@@ -8,6 +8,7 @@ import { AIError } from "./types";
 export interface ParsedEventItem {
   playerId: string | null;
   playerName: string;
+  playerNameFr?: string;
   shirtNumber?: number | null;
   type: "GOAL" | "ASSIST" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION_IN" | "SUBSTITUTION_OUT";
   minute: number;
@@ -47,9 +48,30 @@ type SquadPlayer = {
   id: string;
   firstName: string;
   lastName: string;
+  firstNameFr?: string | null;
+  lastNameFr?: string | null;
   shirtNumber: number | null;
   teamId?: string | null;
 };
+
+function parseEventMinute(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isInteger(value) && value >= 1 && value <= 130 ? value : null;
+  }
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu);
+  if (!match) return null;
+  const minute = Number(match[1]) + Number(match[2] || 0);
+  return Number.isInteger(minute) && minute >= 1 && minute <= 130 ? minute : null;
+}
+
+function eventMinuteFromReportLine(line: string): number | null {
+  const match = line.match(/(?:دقيقة|د|min(?:ute)?|mn)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
+    || line.match(/(?:^|\s)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′])?(?:\s|$)/u)
+    || line.match(/(?:^|\s)(\d{1,3})\s*(?:['’′]|mn|mins?)(?:\s|$)/iu)
+    || line.match(/(?:^|\s)(\d{1,3})(?:er|e|ème)\s*(?:minute|min)/iu);
+  return match ? parseEventMinute(`${match[1]}${match[2] ? `+${match[2]}` : ""}`) : null;
+}
 
 /**
  * Attempts to match a name or shirt number against a squad of players.
@@ -68,21 +90,21 @@ function findBestPlayerMatch(
   if (!normQuery) return null;
   const queryTokens = new Set(normQuery.split(" "));
   const ranked = squad.map((player) => {
-    const first = normalizeName(player.firstName);
-    const last = normalizeName(player.lastName);
-    const firstTokens = first.split(" ").filter(Boolean);
-    const lastTokens = last.split(" ").filter(Boolean);
-    const full = [...firstTokens, ...lastTokens];
-    const fullReverse = [...lastTokens, ...firstTokens];
+    const nameVariants = [
+      [player.firstName, player.lastName], [player.lastName, player.firstName],
+      [player.firstNameFr, player.lastNameFr], [player.lastNameFr, player.firstNameFr]
+    ].map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean));
     const hasAll = (tokens: string[]) => tokens.length > 0 && tokens.every((token) => queryTokens.has(token));
 
     let score = 0;
-    if (normQuery === [...firstTokens, ...lastTokens].join(" ") || normQuery === [...lastTokens, ...firstTokens].join(" ")) score = 100;
-    else if (hasAll(full) || hasAll(fullReverse)) score = 90;
-    else {
-      const distinctiveTokens = [...firstTokens, ...lastTokens].filter((token) => token.length >= 4);
-      const matchedTokens = distinctiveTokens.filter((token) => queryTokens.has(token));
-      if (matchedTokens.length) score = 70 + Math.min(20, matchedTokens.length * 5);
+    for (const tokens of nameVariants) {
+      if (normQuery === tokens.join(" ")) score = Math.max(score, 100);
+      else if (hasAll(tokens)) score = Math.max(score, 90);
+      else {
+        const distinctiveTokens = tokens.filter((token) => token.length >= 4);
+        const matchedTokens = distinctiveTokens.filter((token) => queryTokens.has(token));
+        if (matchedTokens.length) score = Math.max(score, 70 + Math.min(20, matchedTokens.length * 5));
+      }
     }
     return { player, score };
   }).filter((candidate) => candidate.score > 0).sort((a, b) => b.score - a.score);
@@ -108,8 +130,10 @@ function parseReportDeterministically(
     if (!line) continue;
 
     // Minute extractor e.g. "د 34", "د34", "34'", "min 34", "34mn", "minute 34"
-    const minuteMatch = line.match(/(?:د|دقيقة|min|mn|minute)?\s*(\d{1,3})\s*(?:'|د|دقيقة|min|mn)?/i);
-    const minute = minuteMatch ? Math.min(120, Math.max(1, parseInt(minuteMatch[1]!, 10))) : 45;
+    const minute = eventMinuteFromReportLine(line);
+    // Never invent the conventional 45th minute when the report has no clear
+    // event time; an untimed event needs manual review instead.
+    if (!minute) continue;
 
     // Shirt number extractor e.g. "رقم 9", "n° 9", "#9"
     const numberMatch = line.match(/(?:رقم|n°|#)\s*(\d{1,2})/i);
@@ -211,16 +235,21 @@ export async function parseAndApplyRefereeReportWithAI(params: {
   const match = await db.match.findUniqueOrThrow({
     where: { id: matchId },
     include: {
-      team: { include: { players: true } },
+      team: true,
       documents: true,
       events: true
     }
   });
 
   // Pull all available club players or team players for recognition
+  const eligibleTeamIds = match.teamId ? [match.teamId] : [];
+  if (match.team?.category === "SENIOR") {
+    const u20 = await db.team.findUnique({ where: { category: "U20" }, select: { id: true } });
+    if (u20?.id) eligibleTeamIds.push(u20.id);
+  }
   const squad = await db.player.findMany({
-    where: { teamId: match.teamId, status: { not: "ARCHIVED" } },
-    select: { id: true, firstName: true, lastName: true, shirtNumber: true, teamId: true }
+    where: { teamId: { in: eligibleTeamIds }, status: { not: "ARCHIVED" } },
+    select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, shirtNumber: true, teamId: true }
   });
 
   // Determine report text to analyze. Explicit human-entered text wins; for
@@ -271,7 +300,7 @@ export async function parseAndApplyRefereeReportWithAI(params: {
 
   // Squad list formatting for AI prompt
   const squadRoster = squad
-    .map((p) => `- ID: ${p.id} | الاسم: ${p.firstName} ${p.lastName} | الرقم: ${p.shirtNumber ?? "غير محدد"}`)
+    .map((p) => `- ID: ${p.id} | الاسم: ${p.firstName} ${p.lastName}${p.firstNameFr || p.lastNameFr ? ` | بالفرنسية: ${p.firstNameFr || ""} ${p.lastNameFr || ""}` : ""} | الرقم: ${p.shirtNumber ?? "غير محدد"}`)
     .join("\n");
 
   const systemPrompt = `أنت المساعد الرياضي الذكي لنادي أمل سيدي حسني (ESH) المخصص لتحليل تقارير حكام مباريات كرة القدم الرسمية.
@@ -318,6 +347,8 @@ ${squadRoster}
         const parsed = JSON.parse(jsonMatch[0]);
         if (Array.isArray(parsed.events)) {
           parsedEvents = parsed.events.map((e: any) => {
+            const minute = parseEventMinute(e.minute);
+            if (!minute) return null;
             const matchedByName = findBestPlayerMatch(e.playerName || "", e.shirtNumber, squad);
             const matchedById = e.playerId ? squad.find((p) => p.id === e.playerId) : undefined;
             const matched = matchedByName || matchedById;
@@ -325,13 +356,14 @@ ${squadRoster}
             return {
               playerId: matched?.id || null,
               playerName: e.playerName || (matched ? `${matched.firstName} ${matched.lastName}` : "لاعب غير محدد"),
+              playerNameFr: matched ? [matched.firstNameFr, matched.lastNameFr].filter(Boolean).join(" ") || undefined : undefined,
               shirtNumber: e.shirtNumber ?? matched?.shirtNumber ?? null,
               type: ["GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"].includes(e.type) ? e.type : "GOAL",
-              minute: Number(e.minute) || 45,
+              minute,
               notes: e.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي",
               matchedPlayerName: matched ? `${matched.firstName} ${matched.lastName}` : undefined
             };
-          });
+          }).filter((event: ParsedEventItem | null): event is ParsedEventItem => event !== null);
 
           if (parsed.homeScore !== undefined && parsed.awayScore !== undefined) {
             detectedScore = { home: Number(parsed.homeScore), away: Number(parsed.awayScore) };
@@ -381,6 +413,8 @@ ${squadRoster}
         type: item.type,
         source: "REFEREE_REPORT",
         minute: item.minute,
+        playerName: item.playerName,
+        playerNameFr: item.playerNameFr || null,
         notes: item.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي"
       }
     });

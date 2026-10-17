@@ -35,7 +35,10 @@ function normalizedNameTokens(value: unknown): string {
 
 function samePersonName(left: unknown, right: unknown): boolean {
   const a = normalizedNameTokens(left);
-  return a.length > 0 && a === normalizedNameTokens(right);
+  const leftKey = normalize(left);
+  const rightKey = normalize(right);
+  const genericNames = new Set(["لاعب", "لاعبغيرمحدد", "غيرمحدد"]);
+  return a.length > 0 && !genericNames.has(leftKey) && !genericNames.has(rightKey) && a === normalizedNameTokens(right);
 }
 
 function remoteArray(match: any, keys: string[]): any[] {
@@ -117,6 +120,11 @@ function opponentName(club: any): string {
   return String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "");
 }
 
+function remoteClubNames(club: any): string[] {
+  return [opponentName(club), club?.nomFr, club?.nameFr, club?.nom, club?.name, club?.denomination]
+    .filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+}
+
 function namesMatch(local: string, remote: string): boolean {
   const variants = (value: string) => {
     const candidates = new Set([value, value.replace(/\s*\([^)]*\)/gu, "")]);
@@ -145,24 +153,17 @@ function namesMatch(local: string, remote: string): boolean {
   return false;
 }
 
-function eventSummary(match: any): string[] {
-  const lines: string[] = [];
-  for (const card of remoteCards(match)) {
-    if (card.staff || card.staffMember || card.coach || card.encadreur) continue;
-    const name = playerFromRemoteEvent(card).name;
-    lines.push(`${card.cardColor || "بطاقة"} — ${name} (${card.cardTime || "؟"})`);
-  }
-  for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers"])) {
-    const name = playerFromRemoteEvent(goal).name;
-    lines.push(`هدف — ${name} (${goal.goalTime || goal.minute || "؟"})`);
-  }
-  for (const sub of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"])) {
-    const playerName = (entry: any) => {
-      return playerFromRemoteEvent(entry).name;
-    };
-    lines.push(`تبديل — ${playerName(sub.outPlayer)} ← ${playerName(sub.inPlayer)} (${sub.substitutionTime || "؟"})`);
-  }
-  return lines;
+function eventSummary(events: ImportedMatchEvent[], match: { homeTeamName: string; awayTeamName: string }): string[] {
+  const labels: Record<ImportedMatchEvent["type"], string> = {
+    GOAL: "هدف", PENALTY_GOAL: "هدف من ركلة جزاء", OWN_GOAL: "هدف عكسي",
+    YELLOW_CARD: "بطاقة صفراء", RED_CARD: "بطاقة حمراء",
+    SUBSTITUTION_IN: "دخول بالتبديل", SUBSTITUTION_OUT: "خروج بالتبديل"
+  };
+  return events.filter((event) => event.side !== null).map((event) => {
+    const teamName = event.side === "HOME" ? match.homeTeamName : match.awayTeamName;
+    const playerName = event.playerName || event.playerNameFr || "لاعب غير محدد";
+    return `${labels[event.type]} — ${playerName} — ${teamName} (${event.minute}')`;
+  });
 }
 
 type ImportedMatchEvent = {
@@ -172,32 +173,83 @@ type ImportedMatchEvent = {
   minute: number;
   playerId: string | null;
   playerName: string;
+  playerNameFr: string;
   playerLicence: string;
   remoteLocSide: boolean | null;
   notes: string | null;
 };
 
-function playerFromRemoteEvent(entry: any): { name: string; licence: string } {
+function playerFromRemoteEvent(entry: any): { name: string; nameFr: string; licence: string } {
   const person = entry?.player?.player?.personne || entry?.player?.personne
-    || entry?.personne || entry?.person || entry?.player?.person;
-  const name = [person?.prenomAr, person?.nomAr, person?.firstName, person?.lastName]
-    .filter(Boolean).join(" ").trim();
+    || entry?.personne || entry?.person || entry?.player?.person || entry?.joueur?.personne || entry?.joueur?.person
+    || entry?.joueur || entry?.athlete || entry?.player?.player || entry?.player;
+  const arName = [person?.prenomAr || person?.firstNameAr || person?.givenNameAr, person?.nomAr || person?.lastNameAr || person?.familyNameAr]
+    .filter((part) => typeof part === "string" && part.trim()).join(" ").trim();
+  const frName = [person?.prenomFr || person?.firstNameFr || person?.firstName || person?.prenomArbitre || person?.prenom,
+    person?.nomFr || person?.lastNameFr || person?.lastName || person?.nomArbitre || person?.nom]
+    .filter((part) => typeof part === "string" && part.trim()).join(" ").trim();
+  const directName = [entry?.playerNameAr || entry?.nomJoueurAr || entry?.nameAr, entry?.playerName || entry?.nomJoueur || entry?.name]
+    .find((value) => typeof value === "string" && value.trim());
+  const directNameIsArabic = typeof directName === "string" && /[\u0600-\u06FF]/u.test(directName);
+  const name = arName || (directNameIsArabic ? String(directName).trim() : "") || frName || (typeof directName === "string" ? directName.trim() : "");
+  const nameFr = frName || (typeof directName === "string" && !directNameIsArabic ? directName.trim() : "");
   const licence = entry?.licenceNumber || entry?.numeroLicence || entry?.numLicence
     || entry?.player?.licenceNumber || entry?.player?.numeroLicence
     || entry?.player?.player?.licenceNumber || entry?.player?.player?.numeroLicence
+    || entry?.joueur?.licenceNumber || entry?.joueur?.numeroLicence || entry?.joueur?.numLicence
     || person?.licenceNumber || person?.numeroLicence || "";
-  return { name: name || "لاعب", licence: String(licence).trim() };
+  return { name, nameFr, licence: String(licence).trim() };
+}
+
+function sameImportedPerson(row: { playerName: string | null; playerNameFr?: string | null }, event: ImportedMatchEvent): boolean {
+  return samePersonName(row.playerName, event.playerName)
+    || samePersonName(row.playerName, event.playerNameFr)
+    || samePersonName(row.playerNameFr, event.playerName)
+    || samePersonName(row.playerNameFr, event.playerNameFr);
 }
 
 function eventMinute(value: unknown): number {
-  const match = String(value ?? "").match(/\d{1,3}/);
-  return match ? Math.min(130, Number(match[0])) : 0;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return eventMinute(record.minute ?? record.min ?? record.value ?? record.time ?? record.temps);
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? Math.min(130, Math.max(0, Math.trunc(value))) : 0;
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu)
+    || text.match(/(?:^|\D)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?(?:$|\D)/iu);
+  if (!match) return 0;
+  const minute = Number(match[1]) + Number(match[2] || 0);
+  return Number.isFinite(minute) ? Math.min(130, Math.max(0, minute)) : 0;
+}
+
+function eventMinuteFrom(entry: any): number {
+  const values = [entry?.minute, entry?.minuteMatch, entry?.minuteJeu, entry?.minuteEvenement, entry?.minuteBut,
+    entry?.minuteCarton, entry?.minuteRemplacement, entry?.tempsBut, entry?.tempsCarton, entry?.tempsRemplacement,
+    entry?.tempsJeu, entry?.temps, entry?.goalTime, entry?.cardTime, entry?.substitutionTime, entry?.time];
+  const added = eventMinute(entry?.addedTime ?? entry?.additionalTime ?? entry?.tempsAdditionnel);
+  for (const value of values) {
+    const minute = eventMinute(value);
+    if (minute > 0) return added > 0 && !String(value).includes("+") ? Math.min(130, minute + added) : minute;
+  }
+  return 0;
 }
 
 function remoteLocSideOf(entry: any, match: any, historyMatch: any, clubCode: string, remoteLocIsOurClub: boolean): boolean | null {
-  const eventTeamCode = entry?.club?.fifaId || entry?.team?.fifaId || entry?.player?.club?.fifaId
-    || entry?.player?.team?.fifaId || entry?.player?.player?.club?.fifaId
-    || entry?.player?.player?.team?.fifaId;
+  const eventClubs = [entry?.club, entry?.team, entry?.equipe, entry?.clubEquipe, entry?.player?.club, entry?.player?.team,
+    entry?.joueur?.club, entry?.joueur?.team, entry?.player?.player?.club, entry?.player?.player?.team]
+    .filter((value) => value && typeof value === "object");
+  const eventTeamCode = entry?.clubCode || entry?.fifaId || entry?.teamCode || entry?.codeFifa || entry?.club?.fifaId
+    || entry?.team?.fifaId || entry?.equipe?.fifaId || entry?.clubEquipe?.fifaId || entry?.player?.club?.fifaId
+    || entry?.player?.team?.fifaId || entry?.joueur?.club?.fifaId || entry?.joueur?.team?.fifaId
+    || entry?.player?.player?.club?.fifaId || entry?.player?.player?.team?.fifaId
+    || eventClubs.map((club) => club.codeFifa || club.code || club.fifaCode).find(Boolean)
+    || [entry?.club, entry?.team, entry?.equipe, entry?.joueur?.club].find((value) => typeof value === "string");
+  const eventClubId = entry?.clubId || entry?.teamId || entry?.equipeId || entry?.joueur?.clubId
+    || eventClubs.map((club) => club.id || club.clubId).find(Boolean);
+  const eventClubName = eventClubs.map((club) => club.nomAr || club.nomClub || club.denomination || club.nameAr || club.name || club.nom)
+    .find((value) => typeof value === "string" && value.trim());
+  const eventClubNameOrCode = eventClubName || [entry?.club, entry?.team, entry?.equipe, entry?.joueur?.club]
+    .find((value) => typeof value === "string" && value.trim());
   const eventClubCode = String(eventTeamCode || "").toUpperCase();
   if (eventClubCode) {
     if (eventClubCode === String(clubCode || "").toUpperCase()) return remoteLocIsOurClub;
@@ -208,25 +260,46 @@ function remoteLocSideOf(entry: any, match: any, historyMatch: any, clubCode: st
     if (localHomeCodes.includes(eventClubCode)) return true;
     if (visitingCodes.includes(eventClubCode)) return false;
   }
+  const localClubIds = [historyMatch?.clubLoc?.id, match?.clubLoc?.id].filter(Boolean).map(String);
+  const visitingClubIds = [historyMatch?.clubVis?.id, match?.clubVis?.id].filter(Boolean).map(String);
+  if (eventClubId && localClubIds.includes(String(eventClubId))) return true;
+  if (eventClubId && visitingClubIds.includes(String(eventClubId))) return false;
+  if (typeof eventClubNameOrCode === "string") {
+    const localNames = [historyMatch?.clubLoc, match?.clubLoc].flatMap(remoteClubNames);
+    const visitingNames = [historyMatch?.clubVis, match?.clubVis].flatMap(remoteClubNames);
+    const isLoc = localNames.some((name) => namesMatch(name, eventClubNameOrCode));
+    const isVis = visitingNames.some((name) => namesMatch(name, eventClubNameOrCode));
+    if (isLoc !== isVis) return isLoc;
+  }
   const side = String(entry?.teamSide || entry?.side || entry?.teamType || "").toLowerCase();
   if (/loc|home|domicile|محلي|مضيف/.test(side)) return true;
   if (/vis|away|extérieur|ضيف/.test(side)) return false;
   if (typeof entry?.isHome === "boolean") return entry.isHome;
   if (typeof entry?.isLocal === "boolean") return entry.isLocal;
+  if (typeof entry?.isAway === "boolean") return !entry.isAway;
+  if (typeof entry?.isVisiteur === "boolean") return !entry.isVisiteur;
   return null;
 }
 
-function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: boolean, localClubIsHome: boolean, historyMatch: any, clubCode: string): ImportedMatchEvent[] {
+function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: boolean, localClubIsHome: boolean, historyMatch: any, clubCode: string, warnings: string[] = []): ImportedMatchEvent[] {
   const output: ImportedMatchEvent[] = [];
   const keys = new Map<string, number>();
+  let missingMinuteEvents = 0;
+  const localSide: "HOME" | "AWAY" = localClubIsHome ? "HOME" : "AWAY";
+  const opponentSide: "HOME" | "AWAY" = localClubIsHome ? "AWAY" : "HOME";
   const sideFor = (isRemoteLocEvent: boolean): "HOME" | "AWAY" =>
-    isRemoteLocEvent === (remoteLocIsOurClub === localClubIsHome) ? "HOME" : "AWAY";
+    isRemoteLocEvent === remoteLocIsOurClub ? localSide : opponentSide;
   const add = (raw: any, type: ImportedMatchEvent["type"], remoteLocSide: boolean | null, label: string, nameOverride?: string, minuteOverride?: number) => {
     // Match staff cards are intentionally excluded from player match events.
     if (raw?.staff || raw?.staffMember || raw?.coach || raw?.encadreur) return;
     const player = playerFromRemoteEvent(raw);
-    const playerName = nameOverride || player.name;
-    const minute = minuteOverride ?? eventMinute(raw?.minute ?? raw?.goalTime ?? raw?.cardTime ?? raw?.substitutionTime ?? raw?.time);
+    if (!nameOverride && !player.name && !player.licence) return;
+    const playerName = nameOverride || player.name || `لاعب (${player.licence})`;
+    const minute = minuteOverride ?? eventMinuteFrom(raw);
+    if (minute < 1) {
+      missingMinuteEvents++;
+      return;
+    }
     let side = remoteLocSide == null ? null : sideFor(remoteLocSide);
     if (side && type === "OWN_GOAL") side = side === "HOME" ? "AWAY" : "HOME";
     const identity = `${type}|${side || "unknown"}|${minute}|${player.licence || normalize(playerName)}`;
@@ -234,7 +307,7 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     keys.set(identity, occurrence + 1);
     output.push({
       fafExternalKey: `faf:${externalId}:${identity}:${occurrence}`,
-      type, side, minute, playerId: null, playerName, playerLicence: player.licence, remoteLocSide,
+      type, side, minute, playerId: null, playerName, playerNameFr: player.nameFr, playerLicence: player.licence, remoteLocSide,
       // Card reasons are intentionally omitted from the public match timeline.
       notes: label
     });
@@ -256,15 +329,15 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     const isLoc = remoteLocSideOf(substitution, match, historyMatch, clubCode, remoteLocIsOurClub);
     const outPlayer = substitution.outPlayer || substitution.playerOut || substitution.playerSortant;
     const inPlayer = substitution.inPlayer || substitution.playerIn || substitution.playerEntrant;
-    const minute = eventMinute(substitution.minute ?? substitution.substitutionTime ?? substitution.time);
+    const minute = eventMinuteFrom(substitution);
     if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "خروج بالتبديل", undefined, minute);
     if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "دخول بالتبديل", undefined, minute);
   }
+  if (missingMinuteEvents) warnings.push(`تُرك ${missingMinuteEvents} أحداث دون استيراد لأن وثيقة FAF EMS لا تحتوي على دقيقة موثوقة لها.`);
   return output;
 }
 
-async function reconcilePlayerEvents(matchId: string, teamId: string | null, official: any, historyMatch: any, externalId: number, localClubIsHome: boolean, remoteLocIsOurClub: boolean, clubCode: string): Promise<number> {
-  const imported = remoteMatchEvents(official, externalId, remoteLocIsOurClub, localClubIsHome, historyMatch, clubCode);
+async function reconcilePlayerEvents(matchId: string, teamId: string | null, imported: ImportedMatchEvent[], localClubIsHome: boolean, remoteLocIsOurClub: boolean, warnings: string[]): Promise<number> {
   if (!imported.length) return 0;
 
   let eligibleTeamIds = teamId ? [teamId] : [];
@@ -290,8 +363,8 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
     if (licenceCandidates.length === 1) return { player: licenceCandidates[0], ambiguous: false };
     if (licenceCandidates.length > 1) return { player: undefined, ambiguous: true };
 
-    const eventName = normalizedNameTokens(event.playerName);
-    if (!eventName) return { player: undefined, ambiguous: false };
+    const eventNames = [event.playerName, event.playerNameFr].map(normalizedNameTokens).filter(Boolean);
+    if (!eventNames.length) return { player: undefined, ambiguous: false };
     const candidates = players.filter((player) => {
       const names = [
         `${player.firstName} ${player.lastName}`,
@@ -299,78 +372,104 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, off
         player.firstNameFr && player.lastNameFr ? `${player.firstNameFr} ${player.lastNameFr}` : "",
         player.firstNameFr && player.lastNameFr ? `${player.lastNameFr} ${player.firstNameFr}` : ""
       ];
-      return names.some((name) => normalizedNameTokens(name) === eventName);
+      return names.some((name) => eventNames.includes(normalizedNameTokens(name)));
     });
     return { player: candidates.length === 1 ? candidates[0] : undefined, ambiguous: candidates.length > 1 };
   };
+  let unresolvedTeamEvents = 0;
+  let unlinkedLocalPlayerEvents = 0;
   for (const event of imported) {
     const resolved = resolvePlayer(event);
     const player = resolved.player;
     const localSide = localClubIsHome ? "HOME" : "AWAY";
     if (event.side == null) {
       if (player) event.side = event.type === "OWN_GOAL" ? (localSide === "HOME" ? "AWAY" : "HOME") : localSide;
-      else if (resolved.ambiguous) continue;
-      else event.side = localSide === "HOME" ? "AWAY" : "HOME";
+      else {
+        unresolvedTeamEvents++;
+        continue;
+      }
     }
     const actorIsLocal = event.remoteLocSide == null ? Boolean(player) : event.remoteLocSide === remoteLocIsOurClub;
     event.playerId = actorIsLocal ? player?.id ?? null : null;
+    if (actorIsLocal && !player) unlinkedLocalPlayerEvents++;
+  }
+  if (unresolvedTeamEvents) {
+    warnings.push(`لم أُسند ${unresolvedTeamEvents} أحداث إلى أي فريق لأن بيانات FAF EMS لم تحدد الجهة ولم أجد اللاعب في سجل المنصة. أضف لاعبي الفئة ثم أعد جلب الوثائق.`);
+  }
+  if (unlinkedLocalPlayerEvents) {
+    warnings.push(`حُفظ ${unlinkedLocalPlayerEvents} أحداث باسم اللاعب وجهة فريقه، لكن لم تُربط بملفه لعدم وجوده في سجل لاعبي الفئة. أضف اللاعبين ثم أعد جلب الوثائق لإكمال الإحصائيات.`);
   }
 
   const existing = await db.matchEvent.findMany({
     where: { matchId },
-    select: { id: true, type: true, side: true, minute: true, playerId: true, playerName: true, source: true }
+    select: { id: true, type: true, side: true, minute: true, playerId: true, playerName: true, playerNameFr: true, source: true }
   });
   // Earlier imports could save a card under its display name without linking
   // it to the local player. Repair those rows during reconciliation before
   // duplicate detection prevents them from being imported again.
   let repairedCount = 0;
+  const repairedIds = new Set<string>();
   for (const event of imported) {
     if (event.side == null) continue;
     const importedRows = existing.filter((row) => row.source === "REFEREE_REPORT" && row.type === event.type
-      && row.minute === event.minute && samePersonName(row.playerName, event.playerName));
-    if (importedRows.length === 1) {
-      const importedRow = importedRows[0]!;
-      if (importedRow.side !== event.side || importedRow.playerId !== event.playerId || importedRow.playerName !== event.playerName) {
+      && !repairedIds.has(row.id) && sameImportedPerson(row, event));
+    const exactMinuteRows = importedRows.filter((row) => row.minute === event.minute);
+    const nearestRows = importedRows.filter((row) => Math.abs(row.minute - event.minute) <= 6)
+      .sort((left, right) => Math.abs(left.minute - event.minute) - Math.abs(right.minute - event.minute));
+    const importedRow = exactMinuteRows.length === 1 ? exactMinuteRows[0]
+      : importedRows.length === 1 ? importedRows[0]
+      : nearestRows.length === 1 || (nearestRows.length > 1 && Math.abs(nearestRows[0]!.minute - event.minute) < Math.abs(nearestRows[1]!.minute - event.minute))
+        ? nearestRows[0]
+        : undefined;
+    if (importedRow) {
+      if (importedRow.side !== event.side || importedRow.playerId !== event.playerId || importedRow.playerName !== event.playerName
+        || importedRow.playerNameFr !== event.playerNameFr || importedRow.minute !== event.minute) {
         await db.matchEvent.update({
           where: { id: importedRow.id },
-          data: { side: event.side, playerId: event.playerId, playerName: event.playerName }
+          data: { side: event.side, playerId: event.playerId, playerName: event.playerName, playerNameFr: event.playerNameFr || null, minute: event.minute }
         });
         importedRow.side = event.side;
         importedRow.playerId = event.playerId;
         importedRow.playerName = event.playerName;
+        importedRow.playerNameFr = event.playerNameFr || null;
+        importedRow.minute = event.minute;
         repairedCount++;
       }
+      repairedIds.add(importedRow.id);
       continue;
     }
     if (!event.playerId) continue;
     const unlinked = existing.filter((row) => !row.playerId && row.type === event.type && row.minute === event.minute
       && (row.side === event.side || row.source === "REFEREE_REPORT")
-      && samePersonName(row.playerName, event.playerName));
+      && sameImportedPerson(row, event));
     if (unlinked.length === 1) {
       const linked = await db.matchEvent.updateMany({
         where: { id: unlinked[0]!.id, playerId: null },
-        data: { playerId: event.playerId, playerName: event.playerName, side: event.side, source: "REFEREE_REPORT" }
+        data: { playerId: event.playerId, playerName: event.playerName, playerNameFr: event.playerNameFr || null, side: event.side, source: "REFEREE_REPORT" }
       });
       if (linked.count === 1) {
         unlinked[0]!.playerId = event.playerId;
         unlinked[0]!.side = event.side;
+        unlinked[0]!.playerName = event.playerName;
+        unlinked[0]!.playerNameFr = event.playerNameFr || null;
+        repairedIds.add(unlinked[0]!.id);
         repairedCount++;
       }
     }
   }
   const pendingFresh = imported.filter((event) => event.side !== null && !existing.some((row) => row.type === event.type && row.side === event.side && row.minute === event.minute
-    && ((event.playerId && row.playerId === event.playerId) || samePersonName(row.playerName, event.playerName))));
+    && ((event.playerId && row.playerId === event.playerId) || sameImportedPerson(row, event))));
   if (!pendingFresh.length) return repairedCount;
-  const localSide = localClubIsHome ? "HOME" : "AWAY";
   const created = await db.matchEvent.createMany({
     data: pendingFresh.map((event) => ({
       matchId,
       fafExternalKey: event.fafExternalKey,
       type: event.type,
-      side: event.side ?? localSide,
+      side: event.side!,
       minute: event.minute,
       playerId: event.playerId,
       playerName: event.playerName,
+      playerNameFr: event.playerNameFr || null,
       notes: event.notes,
       source: "REFEREE_REPORT" as const
     })),
@@ -550,10 +649,6 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
 
   const refereeReportDocumentId = documentIdsByKind.get("REFEREE_REPORT");
 
-  const events = eventSummary(official);
-  // Do not publish free-form referee prose; it can contain technical-staff
-  // card details. The public summary is built from the curated player events.
-  const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const refereeCrew = extractFafRefereeCrew(official, remote);
   const refereeNameAr = refereeCrew.ar.join("، ") || null;
   const refereeNameFr = refereeCrew.fr.join(", ") || null;
@@ -565,17 +660,19 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // configured FIFA id and the local home/away orientation. Treat that match
   // orientation as the source of truth; detail responses can omit/change IDs.
   const remoteLocIsOurClub = local.isHomeFixture;
-  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture, remote, config.clubCode);
+  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture, remote, config.clubCode, warnings);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
-    official,
-    remote,
-    externalId,
+    importedEvents,
     local.isHomeFixture,
     remoteLocIsOurClub,
-    config.clubCode
+    warnings
   );
+  // Publish only events whose side was identified from EMS or an unambiguous
+  // local player match. Never turn an unresolved event into an opponent event.
+  const events = eventSummary(importedEvents, local);
+  const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const officialStatus = String(official.status || official.matchStatus || official.etatRencontre || "").toLocaleLowerCase("ar");
   const explicitlyFinished = /finished|termin|jouee|joué|clotur|final|انتهت|منتهية|نهائي/.test(officialStatus)
     || finalReportResult.status === "fulfilled";
