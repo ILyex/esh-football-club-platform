@@ -609,21 +609,44 @@ export async function addFieldMatchEventAction(matchId: string, formData: FormDa
 export async function updateMatchEventAction(matchId: string, eventId: string, formData: FormData) {
   const user = await requirePermission("matches.report");
   const scopeContext = await getMutationScopeContext();
-  const event = await db.matchEvent.findUniqueOrThrow({ where: { id: eventId }, include: { match: true, shot: true } });
+  const event = await db.matchEvent.findUniqueOrThrow({ where: { id: eventId }, include: { match: { include: { team: { select: { category: true } } } }, shot: true } });
   if (event.matchId !== matchId) throw new Error("eventMatchMismatch");
   assertTeamScope(scopeContext, event.match.teamId, "Match");
   if (event.match.status !== "LIVE" && event.match.status !== "FINISHED") throw new Error("matchEventNotEditable");
 
+  const raw = Object.fromEntries(formData.entries());
   const parsed = matchEventSchema.parse({
-    entityType: "PLAYER",
-    playerName: formData.get("playerName"),
-    type: formData.get("type"),
-    side: formData.get("side"),
-    minute: formData.get("minute"),
-    shotOutcome: event.shot && ["SAVED", "OFF_TARGET", "BLOCKED", "WOODWORK"].includes(event.shot.outcome) ? event.shot.outcome : "SAVED"
+    ...raw,
+    shotOutcome: raw.shotOutcome || (event.shot && ["SAVED", "OFF_TARGET", "BLOCKED", "WOODWORK"].includes(event.shot.outcome) ? event.shot.outcome : "SAVED"),
+    shotSituation: raw.shotSituation || event.shot?.situation || "OPEN_PLAY",
+    bodyPart: raw.bodyPart || event.shot?.bodyPart || "UNKNOWN"
   });
-  const playerName = parsed.playerName?.trim() || null;
-  const keepLinkedPlayer = Boolean(event.playerId && playerName === event.playerName);
+  const clubSide = event.match.isHomeFixture ? "HOME" : "AWAY";
+  const isOpponentEvent = parsed.side !== clubSide;
+  let playerId: string | null = parsed.entityType === "PLAYER" && !isOpponentEvent ? parsed.playerId || null : null;
+  let staffId: string | null = parsed.entityType === "STAFF" && !isOpponentEvent ? parsed.staffId || null : null;
+  let playerName = parsed.playerName?.trim() || null;
+  let playerNameFr = parsed.playerNameFr?.trim() || null;
+  if (playerId) {
+    const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: { select: { category: true } } } });
+    const isMatchPlayer = player.teamId === event.match.teamId || (event.match.team?.category === "SENIOR" && player.team?.category === "U20");
+    const isSelectedForMatch = await db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId } }, select: { playerId: true } });
+    if (!isMatchPlayer || (player.teamId !== event.match.teamId && !isSelectedForMatch) || parsed.side !== clubSide) throw new Error("matchEventPlayerSideMismatch");
+    playerName = `${player.firstName} ${player.lastName}`;
+    playerNameFr = [player.firstNameFr, player.lastNameFr].filter(Boolean).join(" ").trim() || null;
+  }
+  if (parsed.entityType === "PLAYER" && !isOpponentEvent && !playerId && ["YELLOW_CARD", "RED_CARD"].includes(parsed.type)) throw new Error("matchEventPlayerRequired");
+  if (staffId) {
+    const staff = await db.staff.findUniqueOrThrow({ where: { id: staffId } });
+    assertTeamScope(scopeContext, staff.teamId, "Staff");
+    if (staff.teamId !== event.match.teamId || parsed.side !== clubSide) throw new Error("matchEventStaffSideMismatch");
+    playerName = null;
+    playerNameFr = null;
+  }
+  if (parsed.entityType === "STAFF" && !isOpponentEvent && !staffId) throw new Error("staffMemberRequired");
+  if (parsed.entityType === "STAFF" && isOpponentEvent && !playerName) throw new Error("opponentStaffNameRequired");
+  if (parsed.entityType === "PLAYER" && !isOpponentEvent && !playerId) playerName = playerName || event.playerName;
+  if (isOpponentEvent && !playerName) throw new Error("opponentEventNameRequired");
   const scores = new Set(["GOAL", "PENALTY_GOAL", "OWN_GOAL"]);
   const oldScored = scores.has(event.type);
   const nextScored = scores.has(parsed.type);
@@ -638,9 +661,9 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
         side: parsed.side,
         minute: parsed.minute,
         playerName,
-        playerNameFr: keepLinkedPlayer ? event.playerNameFr : null,
-        playerId: keepLinkedPlayer ? event.playerId : null,
-        staffId: null
+        playerNameFr,
+        playerId,
+        staffId
       }
     });
     if (event.shot) {
@@ -651,15 +674,36 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
           data: {
             side: parsed.side,
             minute: parsed.minute,
-            playerId: keepLinkedPlayer ? event.playerId : null,
-            outcome: parsed.type === "PENALTY_MISSED" ? "PENALTY_MISSED" : parsed.type === "SHOT" ? event.shot.outcome : "GOAL",
+            playerId,
+            assistPlayerId: parsed.type === "GOAL" || parsed.type === "PENALTY_GOAL" ? event.shot.assistPlayerId : null,
+            outcome: parsed.type === "PENALTY_MISSED" ? "PENALTY_MISSED" : parsed.type === "SHOT" ? (parsed.shotOutcome || "SAVED") : "GOAL",
             situation,
-            xG: estimateShotXg({ x: event.shot.x, y: event.shot.y, bodyPart: event.shot.bodyPart, situation })
+            xG: event.shot.x != null && event.shot.y != null
+              ? estimateShotXg({ x: event.shot.x, y: event.shot.y, bodyPart: event.shot.bodyPart, situation })
+              : null
           }
         });
       } else {
         await tx.playerShot.delete({ where: { id: event.shot.id } });
       }
+    } else if (["GOAL", "PENALTY_GOAL", "PENALTY_MISSED", "SHOT"].includes(parsed.type)) {
+      const situation = parsed.type === "PENALTY_GOAL" || parsed.type === "PENALTY_MISSED" ? "PENALTY" : parsed.shotSituation || "OPEN_PLAY";
+      await tx.playerShot.create({
+        data: {
+          matchId,
+          matchEventId: eventId,
+          playerId,
+          side: parsed.side,
+          minute: parsed.minute,
+          bodyPart: parsed.bodyPart || "UNKNOWN",
+          situation,
+          outcome: parsed.type === "PENALTY_MISSED" ? "PENALTY_MISSED" : parsed.type === "SHOT" ? (parsed.shotOutcome || "SAVED") : "GOAL",
+          x: null,
+          y: null,
+          xG: null,
+          xgModelVersion: "esh-xg-v1"
+        }
+      });
     }
     if (homeDelta || awayDelta) {
       await tx.match.update({
@@ -675,7 +719,7 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
       action: "match.event.update",
       entityType: "MatchEvent",
       entityId: eventId,
-      changes: { before: { type: event.type, side: event.side, minute: event.minute, playerName: event.playerName }, after: parsed }
+      changes: { before: { type: event.type, side: event.side, minute: event.minute, playerName: event.playerName, playerId: event.playerId, staffId: event.staffId }, after: { ...parsed, playerId, staffId, playerName, playerNameFr } }
     }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");

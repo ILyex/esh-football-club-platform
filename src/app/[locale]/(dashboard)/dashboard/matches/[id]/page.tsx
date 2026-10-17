@@ -7,6 +7,7 @@ import {
   updateMatchAction,
   deleteMatchAction,
   addMatchEventAction,
+  updateMatchEventAction,
   deleteMatchEventAction,
   upsertLineupEntryAction,
   removeLineupEntryAction,
@@ -29,6 +30,7 @@ import { RefereeNamesInput } from "@/components/matches/referee-names-input";
 import { MatchPeriodOptions } from "@/components/matches/match-period-options";
 import { MatchEditFixtureFields } from "@/components/matches/match-edit-fixture-fields";
 import { MatchEventForm } from "@/components/matches/match-event-form";
+import { MatchEventEditDialog } from "@/components/matches/match-event-edit-dialog";
 import { MatchManagementTabs } from "@/components/matches/match-management-tabs";
 import { OpponentNameInputs } from "@/components/matches/opponent-name-inputs";
 import { OpponentCrest } from "@/components/public/opponent-crest";
@@ -725,6 +727,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
         </summary>
         <ul className="mb-5 space-y-2">
           {match.events.map((e) => {
+            async function updateEvent(formData: FormData) {
+              "use server";
+              await updateMatchEventAction(id, e.id, formData);
+            }
             async function removeEvent() {
               "use server";
               await deleteMatchEventAction(id, e.id);
@@ -753,14 +759,25 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     )}
                   </span>
                 </span>
-                {canReport && (
+                {canReport && <div className="flex shrink-0 items-center gap-2">
+                  {(match.status === "LIVE" || match.status === "FINISHED") && <MatchEventEditDialog
+                    locale={locale}
+                    event={{ id: e.id, type: e.type, side: e.side, minute: e.minute, playerId: e.playerId, staffId: e.staffId, playerName: e.playerName, playerNameFr: e.playerNameFr }}
+                    homeTeamName={homeTeamName}
+                    awayTeamName={awayTeamName}
+                    clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
+                    eventTypes={EVENT_TYPES.map((type) => ({ value: type, label: t(`events.${type}` as any) }))}
+                    players={trackedPlayers.map((player) => ({ id: player.id, label: `${player.firstName} ${player.lastName}` }))}
+                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: `${member.firstName} ${member.lastName}` }))}
+                    action={updateEvent}
+                  />}
                   <ConfirmDialog onConfirm={removeEvent}>
                     <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white">
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{tCommon("delete")}</span>
                     </button>
                   </ConfirmDialog>
-                )}
+                </div>}
               </li>
             );
           })}
