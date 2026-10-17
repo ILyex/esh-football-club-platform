@@ -39,6 +39,11 @@ const LEGACY_POSITION_LABELS: Record<string, string> = { GK: "GB", RB: "DD", RCB
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
 function animatedItems(board: BoardData, time: number): Item[] {
+  // Image plans are a static snapshot. Older plans can retain animation
+  // keyframes after switching back from video mode, so never let those hidden
+  // frames override the editable base positions while the image view is active.
+  if (board.mode !== "video") return board.items;
+
   const frames = [...(board.animation?.frames ?? [])].sort((a, b) => a.time - b.time);
   return board.items.map((item) => {
     if (item.kind !== "player" && item.kind !== "opponent" && item.kind !== "ball") return item;
