@@ -258,8 +258,8 @@ export default function LoginPage() {
               </div>
 
               {captchaEnabled && (
-                <div className="space-y-1.5" aria-label={isRtl ? "التحقق الأمني" : "Vérification de sécurité"}>
-                  <p className="text-xs font-semibold text-foreground/90">{isRtl ? "التحقق الأمني" : "Vérification de sécurité"}</p>
+                <div className="space-y-1.5" aria-label={isRtl ? "هل أنت إنسان؟" : "Êtes-vous humain ?"}>
+                  <p className="text-xs font-semibold text-foreground/90">{isRtl ? "هل أنت إنسان؟" : "Êtes-vous humain ?"}</p>
                   <CapLoginWidget
                     key={captchaWidgetVersion}
                     endpoint={captchaEndpoint}
