@@ -442,6 +442,18 @@ input[type="number"]::-webkit-inner-spin-button:hover {
   letter-spacing: normal !important;
 }
 
+/* Language controls can contain both scripts on either page direction. Keep
+   each label on its own typeface instead of inheriting the active locale font. */
+.language-label-arabic {
+  font-family: var(--font-cairo), "Segoe UI", Tahoma, sans-serif !important;
+  letter-spacing: normal !important;
+}
+
+.language-label-latin {
+  font-family: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif !important;
+  letter-spacing: normal !important;
+}
+
 /* Use the platform's Arabic typesetting for the DZD abbreviation everywhere. */
 [dir="rtl"] .currency-dzd {
   font-family: var(--font-ibm-plex-arabic), var(--font-cairo), "Segoe UI", Tahoma, sans-serif;

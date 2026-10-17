@@ -100,7 +100,7 @@ export default function LoginPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                عربي
+                <span lang="ar" dir="rtl" className="language-label-arabic">عربي</span>
               </Link>
               <Link
                 href="/fr/login"
@@ -110,7 +110,7 @@ export default function LoginPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                FR
+                <span lang="fr" dir="ltr" className="language-label-latin">FR</span>
               </Link>
             </div>
           </div>

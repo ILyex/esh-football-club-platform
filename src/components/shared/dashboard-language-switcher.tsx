@@ -53,7 +53,7 @@ function LanguageSwitcherInner({
         className={`inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground hover:border-club-primary hover:text-club-primary shadow-2xs transition-all ${className}`}
       >
         <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-mono">{otherLabel}</span>
+        <span lang={otherLocale} dir={otherLocale === "ar" ? "rtl" : "ltr"} className={otherLocale === "ar" ? "language-label-arabic" : "language-label-latin"}>{otherLabel}</span>
       </Link>
     );
   }
@@ -70,7 +70,7 @@ function LanguageSwitcherInner({
             : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
         }`}
       >
-        Français
+        <span lang="fr" dir="ltr" className="language-label-latin">Français</span>
       </Link>
       <Link
         href={getPathForLocale("ar")}
@@ -82,7 +82,7 @@ function LanguageSwitcherInner({
             : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
         }`}
       >
-        العربية
+        <span lang="ar" dir="rtl" className="language-label-arabic">العربية</span>
       </Link>
     </div>
   );
