@@ -49,7 +49,7 @@ export async function saveTacticalPlanAction(input: unknown) {
   }
 
   const existing = value.id ? await db.tacticalPlan.findUnique({ where: { id: value.id } }) : null;
-  if (value.id && (!existing || (!existing.teamId && existing.creatorId !== user.id))) throw new Error("Tactical plan not found");
+  if (value.id && (!existing || existing.creatorId !== user.id)) throw new Error("Tactical plan not found");
   if (existing?.teamId && !context.authorizedTeams.some((team) => team.id === existing.teamId)) {
     throw new Error("You cannot manage tactics for this team");
   }
@@ -73,7 +73,7 @@ export async function saveTacticalPlanAction(input: unknown) {
 export async function deleteTacticalPlanAction(id: string) {
   const user = await requirePermission("training.manage");
   const plan = await db.tacticalPlan.findUnique({ where: { id } });
-  if (!plan || (!plan.teamId && plan.creatorId !== user.id)) throw new Error("Tactical plan not found");
+  if (!plan || plan.creatorId !== user.id) throw new Error("Tactical plan not found");
   const context = await resolveUserTeamContext();
   if (plan.teamId && !context.authorizedTeams.some((team) => team.id === plan.teamId)) {
     throw new Error("You cannot manage tactics for this team");

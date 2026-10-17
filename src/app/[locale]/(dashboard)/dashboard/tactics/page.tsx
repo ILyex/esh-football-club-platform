@@ -10,7 +10,9 @@ export default async function TacticalPlanningPage({ params, searchParams }: { p
   const teamIds = context.authorizedTeams.map((team) => team.id);
   const [plans, clubSettings, coachRecords] = await Promise.all([
     db.tacticalPlan.findMany({
-      where: { OR: [{ teamId: { in: teamIds } }, { teamId: null, creatorId: user.id }] },
+      // Tactical plans are personal workspaces, even when a plan is tagged to
+      // a team. Team assignment remains a permission boundary, not a sharing rule.
+      where: { creatorId: user.id },
       include: { team: { select: { id: true, name: true, category: true } }, creator: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take: 100

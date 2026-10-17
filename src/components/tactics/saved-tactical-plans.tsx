@@ -64,13 +64,13 @@ export function SavedTacticalPlans({ locale, canEdit, plans: initialPlans }: { l
 
   return <main dir={isAr ? "rtl" : "ltr"} className="mx-auto max-w-5xl space-y-4 pb-8">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3"><span className="rounded-lg bg-club-primary/10 p-2 text-club-primary"><List size={20}/></span><div><h1 className="text-xl font-bold">{isAr ? "الخطط المحفوظة" : "Plans enregistrés"}</h1><p className="mt-1 text-sm text-muted-foreground">{isAr ? "كل خطة مع تاريخها واسم المدرب." : "Chaque plan avec sa date et le nom de l’entraîneur."}</p></div></div>
+      <div className="flex items-center gap-3"><span className="rounded-lg bg-club-primary/10 p-2 text-club-primary"><List size={20}/></span><div><h1 className="text-xl font-bold">{isAr ? "الخطط المحفوظة" : "Plans enregistrés"}</h1><p className="mt-1 text-sm text-muted-foreground">{isAr ? "خططك الخاصة مع تاريخها واسم المدرب." : "Vos plans privés avec leur date et le nom de l’entraîneur."}</p></div></div>
       <Link href={editorUrl()} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:border-club-primary"><ArrowLeft size={16}/>{isAr ? "العودة إلى السبورة" : "Retour au tableau"}</Link>
     </header>
     {message && <p role="status" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">{message}</p>}
     {plans.length === 0 ? <section className="rounded-xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">{isAr ? "لا توجد خطط محفوظة بعد." : "Aucun plan enregistré pour le moment."}</section> : <section className="space-y-3">
       {plans.map((plan) => {
-        const mayManage = canEdit && (Boolean(plan.teamId) || plan.isOwner);
+        const mayManage = canEdit && plan.isOwner;
         return <article key={plan.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-club-primary/60 sm:grid-cols-[minmax(0,1.5fr)_minmax(100px,.8fr)_minmax(140px,1fr)_auto] sm:gap-4">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-sm font-bold" title={plan.title}>{plan.title}</h2>

@@ -138,7 +138,7 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
   const dragId = useRef<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const activePlan = plans.find((plan) => plan.id === activeId);
-  const canEditActive = canEdit && (!activePlan || Boolean(activePlan.teamId) || activePlan.isOwner);
+  const canEditActive = canEdit && (!activePlan || activePlan.isOwner);
   const count = board.items.filter((item) => item.kind === "player").length;
   const activeItem = board.items.find((item) => item.id === selected);
   const duration = board.animation?.duration ?? 10;
@@ -553,7 +553,11 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
               <defs><pattern id="grass" width="100" height="640" patternUnits="userSpaceOnUse"><rect width="50" height="640" fill="#176b43"/><rect x="50" width="50" height="640" fill="#1b7549"/></pattern><marker id="tactics-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L7 3.5L0 7z" fill="context-stroke"/></marker><pattern id="small-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#ffffff" strokeOpacity=".055" strokeWidth="1"/></pattern></defs>
               <g transform={board.orientation === "vertical" ? "translate(640 0) rotate(90)" : undefined}>
                 <rect width="1000" height="640" rx="12" fill="url(#grass)"/><rect width="1000" height="640" rx="12" fill="url(#small-grid)"/>
-                <image href={clubLogoUrl || "/branding/esh-logo-transparent.png"} x="350" y="150" width="300" height="300" opacity=".16" preserveAspectRatio="xMidYMid meet" pointerEvents="none" aria-hidden="true"/>
+                <g pointerEvents="none" aria-hidden="true">
+                  <circle cx="500" cy="320" r="74" fill="#06140c" fillOpacity=".42" stroke="#f8fafc" strokeOpacity=".14" strokeWidth="2"/>
+                  <circle cx="500" cy="320" r="66" fill="none" stroke="#dc2626" strokeOpacity=".22" strokeWidth="2"/>
+                  <image href={clubLogoUrl || "/branding/esh-logo-transparent.png"} x="452" y="272" width="96" height="96" opacity=".62" preserveAspectRatio="xMidYMid meet"/>
+                </g>
               <g fill="none" stroke="#ecfdf5" strokeOpacity=".82" strokeWidth="3"><rect x="22" y="22" width="956" height="596" rx="4"/><line x1="500" y1="22" x2="500" y2="618"/><circle cx="500" cy="320" r="82"/><circle cx="500" cy="320" r="3" fill="#ecfdf5"/><rect x="22" y="168" width="145" height="304"/><rect x="22" y="232" width="58" height="176"/><circle cx="112" cy="320" r="3" fill="#ecfdf5"/><path d="M167 255a82 82 0 0 1 0 130"/><rect x="833" y="168" width="145" height="304"/><rect x="920" y="232" width="58" height="176"/><circle cx="888" cy="320" r="3" fill="#ecfdf5"/><path d="M833 255a82 82 0 0 0 0 130"/></g>
                 {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} data-tactics-item={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
                 <g transform={board.orientation === "vertical" ? "rotate(-90)" : undefined}><circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#075985"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={0} y={board.orientation === "vertical" ? -39 : 39} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}</g>
