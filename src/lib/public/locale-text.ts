@@ -23,6 +23,50 @@ export function frenchPublicText(value: string | null | undefined, fallback: str
   return fallback;
 }
 
+const FRENCH_CLUB_NAME_TRANSLATIONS: Record<string, string> = {
+  "سريع عين مريم": "Rapide Aïn Meriem",
+  "نجوم تيارت": "Étoile de Tiaret"
+};
+
+const ARABIC_CLUB_WORDS: Record<string, string> = {
+  "نادي": "Club",
+  "سريع": "Rapide",
+  "نجوم": "Étoile de",
+  "شبيبة": "Jeunesse sportive",
+  "شباب": "Jeunesse",
+  "مولودية": "Mouloudia",
+  "اتحاد": "Union",
+  "وفاق": "Entente",
+  "أمل": "Espoir",
+  "امل": "Espoir",
+  "هلال": "Croissant",
+  "ترجي": "Espérance",
+  "اولمبي": "Olympique",
+  "أولمبي": "Olympique",
+  "عين": "Aïn",
+  "تيارت": "Tiaret",
+  "مريم": "Meriem",
+  "وهران": "Oran",
+  "الجزائر": "Alger"
+};
+
+function normalizeArabicClubName(value: string): string {
+  return value.normalize("NFKC").replace(/[\u064B-\u065F\u0670\u0640]/gu, "").replace(/[أإآٱ]/gu, "ا").replace(/\s+/gu, " ").trim();
+}
+
+/** Transliterate Arabic-only opponent names for French displays when EMS has no French variant. */
+function frenchClubNameFromArabic(value: string): string {
+  const normalized = normalizeArabicClubName(value);
+  const known = FRENCH_CLUB_NAME_TRANSLATIONS[normalized];
+  if (known) return known;
+
+  const words = normalized.split(/\s+/u).map((word) => ARABIC_CLUB_WORDS[word] ?? word);
+  const transliteration: Record<string, string> = {
+    ا: "a", ب: "b", ت: "t", ث: "th", ج: "dj", ح: "h", خ: "kh", د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "ch", ص: "s", ض: "d", ط: "t", ظ: "dh", ع: "", غ: "gh", ف: "f", ق: "q", ك: "k", ل: "l", م: "m", ن: "n", ه: "h", و: "ou", ي: "i", ى: "a", ة: "a", ء: ""
+  };
+  return words.map((word) => [...word].map((character) => transliteration[character] ?? character).join("")).filter(Boolean).join(" ").replace(/\s+/gu, " ").trim();
+}
+
 /** Translate known competition names stored in Arabic before using a generic fallback. */
 export function frenchCompetitionName(value: string | null | undefined): string {
   const name = value?.trim();
@@ -44,11 +88,9 @@ export function localizedClubName(value: string | null | undefined, locale: stri
   if (locale === "fr") {
     const frenchName = frenchPublicText(name, fallback);
     if (frenchName !== fallback) return frenchName;
-    // Legacy matches may have only the Arabic club name until the next EMS
-    // sync enriches the record with its French alias. Preserve the real club
-    // identity rather than replacing it with a generic "opponent" label.
     const variants = splitClubNameVariants(name);
-    return variants.ar || name;
+    const arabicName = variants.ar || name;
+    return hasArabicScript(arabicName) ? frenchClubNameFromArabic(arabicName) || fallback : arabicName || fallback;
   }
 
   const arabicParenthetical = name.match(/\(([^()]*)\)/u)?.[1]?.trim();
