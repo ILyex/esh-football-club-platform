@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { Bell, Download, LoaderCircle, Smartphone, X } from "lucide-react";
 
 type Props = { locale: string };
 type PushConfig = { enabled: boolean; publicKey: string | null };
-const PUSH_PROMPT_DISMISSED_KEY = "esh-match-push-prompt-dismissed-v1";
+const PUSH_PROMPT_DISMISSED_KEY = "esh-match-push-prompt-dismissed-session-v2";
+const LEGACY_PUSH_PROMPT_DISMISSED_KEY = "esh-match-push-prompt-dismissed-v1";
+
+function isNotificationPromptPage(pathname: string | null): boolean {
+  const path = (pathname ?? "/").replace(/^\/(?:ar|fr)(?=\/|$)/, "").replace(/\/+$/, "") || "/";
+  return path === "/" || path === "/matches" || path.startsWith("/matches/");
+}
 
 function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - value.length % 4) % 4);
@@ -49,6 +56,7 @@ type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Pro
 
 export function MatchPushOptIn({ locale }: Props) {
   const isAr = locale === "ar";
+  const pathname = usePathname();
   const [config, setConfig] = useState<PushConfig | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,7 +72,20 @@ export function MatchPushOptIn({ locale }: Props) {
 
   useEffect(() => {
     setPortalReady(true);
-    setDismissed(window.localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1");
+    // Older versions stored dismissal permanently. Clear that value so the
+    // prompt follows the current visit-only behavior instead.
+    window.localStorage.removeItem(LEGACY_PUSH_PROMPT_DISMISSED_KEY);
+    const referrer = document.referrer;
+    if (referrer) {
+      try {
+        if (new URL(referrer).origin !== window.location.origin) {
+          window.sessionStorage.removeItem(PUSH_PROMPT_DISMISSED_KEY);
+        }
+      } catch {
+        // Ignore malformed referrers; they should not block the public page.
+      }
+    }
+    setDismissed(window.sessionStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1");
     setPermissionDenied("Notification" in window && Notification.permission === "denied");
     let cancelled = false;
     setInstalled(isStandalone());
@@ -74,8 +95,26 @@ export function MatchPushOptIn({ locale }: Props) {
       setInstallPrompt(event as InstallPromptEvent);
     };
     const onInstalled = () => { setInstalled(true); setInstallPrompt(null); };
+    const onExternalNavigation = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || !link.href || (link.target && link.target !== "_self")) return;
+      try {
+        if (new URL(link.href, window.location.href).origin !== window.location.origin) {
+          window.sessionStorage.removeItem(PUSH_PROMPT_DISMISSED_KEY);
+        }
+      } catch {
+        // Ignore malformed links.
+      }
+    };
+    const onPageShow = () => {
+      setDismissed(window.sessionStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1");
+    };
     window.addEventListener("beforeinstallprompt", onInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
+    document.addEventListener("click", onExternalNavigation, true);
+    window.addEventListener("pageshow", onPageShow);
     void Promise.all([
       fetch("/api/push/config", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<PushConfig> : { enabled: false, publicKey: null }).catch(() => ({ enabled: false, publicKey: null })),
       Promise.resolve().then(async () => {
@@ -113,10 +152,12 @@ export function MatchPushOptIn({ locale }: Props) {
       cancelled = true;
       window.removeEventListener("beforeinstallprompt", onInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
+      document.removeEventListener("click", onExternalNavigation, true);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
-  const showPushPrompt = !dismissed && !permissionDenied && message !== "dismissed" && !enabled && subscriptionChecked;
+  const showPushPrompt = isNotificationPromptPage(pathname) && !dismissed && !permissionDenied && !enabled && subscriptionChecked;
   const isIOS = isAppleMobile();
   const showInstallPrompt = !installed && !installDismissed && (Boolean(installPrompt) || isIOS);
 
@@ -182,7 +223,6 @@ export function MatchPushOptIn({ locale }: Props) {
       if (!response.ok) throw new Error("subscription-save-failed");
       setEnabled(true);
       setDismissed(true);
-      window.localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, "1");
     } catch {
       setMessage(isAr ? "تعذر تفعيل التنبيهات الآن. تحقق من الاتصال وحاول مجددًا." : "Impossible d’activer les alertes. Vérifiez la connexion et réessayez.");
     } finally {
@@ -241,7 +281,7 @@ export function MatchPushOptIn({ locale }: Props) {
                 ? (isAr ? "غير مهيأة" : "Indisponible")
                 : (isAr ? "تفعيل التنبيهات" : "Activer les alertes")}
             </button>
-          <button type="button" onClick={() => { setDismissed(true); setMessage("dismissed"); window.localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, "1"); }} aria-label={isAr ? "إخفاء" : "Masquer"} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { setDismissed(true); window.sessionStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, "1"); }} aria-label={isAr ? "إخفاء" : "Masquer"} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
         </div>
       </div>
     </section>}
