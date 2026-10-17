@@ -16,6 +16,7 @@ import { deleteMatchAction } from "./actions";
 import { resolveMatchResult } from "@/lib/matches/result";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { formatAlgeriaDate, formatAlgeriaTime } from "@/lib/dates/algeria";
+import { frenchCompetitionName } from "@/lib/public/locale-text";
 
 export default async function MatchesListPage({
   params,
@@ -107,7 +108,7 @@ export default async function MatchesListPage({
           locale={locale === "ar" ? "ar" : "fr"}
           label={t("fields.competition")}
           value={sp.competitionId ?? ""}
-          options={[{ id: "", label: locale === "ar" ? "كل المسابقات" : "Toutes les compétitions" }, ...competitions.map((c) => ({ id: c.id, label: c.name }))]}
+          options={[{ id: "", label: locale === "ar" ? "كل المسابقات" : "Toutes les compétitions" }, ...competitions.map((c) => ({ id: c.id, label: locale === "ar" ? c.name : frenchCompetitionName(c.name) }))]}
           headerTitle={locale === "ar" ? "تصفية حسب المسابقة" : "Filtrer par compétition"}
         />
         <Button type="submit" variant="outline">
@@ -133,6 +134,7 @@ export default async function MatchesListPage({
               const awayScore = scoreIsActive ? (m.awayScore ?? 0) : "–";
               const outcome = resolveMatchResult(m);
               const winnerName = outcome.winnerSide === "HOME" ? homeTeamName : outcome.winnerSide === "AWAY" ? awayTeamName : null;
+              const competitionName = locale === "ar" ? m.competition.name : frenchCompetitionName(m.competition.name);
               async function removeMatch() {
                 "use server";
                 await deleteMatchAction(m.id);
@@ -168,7 +170,10 @@ export default async function MatchesListPage({
                   </td>
                   <td className="px-3 py-3">
                     <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
+                        <span className="min-w-0 flex-1 truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={competitionName}>{competitionName}</span>
+                        <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
+                        <span className="shrink-0">
                         <MatchOperationalStatus
                         status={m.status}
                         matchDate={m.matchDate}
@@ -190,9 +195,8 @@ export default async function MatchesListPage({
                           extraTimeFirstHalf: m.extraTimeFirstHalfAddedTime,
                           extraTimeSecondHalf: m.extraTimeSecondHalfAddedTime
                         }}
-                      />
-                        <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
-                        <span className="min-w-0 max-w-full truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={m.competition.name}>{m.competition.name}</span>
+                        />
+                        </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-1 border-t border-border/60 pt-2 xl:border-0 xl:pt-0">
                       <MatchDocumentPreviewButton

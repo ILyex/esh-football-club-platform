@@ -17,6 +17,7 @@ import { LeagueStandingsTable } from "./league-standings-table";
 import { CupKnockoutBracket } from "./cup-knockout-bracket";
 import { CompetitionLogoManager } from "./competition-logo-manager";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
+import { frenchCompetitionName } from "@/lib/public/locale-text";
 
 export interface CompetitionHubData {
   id: string;
@@ -64,6 +65,7 @@ export function CompetitionsHub({
   isPublic = false
 }: CompetitionsHubProps) {
   const isAr = locale === "ar";
+  const competitionDisplayName = (name: string) => isAr ? name : frenchCompetitionName(name);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -214,7 +216,7 @@ export function CompetitionsHub({
                 {currentComp.logoUrl ? (
                   <img
                     src={currentComp.logoUrl}
-                    alt={currentComp.name}
+                    alt={competitionDisplayName(currentComp.name)}
                     className="h-full w-full object-contain"
                   />
                 ) : activeType === "CUP" ? (
@@ -239,7 +241,7 @@ export function CompetitionsHub({
                 </div>
 
                 <h2 className="text-sm font-extrabold text-foreground truncate sm:text-xl">
-                  {currentComp.name}
+                  {competitionDisplayName(currentComp.name)}
                 </h2>
 
                 {currentComp.organization && (
@@ -256,7 +258,7 @@ export function CompetitionsHub({
                 <CompetitionLogoManager
                   competitionId={currentComp.id}
                   currentLogoUrl={currentComp.logoUrl}
-                  competitionName={currentComp.name}
+                  competitionName={competitionDisplayName(currentComp.name)}
                   locale={locale}
                 />
               </div>

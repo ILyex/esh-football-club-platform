@@ -16,7 +16,7 @@ import {
   Trophy
 } from "lucide-react";
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
-import { localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, localizedClubName } from "@/lib/public/locale-text";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 
@@ -163,7 +163,7 @@ export function DashboardEventsCarousel({
                           <span dir="ltr" className="font-mono tabular-nums">
                             {formatAlgeriaDateTime(m.matchDate, locale)}
                           </span>
-                          {m.competitionName && <span className="min-w-0 truncate">• {m.competitionName}</span>}
+                          {m.competitionName && <span className="min-w-0 truncate">• {isAr ? m.competitionName : frenchCompetitionName(m.competitionName)}</span>}
                         </p>
                       </div>
                     </div>

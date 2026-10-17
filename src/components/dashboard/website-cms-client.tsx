@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
-import { localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, localizedClubName } from "@/lib/public/locale-text";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 
 interface MatchOption {
@@ -325,7 +325,7 @@ export function WebsiteCmsClient({
                     }`}
                   >
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                      <span className="font-semibold text-primary">{m.competitionName}</span>
+                      <span className="font-semibold text-primary">{isRtl ? m.competitionName : frenchCompetitionName(m.competitionName)}</span>
                       <span>
                         {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(
                           new Date(m.matchDate)
@@ -663,7 +663,7 @@ export function WebsiteCmsClient({
                 >
                   {competitions.map((comp) => (
                     <option key={comp.id} value={comp.id}>
-                      {comp.name}
+                      {isRtl ? comp.name : frenchCompetitionName(comp.name)}
                     </option>
                   ))}
                 </select>

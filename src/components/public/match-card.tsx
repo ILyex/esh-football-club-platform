@@ -48,19 +48,18 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
   return (
     <article className="group flex min-h-[270px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-club-primary/50 hover:shadow-lg sm:min-h-[300px]">
       {/* Top Header: Competition & Status Badge */}
-      <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-4 text-xs">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2 font-bold text-foreground">
+      <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex flex-nowrap items-center justify-between gap-2 px-5 pb-3 pt-4 text-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden font-bold text-foreground">
             <Trophy className="h-3.5 w-3.5 shrink-0 text-club-secondary" />
-            <span className="truncate">{locale === "ar" ? match.competitionName : frenchCompetitionName(match.competitionName)}</span>
+            <span className="min-w-0 flex-1 truncate">{locale === "ar" ? match.competitionName : frenchCompetitionName(match.competitionName)}</span>
             {match.teamCategory && (
               <span className="inline-flex shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
               {categoryLabel}
               </span>
             )}
-          </div>
         </div>
-        <MatchOperationalStatus
+        <div className="shrink-0">
+          <MatchOperationalStatus
           status={match.status}
           matchDate={match.matchDate}
           locale={locale}
@@ -71,7 +70,8 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
           homeScore={match.homeScore}
           awayScore={match.awayScore}
           addedTime={match.addedTime}
-        />
+          />
+        </div>
       </div>
 
       {/* Main Scoreboard Area */}

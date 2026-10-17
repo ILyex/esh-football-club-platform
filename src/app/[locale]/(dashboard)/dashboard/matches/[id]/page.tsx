@@ -24,6 +24,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { MatchEditStatusFields } from "@/components/matches/match-edit-status-fields";
 import { Save, FileCheck, FileText, Download, Upload, Target, CircleDot, Square, UserCheck, Trophy, MapPin, CalendarDays, Sparkles, Trash2, CircleCheck, CircleX, Shield, ChevronDown } from "lucide-react";
 import { getOpponentLogo } from "@/lib/opponents";
+import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { DocumentUploadPicker } from "@/components/documents/document-upload-picker";
 import { MatchLineupWorkspace } from "@/components/matches/match-lineup-workspace";
 import { RefereeNamesInput } from "@/components/matches/referee-names-input";
@@ -236,7 +237,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             <div className="flex min-w-0 justify-center sm:justify-self-center">
               <p className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-xs">
                 <Trophy className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
-                <span className="truncate">{match.competition.name}</span>
+                <span className="truncate">{locale === "ar" ? match.competition.name : frenchCompetitionName(match.competition.name)}</span>
               </p>
             </div>
             {match.status === "LIVE" && (
@@ -326,7 +327,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                 disabled={!canUpdate}
                 locale={locale}
                 ariaLabel={t("fields.competition")}
-                options={competitions.map((c) => ({ value: c.id, label: c.name }))}
+                options={competitions.map((c) => ({ value: c.id, label: locale === "ar" ? c.name : frenchCompetitionName(c.name) }))}
               />
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { getPlayerDisplayName } from "@/lib/utils";
-import { localizedNationality } from "@/lib/public/locale-text";
+import { frenchCompetitionName, localizedNationality } from "@/lib/public/locale-text";
 import { OfficialPlayerAttestationModal } from "./official-player-attestation-modal";
 import { SafeImage } from "@/components/shared/safe-image";
 
@@ -414,7 +414,7 @@ export function PlayerOverviewModal({
                                 {evt.match.opponent}
                               </span>
                               <span className="text-[10px] text-muted-foreground">
-                                ({evt.match.competitionName})
+                                ({isAr ? evt.match.competitionName : frenchCompetitionName(evt.match.competitionName)})
                               </span>
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5">

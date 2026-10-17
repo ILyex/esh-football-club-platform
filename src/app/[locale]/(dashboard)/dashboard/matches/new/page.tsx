@@ -8,7 +8,7 @@ import { createMatchAction } from "../actions";
 import { redirect } from "next/navigation";
 import { getAllOpponentsList } from "@/lib/opponents";
 import { MatchFormClient } from "@/components/matches/match-form-client";
-import { localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, localizedClubName } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -77,7 +77,7 @@ export default async function NewMatchPage({ params }: { params: Promise<{ local
       ) : (
         <MatchFormClient
           locale={locale}
-          competitions={competitions.map((c) => ({ id: c.id, name: c.name, teamId: c.teamId }))}
+          competitions={competitions.map((c) => ({ id: c.id, name: locale === "ar" ? c.name : frenchCompetitionName(c.name), teamId: c.teamId }))}
           teams={teams.map((tm) => ({ id: tm.id, name: localizedClubName(tm.name, locale, tTeams(`categories.${tm.category}` as any)), category: tm.category }))}
           players={players.map((player) => ({ id: player.id, firstName: player.firstName, lastName: player.lastName, position: player.position, status: player.status, teamId: player.teamId, teamCategory: player.team?.category ?? null }))}
           savedOpponents={savedOpponents}

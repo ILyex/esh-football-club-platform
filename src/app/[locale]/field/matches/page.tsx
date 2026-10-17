@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { hasPermission, requirePagePermission } from "@/lib/permissions";
 import { getMutationScopeContext } from "@/lib/mutation-guards";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
+import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions/types";
 import { FormSelect } from "@/components/ui/form-select";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -181,7 +182,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1 font-semibold text-club-primary"><Trophy className="h-3 w-3" />{match.competition.name}</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-club-primary"><Trophy className="h-3 w-3" />{locale === "ar" ? match.competition.name : frenchCompetitionName(match.competition.name)}</span>
                   <span className="inline-flex items-center gap-1" dir="ltr"><CalendarDays className="h-3 w-3" />{formatAlgeriaDateTime(match.matchDate, locale)}</span>
                 </div>
                 <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">

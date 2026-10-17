@@ -27,7 +27,11 @@ export function frenchPublicText(value: string | null | undefined, fallback: str
 export function frenchCompetitionName(value: string | null | undefined): string {
   const name = value?.trim();
   if (!name) return "Compétition officielle";
-  if (/الشرفي/u.test(name)) return "Championnat d'honneur";
+  if (/شرفي/u.test(name)) return "Championnat d'honneur";
+  if (/كأس\s*(?:الجزائر|الجمهورية)/u.test(name)) return "Coupe d'Algérie";
+  if (/جهوي/u.test(name)) return "Championnat régional";
+  if (/ولائي/u.test(name)) return "Championnat de wilaya";
+  if (/^(?:المسابقة|البطولة)$/u.test(name)) return "Compétition officielle";
   return frenchPublicText(name, "Compétition officielle");
 }
 
