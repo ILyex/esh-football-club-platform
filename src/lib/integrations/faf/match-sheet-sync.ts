@@ -117,10 +117,14 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   const warnings: string[] = [];
   if (firstReportResult.status === "rejected") warnings.push(`تعذر جلب وثيقة بداية المباراة: ${firstReportResult.reason instanceof Error ? firstReportResult.reason.message : "خطأ غير معروف"}`);
   if (finalReportResult.status === "rejected") warnings.push(`تعذر جلب التقرير النهائي: ${finalReportResult.reason instanceof Error ? finalReportResult.reason.message : "خطأ غير معروف"}`);
-  const category = documentSpecs.some((item) => item.bytes)
-    ? await db.documentCategory.findUnique({ where: { key: "report" } })
+  const hasDocumentsToImport = documentSpecs.some((item) => item.bytes);
+  const category = hasDocumentsToImport
+    ? await db.documentCategory.upsert({
+        where: { key: "report" },
+        update: {},
+        create: { key: "report", name: "Reports" }
+      })
     : null;
-  if (documentSpecs.some((item) => item.bytes) && !category) throw new Error("Document category 'Reports' is missing; run the platform seed/migration first.");
   const documentIdsByKind = new Map<string, string>();
   let importedDocuments = 0;
   for (const item of documentSpecs) {
