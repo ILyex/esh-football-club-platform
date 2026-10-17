@@ -67,9 +67,9 @@ async function verifyExistingTacticalPlanTable(pool) {
     constraint.conname,
     { type: constraint.contype, definition: normalizeConstraint(constraint.definition) }
   ]));
-  const constraintMismatches = expectedConstraints.filter(([name, type, definition]) => {
+  const constraintMismatches = expectedConstraints.filter(([name, type]) => {
     const actual = actualConstraints.get(name);
-    return actual && (actual.type !== type || actual.definition !== definition);
+    return actual && actual.type !== type;
   });
   if (constraintMismatches.length) {
     throw new Error(`Existing TacticalPlan table has conflicting constraints: ${constraintMismatches.map(([name]) => name).join(", ")}`);
@@ -78,23 +78,34 @@ async function verifyExistingTacticalPlanTable(pool) {
   const foreignKeys = [
     {
       name: "TacticalPlan_teamId_fkey",
+      expectedDefinition: "foreign key (teamid) references team(id) on delete set null on update cascade",
       orphanQuery: `SELECT EXISTS (SELECT 1 FROM "TacticalPlan" p LEFT JOIN "Team" t ON t."id" = p."teamId" WHERE p."teamId" IS NOT NULL AND t."id" IS NULL) AS has_orphans`,
       addSql: `ALTER TABLE "TacticalPlan" ADD CONSTRAINT "TacticalPlan_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE`
     },
     {
       name: "TacticalPlan_creatorId_fkey",
+      expectedDefinition: "foreign key (creatorid) references user(id) on delete cascade on update cascade",
       orphanQuery: `SELECT EXISTS (SELECT 1 FROM "TacticalPlan" p LEFT JOIN "User" u ON u."id" = p."creatorId" WHERE u."id" IS NULL) AS has_orphans`,
       addSql: `ALTER TABLE "TacticalPlan" ADD CONSTRAINT "TacticalPlan_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`
     }
   ];
   for (const foreignKey of foreignKeys) {
-    if (actualConstraints.has(foreignKey.name)) continue;
+    const existing = actualConstraints.get(foreignKey.name);
+    if (existing?.definition === foreignKey.expectedDefinition) continue;
     const { rows } = await pool.query(foreignKey.orphanQuery);
     if (rows[0].has_orphans) {
       throw new Error(`Cannot safely add ${foreignKey.name}: TacticalPlan contains orphaned references.`);
     }
-    await pool.query(foreignKey.addSql);
-    console.log(`Added verified missing constraint ${foreignKey.name}.`);
+    await pool.query("BEGIN");
+    try {
+      if (existing) await pool.query(`ALTER TABLE "TacticalPlan" DROP CONSTRAINT "${foreignKey.name}"`);
+      await pool.query(foreignKey.addSql);
+      await pool.query("COMMIT");
+      console.log(`${existing ? "Replaced mismatched" : "Added verified missing"} constraint ${foreignKey.name}.`);
+    } catch (error) {
+      await pool.query("ROLLBACK");
+      throw error;
+    }
   }
   ({ rows: constraints } = await pool.query(
     `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
