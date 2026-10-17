@@ -179,21 +179,23 @@ export function PlayerOverviewModal({
             <div className="relative overflow-hidden bg-gradient-to-br from-club-primary/95 via-club-primary to-rose-900 p-6 text-white">
               <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/20 bg-black/20 shadow-lg">
-                    {player.photoUrl ? (
-                      <SafeImage
-                        src={player.photoUrl}
-                        fallbackSrc="/branding/person-placeholder.svg"
-                        alt={`${player.firstName} ${player.lastName}`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xl font-black text-white/90 uppercase">
-                        {(player.firstName[0] || "") + (player.lastName[0] || "")}
-                      </span>
-                    )}
+                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-visible">
+                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl border-2 border-white/20 bg-black/20 shadow-lg">
+                      {player.photoUrl ? (
+                        <SafeImage
+                          src={player.photoUrl}
+                          fallbackSrc="/branding/person-placeholder.svg"
+                          alt={`${player.firstName} ${player.lastName}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-black text-white/90 uppercase">
+                          {(player.firstName[0] || "") + (player.lastName[0] || "")}
+                        </span>
+                      )}
+                    </div>
                     {player.shirtNumber !== null && (
-                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 font-mono text-xs font-black text-black shadow-xs">
+                      <div className="absolute -bottom-1 -right-1 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-amber-400 font-mono text-xs font-black text-black shadow-xs">
                         {player.shirtNumber}
                       </div>
                     )}
