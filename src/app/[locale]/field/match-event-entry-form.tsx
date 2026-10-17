@@ -15,7 +15,9 @@ export function MatchEventEntryForm({
   awayTeamName,
   defaultSide,
   clubSide,
-  players
+  players,
+  startingPlayers,
+  substitutePlayers
 }: {
   action: (formData: FormData) => void | Promise<void>;
   locale: string;
@@ -24,10 +26,13 @@ export function MatchEventEntryForm({
   defaultSide: "HOME" | "AWAY";
   clubSide: "HOME" | "AWAY";
   players: ActivePlayer[];
+  startingPlayers: ActivePlayer[];
+  substitutePlayers: ActivePlayer[];
 }) {
   const isAr = locale === "ar";
   const [side, setSide] = useState(defaultSide);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedOutPlayerId, setSelectedOutPlayerId] = useState("");
   const [type, setType] = useState("GOAL");
   const [shotLocation, setShotLocation] = useState<{ x: number; y: number } | null>(null);
   const teamOptions = [
@@ -43,8 +48,7 @@ export function MatchEventEntryForm({
     { value: "YELLOW_CARD", label: isAr ? "بطاقة صفراء" : "Carton jaune" },
     { value: "RED_CARD", label: isAr ? "بطاقة حمراء" : "Carton rouge" },
     { value: "ASSIST", label: isAr ? "تمريرة حاسمة" : "Passe décisive" },
-    { value: "SUBSTITUTION_IN", label: isAr ? "دخول لاعب" : "Entrée d’un joueur" },
-    { value: "SUBSTITUTION_OUT", label: isAr ? "خروج لاعب" : "Sortie d’un joueur" }
+    { value: "SUBSTITUTION_IN", label: isAr ? "تبديل لاعب" : "Remplacement" }
   ];
   const playerOptions = players.map((player) => ({
     id: player.id,
@@ -54,6 +58,7 @@ export function MatchEventEntryForm({
   }));
   const isShotEvent = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED"].includes(type);
   const isGoalEvent = ["GOAL", "PENALTY_GOAL"].includes(type);
+  const isSubstitution = type === "SUBSTITUTION_IN";
 
   function selectShotLocation(event: MouseEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -63,7 +68,7 @@ export function MatchEventEntryForm({
     });
   }
 
-  return <form action={action} onSubmit={(event) => { if (side === clubSide && !selectedPlayerId) event.preventDefault(); }} className="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_88px_minmax(180px,1.4fr)_auto] lg:items-end">
+  return <form action={action} onSubmit={(event) => { if (side === clubSide && (!selectedPlayerId || (isSubstitution && !selectedOutPlayerId))) event.preventDefault(); }} className="mt-3 grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_88px_minmax(180px,1.4fr)_auto] lg:items-end">
     <input type="hidden" name="entityType" value="PLAYER" />
     <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
       <span className="mb-1.5 block">{isAr ? "الحدث" : "Événement"}</span>
@@ -71,20 +76,21 @@ export function MatchEventEntryForm({
     </label>
     <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
       <span className="mb-1.5 block">{isAr ? "الفريق" : "Équipe"}</span>
-      <FormSelect locale={locale} name="side" value={side} onValueChange={(value) => { setSide(value as "HOME" | "AWAY"); setSelectedPlayerId(""); }} options={teamOptions} compact triggerClassName="!h-10 !px-3 !text-sm" />
+      <FormSelect locale={locale} name="side" value={side} onValueChange={(value) => { setSide(value as "HOME" | "AWAY"); setSelectedPlayerId(""); setSelectedOutPlayerId(""); }} options={teamOptions} compact triggerClassName="!h-10 !px-3 !text-sm" />
     </label>
     <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
       <span className="mb-1.5 block">{isAr ? "الدقيقة" : "Minute"}</span>
       <input name="minute" type="number" min="0" max="130" defaultValue="1" required className={`${controlClass} px-2 text-center tabular-nums`} />
     </label>
     {side === clubSide ? <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
-      <span className="mb-1.5 block">{isAr ? "لاعب النادي" : "Joueur du club"}</span>
+      <span className="mb-1.5 block">{isAr ? (isSubstitution ? "اللاعب الداخل" : "لاعب النادي") : (isSubstitution ? "Joueur entrant" : "Joueur du club")}</span>
       <FormSelect locale={locale} name="playerId" value={selectedPlayerId} onValueChange={setSelectedPlayerId} required disabled={playerOptions.length === 0} options={playerOptions.map((player) => ({ value: player.id, label: player.name }))} placeholder={playerOptions.length ? (isAr ? "اختر اللاعب" : "Choisir le joueur") : (isAr ? "لا يوجد لاعبون نشطون في فئة المباراة" : "Aucun joueur actif dans cette catégorie")} compact triggerClassName="!h-10 !px-3 !text-sm" ariaLabel={isAr ? "اختيار لاعب فئة المباراة" : "Choisir un joueur de la catégorie du match"} />
       {playerOptions.length === 0 && <span className="mt-1 block text-[10px] font-normal text-amber-600 dark:text-amber-400">{isAr ? "اربط لاعبي هذه الفئة بالفريق المحدد للمباراة أولًا." : "Associez d’abord les joueurs à l’équipe sélectionnée pour ce match."}</span>}
     </label> : <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
-      <span className="mb-1.5 block">{isAr ? "اسم لاعب الخصم" : "Joueur adverse"}</span>
+      <span className="mb-1.5 block">{isAr ? (isSubstitution ? "اللاعب الداخل (الخصم)" : "اسم لاعب الخصم") : (isSubstitution ? "Joueur entrant (adverse)" : "Joueur adverse")}</span>
       <input name="playerName" required maxLength={120} placeholder={isAr ? "اكتب اسم اللاعب" : "Saisir le nom du joueur"} className={controlClass} />
     </label>}
+    {isSubstitution && (side === clubSide ? <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground sm:col-span-2 lg:col-span-1"><span className="mb-1.5 block">{isAr ? "اللاعب الخارج" : "Joueur sortant"}</span><FormSelect locale={locale} name="outPlayerId" value={selectedOutPlayerId} onValueChange={setSelectedOutPlayerId} required disabled={startingPlayers.length === 0} options={startingPlayers.filter((player) => player.id !== selectedPlayerId).map((player) => ({ value: player.id, label: locale === "fr" ? [player.firstNameFr || player.firstName, player.lastNameFr || player.lastName].join(" ") : `${player.firstName} ${player.lastName}` }))} placeholder={isAr ? "اختر اللاعب الخارج" : "Choisir le joueur sortant"} compact triggerClassName="!h-10 !px-3 !text-sm" ariaLabel={isAr ? "اختيار اللاعب الخارج" : "Choisir le joueur sortant"} /></label> : <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground sm:col-span-2 lg:col-span-1"><span className="mb-1.5 block">{isAr ? "اللاعب الخارج (الخصم)" : "Joueur sortant (adverse)"}</span><input name="outPlayerName" required maxLength={120} placeholder={isAr ? "اكتب اسم اللاعب" : "Saisir le nom du joueur"} className={controlClass} /></label>)}
     {isShotEvent && <div className="grid gap-3 rounded-lg border border-border/70 bg-background/70 p-3 sm:col-span-2 lg:col-span-5 lg:grid-cols-[minmax(130px,0.7fr)_minmax(220px,1.2fr)_minmax(145px,0.8fr)_minmax(150px,0.8fr)] lg:items-center">
       <label className="block min-w-0 text-[11px] font-semibold text-muted-foreground">
         <span className="mb-1.5 block">{isAr ? "طريقة التسديد" : "Partie du corps"}</span>

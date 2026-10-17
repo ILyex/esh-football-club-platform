@@ -46,6 +46,7 @@ import { getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
 import { splitClubNameVariants } from "@/lib/public/locale-text";
 import { getMatchFormError } from "@/lib/matches/form-error";
 import { resolveMatchResult } from "@/lib/matches/result";
+import { groupSubstitutionEvents } from "@/lib/matches/group-substitution-events";
 
 const EVENT_TYPES = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
 
@@ -78,6 +79,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   if (!match) notFound();
   const canManageLineup = canReport && (match.status === "SCHEDULED" || match.status === "LIVE");
   const { homeTeamName, awayTeamName } = getMatchDisplayNames(match, locale);
+  const displayedEvents = groupSubstitutionEvents(match.events);
 
   const scopeContext = await getMutationScopeContext();
   try {
@@ -730,17 +732,26 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           </span>
         </summary>
         <ul className="mb-5 space-y-2">
-          {match.events.map((e) => {
+          {displayedEvents.map((display) => {
+            const isSubstitution = display.kind === "SUBSTITUTION";
+            const e = isSubstitution ? display.incoming : display.event;
+            const eventGroup = isSubstitution ? [display.outgoing, display.incoming] : [e];
             async function updateEvent(formData: FormData) {
               "use server";
               await updateMatchEventAction(id, e.id, formData);
             }
             async function removeEvent() {
               "use server";
-              await deleteMatchEventAction(id, e.id);
+              for (const groupedEvent of eventGroup) await deleteMatchEventAction(id, groupedEvent.id);
             }
             return (
-              <li key={e.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm">
+              <li key={display.id} className={`flex min-w-0 flex-col justify-between gap-3 rounded-xl border border-border/60 px-3 py-2.5 text-sm sm:flex-row sm:items-center ${isSubstitution ? "bg-club-primary/[0.035]" : "bg-muted/20"}`}>
+                {isSubstitution ? <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <span className="row-span-2 inline-flex h-9 min-w-12 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 px-2 font-mono text-xs font-black text-club-primary sm:row-span-1">{e.minute}&apos;</span>
+                  <span className="min-w-0 truncate text-muted-foreground"><span className="me-1 text-[10px] font-bold text-rose-500">{locale === "ar" ? "خروج" : "Sortie"}</span>{display.outgoing.player ? `${display.outgoing.player.firstName} ${display.outgoing.player.lastName}` : display.outgoing.playerName || "—"}</span>
+                  <span className="hidden text-club-primary sm:inline">→</span>
+                  <span className="min-w-0 truncate font-bold"><span className="me-1 text-[10px] font-bold text-emerald-500">{locale === "ar" ? "دخول" : "Entrée"}</span>{e.player ? `${e.player.firstName} ${e.player.lastName}` : e.playerName || "—"}</span>
+                </div> : <span>
                 <span>
                   <span className="inline-flex items-center gap-1.5">
                     {e.type === "GOAL" || e.type === "OWN_GOAL" ? <Target className="h-3.5 w-3.5 text-emerald-500" /> : null}
@@ -762,9 +773,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                       </span>
                     )}
                   </span>
-                </span>
+                </span></span>}
                 {canReport && <div className="flex shrink-0 items-center gap-2">
-                  {(match.status === "LIVE" || match.status === "FINISHED") && <MatchEventEditDialog
+                  {!isSubstitution && (match.status === "LIVE" || match.status === "FINISHED") && <MatchEventEditDialog
                     locale={locale}
                     event={{ id: e.id, type: e.type, side: e.side, minute: e.minute, playerId: e.playerId, staffId: e.staffId, playerName: e.playerName, playerNameFr: e.playerNameFr }}
                     homeTeamName={homeTeamName}
@@ -775,6 +786,17 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: `${member.firstName} ${member.lastName}` }))}
                     action={updateEvent}
                   />}
+                  {isSubstitution && eventGroup.map((groupedEvent) => <MatchEventEditDialog key={groupedEvent.id}
+                    locale={locale}
+                    event={{ id: groupedEvent.id, type: groupedEvent.type, side: groupedEvent.side, minute: groupedEvent.minute, playerId: groupedEvent.playerId, staffId: groupedEvent.staffId, playerName: groupedEvent.playerName, playerNameFr: groupedEvent.playerNameFr }}
+                    homeTeamName={homeTeamName}
+                    awayTeamName={awayTeamName}
+                    clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
+                    eventTypes={EVENT_TYPES.map((type) => ({ value: type, label: t(`events.${type}` as any) }))}
+                    players={trackedPlayers.map((player) => ({ id: player.id, label: `${player.firstName} ${player.lastName}` }))}
+                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: `${member.firstName} ${member.lastName}` }))}
+                    action={async (formData) => { "use server"; await updateMatchEventAction(id, groupedEvent.id, formData); }}
+                  />)}
                   <ConfirmDialog onConfirm={removeEvent}>
                     <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white">
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

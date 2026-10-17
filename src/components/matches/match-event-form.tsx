@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
@@ -58,14 +58,15 @@ export function MatchEventForm({
   const [type, setType] = useState("");
   const [entityType, setEntityType] = useState("PLAYER");
   const [playerId, setPlayerId] = useState("");
+  const [outPlayerId, setOutPlayerId] = useState("");
   const isClubEvent = side === clubSide;
   const isOpponentStaffEvent = !isClubEvent && entityType === "STAFF";
 
-  const eligiblePlayers = useMemo(() => {
-    if (type === "SUBSTITUTION_IN") return substitutePlayers;
-    if (type === "SUBSTITUTION_OUT") return startingPlayers;
-    return allPlayers;
-  }, [allPlayers, startingPlayers, substitutePlayers, type]);
+  const eligiblePlayers = allPlayers;
+  const isSubstitution = type === "SUBSTITUTION_IN" || type === "SUBSTITUTION_OUT";
+  const visibleEventTypes = eventTypes
+    .filter((option) => option.value !== "SUBSTITUTION_OUT")
+    .map((option) => option.value === "SUBSTITUTION_IN" ? { ...option, label: isArabic ? "تبديل لاعب" : "Remplacement" } : option);
 
   return (
     <ActionFeedbackForm
@@ -80,7 +81,7 @@ export function MatchEventForm({
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{labels.type}</label>
-        <FormSelect name="type" value={type} required locale={locale} ariaLabel={labels.type} onValueChange={(value) => { setType(value); setPlayerId(""); }} options={eventTypes} />
+        <FormSelect name="type" value={type} required locale={locale} ariaLabel={labels.type} onValueChange={(value) => { setType(value); setPlayerId(""); setOutPlayerId(""); }} options={visibleEventTypes} />
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{labels.side}</label>
@@ -93,7 +94,15 @@ export function MatchEventForm({
           options={[{ value: "HOME", label: homeTeamName }, { value: "AWAY", label: awayTeamName }]}
         />
       </div>
-      <div>
+      {isSubstitution ? <div className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-club-primary/20 bg-club-primary/[0.035] p-3 sm:col-span-2 sm:grid-cols-2">
+        {isClubEvent ? <>
+          <div className="min-w-0"><label className="mb-1.5 block text-xs font-bold text-muted-foreground">{isArabic ? "اللاعب الخارج" : "Joueur sortant"}</label><FormSelect name="outPlayerId" value={outPlayerId} required locale={locale} ariaLabel={isArabic ? "اللاعب الخارج" : "Joueur sortant"} placeholder={labels.playerPlaceholder} onValueChange={setOutPlayerId} options={[{ value: "", label: "—" }, ...startingPlayers.map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}` }))]} /></div>
+          <div className="min-w-0"><label className="mb-1.5 block text-xs font-bold text-muted-foreground">{isArabic ? "اللاعب الداخل" : "Joueur entrant"}</label><FormSelect name="playerId" value={playerId} required locale={locale} ariaLabel={isArabic ? "اللاعب الداخل" : "Joueur entrant"} placeholder={labels.playerPlaceholder} onValueChange={setPlayerId} options={[{ value: "", label: "—" }, ...substitutePlayers.filter((player) => player.id !== outPlayerId).map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}` }))]} /></div>
+        </> : <>
+          <label className="min-w-0 text-xs font-bold text-muted-foreground">{isArabic ? "اللاعب الخارج" : "Joueur sortant"}<input name="outPlayerName" maxLength={120} required className="mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" /></label>
+          <label className="min-w-0 text-xs font-bold text-muted-foreground">{isArabic ? "اللاعب الداخل" : "Joueur entrant"}<input name="playerName" maxLength={120} required className="mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" /></label>
+        </>}
+      </div> : <div>
         <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{labels.player}</label>
         <FormSelect
           name="playerId"
@@ -105,8 +114,8 @@ export function MatchEventForm({
           onValueChange={setPlayerId}
           options={[{ value: "", label: "—" }, ...eligiblePlayers.map((player) => ({ value: player.id, label: `${player.firstName} ${player.lastName}` }))]}
         />
-      </div>
-      {entityType === "PLAYER" && (
+      </div>}
+      {!isSubstitution && entityType === "PLAYER" && (
         <>
           <div>
             <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{labels.playerName}</label>
@@ -118,7 +127,7 @@ export function MatchEventForm({
           </div>
         </>
       )}
-      <div>
+      {!isSubstitution && <div>
         <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{labels.participant}</label>
         <FormSelect
           name="entityType"
@@ -128,8 +137,8 @@ export function MatchEventForm({
           onValueChange={(value) => { setEntityType(value); setPlayerId(""); }}
           options={[{ value: "PLAYER", label: isArabic ? "لاعب" : "Joueur" }, { value: "STAFF", label: labels.staffOption }]}
         />
-      </div>
-      <div>
+      </div>}
+      {!isSubstitution && <div>
         {!isClubEvent && entityType === "STAFF" ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -147,8 +156,8 @@ export function MatchEventForm({
             <FormSelect name="staffId" defaultValue="" disabled={entityType !== "STAFF"} locale={locale} ariaLabel={labels.staff} placeholder="—" options={[{ value: "", label: "—" }, ...staff.map((member) => ({ value: member.id, label: `${member.firstName} ${member.lastName}` }))]} />
           </>
         ) : null}
-      </div>
-      <div className="flex justify-end 2xl:col-span-4">
+      </div>}
+      <div className="flex justify-end sm:col-span-2 2xl:col-span-4">
         <Button type="submit" className="h-10 min-w-44 gap-2 rounded-xl">{labels.add}</Button>
       </div>
     </ActionFeedbackForm>

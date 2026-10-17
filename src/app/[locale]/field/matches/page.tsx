@@ -17,6 +17,7 @@ import { updateMatchStatusAction, addFieldMatchEventAction, updateMatchEventActi
 import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 import { getMatchDisplayStatus } from "@/lib/matches/display-status";
 import { MatchStatusRefresh } from "@/components/matches/match-status-refresh";
+import { groupSubstitutionEvents } from "@/lib/matches/group-substitution-events";
 
 const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15";
 
@@ -49,7 +50,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
   const selectedCategory = selectedTeam?.category ?? null;
   const matches = await db.match.findMany({
     where: { status: { in: ["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"] }, ...(selectedTeam ? { teamId: selectedTeam.id } : {}) },
-    include: { competition: true, events: { orderBy: { minute: "asc" }, select: { id: true, type: true, side: true, minute: true, playerName: true } } },
+    include: { competition: true, lineups: { include: { player: { select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true } } } }, events: { orderBy: { minute: "asc" }, select: { id: true, type: true, side: true, minute: true, playerName: true, playerNameFr: true, source: true, notes: true } } },
     orderBy: { matchDate: "desc" },
     take: 20
   });
@@ -154,6 +155,8 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
         const names = getMatchDisplayNames(match, locale);
         const displayStatus = getDisplayStatus(match);
         const isLive = displayStatus === "LIVE";
+        const eventDisplays = groupSubstitutionEvents(match.events);
+        const pairedEventIds = new Set(eventDisplays.flatMap((entry) => entry.kind === "SUBSTITUTION" ? [entry.incoming.id, entry.outgoing.id] : []));
         const isFinished = displayStatus === "FINISHED";
         const isPostponed = displayStatus === "POSTPONED";
         const homeSide = match.isHomeFixture ? "HOME" : "AWAY";
@@ -202,7 +205,24 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               showLabel={isAr ? "إظهار الأحداث" : "Afficher les événements"}
               hideLabel={isAr ? "إخفاء الأحداث" : "Masquer les événements"}
             >
-              {match.events.map((event) => <details key={event.id} className="group relative rounded-lg border border-border/80 bg-background">
+              {eventDisplays.filter((entry) => entry.kind === "SUBSTITUTION").map((entry) => {
+                if (entry.kind !== "SUBSTITUTION") return null;
+                async function removePair() {
+                  "use server";
+                  await deleteMatchEventAction(match.id, entry.outgoing.id);
+                  await deleteMatchEventAction(match.id, entry.incoming.id);
+                }
+                return <div key={entry.id} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-club-primary/20 bg-club-primary/[0.035] p-2.5 sm:gap-3 sm:p-3">
+                  <span className="inline-flex h-9 min-w-11 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 px-2 font-mono text-xs font-black text-club-primary">{entry.minute}&apos;</span>
+                  <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-2">
+                    <span className="min-w-0 truncate text-[11px] font-semibold"><span className="me-1 text-rose-500">{isAr ? "خروج" : "Sortie"}</span>{entry.outgoing.playerName || "—"}</span>
+                    <span className="hidden text-club-primary sm:inline">→</span>
+                    <span className="min-w-0 truncate text-[11px] font-bold"><span className="me-1 text-emerald-500">{isAr ? "دخول" : "Entrée"}</span>{entry.incoming.playerName || "—"}</span>
+                  </div>
+                  {canReport && <ConfirmDialog onConfirm={removePair} title={isAr ? "حذف التبديل؟" : "Supprimer le remplacement ?"} body={isAr ? "سيُحذف دخول اللاعب وخروجه معاً." : "L’entrée et la sortie seront supprimées ensemble."} successMessage={isAr ? "تم حذف التبديل" : "Remplacement supprimé"} errorMessage={isAr ? "تعذر حذف التبديل" : "Impossible de supprimer le remplacement"}><button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10" aria-label={isAr ? "حذف التبديل" : "Supprimer le remplacement"}><Trash2 className="h-3.5 w-3.5" /></button></ConfirmDialog>}
+                </div>;
+              })}
+              {match.events.filter((event) => !pairedEventIds.has(event.id)).map((event) => <details key={event.id} className="group relative rounded-lg border border-border/80 bg-background">
                 <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 pe-14 ps-2.5 text-[11px] font-semibold marker:hidden">
                   <span className="flex min-w-0 items-center gap-2"><span className={event.type === "RED_CARD" ? "text-rose-500" : event.type === "YELLOW_CARD" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>{event.type === "GOAL" || event.type === "PENALTY_GOAL" || event.type === "OWN_GOAL" ? "⚽" : event.type === "SHOT" ? "🎯" : event.type === "RED_CARD" ? "🟥" : event.type === "YELLOW_CARD" ? "🟨" : "•"}</span><span className="shrink-0 font-mono tabular-nums">{event.minute}{"'"}</span><span className="truncate">{event.playerName || (isAr ? "بدون اسم" : "Sans nom")}</span><span className="hidden text-[10px] font-normal text-muted-foreground sm:inline">{event.type === "SHOT" ? (isAr ? "تسديدة" : "Tir") : event.side === "HOME" ? names.homeTeamName : names.awayTeamName}</span></span>
                   {canReport && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-club-primary"><Pencil className="h-3 w-3" />{isAr ? "تعديل" : "Modifier"}</span>}
@@ -237,7 +257,9 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               awayTeamName={names.awayTeamName}
               defaultSide={homeSide}
               clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
-              players={match.teamId ? playersByTeam.get(match.teamId) ?? [] : []}
+              players={match.lineups.filter((lineup) => lineup.selectionStatus === "SUBSTITUTE" || (!lineup.selectionStatus && !lineup.isStarting)).map((lineup) => lineup.player)}
+              substitutePlayers={match.lineups.filter((lineup) => lineup.selectionStatus === "SUBSTITUTE" || (!lineup.selectionStatus && !lineup.isStarting)).map((lineup) => lineup.player)}
+              startingPlayers={match.lineups.filter((lineup) => lineup.selectionStatus === "STARTING" || (!lineup.selectionStatus && lineup.isStarting)).map((lineup) => lineup.player)}
             />}
           </div>
         </article>;

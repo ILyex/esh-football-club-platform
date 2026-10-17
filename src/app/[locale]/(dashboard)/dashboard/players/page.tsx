@@ -229,7 +229,7 @@ export default async function PlayersListPage({
                     id: evt.id,
                     type: evt.type,
                     minute: evt.minute,
-                    notes: evt.notes,
+                    notes: evt.notes?.startsWith("__SUBSTITUTION_PAIR__:") ? null : evt.notes,
                     match: {
                       id: evt.match.id,
                       opponent: evt.match.isHomeFixture ? evt.match.awayTeamName : evt.match.homeTeamName,

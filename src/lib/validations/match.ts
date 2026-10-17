@@ -43,6 +43,9 @@ export type MatchInput = z.infer<typeof matchSchema>;
 
 export const matchEventSchema = z.object({
   playerId: z.string().optional().or(z.literal("")),
+  outPlayerId: z.string().optional().or(z.literal("")),
+  outPlayerName: z.string().trim().max(120).optional(),
+  outPlayerNameFr: z.string().trim().max(120).optional(),
   playerName: z.string().trim().max(120).optional(),
   playerNameFr: z.string().trim().max(120).optional(),
   staffId: z.string().optional().or(z.literal("")),

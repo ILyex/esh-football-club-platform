@@ -520,7 +520,7 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
     // Card explanations are internal disciplinary details. Keep the database
     // note available to dashboard users, but never serialize it into the
     // public match event payload.
-    notes: e.type === "YELLOW_CARD" || e.type === "RED_CARD" ? null : e.notes,
+    notes: e.type === "YELLOW_CARD" || e.type === "RED_CARD" || e.notes?.startsWith("__SUBSTITUTION_PAIR__:") ? null : e.notes,
     playerName: e.player
       ? `${e.player.firstName} ${e.player.lastName}`
       : e.playerName && e.playerName !== "—" ? e.playerName : e.playerNameFr || "—",

@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/permissions";
 import { matchSchema, matchEventSchema, matchLineupEntrySchema, matchShootoutKickSchema } from "@/lib/validations/match";
@@ -461,6 +462,10 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
   const isOpponentEvent = parsed.side !== clubSide;
   const playerId = parsed.entityType === "PLAYER" ? parsed.playerId || null : null;
+  const isPairedSubstitution = parsed.type === "SUBSTITUTION_IN";
+  const outPlayerId = parsed.outPlayerId || null;
+  let outPlayerName = parsed.outPlayerName?.trim() || null;
+  let outPlayerNameFr = parsed.outPlayerNameFr?.trim() || null;
   const assistPlayerId = parsed.assistPlayerId || null;
   const staffId = parsed.entityType === "STAFF" && !isOpponentEvent ? parsed.staffId || null : null;
   let playerName = parsed.entityType === "PLAYER" || isOpponentEvent ? parsed.playerName || parsed.playerNameFr || null : null;
@@ -486,6 +491,24 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
     }
     playerName = `${player.firstName} ${player.lastName}`;
     playerNameFr = [player.firstNameFr, player.lastNameFr].filter(Boolean).join(" ").trim() || null;
+  }
+  if (isPairedSubstitution) {
+    if (parsed.entityType !== "PLAYER") throw new Error("substitutionRequiresPlayers");
+    if (isOpponentEvent) {
+      if (!playerName || !outPlayerName) throw new Error("substitutionRequiresBothPlayers");
+    } else {
+      if (!playerId || !outPlayerId) throw new Error("substitutionRequiresBothPlayers");
+      if (playerId === outPlayerId) throw new Error("substitutionPlayersMustDiffer");
+      const [incomingLineup, outgoingLineup, outgoingPlayer] = await Promise.all([
+        db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId } }, select: { selectionStatus: true, isStarting: true } }),
+        db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId: outPlayerId } }, select: { selectionStatus: true, isStarting: true } }),
+        db.player.findUniqueOrThrow({ where: { id: outPlayerId }, select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, teamId: true, team: { select: { category: true } } } })
+      ]);
+      const isValidMatchPlayer = outgoingPlayer.teamId === match.teamId || (match.team?.category === "SENIOR" && outgoingPlayer.team?.category === "U20");
+      if (!isValidMatchPlayer || outgoingLineup?.selectionStatus !== "STARTING" || incomingLineup?.selectionStatus !== "SUBSTITUTE") throw new Error("invalidSubstitutionRoster");
+      outPlayerName = `${outgoingPlayer.firstName} ${outgoingPlayer.lastName}`;
+      outPlayerNameFr = [outgoingPlayer.firstNameFr, outgoingPlayer.lastNameFr].filter(Boolean).join(" ").trim() || null;
+    }
   }
   if (staffId) {
     const staff = await db.staff.findUniqueOrThrow({ where: { id: staffId } });
@@ -518,6 +541,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
   const shotXg = isShotRecord ? estimateShotXg({ x: parsed.shotX, y: parsed.shotY, bodyPart: parsed.bodyPart, situation: shotSituation }) : null;
 
   const { event, outbox } = await db.$transaction(async (tx) => {
+    const substitutionPairKey = isPairedSubstitution ? `__SUBSTITUTION_PAIR__:${randomUUID()}` : null;
     const created = await tx.matchEvent.create({
       data: {
         matchId,
@@ -529,9 +553,24 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
         side: parsed.side,
         source: "MANUAL",
         minute: parsed.minute,
-        notes: parsed.notes
+        notes: substitutionPairKey ?? parsed.notes
       }
     });
+    if (isPairedSubstitution) {
+      await tx.matchEvent.create({
+        data: {
+          matchId,
+          playerId: isOpponentEvent ? null : outPlayerId,
+          playerName: outPlayerName,
+          playerNameFr: outPlayerNameFr,
+          type: "SUBSTITUTION_OUT",
+          side: parsed.side,
+          source: "MANUAL",
+          minute: parsed.minute,
+          notes: substitutionPairKey
+        }
+      });
+    }
     if (isShotRecord) {
       await tx.playerShot.create({
         data: {

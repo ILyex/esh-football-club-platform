@@ -333,13 +333,19 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     const penalty = Boolean(goal.isPenalty || goal.penalty || /penalty|penalty_goal|جزاء/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     add(goal, ownGoal ? "OWN_GOAL" : penalty ? "PENALTY_GOAL" : "GOAL", isLoc, ownGoal ? "هدف عكسي" : penalty ? "هدف من ركلة جزاء" : "هدف");
   }
-  for (const substitution of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"])) {
+  for (const [substitutionIndex, substitution] of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"]).entries()) {
     const isLoc = remoteLocSideOf(substitution, match, historyMatch, clubCode, remoteLocIsOurClub);
     const outPlayer = substitution.outPlayer || substitution.playerOut || substitution.playerSortant;
     const inPlayer = substitution.inPlayer || substitution.playerIn || substitution.playerEntrant;
     const minute = eventMinuteFrom(substitution);
+    const firstPairEvent = output.length;
     if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "خروج بالتبديل", undefined, minute);
     if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? isLoc, "دخول بالتبديل", undefined, minute);
+    const pairEvents = output.slice(firstPairEvent);
+    if (pairEvents.length === 2 && pairEvents[0]!.side === pairEvents[1]!.side) {
+      const pairKey = `__SUBSTITUTION_PAIR__:faf-${externalId}-${String(substitution.id ?? substitutionIndex)}-${minute}-${pairEvents[0]!.side}`;
+      pairEvents.forEach((event) => { event.notes = pairKey; });
+    }
   }
   if (missingMinuteEvents) warnings.push(`تُرك ${missingMinuteEvents} أحداث دون استيراد لأن وثيقة FAF EMS لا تحتوي على دقيقة موثوقة لها.`);
   return output;

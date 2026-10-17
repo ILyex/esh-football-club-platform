@@ -15,6 +15,7 @@ import { MatchLineupCarousel } from "@/components/public/match-lineup-carousel";
 import { PublicMatchSections } from "@/components/public/public-match-sections";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { groupSubstitutionEvents } from "@/lib/matches/group-substitution-events";
 import { matchStadium } from "@/lib/matches/stadium";
 
 export default async function PublicMatchDetailPage({
@@ -88,6 +89,7 @@ export default async function PublicMatchDetailPage({
     if (type === "SUBSTITUTION_IN" || type === "SUBSTITUTION_OUT") return <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />;
     return <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />;
   };
+  const displayedEvents = groupSubstitutionEvents(match.events);
 
   return (
     <div className="mx-auto max-w-6xl space-y-7 px-3 py-7 sm:space-y-8 sm:px-6 sm:py-10">
@@ -312,7 +314,10 @@ export default async function PublicMatchDetailPage({
           </h3>
 
           <div className="space-y-3">
-            {match.events.map((event) => {
+              {displayedEvents.map((display) => {
+              const isSubstitution = display.kind === "SUBSTITUTION";
+              const event = isSubstitution ? display.incoming : display.event;
+              const outgoing = isSubstitution ? display.outgoing : null;
               const isOpponentEvent = event.side !== (match.isHomeFixture ? "HOME" : "AWAY");
               const eventTeamName = event.side === "HOME" ? homeTeamName : awayTeamName;
               const eventTeamLogo = event.side === "HOME" ? homeLogoUrl : awayLogoUrl;
@@ -323,7 +328,7 @@ export default async function PublicMatchDetailPage({
                   : event.staffNameFr || "Arbitre");
               return (
                 <article
-                  key={event.id}
+                  key={display.id}
                   dir={isOpponentEvent
                     ? (locale === "ar" ? "ltr" : "rtl")
                     : (locale === "ar" ? "rtl" : "ltr")}
@@ -334,14 +339,18 @@ export default async function PublicMatchDetailPage({
                       {event.minute}&apos;
                     </span>
                     <div className="min-w-0 flex-1 text-start">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {isSubstitution ? <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+                        <span className="min-w-0 break-words text-start font-semibold text-muted-foreground">{outgoing?.playerName || outgoing?.playerNameFr || (locale === "ar" ? "لاعب خارج" : "Sortie")}</span>
+                        <span className="flex items-center justify-center gap-1 text-club-primary"><ArrowRightLeft className="h-4 w-4" aria-hidden="true" /><span className="text-[10px] font-bold">{locale === "ar" ? "تبديل" : "Remplacement"}</span></span>
+                        <span className="min-w-0 break-words text-start font-bold text-foreground">{eventPersonName}</span>
+                      </div> : <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="inline-flex min-h-9 max-w-full items-center break-words font-bold leading-tight text-foreground">{eventPersonName}</span>
                         <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold", eventTypeTone(event.type))}>
                           {eventTypeIcon(event.type)}
                           <span>{eventTypeLabel(event.type)}</span>
                         </span>
-                      </div>
-                      {(locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
+                      </div>}
+                      {!isSubstitution && (locale === "ar" ? event.notes : frenchPublicText(event.notes, "")) && (
                         <p className="mt-1 break-words text-xs text-muted-foreground">{locale === "ar" ? event.notes : frenchPublicText(event.notes, "")}</p>
                       )}
                     </div>
