@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Copy, List, Pencil, Trash2 } from "lucide-react";
 import { deleteTacticalPlanAction, saveTacticalPlanAction } from "@/app/[locale]/(dashboard)/dashboard/tactics/actions";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 type SavedPlan = {
   id: string;
@@ -51,14 +52,16 @@ export function SavedTacticalPlans({ locale, canEdit, plans: initialPlans }: { l
   }
 
   async function remove(plan: SavedPlan) {
-    if (!window.confirm(isAr ? "حذف هذه الخطة نهائيًا؟" : "Supprimer définitivement ce plan ?")) return;
     setBusyId(plan.id); setMessage("");
     try {
       await deleteTacticalPlanAction(plan.id);
       setPlans((current) => current.filter((item) => item.id !== plan.id));
       setMessage(isAr ? "تم حذف الخطة." : "Plan supprimé.");
+      return { success: true };
     } catch {
-      setMessage(isAr ? "تعذر حذف الخطة." : "Impossible de supprimer le plan.");
+      const error = isAr ? "تعذر حذف الخطة." : "Impossible de supprimer le plan.";
+      setMessage(error);
+      return { success: false, error };
     } finally { setBusyId(null); }
   }
 
@@ -82,7 +85,15 @@ export function SavedTacticalPlans({ locale, canEdit, plans: initialPlans }: { l
           <div className="col-start-2 row-span-2 flex items-center justify-end gap-1.5 sm:col-auto sm:row-span-1">
             {mayManage && <>
               <button type="button" aria-label={isAr ? "نسخ الخطة" : "Dupliquer le plan"} title={isAr ? "نسخ الخطة" : "Dupliquer le plan"} onClick={() => void duplicate(plan)} disabled={busyId !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs font-semibold hover:border-club-primary disabled:opacity-50"><Copy size={14}/><span className="hidden md:inline">{isAr ? "نسخ" : "Dupliquer"}</span></button>
-              <button type="button" aria-label={isAr ? "حذف الخطة" : "Supprimer le plan"} title={isAr ? "حذف الخطة" : "Supprimer le plan"} onClick={() => void remove(plan)} disabled={busyId !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-red-500/30 px-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50"><Trash2 size={14}/><span className="hidden md:inline">{isAr ? "حذف" : "Supprimer"}</span></button>
+              <ConfirmDialog
+                onConfirm={() => remove(plan)}
+                title={isAr ? "حذف الخطة نهائيًا؟" : "Supprimer définitivement ce plan ?"}
+                body={isAr ? "سيتم حذف هذه الخطة من قائمة الخطط المحفوظة الخاصة بحسابك." : "Ce plan sera supprimé de vos plans enregistrés."}
+                successMessage={isAr ? "تم حذف الخطة." : "Plan supprimé."}
+                errorMessage={isAr ? "تعذر حذف الخطة." : "Impossible de supprimer le plan."}
+              >
+                <button type="button" aria-label={isAr ? "حذف الخطة" : "Supprimer le plan"} title={isAr ? "حذف الخطة" : "Supprimer le plan"} disabled={busyId !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-red-500/30 px-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50"><Trash2 size={14}/><span className="hidden md:inline">{isAr ? "حذف" : "Supprimer"}</span></button>
+              </ConfirmDialog>
             </>}
             <Link href={editorUrl(plan.id)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md bg-club-primary px-2.5 text-xs font-semibold text-white hover:brightness-110"><Pencil size={14}/>{isAr ? "فتح" : "Ouvrir"}</Link>
           </div>
