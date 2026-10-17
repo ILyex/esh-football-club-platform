@@ -158,8 +158,8 @@ export default async function PlayerStatsPage({
   const seasonLabel = seasons.find((season) => season.id === selectedSeasonId)?.label;
 
   return <main className="mx-auto w-full max-w-7xl space-y-5 px-3 py-5 sm:px-6 sm:py-7" dir={isAr ? "rtl" : "ltr"}>
-    <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-club-primary" />
+    <header className="relative z-20 overflow-visible rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-club-primary" />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-club-primary"><BarChart3 className="size-4" /><span className="text-[10px] font-black tracking-wide">{isAr ? "الأداء الفني" : "PERFORMANCE"}</span></div>
