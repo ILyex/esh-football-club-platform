@@ -2,9 +2,9 @@ export type ShotBodyPart = "RIGHT_FOOT" | "LEFT_FOOT" | "HEAD" | "OTHER" | "UNKN
 export type ShotSituation = "OPEN_PLAY" | "PENALTY" | "FREE_KICK" | "CORNER" | "OTHER";
 
 /**
- * ESH xG v1 is a transparent location-only estimate for internal coaching.
- * It is not a licensed Opta/StatsBomb model and should be recalibrated against
- * the club's own shot history before being used for external comparisons.
+ * ESH xG v2 is a transparent geometry-and-context estimate for internal
+ * coaching. It is not a licensed Opta/StatsBomb model. xG is only meaningful
+ * when the shot location and attacking direction are recorded consistently.
  */
 export function estimateShotXg(input: {
   x?: number | null;
@@ -28,10 +28,16 @@ export function estimateShotXg(input: {
   const distance = Math.hypot(dx, y - goalY);
   const angle = Math.atan2(Math.abs(dx * (leftDy - rightDy)), dx * dx + leftDy * rightDy) * (180 / Math.PI);
 
-  let logit = 0.2 - 0.16 * distance + 0.02 * angle;
-  if (input.bodyPart === "HEAD") logit -= 0.65;
-  if (input.bodyPart === "OTHER") logit -= 0.25;
-  if (situation === "FREE_KICK" || situation === "CORNER") logit -= 0.2;
+  // A compact logistic model keeps the estimate monotonic: closer shots and
+  // wider visible goal angles receive more xG. Coefficients are deliberately
+  // conservative because the club does not yet have enough labelled shots to
+  // train and calibrate its own model.
+  let logit = -0.65 - 0.105 * distance + 0.025 * angle;
+  if (input.bodyPart === "HEAD") logit -= 0.55;
+  if (input.bodyPart === "OTHER") logit -= 0.3;
+  if (situation === "FREE_KICK") logit -= 0.35;
+  if (situation === "CORNER") logit -= 0.4;
+  if (situation === "OTHER") logit -= 0.15;
 
   const probability = 1 / (1 + Math.exp(-logit));
   return Math.round(Math.min(0.95, Math.max(0.01, probability)) * 1000) / 1000;

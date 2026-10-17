@@ -589,7 +589,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
           x: parsed.shotX,
           y: parsed.shotY,
           xG: shotXg,
-          xgModelVersion: "esh-xg-v1"
+          xgModelVersion: "esh-xg-v2"
         }
       });
     }
@@ -746,7 +746,7 @@ export async function updateMatchEventAction(matchId: string, eventId: string, f
           x: null,
           y: null,
           xG: null,
-          xgModelVersion: "esh-xg-v1"
+          xgModelVersion: "esh-xg-v2"
         }
       });
     }

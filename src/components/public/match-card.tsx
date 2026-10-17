@@ -100,7 +100,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             {isLive ? (locale === "ar" ? "النتيجة الحالية" : "Score en direct") : (locale === "ar" ? "موعد المباراة" : "Coup d’envoi")}
           </span>
           {isFinished || isLive ? (
-            <div dir="ltr" className="flex items-center justify-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-base font-black tracking-tight text-foreground shadow-sm font-mono tabular-nums sm:gap-1.5 sm:px-3 sm:text-lg">
+            <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex items-center justify-center gap-1 rounded-xl border border-border bg-card px-2 py-2 text-base font-black tracking-tight text-foreground shadow-sm font-mono tabular-nums sm:gap-1.5 sm:px-3 sm:text-lg">
               <span className="min-w-4 text-center">{match.homeScore ?? 0}</span>
               <span className="text-muted-foreground text-xs font-normal">-</span>
               <span className="min-w-4 text-center">{match.awayScore ?? 0}</span>
@@ -140,7 +140,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
             <Trophy className="h-3.5 w-3.5" aria-hidden="true" />
             <span>{locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}</span>
             {match.decidedByPenalties && (
-              <span dir="ltr" className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono tabular-nums">
+              <span dir={locale === "ar" ? "rtl" : "ltr"} className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono tabular-nums">
                 {locale === "ar" ? "ترجيح" : "TAB"} {match.homePenaltyScore ?? 0}–{match.awayPenaltyScore ?? 0}
               </span>
             )}

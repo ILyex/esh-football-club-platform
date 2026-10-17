@@ -224,7 +224,7 @@ export default async function PlayersListPage({
                 },
                 recentMatchEvents: [...p.matchEvents]
                   .sort((a, b) => new Date(b.match.matchDate).getTime() - new Date(a.match.matchDate).getTime())
-                  .slice(0, 10)
+                  .slice(0, 3)
                   .map((evt) => ({
                     id: evt.id,
                     type: evt.type,

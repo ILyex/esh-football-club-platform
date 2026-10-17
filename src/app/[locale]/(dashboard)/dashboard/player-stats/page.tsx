@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import { hasPermission, isProgrammer, requirePagePermission } from "@/lib/permissions";
 import { OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions/types";
+import { estimateShotXg } from "@/lib/matches/xg";
 
 type PlayerPerformance = {
   player: { id: string; slug: string; firstName: string; lastName: string; firstNameFr: string | null; lastNameFr: string | null; shirtNumber: number | null; team: { category: "SENIOR" | "U20" | "U17" | "U15" } | null };
@@ -60,7 +61,11 @@ export default async function PlayerStatsPage({
   const categoryTeamIds = selectedCategory === "ALL" ? allowedTeamIds : allowedTeams.filter((team) => team.category === selectedCategory).map((team) => team.id);
 
   const [seasons, currentSeason] = await Promise.all([
-    db.season.findMany({ select: { id: true, label: true, startDate: true }, orderBy: { startDate: "desc" } }),
+    db.season.findMany({
+      where: { competitions: { some: { matches: { some: { teamId: { in: allowedTeamIds }, status: { in: ["LIVE", "FINISHED"] } } } } } },
+      select: { id: true, label: true, startDate: true },
+      orderBy: { startDate: "desc" }
+    }),
     db.season.findFirst({ where: { isCurrent: true }, select: { id: true } })
   ]);
   const selectedSeasonId = query.season === "ALL" ? null : seasons.some((season) => season.id === query.season) ? query.season! : currentSeason?.id ?? seasons[0]?.id ?? null;
@@ -84,7 +89,7 @@ export default async function PlayerStatsPage({
         }),
         db.playerShot.findMany({
           where: { playerId: { in: playerIds }, match: matchFilter },
-          select: { playerId: true, assistPlayerId: true, outcome: true, xG: true, bodyPart: true, x: true, y: true, minute: true, matchId: true },
+          select: { playerId: true, assistPlayerId: true, outcome: true, xG: true, bodyPart: true, situation: true, x: true, y: true, minute: true, matchId: true },
           orderBy: [{ createdAt: "desc" }, { minute: "desc" }]
         }),
         db.matchLineup.findMany({
@@ -132,8 +137,9 @@ export default async function PlayerStatsPage({
     if (shooter) {
       shooter.shots += 1;
       if (["GOAL", "SAVED"].includes(shot.outcome)) shooter.shotsOnTarget += 1;
-      if (shot.xG !== null) {
-        shooter.xg += shot.xG;
+      const shotXg = estimateShotXg({ x: shot.x, y: shot.y, bodyPart: shot.bodyPart, situation: shot.situation });
+      if (shotXg !== null) {
+        shooter.xg += shotXg;
         shooter.xgShots += 1;
       }
     }
@@ -150,7 +156,7 @@ export default async function PlayerStatsPage({
   const selectedPlayer = rankedPlayers.find((row) => row.player.id === query.player) ?? null;
   const matchInfoById = new Map(shotMatches.map((match) => [match.id, match]));
   const selectedPlayerShots = selectedPlayer
-    ? shots.filter((shot) => shot.playerId === selectedPlayer.player.id).map((shot) => ({ ...shot, match: matchInfoById.get(shot.matchId)! }))
+    ? shots.filter((shot) => shot.playerId === selectedPlayer.player.id).map((shot) => ({ ...shot, xG: estimateShotXg({ x: shot.x, y: shot.y, bodyPart: shot.bodyPart, situation: shot.situation }), match: matchInfoById.get(shot.matchId)! }))
     : [];
   const locatedShots = selectedPlayerShots.filter((shot) => shot.x !== null && shot.y !== null && Number.isFinite(shot.x) && Number.isFinite(shot.y));
   const rightFootShots = selectedPlayerShots.filter((shot) => shot.bodyPart === "RIGHT_FOOT").length;
@@ -277,6 +283,6 @@ export default async function PlayerStatsPage({
       </div>
     </section>}
 
-    <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.035] px-4 py-3 text-[10px] leading-5 text-muted-foreground"><span className="font-bold text-amber-600 dark:text-amber-400">{isAr ? "ملاحظة xG:" : "Note xG :"}</span> {isAr ? (selectedPlayer ? `هذا تقدير داخلي من نموذج ESH v1. لا تدخل التسديدات القديمة التي لم يُسجل موقعها في مجموع xG؛ التغطية لهذا اللاعب ${selectedPlayer.xgShots} من ${selectedPlayer.shots} تسديدة.` : `هذا تقدير داخلي من نموذج ESH v1 يعتمد على موقع التسديدة والقدم/الرأس، والجزاء يحتسب 0.76. ليس نموذجًا تجاريًا من Opta أو StatsBomb. لا تدخل التسديدات القديمة التي لم يُسجل موقعها في مجموع xG؛ التغطية الحالية ${totals.xgShots} من ${totals.shots} تسديدة.`) : (selectedPlayer ? `Estimation interne ESH v1. Les tirs sans position ne contribuent pas au xG ; couverture pour ce joueur : ${selectedPlayer.xgShots}/${selectedPlayer.shots} tirs.` : `Estimation interne ESH v1 fondée sur la position et la partie du corps ; un penalty vaut 0,76. Ce n’est pas un modèle commercial Opta/StatsBomb. Les anciens tirs sans position ne contribuent pas au xG ; couverture actuelle : ${totals.xgShots}/${totals.shots} tirs.`)}</p>
+    <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.035] px-4 py-3 text-[10px] leading-5 text-muted-foreground"><span className="font-bold text-amber-600 dark:text-amber-400">{isAr ? "ملاحظة xG:" : "Note xG :"}</span> {isAr ? (selectedPlayer ? `تقدير داخلي من نموذج ESH v2، يُعاد حسابه على كامل التسديدات المحفوظة من الموقع والزاوية ونوع التسديدة. لا تدخل التسديدات غير المحدد موقعها (باستثناء الجزاء). التغطية لهذا اللاعب ${selectedPlayer.xgShots} من ${selectedPlayer.shots} تسديدة.` : `تقدير داخلي من نموذج ESH v2 يعتمد على المسافة والزاوية والقدم/الرأس ونوع الهجمة؛ الجزاء يحتسب 0.76. ليس نموذجًا تجاريًا من Opta أو StatsBomb ولا يصبح أدق إلا بجمع مواقع تسديدات صحيحة. لا تدخل التسديدات غير المحدد موقعها (عدا الجزاء)؛ التغطية الحالية ${totals.xgShots} من ${totals.shots} تسديدة.`) : (selectedPlayer ? `Estimation interne ESH v2 recalculée pour tous les tirs à partir de la distance, de l’angle, de la partie du corps et de la situation. Les tirs sans position (hors penalty) sont exclus : ${selectedPlayer.xgShots}/${selectedPlayer.shots}.` : `Estimation interne ESH v2 fondée sur la distance, l’angle, la partie du corps et la situation ; un penalty vaut 0,76. Ce n’est pas un modèle commercial Opta/StatsBomb. La qualité dépend de la saisie correcte des positions ; tirs couverts : ${totals.xgShots}/${totals.shots}.`)}</p>
   </main>;
 }

@@ -173,7 +173,7 @@ export default async function PublicMatchDetailPage({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <div dir="ltr" className="whitespace-nowrap font-mono text-3xl font-black text-foreground sm:text-5xl lg:text-6xl tabular-nums">
+                  <div dir={locale === "ar" ? "rtl" : "ltr"} className="whitespace-nowrap font-mono text-3xl font-black text-foreground sm:text-5xl lg:text-6xl tabular-nums">
                     <span>{match.homeScore ?? 0}</span>
                     <span className="mx-1 text-muted-foreground sm:mx-2">-</span>
                     <span>{match.awayScore ?? 0}</span>
@@ -184,7 +184,7 @@ export default async function PublicMatchDetailPage({
                   {winnerName && (
                     <p className="mt-2 max-w-[180px] text-wrap text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                       {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
-                      {match.decidedByPenalties && <span className="mt-1 block font-mono" dir="ltr">({locale === "ar" ? "ترجيح" : "TAB"} {match.homePenaltyScore}–{match.awayPenaltyScore})</span>}
+                      {match.decidedByPenalties && <span className="mt-1 block font-mono" dir={locale === "ar" ? "rtl" : "ltr"}>({locale === "ar" ? "ترجيح" : "TAB"} {match.homePenaltyScore}–{match.awayPenaltyScore})</span>}
                     </p>
                   )}
                   {match.status === "FINISHED" && match.hasPenaltyShootout && !winnerName && match.homeScore === match.awayScore && (
