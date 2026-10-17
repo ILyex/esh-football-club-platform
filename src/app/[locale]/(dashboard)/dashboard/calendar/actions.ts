@@ -33,6 +33,14 @@ export async function createCalendarEventAction(formData: FormData) {
   });
   revalidatePath("/[locale]/dashboard/calendar", "page");
   if (event.type === "MEETING") revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
+  if (event.type === "MEETING") {
+    try {
+      const { notifyCalendarManagersOfMeeting } = await import("@/lib/push/admin-meeting-push");
+      await notifyCalendarManagersOfMeeting(event);
+    } catch (error) {
+      console.error("[CalendarMeeting] Meeting was saved, but mobile push delivery failed.", error instanceof Error ? error.message : "unknown error");
+    }
+  }
   return { id: event.id, startDateTime: event.startDateTime };
 }
 

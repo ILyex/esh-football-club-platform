@@ -1,0 +1,29 @@
+{
+  "packageId": "dz.esh.footballclub.field",
+  "host": "esh-platform-vercel-preview.vercel.app",
+  "name": "ESH Matchday",
+  "launcherName": "مباريات ESH",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#d20a2e",
+  "navigationColor": "#0c0d0e",
+  "navigationColorDark": "#0c0d0e",
+  "navigationDividerColor": "#1f252b",
+  "navigationDividerColorDark": "#1f252b",
+  "backgroundColor": "#0c0d0e",
+  "startUrl": "/ar/field/matches",
+  "iconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
+  "maskableIconUrl": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-512.png",
+  "webManifestUrl": "https://esh-platform-vercel-preview.vercel.app/field/manifest.webmanifest",
+  "enableNotifications": true,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "المباريات الميدانية",
+      "shortName": "المباريات",
+      "url": "/ar/field/matches",
+      "icon": "https://esh-platform-vercel-preview.vercel.app/branding/esh-logo-192.png"
+    }
+  ]
+}

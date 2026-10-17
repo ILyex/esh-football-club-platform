@@ -1,0 +1,66 @@
+import "server-only";
+import { db } from "@/lib/db";
+import { getPushRuntimeEnv, isAllowedPushEndpoint } from "@/lib/push/match-push";
+
+type MeetingPushInput = { title: string; startDateTime: Date; location: string | null };
+
+/** Sends meeting alerts only to devices linked to active users who can manage the club calendar. */
+export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput): Promise<void> {
+  const env = await getPushRuntimeEnv();
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return;
+
+  const users = await db.user.findMany({
+    where: {
+      isActive: true,
+      deletedAt: null,
+      OR: [
+        { role: { teamScoped: false, permissions: { some: { permission: { key: "calendar.manage" } } } } },
+        { role: { key: "super_admin", permissions: { some: { permission: { key: "*" } } } } }
+      ]
+    },
+    select: { id: true }
+  });
+  if (users.length === 0) return;
+
+  const subscriptions = await db.pushSubscription.findMany({
+    where: { userId: { in: users.map((user) => user.id) } },
+    select: { id: true, endpoint: true, p256dh: true, auth: true, locale: true }
+  });
+  const targets = subscriptions.filter((subscription) => isAllowedPushEndpoint(subscription.endpoint));
+  if (targets.length === 0) return;
+
+  const { buildPushPayload } = await import("@block65/webcrypto-web-push");
+  const results = await Promise.allSettled(targets.map(async (subscription) => {
+    const isFrench = subscription.locale === "fr";
+    const date = new Intl.DateTimeFormat(isFrench ? "fr-FR" : "ar-DZ", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Algiers"
+    }).format(meeting.startDateTime);
+    const payload = buildPushPayload({
+      data: JSON.stringify({
+        title: isFrench ? "Nouvelle réunion · ESH" : "اجتماع جديد · أمل سيدي حسني",
+        body: `${meeting.title} · ${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
+        tag: `meeting-${meeting.startDateTime.getTime()}`,
+        url: `/${isFrench ? "fr" : "ar"}/dashboard/calendar`
+      }),
+      options: { ttl: 60 * 60 * 24, urgency: "high" }
+    }, {
+      endpoint: subscription.endpoint,
+      expirationTime: null,
+      keys: { p256dh: subscription.p256dh, auth: subscription.auth }
+    }, {
+      subject: env.VAPID_SUBJECT!,
+      publicKey: env.VAPID_PUBLIC_KEY!,
+      privateKey: env.VAPID_PRIVATE_KEY!
+    });
+
+    const response = await fetch(subscription.endpoint, { ...payload, redirect: "manual" });
+    if (response.status === 404 || response.status === 410) {
+      await db.pushSubscription.delete({ where: { id: subscription.id } });
+      return;
+    }
+    if (!response.ok) throw new Error(`Push provider returned HTTP ${response.status}.`);
+  }));
+
+  const failed = results.filter((result) => result.status === "rejected").length;
+  if (failed) console.error(`[AdminMeetingPush] ${failed} of ${targets.length} meeting alert(s) failed.`);
+}

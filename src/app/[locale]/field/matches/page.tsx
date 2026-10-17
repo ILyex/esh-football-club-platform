@@ -19,11 +19,13 @@ import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
 import { getMatchDisplayStatus } from "@/lib/matches/display-status";
 import { MatchStatusRefresh } from "@/components/matches/match-status-refresh";
 import { groupSubstitutionEvents } from "@/lib/matches/group-substitution-events";
+import { FieldPushSettings } from "@/components/field/field-push-settings";
 
 const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15";
 
 export const metadata: Metadata = {
   title: "إدارة المباريات الميدانية",
+  manifest: "/field/manifest.webmanifest",
   robots: { index: false, follow: false, noarchive: true }
 };
 
@@ -41,6 +43,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
   const user = await requirePagePermission("matches.view", locale);
   const canUpdate = hasPermission(user, "matches.update");
   const canReport = hasPermission(user, "matches.report");
+  if (!canUpdate && !canReport) redirect(`/${locale}/access-denied?code=403`);
   const scopeContext = await getMutationScopeContext();
   const teams = await db.team.findMany({
     where: scopeContext.isUnrestricted ? undefined : { id: { in: scopeContext.authorizedTeamIds } },
@@ -122,6 +125,7 @@ export default async function FieldMatchesPage({ params, searchParams }: { param
               <div className="min-w-0"><p className="text-[10px] font-bold tracking-wide text-club-primary">{isAr ? "إدارة ميدانية" : "GESTION TERRAIN"}</p><h1 className="mt-0.5 text-lg font-black leading-tight">{isAr ? "المباريات" : "Matchs"}</h1><p className="mt-0.5 text-[10px] text-muted-foreground">{isAr ? "إدارة النتائج وأحداث المباريات مباشرة" : "Gérez les scores et événements en direct"}</p></div>
             </div>
             <div className="flex w-full flex-nowrap items-center justify-between gap-1.5 sm:w-auto sm:justify-start sm:flex-wrap sm:gap-2">
+              <FieldPushSettings locale={locale} />
               <span title={isAr ? "متصل" : "En ligne"} aria-label={isAr ? "متصل" : "En ligne"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-bold"><CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "متصل" : "En ligne"}</span></span>
               <Link href={`/${locale}`} aria-label={isAr ? "الموقع العام" : "Site public"} title={isAr ? "الموقع العام" : "Site public"} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-club-primary hover:text-foreground sm:h-9 sm:w-auto sm:gap-1.5 sm:px-2.5 sm:text-[10px] sm:font-semibold"><ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">{isAr ? "الموقع" : "Site"}</span></Link>
               <div className="flex shrink-0 items-center gap-1 sm:gap-2">

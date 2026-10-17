@@ -1,0 +1,10 @@
+.tools/
+.sdk/
+.gradle/
+node_modules/
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+signing.properties
