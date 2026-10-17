@@ -10,6 +10,7 @@ export const refereeReportAnalysisSchema = z.object({
   matchId: z.string(),
   documentId: z.string().optional(),
   reportText: z.string().trim().max(5000).optional(),
+  reportTextIsSection: z.boolean().optional(),
   preserveExistingMatchData: z.boolean().optional(),
   userId: z.string()
 }).refine((value) => Boolean(value.documentId || value.reportText), {
@@ -52,9 +53,9 @@ export function registerRefereeReportAnalysisJob(): void {
     schema: refereeReportAnalysisSchema,
     defaultPriority: "HIGH",
     defaultMaxAttempts: 2,
-    handler: async ({ matchId, documentId, reportText, preserveExistingMatchData, userId }) => {
+    handler: async ({ matchId, documentId, reportText, reportTextIsSection, preserveExistingMatchData, userId }) => {
       let sourceText = reportText?.trim() || "";
-      if (!sourceText && documentId) {
+      if (documentId && !reportTextIsSection) {
         const doc = await db.document.findFirst({
           where: { id: documentId, relatedMatchId: matchId, matchDocumentType: "REFEREE_REPORT" },
           select: { storageKey: true, mimeType: true }
@@ -64,9 +65,14 @@ export function registerRefereeReportAnalysisJob(): void {
         const { getPrivateFileBuffer } = await import("@/lib/storage");
         const { extractDocumentText } = await import("@/lib/ai/document-verifier");
         const buffer = await getPrivateFileBuffer(doc.storageKey);
-        sourceText = (await extractDocumentText(buffer, doc.mimeType || "application/pdf"))?.trim() || "";
+        const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
+        const extractedDocument = (await extractDocumentText(buffer, doc.mimeType || "application/pdf"))?.trim() || "";
+        sourceText = extractFinalMatchReportSection(extractedDocument) || "";
+      } else if (sourceText && !reportTextIsSection) {
+        const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
+        sourceText = extractFinalMatchReportSection(sourceText) || sourceText;
       }
-      if (!sourceText) throw new Error("Could not extract readable text from referee report");
+      if (!sourceText) throw new Error("Could not find the final match report section in the referee report document");
 
       const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
       const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, preserveExistingMatchData, userId });

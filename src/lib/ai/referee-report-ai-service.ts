@@ -4,6 +4,7 @@ import { runAICompletion, checkAIAvailability } from "./provider";
 import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { AIError } from "./types";
+import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-section";
 
 export interface ParsedEventItem {
   playerId: string | null;
@@ -291,7 +292,8 @@ export async function parseAndApplyRefereeReportWithAI(params: {
   // FAF imports, analyze the actual official report before the curated public
   // event summary already stored on the match.
   const suppliedReportText = (reportText || "").trim();
-  let textToAnalyze = suppliedReportText;
+  const suppliedReportSection = extractFinalMatchReportSection(suppliedReportText);
+  let textToAnalyze = suppliedReportSection || suppliedReportText;
   const fafFinalReport = match.documents.find((document) =>
     document.matchDocumentType === "REFEREE_REPORT" && /^FAF-EMS-.+-final-report-ar\.pdf$/i.test(document.originalName || "")
   );
@@ -310,13 +312,14 @@ export async function parseAndApplyRefereeReportWithAI(params: {
           import("./document-verifier")
         ]);
         const buffer = await getPrivateFileBuffer(refDoc.storageKey);
-        textToAnalyze = (await extractDocumentText(buffer, refDoc.mimeType)) || "";
+        const extractedDocument = (await extractDocumentText(buffer, refDoc.mimeType)) || "";
+        textToAnalyze = extractFinalMatchReportSection(extractedDocument) || "";
       } catch (error) {
         console.warn("[AI Referee Report] Could not read attached report", error);
       }
     }
   }
-  if (!textToAnalyze) textToAnalyze = match.matchReport || "";
+  if (!textToAnalyze && !refDoc) textToAnalyze = match.matchReport || "";
 
   if (!textToAnalyze) {
     return {
@@ -513,7 +516,7 @@ ${squadRoster}
   await db.match.update({
     where: { id: matchId },
     data: {
-      ...(!preserveExistingMatchData && suppliedReportText ? { matchReport: suppliedReportText } : {}),
+      ...(!preserveExistingMatchData && (suppliedReportSection || suppliedReportText) ? { matchReport: suppliedReportSection || suppliedReportText } : {}),
       ...(!preserveExistingMatchData && detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });

@@ -8,6 +8,7 @@ import { getFafEmsClient } from "./ems-client";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { RetryableError } from "@/lib/jobs/types";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
+import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-section";
 import { extractDocumentText } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
@@ -151,27 +152,6 @@ function namesMatch(local: string, remote: string): boolean {
     }
   }
   return false;
-}
-
-function eventSummary(events: ImportedMatchEvent[], match: { homeTeamName: string; awayTeamName: string }): string[] {
-  const labels: Record<ImportedMatchEvent["type"], string> = {
-    GOAL: "هدف", PENALTY_GOAL: "هدف من ركلة جزاء", OWN_GOAL: "هدف عكسي",
-    YELLOW_CARD: "بطاقة صفراء", RED_CARD: "بطاقة حمراء",
-    SUBSTITUTION_IN: "دخول بالتبديل", SUBSTITUTION_OUT: "خروج بالتبديل"
-  };
-  return events.filter((event) => event.side !== null).map((event) => {
-    const teamName = event.side === "HOME" ? match.homeTeamName : match.awayTeamName;
-    const playerName = event.playerName || event.playerNameFr || "لاعب غير محدد";
-    return `${labels[event.type]} — ${playerName} — ${teamName} (${event.minute}')`;
-  });
-}
-
-function mergeFafMatchReport(existing: string | null, generated: string): string | null {
-  if (!generated.trim()) return existing;
-  const marker = "مجريات المباراة من FAF EMS:";
-  const previousFafSection = existing?.indexOf(marker) ?? -1;
-  const manualText = previousFafSection >= 0 ? existing!.slice(0, previousFafSection).trim() : existing?.trim() || "";
-  return [manualText, generated.trim()].filter(Boolean).join("\n\n");
 }
 
 type ImportedMatchEvent = {
@@ -586,8 +566,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   const finalReportBytes = documentSpecs.find((item) => item.kind === "REFEREE_REPORT")?.bytes;
   if (finalReportBytes) {
     try {
-      refereeReportText = (await extractDocumentText(finalReportBytes, "application/pdf"))?.trim().slice(0, 5000) || null;
-      if (!refereeReportText) warnings.push("حُفظ التقرير النهائي، لكن لم يُستخرج منه نص قابل للتحليل الآلي.");
+      const extractedText = await extractDocumentText(finalReportBytes, "application/pdf");
+      refereeReportText = extractedText
+        ? extractFinalMatchReportSection(extractedText)?.slice(0, 5000) || null
+        : null;
+      if (!refereeReportText) warnings.push("حُفظت الوثيقة، لكن لم يُعثر على قسم «تقرير المباراة» فيها؛ لم يُنسخ محتوى الوثيقة إلى التقرير.");
     } catch (error) {
       console.warn("[FAF EMS] Referee report text extraction failed", error);
       warnings.push("حُفظ التقرير النهائي، لكن تعذر استخراج نصه للتحليل الآلي.");
@@ -700,14 +683,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   );
   // Publish only events whose side was identified from EMS or an unambiguous
   // local player match. Never turn an unresolved event into an opponent event.
-  const events = eventSummary(importedEvents, { homeTeamName, awayTeamName });
-  const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const officialStatus = String(official.status || official.matchStatus || official.etatRencontre || "").toLocaleLowerCase("ar");
   const explicitlyFinished = /finished|termin|jouee|joué|clotur|final|انتهت|منتهية|نهائي/.test(officialStatus)
     || finalReportResult.status === "fulfilled";
   const explicitlyLive = /live|en cours|مباشر|جارية/.test(officialStatus);
   const officialResult = officialScore(official, remote, importedEvents);
-  const mergedMatchReport = mergeFafMatchReport(local.matchReport, reportText);
   await db.match.update({
     where: { id: local.id },
     data: {
@@ -719,7 +699,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       refereeName: referee || local.refereeName,
       refereeNameAr: refereeNameAr || previousArabicRefereeNames,
       refereeNameFr: refereeNameFr || local.refereeNameFr,
-      ...(mergedMatchReport !== local.matchReport ? { matchReport: mergedMatchReport } : {}),
+      ...(refereeReportText ? { matchReport: refereeReportText } : {}),
       ...(explicitlyFinished ? { status: "FINISHED" as const } : explicitlyLive ? { status: "LIVE" as const } : {})
     }
   });
@@ -734,6 +714,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       matchId: local.id,
       documentId: refereeReportDocumentId,
       reportText: refereeReportText,
+      reportTextIsSection: true,
       preserveExistingMatchData: true,
       userId: actorId
     });
@@ -750,7 +731,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   revalidatePath("/[locale]/dashboard/player-stats", "page");
   revalidatePath("/[locale]/matches", "page");
   revalidatePath("/[locale]", "page");
-  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: events.length, importedEventCount, lineupSummary, warnings } });
+  await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: importedEvents.length, importedEventCount, lineupSummary, warnings } });
   const lineupMessage = lineupSummary?.applied
     ? ` تم تحديث قائمة المباراة تلقائياً: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مدعو، ${lineupSummary.injured} مصاب يدوياً، ${lineupSummary.suspended} موقوف.`
     : "";
