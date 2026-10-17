@@ -29,6 +29,7 @@ import { SocialReelsSection } from "@/components/public/social-reels-section";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubIntroVideo } from "@/components/public/club-intro-video";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { getAnnouncementPriorityStyle } from "@/lib/announcement-priority-style";
 
 export const dynamic = "force-dynamic";
 
@@ -251,9 +252,9 @@ export default async function HomePage({
             {announcements.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200 shadow-2xs"
+                className={`flex items-start gap-3 rounded-xl border p-4 text-foreground shadow-2xs ${getAnnouncementPriorityStyle(item.priority).card}`}
               >
-                <Bell className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <Bell className={`mt-0.5 h-5 w-5 shrink-0 ${getAnnouncementPriorityStyle(item.priority).icon}`} />
                 <div className="flex-1">
                   <h3 className="text-sm font-bold">{item.title}</h3>
                   <p className="mt-0.5 text-xs leading-relaxed opacity-90">{item.content}</p>

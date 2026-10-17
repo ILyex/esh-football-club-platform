@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { setAnnouncementStatusAction, deleteAnnouncementAction } from "./actions";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { actionControlClass } from "@/components/shared/action-controls";
+import { getAnnouncementPriorityStyle } from "@/lib/announcement-priority-style";
 import { Eye, EyeOff, Trash2, Edit, Plus} from "lucide-react";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -101,7 +102,7 @@ export default async function AnnouncementsListPage({
                 await deleteAnnouncementAction(a.id);
               }
               return (
-                <tr key={a.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${getAnnouncementPriorityStyle(a.priority).row}`}>
                   <td className="px-4 py-3 font-medium text-foreground">{title}</td>
                   <td className="px-4 py-3 text-center text-muted-foreground">{a.team ? tTeams(`categories.${a.team.category}` as any) : t("clubWide")}</td>
                   <td className="px-4 py-3 text-center">
