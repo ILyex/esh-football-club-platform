@@ -17,6 +17,7 @@ import { loginAction } from "./actions";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { getPublicSiteUrl } from "@/lib/public-site-url";
+import { CapLoginWidget } from "@/components/auth/cap-login-widget";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -28,6 +29,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaWidgetVersion, setCaptchaWidgetVersion] = useState(0);
+  const captchaEnabled = process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true" || process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "1";
+  const captchaEndpoint = "/api/captcha/";
+
+  useEffect(() => {
+    if (state?.error) setCaptchaWidgetVersion((version) => version + 1);
+  }, [state]);
 
   useEffect(() => {
     try {
@@ -244,6 +253,18 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {captchaEnabled && (
+                <div className="space-y-1.5" aria-label={isRtl ? "التحقق الأمني" : "Vérification de sécurité"}>
+                  <p className="text-xs font-semibold text-foreground/90">{isRtl ? "التحقق الأمني" : "Vérification de sécurité"}</p>
+                  <CapLoginWidget
+                    key={captchaWidgetVersion}
+                    endpoint={captchaEndpoint}
+                    locale={locale}
+                    onReady={setCaptchaReady}
+                  />
+                </div>
+              )}
+
               {/* Remember Me Option */}
               <div className="flex items-center justify-between pt-0.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -283,6 +304,10 @@ export default function LoginPage() {
                         ? t("invalidEmail")
                         : state.error === "invalid_password"
                           ? t("invalidPassword")
+                          : state.error === "captcha_required"
+                            ? t("captchaRequired")
+                            : state.error === "captcha_unavailable"
+                              ? t("captchaUnavailable")
                           : state.error === "login_unavailable"
                             ? t("serviceUnavailable")
                             : t("loginError")}
@@ -293,7 +318,7 @@ export default function LoginPage() {
               {/* Submit / Login Button */}
               <button
                 type="submit"
-                disabled={pending}
+                disabled={pending || (captchaEnabled && !captchaReady)}
                 className="w-full mt-2 rounded-xl bg-club-primary hover:bg-club-primary-hover py-2.5 text-sm font-bold text-white shadow-md shadow-club-primary/25 transition-all active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
               >
                 {pending ? (

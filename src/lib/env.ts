@@ -170,6 +170,20 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
     }
   }
 
+  // Cap Core is on by default in production and uses a domain-separated key
+  // derived from the required AUTH_SECRET. Local development opts in with
+  // matching server/client flags so a developer can test without affecting
+  // ordinary local sign-in.
+  const captchaEnabled = isProduction || env.CAPTCHA_ENABLED === "true" || env.CAPTCHA_ENABLED === "1";
+  const capSecret = env.CAP_SECRET?.trim();
+  if (captchaEnabled && capSecret && capSecret.length < 32) {
+    warnings.push("CAP_SECRET is shorter than 32 characters; use a high-entropy secret or leave it empty to derive one from AUTH_SECRET.");
+  }
+  const publicCaptchaEnabled = env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true" || env.NEXT_PUBLIC_CAPTCHA_ENABLED === "1";
+  if (!isProduction && captchaEnabled !== publicCaptchaEnabled) {
+    warnings.push("CAPTCHA_ENABLED and NEXT_PUBLIC_CAPTCHA_ENABLED should both be enabled or disabled together.");
+  }
+
   // 7. AI Subsystem Invariant
   // AI is opt-in. A missing flag must never activate Ollama implicitly.
   const aiEnabled = env.AI_ENABLED === "true" || env.AI_ENABLED === "1";

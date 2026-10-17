@@ -47,6 +47,8 @@
     "loginError": "Identifiants incorrects",
     "invalidEmail": "Saisissez une adresse e-mail valide contenant @.",
     "invalidPassword": "Vérifiez la longueur du mot de passe : au moins 8 caractères, sans dépasser la limite autorisée.",
+    "captchaRequired": "Terminez la vérification de sécurité avant de vous connecter.",
+    "captchaUnavailable": "La vérification de sécurité est momentanément indisponible. Réessayez dans quelques instants.",
     "serviceUnavailable": "La connexion est temporairement indisponible. Réessayez dans quelques instants.",
     "logout": "Déconnexion"
   },

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { isLoginCaptchaEnabled, verifyLoginCaptcha } from "@/lib/security/cap-captcha";
 
 // ============================================================================
 // AUTHENTICATION (Auth.js / NextAuth v5)
@@ -43,9 +44,19 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        rememberMe: { label: "Remember me", type: "text" }
+        rememberMe: { label: "Remember me", type: "text" },
+        captchaToken: { label: "Security verification", type: "text" }
       },
       async authorize(raw, request) {
+        if (isLoginCaptchaEnabled()) {
+          const captchaResult = await verifyLoginCaptcha(String(raw?.captchaToken ?? ""));
+          if (captchaResult !== "verified") {
+            const error = new CredentialsSignin();
+            error.code = captchaResult === "unavailable" ? "captcha_unavailable" : "captcha_required";
+            throw error;
+          }
+        }
+
         const parsed = loginSchema.safeParse(raw);
         if (!parsed.success) return null;
         // Normalize here as well as in the form action so API/direct provider

@@ -38,6 +38,7 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
     const redirectUrl = await signIn("credentials", {
       email,
       password,
+      captchaToken: String(formData.get("cap-token") ?? ""),
       rememberMe: String(rememberMe),
       redirect: false,
       redirectTo: callbackUrl
@@ -60,9 +61,10 @@ export async function loginAction(_prevState: LoginFormState, formData: FormData
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.type === "CredentialsSignin") {
+        const code = (error as AuthError & { code?: string }).code;
         return {
-          error: (error as AuthError & { code?: string }).code === "rate_limited"
-            ? "rate_limited"
+          error: code === "rate_limited" || code === "captcha_required" || code === "captcha_unavailable"
+            ? code
             : "invalid_credentials"
         };
       }
