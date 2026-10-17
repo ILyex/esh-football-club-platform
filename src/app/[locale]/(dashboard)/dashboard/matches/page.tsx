@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteMatchAction } from "./actions";
 import { resolveMatchResult } from "@/lib/matches/result";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
-import { formatAlgeriaDateTime } from "@/lib/dates/algeria";
+import { formatAlgeriaDate, formatAlgeriaTime } from "@/lib/dates/algeria";
 
 export default async function MatchesListPage({
   params,
@@ -139,7 +139,7 @@ export default async function MatchesListPage({
               }
               return (
                 <tr key={m.id} className="border-b border-border last:border-0 align-middle hover:bg-muted/20">
-                  <td className="px-4 py-2 text-start"><span dir="ltr" className="inline-block whitespace-nowrap font-mono text-xs tabular-nums">{formatAlgeriaDateTime(m.matchDate, locale)}</span></td>
+                  <td className="px-4 py-2 text-start"><span dir="ltr" className="inline-flex flex-row items-center gap-1 whitespace-nowrap font-mono text-xs tabular-nums"><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaDate(m.matchDate)}</time><span aria-hidden="true">·</span><time dateTime={m.matchDate.toISOString()} dir="ltr">{formatAlgeriaTime(m.matchDate, locale)}</time></span></td>
                   <td className="px-4 py-2 align-middle font-medium">
                     <span dir={locale === "ar" ? "rtl" : "ltr"} className="grid w-full min-w-[280px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                       <span dir="auto" className="truncate">{homeTeamName}</span>
