@@ -179,9 +179,28 @@ function storedMatchId(value: string | undefined): string | null {
   } catch { return null; }
 }
 
-/** Imports the club's upcoming EMS schedule without touching existing manual
- * match edits. The EMS ID is a unique integration key; a date/team/opponent
- * match is linked to that key instead of being duplicated. */
+function scoreNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 99) return value;
+  if (typeof value === "string" && /^\d{1,2}$/.test(value.trim())) return Number(value.trim());
+  return null;
+}
+
+function officialScore(...matches: RemoteMatch[]): { home: number; away: number } | null {
+  for (const match of matches) {
+    for (const record of [match, match?.score, match?.resultat].filter((value) => value && typeof value === "object")) {
+      const home = scoreNumber(record.scoreLoc ?? record.scoreLocal ?? record.homeScore ?? record.scoreHome ?? record.butsLoc ?? record.local ?? record.home);
+      const away = scoreNumber(record.scoreVis ?? record.scoreVisiteur ?? record.awayScore ?? record.scoreAway ?? record.butsVis ?? record.visiteur ?? record.away);
+      if (home !== null && away !== null) return { home, away };
+      const resultText = [record.resultat, record.score, record.result, record.scoreFinal].find((value) => typeof value === "string");
+      const pair = typeof resultText === "string" ? resultText.match(/(?:^|\D)(\d{1,2})\s*[-–:]\s*(\d{1,2})(?:\D|$)/) : null;
+      if (pair) return { home: Number(pair[1]), away: Number(pair[2]) };
+    }
+  }
+  return null;
+}
+
+/** Imports the club's recent history and upcoming EMS schedule without
+ * duplicating matches already entered in the platform. */
 export async function importUpcomingFafMatches(options: {
   actorId?: string | null;
   allowedTeamIds?: string[] | null;
@@ -200,7 +219,22 @@ export async function importUpcomingFafMatches(options: {
     const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
     return `${part("year")}-${part("month")}-${part("day")}`;
   };
-  const remoteMatches = await getFafEmsClient().scheduledMatches(dateOnly(start), dateOnly(endDay));
+  const client = getFafEmsClient();
+  const [historyMatches, scheduledMatches] = await Promise.all([
+    client.history(),
+    client.scheduledMatches(dateOnly(start), dateOnly(endDay))
+  ]);
+  const historicalIds = new Set(historyMatches.map((match) => String(match.id ?? "").trim()).filter(Boolean));
+  // History is returned newest-first by FAF EMS. Keep recent completed matches
+  // relevant to the current season while the upcoming feed covers future games.
+  const historyCutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const remoteMatches = [
+    ...historyMatches.filter((match) => {
+      const date = dateInAlgeria(match.dateRencontre, match.heureRencontre || "12:00");
+      return date !== null && date >= historyCutoff && date < start;
+    }),
+    ...scheduledMatches
+  ];
   const [teams, competitions] = await Promise.all([
     db.team.findMany({ where: { active: true }, select: { id: true, category: true, active: true } }),
     db.competition.findMany({ select: { id: true, name: true, teamId: true } })
@@ -249,7 +283,8 @@ export async function importUpcomingFafMatches(options: {
       : undefined;
     if (!externalId || seenExternalIds.has(externalId)) { result.alreadyPresent++; continue; }
     seenExternalIds.add(externalId);
-    if (!opponent || !kickoff || kickoff < start) {
+    const isHistorical = historicalIds.has(externalId);
+    if (!opponent || !kickoff || (!isHistorical && kickoff < start)) {
       result.skipped++;
       if (result.warnings.length < 5) result.warnings.push(`لم أستورد مباراة EMS رقم ${externalId}: بيانات الخصم أو موعد الانطلاق غير مكتملة.`);
       continue;
@@ -283,6 +318,7 @@ export async function importUpcomingFafMatches(options: {
     const referee = refereeCrew.fr[0] || refereeCrew.ar[0] || null;
     const refereeNameAr = refereeCrew.ar.join("، ") || null;
     const refereeNameFr = refereeCrew.fr.join(", ") || null;
+    const score = isHistorical ? officialScore(fixture, remote) : null;
     const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
     const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
     if (logoUrl) {
@@ -338,7 +374,6 @@ export async function importUpcomingFafMatches(options: {
         const sameDayMatches = await tx.match.findMany({
           where: {
             teamId: team.id,
-            competitionId: competition.id,
             matchDate: { gte: bounds.start, lt: bounds.end }
           },
           select: { id: true, homeTeamName: true, awayTeamName: true, isHomeFixture: true, stadium: true, refereeName: true, refereeNameAr: true }
@@ -362,7 +397,7 @@ export async function importUpcomingFafMatches(options: {
             refereeName: referee,
             refereeNameAr,
             refereeNameFr,
-            status: "SCHEDULED"
+          ...(isHistorical ? { homeScore: score?.home ?? null, awayScore: score?.away ?? null, status: "FINISHED" as const } : { status: "SCHEDULED" as const })
           },
           select: { id: true }
         })).id;

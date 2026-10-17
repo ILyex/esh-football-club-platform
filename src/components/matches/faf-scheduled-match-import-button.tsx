@@ -42,7 +42,7 @@ export function FafScheduledMatchImportButton({ locale, compact = false }: { loc
         {pending ? (ar ? "جارٍ البحث في FAF EMS…" : "Recherche dans FAF EMS…") : (ar ? (compact ? "جلب من FAF EMS" : "جلب المباراة من FAF EMS") : "Importer les matchs FAF EMS")}
       </Button>
       {!compact && <p className="text-xs text-muted-foreground">
-        {ar ? "يفحص المباريات المبرمجة خلال 14 يومًا، وينشئ الناقص فقط دون تعديل مبارياتكم." : "Recherche les rencontres des 14 prochains jours et ajoute uniquement celles qui manquent, sans modifier vos matchs."}
+        {ar ? "يفحص سجل FAF EMS للمباريات السابقة ومباريات الأيام الـ14 القادمة، ويتجاوز أي مباراة موجودة مسبقًا." : "Recherche l’historique FAF EMS et les rencontres des 14 prochains jours, en ignorant les matchs déjà présents."}
       </p>}
       {warnings.length > 0 && <ul className="space-y-1 text-xs text-amber-600" role="status">{warnings.map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}</ul>}
     </div>
