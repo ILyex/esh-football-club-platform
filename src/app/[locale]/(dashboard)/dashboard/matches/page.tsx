@@ -140,7 +140,7 @@ export default async function MatchesListPage({
               return (
                 <tr key={m.id} className="border-b border-border/70 last:border-0 align-middle transition-colors hover:bg-muted/20">
                   <td className="px-3 py-3 text-start">
-                    <span dir="ltr" className="inline-flex min-w-[132px] flex-col gap-1 rounded-xl border border-border/70 bg-background px-3 py-2 font-mono tabular-nums">
+                    <span dir="ltr" className="inline-flex min-w-0 flex-row items-center gap-2 whitespace-nowrap rounded-xl border border-border/70 bg-background px-2.5 py-2 font-mono tabular-nums">
                       <time className="text-xs font-bold text-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
                       <time className="text-[11px] text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
                     </span>
