@@ -10,7 +10,10 @@ function run(command, args) {
 }
 
 function normalizeConstraint(value) {
-  return value.toLowerCase().replaceAll('"', "").replace(/\s+/g, " ").trim();
+  const normalized = value.toLowerCase().replaceAll('"', "").replace(/\s+/g, " ").trim();
+  const actions = normalized.match(/on (?:delete|update) (?:set null|cascade|restrict|no action|set default)/g) ?? [];
+  const definition = normalized.replace(/ on (?:delete|update) (?:set null|cascade|restrict|no action|set default)/g, "").trim();
+  return [...actions.sort(), definition].join(" ");
 }
 
 async function verifyExistingTacticalPlanTable(pool) {
@@ -91,7 +94,7 @@ async function verifyExistingTacticalPlanTable(pool) {
   ];
   for (const foreignKey of foreignKeys) {
     const existing = actualConstraints.get(foreignKey.name);
-    if (existing?.definition === foreignKey.expectedDefinition) continue;
+    if (existing?.definition === normalizeConstraint(foreignKey.expectedDefinition)) continue;
     const { rows } = await pool.query(foreignKey.orphanQuery);
     if (rows[0].has_orphans) {
       throw new Error(`Cannot safely add ${foreignKey.name}: TacticalPlan contains orphaned references.`);
@@ -117,7 +120,7 @@ async function verifyExistingTacticalPlanTable(pool) {
   ]));
   const remainingMismatches = expectedConstraints.filter(([name, type, definition]) => {
     const actual = actualConstraints.get(name);
-    return !actual || actual.type !== type || actual.definition !== definition;
+    return !actual || actual.type !== type || actual.definition !== normalizeConstraint(definition);
   });
   if (remainingMismatches.length) {
     throw new Error(`TacticalPlan constraints still differ after reconciliation: ${remainingMismatches.map(([name]) => name).join(", ")}`);
