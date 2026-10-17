@@ -511,6 +511,14 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
     ] },
     select: { key: true, value: true }
   });
+  const configuredClubCode = String(clubCode || "").trim().toUpperCase();
+  const remoteOrientation = (remote: any): boolean | null => {
+    const localCode = String(remote?.clubLoc?.fifaId || "").trim().toUpperCase();
+    const visitorCode = String(remote?.clubVis?.fifaId || "").trim().toUpperCase();
+    if (localCode === configuredClubCode && visitorCode !== configuredClubCode) return true;
+    if (visitorCode === configuredClubCode && localCode !== configuredClubCode) return false;
+    return null;
+  };
   const mappedExternalIds = scheduledMappings.flatMap((mapping) => {
     try {
       const value = JSON.parse(mapping.value) as { matchId?: string };
@@ -524,26 +532,23 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
   for (const externalId of mappedExternalIds) {
     const mapped = remoteMatches.find((remote) => Number(remote.id) === externalId);
     if (!mapped) continue;
-    const ourRemoteClub = local.isHomeFixture ? mapped.clubLoc : mapped.clubVis;
-    if (String(ourRemoteClub?.fifaId || "").toUpperCase() === clubCode.toUpperCase()) {
-      return { local, remote: mapped };
-    }
+    const remoteLocIsOurClub = remoteOrientation(mapped);
+    if (remoteLocIsOurClub !== null) return { local, remote: mapped, remoteLocIsOurClub };
   }
   const localDate = dateKey(local.matchDate);
   const candidates = remoteMatches.filter((remote) => {
     if (dateKey(remote.dateRencontre) !== localDate) return false;
-    const localClub = local.isHomeFixture ? remote.clubLoc : remote.clubVis;
-    const otherClub = local.isHomeFixture ? remote.clubVis : remote.clubLoc;
-    if (String(localClub?.fifaId || "").toUpperCase() !== clubCode.toUpperCase()) return false;
-    const localOpponent = local.isHomeFixture ? local.awayTeamName : local.homeTeamName;
-    return namesMatch(localOpponent, opponentName(otherClub));
+    const remoteLocIsOurClub = remoteOrientation(remote);
+    if (remoteLocIsOurClub === null) return false;
+    const remoteOpponent = opponentName(remoteLocIsOurClub ? remote.clubVis : remote.clubLoc);
+    return namesMatch(local.homeTeamName, remoteOpponent) || namesMatch(local.awayTeamName, remoteOpponent);
   });
   if (candidates.length !== 1) {
     throw new Error(candidates.length
       ? "وجدت أكثر من مباراة محتملة في EMS في نفس التاريخ؛ لم أستورد أي بيانات لتجنب ربط مباراة خاطئة."
       : "حُفظت المباراة في المنصة، لكن تعذّر ربطها بمباراة FAF EMS. تحقق من تاريخ المباراة واسم المنافس أو استورد المباراة المبرمجة أولاً.");
   }
-  return { local, remote: candidates[0] };
+  return { local, remote: candidates[0], remoteLocIsOurClub: remoteOrientation(candidates[0])! };
 }
 
 export async function syncFafMatchDocuments(matchId: string, userId?: string): Promise<FafMatchSyncResult> {
@@ -552,7 +557,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // encrypted, persisted FAF session (PostgreSQL on Vercel). Requiring env vars
   // before that lookup made valid stored sessions unusable in production.
   if (!config.enabled) throw new Error("FAF EMS integration is disabled on the server.");
-  const { local, remote } = await resolveLocalMatch(matchId, config.clubCode);
+  const { local, remote, remoteLocIsOurClub } = await resolveLocalMatch(matchId, config.clubCode);
   if (!remote) throw new Error("No matching FAF EMS record was found.");
   const actorId = userId || (await db.user.findFirst({ where: { role: { key: "ADMIN" } }, select: { id: true } }))?.id;
   if (!actorId) throw new Error("A platform user is required to attach imported FAF documents.");
@@ -678,22 +683,24 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   const previousArabicRefereeNames = local.refereeNameAr === local.refereeName && !isArabicRefereeName(local.refereeNameAr)
     ? null
     : local.refereeNameAr;
-  // resolveLocalMatch matched the fixture against Historique using the club's
-  // configured FIFA id and the local home/away orientation. Treat that match
-  // orientation as the source of truth; detail responses can omit/change IDs.
-  const remoteLocIsOurClub = local.isHomeFixture;
-  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, local.isHomeFixture, remote, config.clubCode, warnings);
+  // The EMS club FIFA IDs are authoritative for orientation. A stale local
+  // isHomeFixture flag must never reverse scores or assign events to a side.
+  const clubIsHome = remoteLocIsOurClub;
+  const opponent = opponentName(clubIsHome ? remote.clubVis : remote.clubLoc);
+  const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponent;
+  const awayTeamName = clubIsHome ? opponent : "نادي أمل سيدي حسني";
+  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
     importedEvents,
-    local.isHomeFixture,
+    clubIsHome,
     remoteLocIsOurClub,
     warnings
   );
   // Publish only events whose side was identified from EMS or an unambiguous
   // local player match. Never turn an unresolved event into an opponent event.
-  const events = eventSummary(importedEvents, local);
+  const events = eventSummary(importedEvents, { homeTeamName, awayTeamName });
   const reportText = events.length ? `مجريات المباراة من FAF EMS:\n${events.join("\n")}` : "";
   const officialStatus = String(official.status || official.matchStatus || official.etatRencontre || "").toLocaleLowerCase("ar");
   const explicitlyFinished = /finished|termin|jouee|joué|clotur|final|انتهت|منتهية|نهائي/.test(officialStatus)
@@ -704,8 +711,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   await db.match.update({
     where: { id: local.id },
     data: {
+      homeTeamName,
+      awayTeamName,
+      isHomeFixture: clubIsHome,
       ...(officialResult ? { homeScore: officialResult.home, awayScore: officialResult.away } : {}),
-      stadium: matchStadium(local.isHomeFixture, official.stade?.nomAr || official.stade?.nomStade, local.stadium),
+      stadium: matchStadium(clubIsHome, official.stade?.nomAr || official.stade?.nomStade, local.stadium),
       refereeName: referee || local.refereeName,
       refereeNameAr: refereeNameAr || previousArabicRefereeNames,
       refereeNameFr: refereeNameFr || local.refereeNameFr,

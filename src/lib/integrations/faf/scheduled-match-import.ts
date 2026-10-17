@@ -354,6 +354,10 @@ export async function importUpcomingFafMatches(options: {
               where: { id: mappedMatchExists.id },
               data: {
                 matchDate: kickoff,
+                homeTeamName,
+                awayTeamName,
+                isHomeFixture: homeFixtureIsUs,
+                ...(isHistorical ? { ...(score ? { homeScore: score.home, awayScore: score.away } : {}), status: "FINISHED" as const } : {}),
                 ...(stadium ? { stadium } : {}),
                 ...(referee ? { refereeName: referee } : {}),
               ...(refereeNameAr ? { refereeNameAr } : refereeNameFr && previousArabicRefereeNames === null ? { refereeNameAr: null } : {}),
@@ -362,7 +366,7 @@ export async function importUpcomingFafMatches(options: {
             });
             await tx.calendarEvent.upsert({
               where: { relatedMatchId: mappedMatchExists.id },
-              update: { startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
+              update: { title: `${homeTeamName} vs ${awayTeamName}`, startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
               create: { title: `${mappedMatchExists.homeTeamName} vs ${mappedMatchExists.awayTeamName}`, type: "MATCH", startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null, relatedMatchId: mappedMatchExists.id }
             });
             return "existing" as const;
@@ -378,10 +382,12 @@ export async function importUpcomingFafMatches(options: {
           },
           select: { id: true, homeTeamName: true, awayTeamName: true, isHomeFixture: true, stadium: true, refereeName: true, refereeNameAr: true }
         });
-        const existingManual = sameDayMatches.find((match) => {
-          const existingOpponent = match.isHomeFixture ? match.awayTeamName : match.homeTeamName;
-          return namesMatch(existingOpponent, opponent);
-        });
+        // A previously imported/manual fixture can already have the wrong
+        // home/away flag. Identify it by either stored team name, then repair
+        // its orientation from the authoritative EMS club IDs below.
+        const existingManual = sameDayMatches.find((match) =>
+          namesMatch(match.homeTeamName, opponent) || namesMatch(match.awayTeamName, opponent)
+        );
         const previousArabicRefereeNames = existingManual?.refereeNameAr === existingManual?.refereeName && !isArabicRefereeName(existingManual?.refereeNameAr)
           ? null
           : existingManual?.refereeNameAr;
@@ -407,6 +413,10 @@ export async function importUpcomingFafMatches(options: {
             where: { id: matchId },
             data: {
               matchDate: kickoff,
+              homeTeamName,
+              awayTeamName,
+              isHomeFixture: homeFixtureIsUs,
+              ...(isHistorical ? { ...(score ? { homeScore: score.home, awayScore: score.away } : {}), status: "FINISHED" as const } : {}),
               ...(stadium ? { stadium } : {}),
               ...(referee ? { refereeName: referee } : {}),
               ...(refereeNameAr ? { refereeNameAr } : refereeNameFr && previousArabicRefereeNames === null ? { refereeNameAr: null } : {}),
@@ -418,7 +428,7 @@ export async function importUpcomingFafMatches(options: {
         const title = `${homeTeamName} vs ${awayTeamName}`;
         await tx.calendarEvent.upsert({
           where: { relatedMatchId: matchId },
-          update: { ...(!existingManual ? { title } : {}), startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
+          update: { title, startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, ...(stadium ? { location: stadium } : {}) },
           create: { title, type: "MATCH", startDateTime: kickoff, endDateTime: new Date(kickoff.getTime() + 2 * 60 * 60 * 1000), teamId: team.id, location: stadium || null, relatedMatchId: matchId }
         });
         if (!existingManual) {
