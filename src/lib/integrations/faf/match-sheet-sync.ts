@@ -86,11 +86,30 @@ function officialScore(match: any, historyMatch: any, fallbackEvents: ImportedMa
 }
 
 function dateKey(value: unknown): string {
-  const text = String(value ?? "");
-  const iso = text.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-  if (iso) return iso;
+  const localDate = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Algiers", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(date);
+    const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  };
+  if (value instanceof Date) return Number.isNaN(value.valueOf()) ? "" : localDate(value);
+  const text = String(value ?? "").trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    // EMS sometimes returns a full UTC timestamp. Compare that instant in the
+    // club's timezone, while keeping date-only and timezone-free values as
+    // calendar dates (they are already expressed in local time by EMS).
+    if (/T.*(?:Z|[+-]\d{2}:?\d{2})$/u.test(text)) {
+      const timestamp = new Date(text);
+      if (!Number.isNaN(timestamp.valueOf())) return localDate(timestamp);
+    }
+    return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  }
+  const dmy = text.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/);
+  if (dmy) return `${dmy[3]!}-${dmy[2]!.padStart(2, "0")}-${dmy[1]!.padStart(2, "0")}`;
   const date = new Date(text);
-  return Number.isNaN(date.valueOf()) ? "" : date.toISOString().slice(0, 10);
+  return Number.isNaN(date.valueOf()) ? "" : localDate(date);
 }
 
 function opponentName(club: any): string {
@@ -98,8 +117,31 @@ function opponentName(club: any): string {
 }
 
 function namesMatch(local: string, remote: string): boolean {
-  const a = normalize(local), b = normalize(remote);
-  return a.length >= 4 && b.length >= 4 && (a.includes(b) || b.includes(a));
+  const variants = (value: string) => {
+    const candidates = new Set([value, value.replace(/\s*\([^)]*\)/gu, "")]);
+    for (const part of value.matchAll(/\(([^)]*)\)/gu)) if (part[1]) candidates.add(part[1]);
+    for (const part of value.split(/[\/|]/u)) candidates.add(part);
+    return [...candidates].map(normalize).filter((name) => name.length >= 4);
+  };
+  for (const a of variants(local)) {
+    for (const b of variants(remote)) {
+      if (a.includes(b) || b.includes(a)) return true;
+      // Club names from local forms and FAF EMS can differ by one or two
+      // letters. Keep fuzzy matching conservative and require a unique
+      // candidate before accepting it below.
+      if (Math.min(a.length, b.length) < 7) continue;
+      let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+      for (let i = 1; i <= a.length; i++) {
+        const current = [i];
+        for (let j = 1; j <= b.length; j++) {
+          current[j] = Math.min(current[j - 1]! + 1, previous[j]! + 1, previous[j - 1]! + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+        }
+        previous = current;
+      }
+      if (1 - previous[b.length]! / Math.max(a.length, b.length) >= 0.72) return true;
+    }
+  }
+  return false;
 }
 
 function eventSummary(match: any): string[] {
@@ -340,6 +382,31 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
   const local = await db.match.findUnique({ where: { id: matchId }, include: { team: true } });
   if (!local) throw new Error("Match not found");
   const remoteMatches = await getFafEmsClient().history();
+  const scheduledMappings = await db.integrationState.findMany({
+    where: { OR: [
+      { key: { startsWith: "faf-ems-scheduled-match:" } },
+      { key: { startsWith: "faf-ems-match-" } }
+    ] },
+    select: { key: true, value: true }
+  });
+  const mappedExternalIds = scheduledMappings.flatMap((mapping) => {
+    try {
+      const value = JSON.parse(mapping.value) as { matchId?: string };
+      const prefix = mapping.key.startsWith("faf-ems-scheduled-match:") ? "faf-ems-scheduled-match:" : "faf-ems-match-";
+      const externalId = Number(mapping.key.slice(prefix.length));
+      return value.matchId === local.id && Number.isSafeInteger(externalId) ? [externalId] : [];
+    } catch {
+      return [];
+    }
+  });
+  for (const externalId of mappedExternalIds) {
+    const mapped = remoteMatches.find((remote) => Number(remote.id) === externalId);
+    if (!mapped) continue;
+    const ourRemoteClub = local.isHomeFixture ? mapped.clubLoc : mapped.clubVis;
+    if (String(ourRemoteClub?.fifaId || "").toUpperCase() === clubCode.toUpperCase()) {
+      return { local, remote: mapped };
+    }
+  }
   const localDate = dateKey(local.matchDate);
   const candidates = remoteMatches.filter((remote) => {
     if (dateKey(remote.dateRencontre) !== localDate) return false;
@@ -352,7 +419,7 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
   if (candidates.length !== 1) {
     throw new Error(candidates.length
       ? "وجدت أكثر من مباراة محتملة في EMS في نفس التاريخ؛ لم أستورد أي بيانات لتجنب ربط مباراة خاطئة."
-      : "لم أجد مباراة مطابقة في Historique. تأكد من تاريخ المباراة واسم المنافس في المنصة.");
+      : "حُفظت المباراة في المنصة، لكن تعذّر ربطها بمباراة FAF EMS. تحقق من تاريخ المباراة واسم المنافس أو استورد المباراة المبرمجة أولاً.");
   }
   return { local, remote: candidates[0] };
 }
