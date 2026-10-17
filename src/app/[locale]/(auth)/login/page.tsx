@@ -121,7 +121,8 @@ export default function LoginPage() {
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:px-6">
         <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-5 md:grid-cols-[minmax(0,0.9fr)_minmax(26rem,1.1fr)] md:gap-6">
           {/* Club identity panel: keeps the football visual distinct from the credential form. */}
-          <aside className="order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border bg-muted/60 p-8 text-foreground shadow-sm md:flex md:flex-col md:justify-between lg:p-10">
+          <aside className="relative order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border bg-muted/60 p-8 text-foreground shadow-sm md:flex md:flex-col md:justify-between lg:p-10">
+            <div className="absolute inset-x-0 top-0 h-1 bg-club-primary" aria-hidden="true" />
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card p-2.5 shadow-xs">
                 <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt="ESH" className="h-full w-full object-contain" />
