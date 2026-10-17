@@ -163,6 +163,23 @@ export function isPublicStorageConfigured(): boolean {
     && Boolean(process.env.STORAGE_PUBLIC_BUCKET?.trim());
 }
 
+async function persistPublicAssetInDatabase(params: { key: string; buffer: Buffer; mimeType: string }): Promise<void> {
+  await db.publicAsset.upsert({
+    where: { key: params.key },
+    create: {
+      key: params.key,
+      mimeType: params.mimeType,
+      sizeBytes: params.buffer.byteLength,
+      data: Uint8Array.from(params.buffer)
+    },
+    update: {
+      mimeType: params.mimeType,
+      sizeBytes: params.buffer.byteLength,
+      data: Uint8Array.from(params.buffer)
+    }
+  });
+}
+
 export const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -283,8 +300,17 @@ export async function uploadPublicFile(params: { key: string; buffer: Buffer; mi
         ? `${PUBLIC_BASE_URL.replace(/\/$/, "")}/${params.key}`
         : `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
     } catch (error) {
-      // Small avatars can still be kept online in Neon when an optional S3
-      // endpoint is temporarily unavailable. Large media still fails closed.
+      // Keep small public images available through the database-backed public
+      // file route if the configured object store is unavailable. This also
+      // prevents imported club crests from falling back to fragile EMS URLs.
+      if (params.buffer.byteLength <= MAX_IMAGE_SIZE_BYTES) {
+        try {
+          await persistPublicAssetInDatabase(params);
+          return `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
+        } catch {
+          // Continue to the narrow legacy avatar fallback below.
+        }
+      }
       if (params.key.startsWith("public/users/") && params.buffer.byteLength <= 700 * 1024) {
         return `data:${params.mimeType};base64,${params.buffer.toString("base64")}`;
       }
@@ -293,21 +319,7 @@ export async function uploadPublicFile(params: { key: string; buffer: Buffer; mi
   }
 
   if (isDatabaseStorageMode()) {
-    const databaseBytes = Uint8Array.from(params.buffer);
-    await db.publicAsset.upsert({
-      where: { key: params.key },
-      create: {
-        key: params.key,
-        mimeType: params.mimeType,
-        sizeBytes: params.buffer.byteLength,
-        data: databaseBytes
-      },
-      update: {
-        mimeType: params.mimeType,
-        sizeBytes: params.buffer.byteLength,
-        data: databaseBytes
-      }
-    });
+    await persistPublicAssetInDatabase(params);
     return `/api/storage/public-file?key=${encodeURIComponent(params.key)}`;
   }
 

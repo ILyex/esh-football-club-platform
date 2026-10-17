@@ -140,6 +140,28 @@ async function readBoundedImage(response: Response, maxBytes: number): Promise<B
   return Buffer.concat(chunks, size);
 }
 
+async function fetchOpponentLogo(url: string): Promise<Response> {
+  let current = new URL(url);
+  const visited = new Set<string>();
+  for (let redirects = 0; redirects <= 4; redirects++) {
+    if (!isSafeExternalUrl(current.href) || visited.has(current.href)) throw new Error("Unsafe or repeated opponent logo redirect.");
+    visited.add(current.href);
+    const response = await fetch(current, {
+      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8" },
+      signal: AbortSignal.timeout(8000),
+      redirect: "manual"
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location || redirects === 4) throw new Error("Opponent logo redirect could not be followed safely.");
+      current = new URL(location, current);
+      continue;
+    }
+    return response;
+  }
+  throw new Error("Opponent logo has too many redirects.");
+}
+
 function remoteCompetitionName(match: RemoteMatch): string {
   for (const value of [match.competition, match.competitionName, match.nomCompetition, match.championnat, match.epreuve]) {
     const label = text(value);
@@ -324,7 +346,7 @@ export async function importUpcomingFafMatches(options: {
     if (logoUrl) {
       try {
         const { uploadPublicFile, generatePublicStorageKey, validateUploadedImage } = await import("@/lib/storage");
-        const response = await fetch(logoUrl, { signal: AbortSignal.timeout(8000), redirect: "error" });
+        const response = await fetchOpponentLogo(logoUrl);
         if (!response.ok) throw new Error(`Opponent logo fetch returned HTTP ${response.status}`);
         const bytes = await readBoundedImage(response, 8 * 1024 * 1024);
         const image = await validateUploadedImage(bytes);
@@ -335,9 +357,9 @@ export async function importUpcomingFafMatches(options: {
         });
         await saveOpponentClub(opponent, storedLogoUrl, fafStadium || undefined);
       }
-      catch {
-        await saveOpponentClub(opponent, logoUrl, fafStadium || undefined).catch(() => undefined);
-        if (result.warnings.length < 5) result.warnings.push(`تعذر رفع شعار المنافس إلى التخزين؛ حفظت رابط FAF كخيار احتياطي للمباراة ${externalId}.`);
+      catch (error) {
+        console.warn(`[FAF EMS] Opponent logo import failed for match ${externalId}`, error);
+        if (result.warnings.length < 5) result.warnings.push(`تعذر تنزيل شعار المنافس أو تخزينه للمباراة ${externalId}؛ لم أحفظ رابطًا خارجيًا قد لا يعمل في الموقع.`);
       }
     }
     try {
