@@ -19,6 +19,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +42,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
@@ -225,8 +228,8 @@ private object IconlyIcons {
     val Travel = R.drawable.iconly_bus
     val Match = R.drawable.ic_match_ball
     val MatchFilled = R.drawable.ic_match_ball_filled
-    val Meeting = R.drawable.iconly_calendar
-    val MeetingFilled = R.drawable.iconly_calendar_filled
+    val Meeting = R.drawable.iconly_users
+    val MeetingFilled = R.drawable.iconly_users_filled
     val People = R.drawable.iconly_users
     val Calendar = R.drawable.iconly_calendar
     val Notification = R.drawable.iconly_notification
@@ -238,7 +241,7 @@ private object IconlyIcons {
     val Refresh = R.drawable.iconly_swap
     val Update = R.drawable.iconly_download
     val Language = R.drawable.iconly_language
-    val Trophy = R.drawable.iconly_star
+    val Trophy = R.drawable.iconly_ticket_star
     val ArrowLeft = R.drawable.iconly_arrow_left
     val ArrowRight = R.drawable.iconly_arrow_right
     val ArrowDown = R.drawable.iconly_arrow_down
@@ -262,7 +265,7 @@ private object IconlyIcons {
 
 private enum class Section(val icon: Int, val selectedIcon: Int) {
     HOME(IconlyIcons.Home, R.drawable.iconly_home_filled),
-    MATCHES(IconlyIcons.Match, IconlyIcons.MatchFilled),
+    MATCHES(IconlyIcons.Trophy, R.drawable.iconly_ticket_star_filled),
     CALENDAR(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
     MEETINGS(IconlyIcons.Meeting, IconlyIcons.MeetingFilled),
     PLAYER_STATS(IconlyIcons.Activity, IconlyIcons.Activity),
@@ -579,7 +582,7 @@ private fun MatchdayApp() {
                     label = "language-content"
                 ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
             }
-            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = user?.roleKey == "coach" || user?.roleKey == "assistant_coach", onSelect = { section = it })
+            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), onSelect = { section = it })
         }
         composerType?.let { type ->
             NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, isSubmitting = loading, errorMessage = createError, onDismiss = { composerType = null }) { payload ->
@@ -1103,6 +1106,11 @@ private fun CompactMetric(icon: Int, value: String, label: String) {
 
 @Composable
 private fun DigitalAdminCard(user: NativeUser, locale: String) {
+    val sweep = remember(user.id) { Animatable(-1.35f) }
+    LaunchedEffect(user.id) {
+        sweep.snapTo(-1.35f)
+        sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 1250))
+    }
     val image by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
             runCatching {
@@ -1210,10 +1218,19 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Text(displayName, color = ink, fontSize = (16f * fontScale).sp, lineHeight = (18f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 LicenseDetail("Né le :", birthDate, ink, fontScale)
                 LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
-                Box(Modifier.padding(top = 2.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 10.dp, vertical = 3.dp)) {
-                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", color = Color.White, fontSize = (11.5f * fontScale).sp, lineHeight = (14f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Box(Modifier.padding(top = 2.dp).width(cardWidth * .58f).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 8.dp, vertical = 3.dp), contentAlignment = Alignment.Center) {
+                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (10.5f * fontScale).sp, lineHeight = (13f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 }
             }
+
+            Box(
+                Modifier
+                    .offset(x = with(LocalDensity.current) { (cardWidth.toPx() * sweep.value).toDp() })
+                    .width(cardWidth * .24f)
+                    .fillMaxHeight()
+                    .graphicsLayer { rotationZ = 12f }
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .34f), Color.Transparent)))
+            )
 
             Row(
                 Modifier.offset(x = cardWidth * .12f, y = cardHeight * .835f)
@@ -1272,6 +1289,9 @@ private fun QuickActions(onNavigate: (Section) -> Unit, data: NativeData?, local
             ActionTile(L(locale, "إدارة مباراة", "Gérer un match"), L(locale, "النتيجة والأحداث", "Score et événements"), IconlyIcons.Match, Red, onClick = { onNavigate(Section.MATCHES) }, modifier = Modifier.weight(1f))
             }
             ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), IconlyIcons.Meeting, Mint, onClick = { onNavigate(Section.MEETINGS) }, modifier = Modifier.weight(1f))
+        }
+        if (data?.permissions?.playerStats == true) {
+            ActionTile(L(locale, "إحصائيات اللاعبين", "Statistiques joueurs"), L(locale, "أداء لاعبي الفئات ومؤشراتهم", "Performances et indicateurs des joueurs"), IconlyIcons.Activity, Color(0xFF7C5CFC), onClick = { onNavigate(Section.PLAYER_STATS) })
         }
         if (data?.permissions?.training == true || data?.permissions?.announcements == true) {
             Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -2353,6 +2373,7 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
             val interaction = remember { MutableInteractionSource() }
             Column(
                 Modifier.width(width).fillMaxSize().clip(CircleShape)
+                    .background(if (active) Red.copy(alpha = if (nativeThemeIsLight) .10f else .16f) else Color.Transparent)
                     .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
                     .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

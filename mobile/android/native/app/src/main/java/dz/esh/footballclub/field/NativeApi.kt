@@ -48,7 +48,7 @@ data class NativePlayerPerformance(
 )
 data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
 data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
-data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val teamScopeRestricted: Boolean)
+data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val teamScopeRestricted: Boolean)
 data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
 data class NativeUser(
     val id: String,
@@ -179,7 +179,7 @@ object NativeApi {
         }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("teamScopeRestricted")), user)
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("teamScopeRestricted")), user)
     }
 
     fun createContent(token: String, payload: JSONObject) {
