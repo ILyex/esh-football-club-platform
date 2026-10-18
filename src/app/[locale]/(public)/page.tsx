@@ -24,6 +24,7 @@ import {
 import { ClubPhotosCarousel } from "@/components/public/club-photos-carousel";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { isVideoUrl } from "@/lib/media-utils";
+import { CategoryCardVideo } from "@/components/public/category-card-video";
 import { SocialReelsSection } from "@/components/public/social-reels-section";
 import { SafeImage } from "@/components/shared/safe-image";
 import { ClubIntroVideo } from "@/components/public/club-intro-video";
@@ -86,28 +87,32 @@ export default async function HomePage({
       id: "senior",
       category: "SENIOR",
       href: `/${locale}/team/senior`,
-      poster: homeData.club.websiteImages.teamSenior || "/branding/teams/category-senior-card.webp",
+      poster: homeData.club.websiteImages.teamSenior && !isVideoUrl(homeData.club.websiteImages.teamSenior) ? homeData.club.websiteImages.teamSenior : "/branding/teams/category-senior-card.webp",
+      video: isVideoUrl(homeData.club.websiteImages.teamSenior) ? homeData.club.websiteImages.teamSenior! : "/branding/teams/category-senior.mp4",
       fallback: "/branding/teams/category-senior-card.webp",
     },
     {
       id: "u20",
       category: "U20",
       href: `/${locale}/team/u20`,
-      poster: homeData.club.websiteImages.teamU20 || "/branding/teams/category-u20-card.webp",
+      poster: homeData.club.websiteImages.teamU20 && !isVideoUrl(homeData.club.websiteImages.teamU20) ? homeData.club.websiteImages.teamU20 : "/branding/teams/category-u20-card.webp",
+      video: isVideoUrl(homeData.club.websiteImages.teamU20) ? homeData.club.websiteImages.teamU20! : "/branding/teams/category-u20.mp4",
       fallback: "/branding/teams/category-u20-card.webp",
     },
     {
       id: "u17",
       category: "U17",
       href: `/${locale}/team/u17`,
-      poster: homeData.club.websiteImages.teamU17 || "/branding/teams/category-u17-card.webp",
+      poster: homeData.club.websiteImages.teamU17 && !isVideoUrl(homeData.club.websiteImages.teamU17) ? homeData.club.websiteImages.teamU17 : "/branding/teams/category-u17-card.webp",
+      video: isVideoUrl(homeData.club.websiteImages.teamU17) ? homeData.club.websiteImages.teamU17! : "/branding/teams/category-u17.mp4",
       fallback: "/branding/teams/category-u17-card.webp",
     },
     {
       id: "u15",
       category: "U15",
       href: `/${locale}/team/u15`,
-      poster: homeData.club.websiteImages.teamU15 || "/branding/teams/category-u15-card.webp",
+      poster: homeData.club.websiteImages.teamU15 && !isVideoUrl(homeData.club.websiteImages.teamU15) ? homeData.club.websiteImages.teamU15 : "/branding/teams/category-u15-card.webp",
+      video: isVideoUrl(homeData.club.websiteImages.teamU15) ? homeData.club.websiteImages.teamU15! : "/branding/teams/category-u15.mp4",
       fallback: "/branding/teams/category-u15-card.webp",
     }
   ];
@@ -329,13 +334,12 @@ export default async function HomePage({
                     className="group relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs transition-all hover:-translate-y-1 hover:border-club-primary/60 hover:shadow-md block"
                   >
                     <div className="relative aspect-[507/249] w-full overflow-hidden">
-                      <SafeImage
-                        src={sec.poster}
-                        fallbackSrc={sec.fallback}
+                      <CategoryCardVideo
+                        src={sec.video}
+                        poster={sec.poster}
+                        fallback={sec.fallback}
                         alt={tCategories(sec.category)}
-                        loading="lazy"
-                        decoding="async"
-                        className="pointer-events-none h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="transition-transform duration-300 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/75 via-black/10 to-transparent p-2.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                         <div className="flex items-center justify-between w-full text-white text-xs font-bold">
