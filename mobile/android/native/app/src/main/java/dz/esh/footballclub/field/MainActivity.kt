@@ -175,12 +175,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun installDownloadedApk(uri: Uri) {
-        val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
-        prefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
-        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { startActivity(intent) }
-            .onFailure { prefs.edit().putString(ApkDownloadReceiver.PENDING_URI, uri.toString()).apply() }
+        installDownloadedApk(this, uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -221,6 +216,15 @@ class MainActivity : ComponentActivity() {
         isForeground = false
         super.onPause()
     }
+}
+
+private fun installDownloadedApk(context: Context, uri: Uri) {
+    val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+    prefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
+    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+        .onFailure { prefs.edit().putString(ApkDownloadReceiver.PENDING_URI, uri.toString()).apply() }
 }
 
 private object IconlyIcons {
@@ -316,6 +320,9 @@ private fun MatchdayApp() {
     var updateNotice by remember { mutableStateOf<String?>(null) }
     var updateRelease by remember { mutableStateOf<NativeRelease?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
+    var updateDownloading by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+    var updateDownloadId by remember { mutableStateOf(-1L) }
     var composerType by remember { mutableStateOf<String?>(null) }
     var createError by remember { mutableStateOf<String?>(null) }
 
@@ -387,6 +394,41 @@ private fun MatchdayApp() {
         val release = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() }.getOrNull() }
         checkingUpdate = false
         if (release != null && isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "")) updateRelease = release
+    }
+
+    LaunchedEffect(updateDownloading, updateDownloadId) {
+        if (!updateDownloading || updateDownloadId < 0L) return@LaunchedEffect
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+        while (updateDownloading) {
+            var finished = false
+            runCatching {
+                manager.query(DownloadManager.Query().setFilterById(updateDownloadId))?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                        val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                        if (total > 0L) updateProgress = ((downloaded * 100L) / total).toInt().coerceIn(0, 99)
+                        if (status == DownloadManager.STATUS_FAILED) {
+                            finished = true
+                            updateNotice = L(locale, "فشل تنزيل التحديث. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
+                        }
+                    }
+                }
+            }
+            val readyUri = prefs.getString(ApkDownloadReceiver.PENDING_URI, null)
+            if (readyUri != null) {
+                updateProgress = 100
+                finished = true
+                installDownloadedApk(context, Uri.parse(readyUri))
+            }
+            if (finished) {
+                updateDownloading = false
+                updateDownloadId = -1L
+                break
+            }
+            delay(250)
+        }
     }
 
     SideEffect {
@@ -670,6 +712,27 @@ private fun MatchdayApp() {
                 }
             }
         }
+        if (updateDownloading) {
+            AlertDialog(
+                onDismissRequest = { },
+                shape = RoundedCornerShape(22.dp),
+                containerColor = Panel,
+                title = { Text(L(locale, "تحديث التطبيق", "Mise à jour de l’application"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(L(locale, "يتم تنزيل التحديث داخل التطبيق والتحقق من سلامته…", "Téléchargement et vérification dans l’application…"), color = AppText, fontSize = 13.sp)
+                        androidx.compose.material3.LinearProgressIndicator(progress = { updateProgress / 100f }, modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Glass)
+                        Text("$updateProgress%", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    }
+                },
+                confirmButton = { TextButton(onClick = {
+                    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                    if (updateDownloadId >= 0L) manager.remove(updateDownloadId)
+                    updateDownloading = false
+                    updateDownloadId = -1L
+                }) { Text(L(locale, "إلغاء", "Annuler"), color = Muted) } }
+            )
+        }
         updateRelease?.let { release ->
             AlertDialog(
                 onDismissRequest = { updateRelease = null },
@@ -691,15 +754,18 @@ private fun MatchdayApp() {
                             .setTitle(L(locale, "تحديث E SIDI HOSNI", "Mise à jour E SIDI HOSNI"))
                             .setDescription(L(locale, "سيُفتح مُثبّت Android تلقائيًا بعد التنزيل.", "L’installateur Android s’ouvrira après le téléchargement."))
                             .setMimeType(ApkDownloadReceiver.APK_MIME)
-                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
                             .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
                         val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
                         context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+                            .remove(ApkDownloadReceiver.PENDING_URI)
                             .putLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, id)
                             .putString(ApkDownloadReceiver.PENDING_SHA256, release.sha256)
                             .putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false).apply()
+                        updateProgress = 0
+                        updateDownloadId = id
+                        updateDownloading = true
                         updateRelease = null
-                        updateNotice = L(locale, "جارٍ تنزيل التحديث. ستظهر شاشة التثبيت تلقائيًا عند اكتمال التحميل.", "Téléchargement en cours. L’écran d’installation apparaîtra automatiquement à la fin.")
                     }, modifier = Modifier.width(170.dp))
                 },
                 dismissButton = { TextButton(onClick = { updateRelease = null }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }

@@ -57,8 +57,10 @@ class ApkDownloadReceiver : BroadcastReceiver() {
         }
         prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256)
             .putString(PENDING_URI, apkUri.toString()).putBoolean(DOWNLOAD_FAILED, false).apply()
-        if (MainActivity.isForeground) requestInstall(context, prefs, apkUri)
-        else postInstallNotification(context, apkUri, downloadId)
+        // Foreground updates are completed by MainActivity's in-app progress flow.
+        // When the app is not open, keep the notification fallback so the user can
+        // resume the installation later.
+        if (!MainActivity.isForeground) postInstallNotification(context, apkUri, downloadId)
     }
 
     private fun requestInstall(context: Context, prefs: android.content.SharedPreferences, apkUri: Uri) {
