@@ -222,6 +222,7 @@ class MainActivity : ComponentActivity() {
 
 private object IconlyIcons {
     val Home = R.drawable.iconly_home
+    val Travel = R.drawable.iconly_bus
     val Match = R.drawable.ic_match_ball
     val MatchFilled = R.drawable.ic_match_ball_filled
     val Meeting = R.drawable.iconly_calendar
@@ -1799,7 +1800,23 @@ private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
             Box(Modifier.width(4.dp).height(48.dp).clip(CircleShape).background(accent))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(kind, color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                Text(item.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                if (item.type == "MATCH") {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!item.opponentLogo.isNullOrBlank()) {
+                            NativeRemoteImage(item.opponentLogo, Modifier.size(34.dp).clip(CircleShape))
+                        } else {
+                            Icon(IconlyIcons.Match, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
+                        }
+                        Icon(
+                            if (item.isHomeFixture == true) IconlyIcons.Home else IconlyIcons.Travel,
+                            contentDescription = if (item.isHomeFixture == true) L(locale, "مضيف", "À domicile") else L(locale, "سفر", "Déplacement"),
+                            tint = if (item.isHomeFixture == true) Mint else Red,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                } else {
+                    Text(item.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(item.startDateTime.take(16).replace('T', ' '), color = Muted, fontSize = 9.sp)
                     item.team?.takeIf { it.isNotBlank() }?.let { Text("· $it", color = Muted, fontSize = 9.sp, maxLines = 1) }
@@ -1844,6 +1861,17 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
         value = decoded?.asImageBitmap()
     }
     if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Crop)
+    else Box(modifier.background(Glass))
+}
+
+@Composable
+private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
+    val bitmap by produceState<ImageBitmap?>(null, url) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { URL(url).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+        }
+    }
+    if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Inside)
     else Box(modifier.background(Glass))
 }
 

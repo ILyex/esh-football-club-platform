@@ -120,7 +120,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const outbox = ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(input.type) && match.status === "LIVE" && match.team?.category
       ? await createMatchPushOutbox(tx, {
           dedupKey: `GOAL:${event.id}`, matchId, matchEventId: event.id, kind: "GOAL",
-          payload: { matchId, teamId: match.teamId, category: match.team.category, homeTeamName: match.homeTeamName, awayTeamName: match.awayTeamName, homeScore, awayScore, minute: input.minute, side: input.side }
+          payload: { matchId, teamId: match.teamId, category: match.team.category, homeTeamName: match.homeTeamName, awayTeamName: match.awayTeamName, homeScore, awayScore, minute: input.minute, side: input.side, playerName, playerNameFr }
         })
       : null;
     await writeAuditLog({ userId: user.id, action: "match.mobile_event.create", entityType: "MatchEvent", entityId: event.id, changes: { after: input } }, tx);

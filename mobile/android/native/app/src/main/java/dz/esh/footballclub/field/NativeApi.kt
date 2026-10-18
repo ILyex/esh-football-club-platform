@@ -33,7 +33,7 @@ data class NativeMatch(
 data class NativePlayer(val id: String, val name: String, val nameFr: String, val number: Int?)
 data class NativeEvent(val id: String, val type: String, val minute: Int, val side: String, val playerName: String?, val xG: Double?, val source: String)
 data class NativeMeeting(val id: String, val title: String, val date: String, val location: String?, val status: String)
-data class NativeCalendarItem(val id: String, val type: String, val title: String, val startDateTime: String, val endDateTime: String, val location: String?, val team: String?)
+data class NativeCalendarItem(val id: String, val type: String, val title: String, val startDateTime: String, val endDateTime: String, val location: String?, val team: String?, val isHomeFixture: Boolean? = null, val opponentLogo: String? = null)
 data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean, val kind: String = "MATCH")
 data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
@@ -171,7 +171,7 @@ object NativeApi {
         }
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
-        val calendarItems = json.optJSONArray("calendarItems")?.objects()?.map { item -> NativeCalendarItem(item.optString("id"), item.optString("type", "OTHER"), item.optString("title"), item.optString("startDateTime"), item.optString("endDateTime"), item.optNullableString("location"), item.optNullableString("team")) }.orEmpty()
+        val calendarItems = json.optJSONArray("calendarItems")?.objects()?.map { item -> NativeCalendarItem(item.optString("id"), item.optString("type", "OTHER"), item.optString("title"), item.optString("startDateTime"), item.optString("endDateTime"), item.optNullableString("location"), item.optNullableString("team"), if (item.has("isHomeFixture") && !item.isNull("isHomeFixture")) item.optBoolean("isHomeFixture") else null, item.optNullableString("opponentLogo")) }.orEmpty()
         val alerts = json.getJSONArray("notifications").objects().map { item -> NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), "MATCH") } + upcoming.map { meeting -> NativeAlert("meeting-${meeting.id}", meeting.title, meeting.location, false, "MEETING") }
         val teams = json.optJSONArray("teams")?.objects()?.map { NativeTeam(it.optString("id"), it.optString("name"), it.optString("category")) }.orEmpty()
         val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->

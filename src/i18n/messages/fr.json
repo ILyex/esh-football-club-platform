@@ -509,6 +509,7 @@
     "title": "Réunions et comptes-rendus",
     "addMeeting": "Créer un compte-rendu",
     "createMeeting": "Créer une réunion",
+    "editMeeting": "Modifier la réunion",
     "saveMeeting": "Enregistrer et notifier",
     "scheduleDescription": "Planifiez la réunion et indiquez son lieu. Elle apparaîtra dans l’application et une notification sera envoyée aux personnes concernées.",
     "notificationInfo": "La réunion apparaîtra dans l’application du club et une notification sera envoyée à l’enregistrement.",

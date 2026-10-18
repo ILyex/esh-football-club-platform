@@ -36,8 +36,8 @@ export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput)
     }).format(meeting.startDateTime);
     return [{
       token: device.fcmToken,
-      title: isFrench ? "Nouvelle réunion · ESH" : "اجتماع جديد · أمل سيدي حسني",
-      body: `${meeting.title} · ${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
+      title: isFrench ? "📅 Réunion à venir" : "📅 اجتماع قادم",
+      body: `${meeting.title}\n${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
       section: "meetings"
     }];
   });
@@ -64,8 +64,8 @@ export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput)
     }).format(meeting.startDateTime);
     const payload = buildPushPayload({
       data: JSON.stringify({
-        title: isFrench ? "Nouvelle réunion · ESH" : "اجتماع جديد · أمل سيدي حسني",
-        body: `${meeting.title} · ${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
+        title: isFrench ? "📅 Réunion à venir" : "📅 اجتماع قادم",
+        body: `${meeting.title}\n${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
         tag: `meeting-${meeting.startDateTime.getTime()}`,
         url: `/${isFrench ? "fr" : "ar"}/dashboard/calendar`
       }),

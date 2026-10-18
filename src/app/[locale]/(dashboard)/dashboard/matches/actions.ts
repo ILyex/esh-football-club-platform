@@ -687,7 +687,9 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
             homeScore,
             awayScore,
             minute: parsed.minute,
-            side: parsed.side
+            side: parsed.side,
+            playerName,
+            playerNameFr
           }
         })
       : null;

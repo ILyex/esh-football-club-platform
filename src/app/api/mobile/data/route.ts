@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope } from "@/lib/authz/policy";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { frenchCompetitionName } from "@/lib/public/locale-text";
+import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +90,10 @@ export async function GET(request: Request) {
     db.season.findFirst({ where: { isCurrent: true }, select: { label: true }, orderBy: { startDate: "desc" } })
   ]);
 
+  const opponentLogos = calendarItems.some((event) => event.type === "MATCH" && event.relatedMatch)
+    ? await getOpponentsMap()
+    : {};
+
   return NextResponse.json({
     user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, teamScopeRestricted: scope.restricted },
@@ -155,6 +160,9 @@ export async function GET(request: Request) {
     })),
     calendarItems: calendarItems.map((event) => {
       const names = event.relatedMatch ? getMatchDisplayNames(event.relatedMatch, locale) : null;
+      const opponentName = event.relatedMatch
+        ? (event.relatedMatch.isHomeFixture ? event.relatedMatch.awayTeamName : event.relatedMatch.homeTeamName)
+        : null;
       return {
         id: event.id,
         type: event.type,
@@ -162,7 +170,9 @@ export async function GET(request: Request) {
         startDateTime: event.startDateTime.toISOString(),
         endDateTime: event.endDateTime.toISOString(),
         location: event.location,
-        team: event.team?.name ?? null
+        team: event.team?.name ?? null,
+        isHomeFixture: event.relatedMatch?.isHomeFixture ?? null,
+        opponentLogo: opponentName ? findOpponentLogo(opponentLogos, opponentName) : null
       };
     }),
     notifications

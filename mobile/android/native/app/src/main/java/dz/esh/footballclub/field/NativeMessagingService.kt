@@ -32,6 +32,11 @@ class NativeMessagingService : FirebaseMessagingService() {
         if (section != "matches" && section != "meetings") return
         val title = message.notification?.title ?: message.data["title"] ?: "تنبيه · أمل سيدي حسني"
         val body = message.notification?.body ?: message.data["body"].orEmpty()
+        val isFrench = getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE).getString("locale", "ar") == "fr"
+        val sectionLabel = when (section) {
+            "matches" -> if (isFrench) "Matchs" else "المباريات"
+            else -> if (isFrench) "Réunions" else "الاجتماعات"
+        }
         val manager = getSystemService(NotificationManager::class.java)
         val soundsEnabled = getSharedPreferences("esh_native_ui", Context.MODE_PRIVATE).getBoolean("sound_effects", true)
         val channelId = if (soundsEnabled) CHANNEL_ID_SOUND else CHANNEL_ID_SILENT
@@ -52,13 +57,14 @@ class NativeMessagingService : FirebaseMessagingService() {
             .putExtra("notification_section", section), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val clubLogo = BitmapFactory.decodeResource(resources, R.drawable.esh_logo)
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            // Monochrome white ESH crest supplied for Android's status bar slot.
+            .setSmallIcon(R.drawable.esh_notification_logo)
             .setLargeIcon(clubLogo)
             .setColor(0xFFDC2626.toInt())
-            .setSubText("E SIDI HOSNI")
+            .setSubText("ESH · $sectionLabel")
             .setContentTitle(title)
             .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setStyle(NotificationCompat.BigTextStyle().setBigContentTitle(title).bigText(body).setSummaryText("E SIDI HOSNI"))
             .setContentIntent(openApp)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)

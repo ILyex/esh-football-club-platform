@@ -9,8 +9,10 @@ import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
-import { CalendarClock, ClipboardPenLine, Plus, Users, FileText, MapPin } from "lucide-react";
+import { CalendarClock, ClipboardPenLine, Plus, Users, FileText, MapPin, Pencil, Trash2 } from "lucide-react";
 import { actionControlClass } from "@/components/shared/action-controls";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { deleteScheduledMeetingAction } from "./actions";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -98,11 +100,25 @@ export default async function MeetingMinutesListPage({
                 {event.team && <span>{tTeams(`categories.${event.team.category}` as any)}</span>}
               </div>
             </div>
-            {event.meetingMinute
-              ? <Link href={`/${locale}/dashboard/meeting-minutes/${event.meetingMinute.id}`} className={actionControlClass("edit")}><FileText className="me-1 inline h-4 w-4" />{t("meetingsSection.viewMinutes")}</Link>
-              : ended
-                ? <Link href={`/${locale}/dashboard/meeting-minutes/new?event=${encodeURIComponent(event.id)}`} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 self-start rounded-lg bg-club-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto"><ClipboardPenLine className="h-4 w-4" aria-hidden="true" />{t("pendingMinutes.create")}</Link>
-                : <Badge tone="warning" className="shrink-0 self-start">{t("meetingsSection.upcoming")}</Badge>}
+            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+              {event.meetingMinute
+                ? <Link href={`/${locale}/dashboard/meeting-minutes/${event.meetingMinute.id}`} className={actionControlClass("edit")}><FileText className="me-1 inline h-4 w-4" />{t("meetingsSection.viewMinutes")}</Link>
+                : ended
+                  ? <Link href={`/${locale}/dashboard/meeting-minutes/new?event=${encodeURIComponent(event.id)}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-club-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card"><ClipboardPenLine className="h-4 w-4" aria-hidden="true" />{t("pendingMinutes.create")}</Link>
+                  : <Badge tone="warning">{t("meetingsSection.upcoming")}</Badge>}
+              {canManageMeetings && <>
+                <Link href={`/${locale}/dashboard/meeting-minutes/schedule/${event.id}`} className={actionControlClass("edit")} aria-label={tCommon("edit")} title={tCommon("edit")}><Pencil className="h-4 w-4" aria-hidden="true" /><span className="sr-only">{tCommon("edit")}</span></Link>
+                <ConfirmDialog
+                  onConfirm={deleteScheduledMeetingAction.bind(null, event.id)}
+                  title={locale === "ar" ? "حذف الاجتماع؟" : "Supprimer la réunion ?"}
+                  body={locale === "ar" ? "سيُحذف موعد الاجتماع من التطبيق والرزنامة. إذا كان له محضر فسيبقى محفوظًا." : "La réunion sera supprimée de l’application et du calendrier. Son compte-rendu éventuel sera conservé."}
+                  successMessage={locale === "ar" ? "تم حذف الاجتماع" : "Réunion supprimée"}
+                  errorMessage={locale === "ar" ? "تعذر حذف الاجتماع" : "Impossible de supprimer la réunion"}
+                >
+                  <Button type="button" variant="outline" className="h-9 w-9 p-0 text-destructive hover:bg-destructive/10" aria-label={tCommon("delete")} title={tCommon("delete")}><Trash2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only">{tCommon("delete")}</span></Button>
+                </ConfirmDialog>
+              </>}
+            </div>
           </li>;
           })}
         </ul> : <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t("meetingsSection.empty")}</p>}

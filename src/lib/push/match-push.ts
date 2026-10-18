@@ -287,6 +287,8 @@ function buildNotification(outbox: {
     minute?: number | null;
     side?: "HOME" | "AWAY";
     category?: string;
+    playerName?: string | null;
+    playerNameFr?: string | null;
   };
   const isAr = locale === "ar";
   const teamLabel = CATEGORY_LABELS[payload.category ?? "SENIOR"]?.[isAr ? "ar" : "fr"] ?? payload.category ?? "";
@@ -297,20 +299,21 @@ function buildNotification(outbox: {
   let body: string;
 
   if (outbox.kind === "MATCH_STARTED") {
-    title = isAr ? "بدأت المباراة ⚽" : "Le match commence ⚽";
-    body = `${home} ${score} ${away} · ${teamLabel}`;
+    title = isAr ? `⚽ انطلاق المباراة · ${teamLabel}` : `⚽ Coup d’envoi · ${teamLabel}`;
+    body = `${home}  ${score}  ${away}`;
   } else if (outbox.kind === "MATCH_REOPENED") {
-    title = isAr ? "أُعيد فتح المباراة ⚽" : "Le match a repris ⚽";
-    body = `${home} ${score} ${away} · ${teamLabel}`;
+    title = isAr ? `▶️ استؤنفت المباراة · ${teamLabel}` : `▶️ Reprise du match · ${teamLabel}`;
+    body = `${home}  ${score}  ${away}`;
   } else if (outbox.kind === "MATCH_FINISHED") {
-    title = isAr ? "انتهت المباراة 🏁" : "Match terminé 🏁";
-    body = `${home} ${score} ${away} · ${teamLabel}`;
+    title = isAr ? `🏁 نهاية المباراة · ${teamLabel}` : `🏁 Fin du match · ${teamLabel}`;
+    body = `${home}  ${score}  ${away}`;
   } else {
     const scoringTeam = payload.side === "HOME" ? home : away;
-    title = isAr ? "هدف جديد ⚽" : "Nouveau but ⚽";
-    body = isAr
-      ? `${scoringTeam} · ${home} ${score} ${away}${payload.minute != null ? ` · الدقيقة ${payload.minute}` : ""}`
-      : `${scoringTeam} · ${home} ${score} ${away}${payload.minute != null ? ` · ${payload.minute}e` : ""}`;
+    const scorer = isAr ? payload.playerName : (payload.playerNameFr || payload.playerName);
+    title = isAr ? `⚽ هدف لـ ${scoringTeam}` : `⚽ But pour ${scoringTeam}`;
+    const moment = payload.minute != null ? (isAr ? `${payload.minute}′` : `${payload.minute}e`) : "";
+    const scorerLine = [scorer, moment].filter(Boolean).join(" · ");
+    body = `${scorerLine ? `${scorerLine}\n` : ""}${home}  ${score}  ${away} · ${teamLabel}`;
   }
 
   return {

@@ -50,6 +50,50 @@ export async function createScheduledMeetingAction(formData: FormData) {
   return { id: event.id, startDateTime: event.startDateTime };
 }
 
+export async function updateScheduledMeetingAction(eventId: string, formData: FormData) {
+  const user = await requirePermission("meetings.manage");
+  const scopeContext = await getMutationScopeContext();
+  const before = await db.calendarEvent.findUniqueOrThrow({ where: { id: eventId }, include: { meetingMinute: true } });
+  if (before.type !== "MEETING" || before.relatedMatchId || before.relatedTrainingId) throw new Error("MeetingNotEditable");
+  assertTeamScope(scopeContext, before.teamId, "CalendarEvent", { allowClubWide: true });
+  const result = scheduledMeetingSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!result.success) throw new Error(result.error.issues.some((issue) => issue.message === "endBeforeStart") ? "MeetingEndBeforeStart" : "InvalidMeetingSchedule");
+  const parsed = result.data;
+  const updated = await db.$transaction(async (tx) => {
+    const event = await tx.calendarEvent.update({
+      where: { id: eventId },
+      data: { ...parsed, location: parsed.location || null, description: parsed.description || null }
+    });
+    if (before.meetingMinute) {
+      await tx.meetingMinute.update({
+        where: { id: before.meetingMinute.id },
+        data: { title: parsed.title, date: parsed.startDateTime, location: parsed.location || null }
+      });
+    }
+    await writeAuditLog({ userId: user.id, action: "meeting.schedule.update", entityType: "CalendarEvent", entityId: event.id, changes: { before, after: parsed } }, tx);
+    return event;
+  });
+  revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
+  revalidatePath("/[locale]/dashboard/calendar", "page");
+  revalidatePath(`/[locale]/dashboard/meeting-minutes/schedule/${eventId}`, "page");
+  return { id: updated.id };
+}
+
+export async function deleteScheduledMeetingAction(eventId: string) {
+  const user = await requirePermission("meetings.manage");
+  const scopeContext = await getMutationScopeContext();
+  const event = await db.calendarEvent.findUniqueOrThrow({ where: { id: eventId } });
+  if (event.type !== "MEETING" || event.relatedMatchId || event.relatedTrainingId) throw new Error("MeetingNotDeletable");
+  assertTeamScope(scopeContext, event.teamId, "CalendarEvent", { allowClubWide: true });
+  await db.$transaction(async (tx) => {
+    await tx.calendarEvent.delete({ where: { id: eventId } });
+    await writeAuditLog({ userId: user.id, action: "meeting.schedule.delete", entityType: "CalendarEvent", entityId: eventId, changes: { before: event } }, tx);
+  });
+  revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
+  revalidatePath("/[locale]/dashboard/calendar", "page");
+  return { success: true };
+}
+
 function splitAttendees(raw: string | undefined): string[] {
   return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
 }
