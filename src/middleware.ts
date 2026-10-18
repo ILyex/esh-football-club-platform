@@ -99,6 +99,34 @@ function handleRequest(req: NextRequest & { auth?: unknown }) {
 }
 
 const rememberCookieModeHeader = "x-internal-auth-cookie-mode";
+const sessionCookieName = /^(?:__Secure-)?authjs\.session-token(?:\.\d+)?$/i;
+const oversizedSessionCookieBytes = 8 * 1024;
+
+function recoverOversizedSessionCookie(req: NextRequest) {
+  const sessionCookies = req.cookies.getAll().filter((cookie) => sessionCookieName.test(cookie.name));
+  const sessionCookieBytes = sessionCookies.reduce((size, cookie) => size + cookie.name.length + cookie.value.length + 2, 0);
+  if (sessionCookieBytes <= oversizedSessionCookieBytes) return null;
+
+  const isAuthApi = req.nextUrl.pathname.startsWith("/api/auth/");
+  const response = isAuthApi
+    ? NextResponse.json({ error: "session_cookie_reset" }, { status: 401, headers: { "Cache-Control": "no-store" } })
+    : NextResponse.redirect(new URL(`/${req.nextUrl.pathname.split("/")[1] || routing.defaultLocale}/login?reason=session_reset`, req.url));
+
+  // Auth.js may split a legacy JWT into multiple cookies. Clear every chunk
+  // observed on this request so the next navigation can start with a clean jar.
+  for (const cookie of sessionCookies) {
+    response.cookies.set(cookie.name, "", {
+      httpOnly: true,
+      secure: cookie.name.startsWith("__Secure-"),
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0)
+    });
+  }
+  return response;
+}
+
 const authMiddleware = edgeAuth((req: NextRequest & { auth?: unknown }) => {
   const response = handleRequest(req);
   const session = req.auth as { user?: { id?: unknown } | null; invalid?: unknown; rememberMe?: unknown } | null;
@@ -117,6 +145,11 @@ export default async function middleware(req: NextRequest) {
   // Keep that CPU-heavy work only on operator routes and auth endpoints; this
   // is particularly important on Cloudflare where middleware runs per request.
   if (!needsAuthSession) return handleRequest(req as NextRequest & { auth?: unknown });
+
+  // Recover older, chunked Auth.js cookies before JWT decoding so users whose
+  // request is still below the CDN limit can log in again without manual cleanup.
+  const cookieRecovery = recoverOversizedSessionCookie(req);
+  if (cookieRecovery) return cookieRecovery;
 
   const response = await authMiddleware(req) as NextResponse;
   const cookieMode = response.headers.get(rememberCookieModeHeader);
