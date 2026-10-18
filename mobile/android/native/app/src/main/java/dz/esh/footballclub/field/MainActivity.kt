@@ -281,7 +281,9 @@ private fun MatchdayApp() {
     val scope = rememberCoroutineScope()
     var token by remember { mutableStateOf(sessionStore.read()) }
     val preferences = remember { context.getSharedPreferences("esh_native_ui", android.content.Context.MODE_PRIVATE) }
-    val cachedStartData = remember { NativeApi.cachedData(context, preferences.getString("locale", "ar") ?: "ar") }
+    var dismissedAlertIds by remember { mutableStateOf(preferences.getStringSet("dismissed_alert_ids", emptySet()).orEmpty()) }
+    fun visiblePayload(payload: NativeData): NativeData = payload.copy(alerts = payload.alerts.filterNot { it.id in dismissedAlertIds })
+    val cachedStartData = remember { NativeApi.cachedData(context, preferences.getString("locale", "ar") ?: "ar")?.let(::visiblePayload) }
     var user by remember { mutableStateOf<NativeUser?>(cachedStartData?.user) }
     var data by remember { mutableStateOf<NativeData?>(cachedStartData) }
     var matchDetailsLoaded by remember(token) { mutableStateOf(false) }
@@ -341,7 +343,7 @@ private fun MatchdayApp() {
             if (token != activeToken || locale != next) return@launch
             result.onSuccess { payload ->
                 user = payload.user.takeIf { it.id.isNotBlank() } ?: user
-                data = payload
+                data = visiblePayload(payload)
                 matchDetailsLoaded = section == Section.MATCHES
                 connectionError = null
             }.onFailure { error ->
@@ -455,7 +457,7 @@ private fun MatchdayApp() {
         val result = runCatching { withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale) } }
         if (token == activeToken && locale == requestLocale) {
             result.onSuccess { payload ->
-                data = payload
+                data = visiblePayload(payload)
                 user = payload.user.takeIf { it.id.isNotBlank() } ?: user
                 matchDetailsLoaded = true
                 connectionError = null
@@ -496,7 +498,7 @@ private fun MatchdayApp() {
                     NativeApi.data(activeToken, locale)
                 }
             }
-            result.onSuccess { data = it; connectionError = null }
+            result.onSuccess { data = visiblePayload(it); connectionError = null }
                 .onFailure { connectionError = L(locale, "تعذر حفظ التغيير. تحقق من الاتصال والصلاحيات.", "Impossible d’enregistrer. Vérifiez la connexion et les autorisations.") }
             loading = false
         }
@@ -512,7 +514,7 @@ private fun MatchdayApp() {
                     NativeApi.data(activeToken, locale)
                 }
             }
-            result.onSuccess { data = it; connectionError = null
+            result.onSuccess { data = visiblePayload(it); connectionError = null
                 if (payload.optString("type") in setOf("GOAL", "PENALTY_GOAL", "OWN_GOAL")) {
                     NativeSoundEffects.play(context, R.raw.sound_goal_winner, soundEffectsEnabled)
                 }
@@ -531,9 +533,47 @@ private fun MatchdayApp() {
                     NativeApi.data(activeToken, locale)
                 }
             }
-            result.onSuccess { data = it; connectionError = null }
+            result.onSuccess { data = visiblePayload(it); connectionError = null }
                 .onFailure { connectionError = L(locale, "تعذر حذف الحدث؛ قد يكون رسميًا أو لا تملك الصلاحية.", "Suppression impossible ; l’événement est peut-être officiel ou votre compte n’a pas l’autorisation.") }
             loading = false
+        }
+    }
+
+    fun dismissAlert(alert: NativeAlert) {
+        val activeToken = token ?: return
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    if (!alert.id.startsWith("meeting-")) NativeApi.deleteNotification(activeToken, alert.id)
+                }
+            }
+            result.onSuccess {
+                val next = dismissedAlertIds + alert.id
+                dismissedAlertIds = next
+                preferences.edit().putStringSet("dismissed_alert_ids", next).apply()
+                data = data?.copy(alerts = data?.alerts.orEmpty().filterNot { it.id == alert.id })
+            }.onFailure { error ->
+                if (error is NativeSessionExpired) {
+                    sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                } else connectionError = L(locale, "تعذر حذف الإشعار. حاول مرة أخرى.", "Impossible de supprimer la notification. Réessayez.")
+            }
+        }
+    }
+
+    fun dismissAllAlerts() {
+        val activeToken = token ?: return
+        scope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { NativeApi.deleteAllNotifications(activeToken) } }
+            result.onSuccess {
+                val next = dismissedAlertIds + data?.alerts.orEmpty().map { it.id }
+                dismissedAlertIds = next
+                preferences.edit().putStringSet("dismissed_alert_ids", next).apply()
+                data = data?.copy(alerts = emptyList())
+            }.onFailure { error ->
+                if (error is NativeSessionExpired) {
+                    sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                } else connectionError = L(locale, "تعذر حذف الإشعارات. حاول مرة أخرى.", "Impossible de supprimer les notifications. Réessayez.")
+            }
         }
     }
 
@@ -580,7 +620,7 @@ private fun MatchdayApp() {
                     modifier = Modifier.weight(1f).padding(bottom = 106.dp),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "language-content"
-                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
+                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts) }
             }
             GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), onSelect = { section = it })
         }
@@ -605,7 +645,7 @@ private fun MatchdayApp() {
                             NativeApi.data(activeToken, locale)
                         }
                     }
-                    result.onSuccess { data = it; composerType = null; connectionError = L(locale, "تم النشر ومزامنة المنصة والموقع العام.", "Publié et synchronisé avec la plateforme et le site public.") }.onFailure { createError = L(locale, "تعذر النشر. تحقق من حجم الصور والاتصال ثم حاول مجددًا.", "Publication impossible. Vérifiez la taille des images et la connexion puis réessayez.") }
+                    result.onSuccess { data = visiblePayload(it); composerType = null; connectionError = L(locale, "تم النشر ومزامنة المنصة والموقع العام.", "Publié et synchronisé avec la plateforme et le site public.") }.onFailure { createError = L(locale, "تعذر النشر. تحقق من حجم الصور والاتصال ثم حاول مجددًا.", "Publication impossible. Vérifiez la taille des images et la connexion puis réessayez.") }
                     loading = false
                 }
             }
@@ -819,7 +859,9 @@ private fun SectionPage(
     onCreate: (String) -> Unit,
     onUpdateMatch: (NativeMatch, Int, Int, String?) -> Unit,
     onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
-    onDeleteEvent: (NativeMatch, NativeEvent) -> Unit
+    onDeleteEvent: (NativeMatch, NativeEvent) -> Unit,
+    onDeleteAlert: (NativeAlert) -> Unit,
+    onDeleteAllAlerts: () -> Unit
 ) {
     var selectedStatPlayer by remember(section) { mutableStateOf<NativePlayerPerformance?>(null) }
     var isMorning by remember { mutableStateOf(java.time.LocalTime.now().hour in 6 until 12) }
@@ -894,7 +936,18 @@ private fun SectionPage(
             }
             Section.ALERTS -> {
                 if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Notification, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(data!!.alerts) { alert -> AlertCard(alert, locale) }
+                else {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = onDeleteAllAlerts) {
+                                Icon(IconlyIcons.Close, contentDescription = null, tint = Red, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text(L(locale, "حذف الكل", "Tout supprimer"), color = Red, fontSize = 11.sp, fontFamily = CairoFamily)
+                            }
+                        }
+                    }
+                    items(data!!.alerts, key = { it.id }) { alert -> AlertCard(alert, locale, onDelete = { onDeleteAlert(alert) }) }
+                }
             }
         }
     }
@@ -1849,14 +1902,17 @@ private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
 }
 
 @Composable
-private fun AlertCard(alert: NativeAlert, locale: String) {
+private fun AlertCard(alert: NativeAlert, locale: String, onDelete: () -> Unit) {
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Icon(IconlyIcons.Notification, contentDescription = null, tint = if (alert.read) Muted else Red, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(alert.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 alert.message?.let { Text(it, color = Muted, fontSize = 10.sp) }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(IconlyIcons.Close, contentDescription = L(locale, "حذف الإشعار", "Supprimer la notification"), tint = Muted, modifier = Modifier.size(18.dp))
             }
         }
     }

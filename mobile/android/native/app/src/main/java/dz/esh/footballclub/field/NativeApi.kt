@@ -281,6 +281,14 @@ object NativeApi {
         request("/api/mobile/matches/$matchId/events/$eventId", token, null, "DELETE")
     }
 
+    fun deleteNotification(token: String, notificationId: String) {
+        request("/api/mobile/notifications/${Uri.encode(notificationId)}", token, null, "DELETE")
+    }
+
+    fun deleteAllNotifications(token: String) {
+        request("/api/mobile/notifications", token, null, "DELETE")
+    }
+
     private fun solveChallenge(token: String, challenge: JSONObject): List<Long> {
         val count = challenge.getInt("c")
         val size = challenge.getInt("s")
