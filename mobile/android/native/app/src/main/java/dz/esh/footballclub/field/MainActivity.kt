@@ -32,6 +32,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -117,6 +118,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -220,8 +222,8 @@ class MainActivity : ComponentActivity() {
 
 private object IconlyIcons {
     val Home = R.drawable.iconly_home
-    val Match = R.drawable.iconly_ticket_star
-    val MatchFilled = R.drawable.iconly_ticket_star_filled
+    val Match = R.drawable.ic_match_ball
+    val MatchFilled = R.drawable.ic_match_ball_filled
     val Meeting = R.drawable.iconly_calendar
     val MeetingFilled = R.drawable.iconly_calendar_filled
     val People = R.drawable.iconly_users
@@ -260,11 +262,13 @@ private object IconlyIcons {
 private enum class Section(val icon: Int, val selectedIcon: Int) {
     HOME(IconlyIcons.Home, R.drawable.iconly_home_filled),
     MATCHES(IconlyIcons.Match, IconlyIcons.MatchFilled),
+    CALENDAR(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
     MEETINGS(IconlyIcons.Meeting, IconlyIcons.MeetingFilled),
+    PLAYER_STATS(IconlyIcons.Activity, IconlyIcons.Activity),
     ALERTS(IconlyIcons.Notification, R.drawable.iconly_notification_filled)
 }
-private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
-private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
+private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.CALENDAR -> L(locale, "الرزنامة", "Calendrier"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.PLAYER_STATS -> L(locale, "إحصائيات اللاعبين", "Stats joueurs"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
+private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.CALENDAR -> L(locale, "كل ما هو قادم للنادي في مكان واحد", "Tous les rendez-vous à venir du club"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.PLAYER_STATS -> L(locale, "أداء لاعبي فئتك متزامن مع المنصة", "Performances synchronisées avec la plateforme"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
 
 @Composable
 private fun MatchdayApp() {
@@ -279,6 +283,9 @@ private fun MatchdayApp() {
     var matchDetailsLoaded by remember(token) { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var connectionError by remember { mutableStateOf<String?>(null) }
+    var playerStats by remember { mutableStateOf<NativePlayerStats?>(null) }
+    var playerStatsLoading by remember { mutableStateOf(false) }
+    var playerStatsError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
     var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("matches", "meetings")) }
     var locale by remember { mutableStateOf(preferences.getString("locale", "ar") ?: "ar") }
@@ -340,6 +347,7 @@ private fun MatchdayApp() {
                     token = null
                     user = null
                     data = null
+                    playerStats = null
                     connectionError = L(locale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.")
                 } else {
                     connectionError = L(locale, "تعذر تحديث اللغة من الخادم؛ بقيت جلستك محفوظة.", "Impossible d’actualiser la langue depuis le serveur ; votre session est conservée.")
@@ -424,7 +432,8 @@ private fun MatchdayApp() {
             }
                 .onFailure { error ->
                     if (error is NativeSessionExpired) {
-                        sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                        sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null
+                        connectionError = L(requestLocale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.")
                         connectionError = L(locale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.")
                     } else {
                         connectionError = L(locale, "تعذر تحديث البيانات. تحقق من الاتصال وحاول مجددًا؛ بقيت جلستك محفوظة.", "Actualisation impossible. Vérifiez la connexion et réessayez ; votre session est conservée.")
@@ -451,6 +460,24 @@ private fun MatchdayApp() {
             }
         }
         loading = false
+    }
+
+    LaunchedEffect(token, locale, section, refreshNonce) {
+        val activeToken = token ?: return@LaunchedEffect
+        if (section != Section.PLAYER_STATS) return@LaunchedEffect
+        val requestLocale = locale
+        playerStatsLoading = playerStats == null
+        playerStatsError = null
+        val result = runCatching { withContext(Dispatchers.IO) { NativeApi.playerStats(activeToken) } }
+        if (token == activeToken && section == Section.PLAYER_STATS && locale == requestLocale) {
+            result.onSuccess { playerStats = it }
+                .onFailure { error ->
+                    if (error is NativeSessionExpired) {
+                        sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null
+                    } else playerStatsError = L(requestLocale, "تعذر مزامنة إحصائيات اللاعبين. اسحب للتحديث أو تحقق من الاتصال.", "Impossible de synchroniser les statistiques. Actualisez ou vérifiez la connexion.")
+                }
+        }
+        playerStatsLoading = false
     }
 
     fun updateMatch(match: NativeMatch, clubScore: Int, opponentScore: Int, status: String?) {
@@ -533,7 +560,7 @@ private fun MatchdayApp() {
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
                 TopHeader(user?.role ?: L(locale, "حساب إداري", "Compte administrateur"), locale = locale, lightMode = lightMode, soundEffectsEnabled = soundEffectsEnabled, unreadCount = data?.alerts.orEmpty().count { !it.read }, onToggleSoundEffects = { toggleSoundEffects() }, onToggleTheme = { toggleTheme() }, onCheckUpdate = { checkForUpdate() }, onToggleLocale = { switchLocale() }, onNotifications = { section = Section.ALERTS }, onLogout = {
                     val activeToken = token
-                    sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                    sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null; playerStatsError = null
                     connectionError = null
                     section = Section.HOME
                     if (activeToken != null) scope.launch(Dispatchers.IO) {
@@ -549,9 +576,9 @@ private fun MatchdayApp() {
                     modifier = Modifier.weight(1f).padding(bottom = 106.dp),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "language-content"
-                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
+                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
             }
-            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, onSelect = { section = it })
+            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = user?.roleKey == "coach" || user?.roleKey == "assistant_coach", onSelect = { section = it })
         }
         composerType?.let { type ->
             NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, isSubmitting = loading, errorMessage = createError, onDismiss = { composerType = null }) { payload ->
@@ -731,7 +758,7 @@ private fun TopHeader(role: String, locale: String, lightMode: Boolean, soundEff
                 }
                 var menuExpanded by remember { mutableStateOf(false) }
                 Box {
-                    HeaderIconButton(IconlyIcons.More, L(locale, "المزيد من الخيارات", "Plus d’options"), onClick = { menuExpanded = true })
+                    HeaderIconButton(IconlyIcons.Setting, L(locale, "الإعدادات", "Paramètres"), onClick = { menuExpanded = true })
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
@@ -780,12 +807,17 @@ private fun SectionPage(
     loading: Boolean,
     connectionError: String?,
     locale: String,
+    playerStats: NativePlayerStats?,
+    playerStatsLoading: Boolean,
+    playerStatsError: String?,
+    onRetryPlayerStats: () -> Unit,
     onNavigate: (Section) -> Unit,
     onCreate: (String) -> Unit,
     onUpdateMatch: (NativeMatch, Int, Int, String?) -> Unit,
     onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
     onDeleteEvent: (NativeMatch, NativeEvent) -> Unit
 ) {
+    var selectedStatPlayer by remember(section) { mutableStateOf<NativePlayerPerformance?>(null) }
     var isMorning by remember { mutableStateOf(java.time.LocalTime.now().hour in 6 until 12) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -844,11 +876,141 @@ private fun SectionPage(
                 if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Meeting, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(meetings) { meeting -> MeetingCard(meeting, locale) }
             }
+            Section.PLAYER_STATS -> {
+                val players = playerStats?.players.orEmpty()
+                item { PlayerStatsOverview(playerStats, playerStatsLoading, playerStatsError, locale, onRetryPlayerStats) }
+                if (selectedStatPlayer != null) {
+                    item { PlayerStatsDetail(selectedStatPlayer!!, locale) { selectedStatPlayer = null } }
+                } else if (players.isNotEmpty()) items(players, key = { it.id }) { player -> PlayerStatsCard(player, locale) { selectedStatPlayer = player } }
+            }
+            Section.CALENDAR -> {
+                val calendarItems = data?.calendarItems.orEmpty()
+                if (calendarItems.isEmpty()) item { EmptyNativeSection(IconlyIcons.Calendar, L(locale, "الرزنامة", "Calendrier"), L(locale, "لا توجد أحداث قادمة. ستظهر هنا المباريات والتدريبات والاجتماعات والمواعيد الإدارية.", "Aucun événement à venir. Les matchs, entraînements, réunions et rendez-vous administratifs apparaîtront ici."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                else items(calendarItems) { calendarItem -> CalendarItemCard(calendarItem, locale) }
+            }
             Section.ALERTS -> {
                 if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Notification, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(data!!.alerts) { alert -> AlertCard(alert, locale) }
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, error: String?, locale: String, onRetry: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF24272D), Color(0xFF191B20), Color(0xFF202329))))
+            .border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(17.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(46.dp).clip(RoundedCornerShape(16.dp)).background(Red.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
+                Icon(IconlyIcons.Activity, contentDescription = null, tint = Red, modifier = Modifier.size(24.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(L(locale, "أداء فئتك", "Performances de votre catégorie"), color = AppText, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                Text(stats?.season?.let { L(locale, "موسم $it · مزامنة مباشرة", "Saison $it · synchronisé") } ?: L(locale, "إحصائيات محدثة من المنصة", "Statistiques synchronisées"), color = Muted, fontSize = 10.sp)
+            }
+            if (loading) CircularProgressIndicator(Modifier.size(19.dp), color = Red, strokeWidth = 2.dp)
+            else HeaderIconButton(IconlyIcons.Refresh, L(locale, "تحديث", "Actualiser"), tint = Mint, onClick = onRetry)
+        }
+        if (error != null) Text(error, color = Color(0xFFFF8E96), fontSize = 11.sp, lineHeight = 17.sp)
+        else if (stats != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NativeMiniStat(L(locale, "اللاعبون", "Joueurs"), stats.players.size.toString(), IconlyIcons.People, Mint, Modifier.weight(1f))
+                NativeMiniStat(L(locale, "الأهداف", "Buts"), stats.players.sumOf { it.goals }.toString(), IconlyIcons.Trophy, Color(0xFFFFC45D), Modifier.weight(1f))
+                NativeMiniStat(L(locale, "المشاركات", "Apparitions"), stats.players.sumOf { it.appearances }.toString(), IconlyIcons.Activity, Color(0xFF7DB8FF), Modifier.weight(1f))
+            }
+        } else if (!loading) Text(L(locale, "لا يوجد لاعبون نشطون ضمن الفئات المرتبطة بحسابك.", "Aucun joueur actif dans les catégories attribuées."), color = Muted, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun NativeMiniStat(label: String, value: String, icon: Int, color: Color, modifier: Modifier = Modifier) {
+    Column(modifier.clip(RoundedCornerShape(15.dp)).background(Color.White.copy(alpha = .035f)).border(1.dp, GlassBorder.copy(alpha = .65f), RoundedCornerShape(15.dp)).padding(horizontal = 10.dp, vertical = 11.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
+            Text(label, color = Muted, fontSize = 9.sp, maxLines = 1)
+        }
+        Text(value, color = AppText, fontSize = 18.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 5.dp))
+    }
+}
+
+@Composable
+private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, onClick: () -> Unit) {
+    val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
+    val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
+    val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF202329), Color(0xFF191B20))))
+            .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(13.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        Box(Modifier.size(47.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, Red.copy(alpha = .25f), CircleShape), contentAlignment = Alignment.Center) {
+            Text(player.number?.toString() ?: "—", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Black)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(name, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text("$category · ${player.team} · $position", color = Muted, fontSize = 9.sp, maxLines = 1)
+            Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+                Text("⚽ ${player.goals}", color = Color(0xFFFFC45D), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("${L(locale, "تمريرات", "PD")} ${player.assists}", color = Mint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("${L(locale, "مباريات", "MJ")} ${player.appearances}", color = AppText.copy(alpha = .78f), fontSize = 10.sp)
+            }
+        }
+        Icon(IconlyIcons.ArrowLeft, contentDescription = L(locale, "التفاصيل", "Détails"), tint = Muted, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String, onBack: () -> Unit) {
+    val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
+    val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1B1D22)).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+            HeaderIconButton(if (locale == "fr") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, L(locale, "العودة للقائمة", "Retour à la liste"), onClick = onBack)
+            Box(Modifier.size(48.dp).clip(CircleShape).background(Red.copy(alpha = .17f)), contentAlignment = Alignment.Center) { Text(player.number?.toString() ?: "—", color = Red, fontWeight = FontWeight.Black, fontSize = 18.sp) }
+            Column(Modifier.weight(1f)) {
+                Text(name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                Text("${player.team} · $position", color = Muted, fontSize = 10.sp)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NativeMiniStat(L(locale, "مشاركات", "MJ"), player.appearances.toString(), IconlyIcons.Match, Color(0xFF7DB8FF), Modifier.weight(1f))
+            NativeMiniStat(L(locale, "أساسي", "Titul."), player.starts.toString(), IconlyIcons.Star, Color(0xFFFFC45D), Modifier.weight(1f))
+            NativeMiniStat(L(locale, "أهداف", "Buts"), player.goals.toString(), IconlyIcons.Trophy, Red, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NativeMiniStat(L(locale, "تمريرات حاسمة", "Passes D."), player.assists.toString(), IconlyIcons.Activity, Mint, Modifier.weight(1f))
+            NativeMiniStat("xG", "${"%.2f".format(java.util.Locale.US, player.xg)}", IconlyIcons.Activity, Color(0xFFB79BFF), Modifier.weight(1f))
+        }
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .035f)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text(L(locale, "تفاصيل الأداء", "Détails de performance"), color = AppText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            NativeDetailLine(L(locale, "التسديدات", "Tirs"), "${player.shots} · ${player.shotsOnTarget} ${L(locale, "على المرمى", "cadrés")}")
+            NativeDetailLine(L(locale, "تغطية xG", "Couverture xG"), "${player.xgShots} / ${player.shots}")
+            NativeDetailLine(L(locale, "البطاقات الصفراء / الحمراء", "Cartons jaunes / rouges"), "${player.yellowCards} / ${player.redCards}")
+            NativeDetailLine(L(locale, "التسديد بالقدمين / الرأس", "Tirs pied droit / pied gauche / tête"), "${player.rightFootShots} / ${player.leftFootShots} / ${player.headShots}")
+            NativeDetailLine(L(locale, "الأهداف: يمين / يسار / رأس / أخرى", "Buts : droit / gauche / tête / autres"), "${player.rightFootGoals} / ${player.leftFootGoals} / ${player.headGoals} / ${player.otherGoals}")
+        }
+        if (player.recentMatches.isNotEmpty()) {
+            Text(L(locale, "آخر المشاركات", "Dernières apparitions"), color = AppText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            player.recentMatches.forEach { match ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = .025f)).padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(match.opponent, color = AppText, fontSize = 9.sp, modifier = Modifier.weight(1f), maxLines = 1)
+                    Text(if (match.isStarting) L(locale, "أساسي", "Titulaire") else L(locale, "بديل", "Remplaçant"), color = if (match.isStarting) Mint else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Text(L(locale, "الإحصائيات متزامنة مباشرة مع بيانات المنصة.", "Statistiques synchronisées avec la plateforme."), color = Muted, fontSize = 9.sp)
+    }
+}
+
+@Composable
+private fun NativeDetailLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Muted, fontSize = 9.sp, modifier = Modifier.weight(1f))
+        Text(value, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -957,7 +1119,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
         }
     }
     val surname = user.lastName?.trim().orEmpty()
-    val givenName = user.firstName?.trim().orEmpty().ifBlank { if (surname.isBlank()) user.name else "" }
+    val givenName = user.firstName?.trim().orEmpty()
+    val displayName = listOf(surname.uppercase(), givenName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { user.name.ifBlank { "—" } }
     val birthDate = user.dateOfBirth?.take(10)?.let { raw ->
         runCatching { java.time.LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", java.util.Locale.FRANCE)) }.getOrNull()
     } ?: "—"
@@ -966,70 +1129,119 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     val leagueRed = Color(0xFFB43E51)
     val federationGreen = Color(0xFF41775D)
     val violet = Color(0xFF6659AC)
-    Box(
-        Modifier.fillMaxWidth().aspectRatio(1.58f).clip(RoundedCornerShape(14.dp)).background(paper).border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(14.dp)).shadow(5.dp, RoundedCornerShape(14.dp))
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val step = 10.dp.toPx()
-            var x = -size.height
-            while (x < size.width) {
-                drawLine(Color(0x1C817C70), Offset(x, 0f), Offset(x + size.height, size.height), strokeWidth = 0.65.dp.toPx())
-                x += step
-            }
-            val sideHeight = size.height * .43f
-            val sideTop = size.height * .48f
-            drawRect(violet, Offset.Zero.copy(y = sideTop), Size(26.dp.toPx(), sideHeight))
-            drawRect(violet, Offset(size.width - 26.dp.toPx(), sideTop), Size(26.dp.toPx(), sideHeight))
-            drawLine(Color(0xFF968BBF), Offset(35.dp.toPx(), sideTop + 4.dp.toPx()), Offset(35.dp.toPx(), size.height - 12.dp.toPx()), strokeWidth = 4.dp.toPx())
-        }
-        Column(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth().height(35.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                LicenseSeal(R.drawable.faf_logo, "Fédération Algérienne de Football")
-                Column(Modifier.weight(1f).padding(horizontal = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text("Fédération Algérienne de Football", color = federationGreen, fontSize = 10.sp, fontWeight = FontWeight.Black, maxLines = 1, textAlign = TextAlign.Center)
-                    Text("Ligue Wilaya de Football – Tiaret", color = leagueRed, fontSize = 10.sp, fontWeight = FontWeight.Black, maxLines = 1, textAlign = TextAlign.Center)
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().aspectRatio(1.646f)
+                .shadow(5.dp, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(paper)
+                .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
+        ) {
+            val cardWidth = maxWidth
+            val cardHeight = maxHeight
+            val fontScale = (cardWidth / 360.dp).coerceIn(.82f, 1.16f)
+            Canvas(Modifier.fillMaxSize()) {
+                val pitch = 4.dp.toPx()
+                val amplitude = 2.2.dp.toPx()
+                val wavelength = 48.dp.toPx()
+                var startX = -size.height
+                while (startX < size.width) {
+                    val path = androidx.compose.ui.graphics.Path()
+                    var y = 0f
+                    path.moveTo(startX, 0f)
+                    while (y <= size.height) {
+                        val wave = kotlin.math.sin((y / wavelength) * (2.0 * Math.PI)).toFloat() * amplitude
+                        path.lineTo(startX + y * .48f + wave, y)
+                        y += 2.dp.toPx()
+                    }
+                    drawPath(path, Color(0x247A7568), style = androidx.compose.ui.graphics.drawscope.Stroke(width = .48.dp.toPx()))
+                    startX += pitch
                 }
-                LicenseSeal(R.drawable.tiaret_league_logo, "Ligue Wilaya de Football – Tiaret")
+                val sideTop = size.height * .36f
+                val sideHeight = size.height * .42f
+                val sideWidth = size.width * .095f
+                drawRect(violet, Offset(0f, sideTop), Size(sideWidth, sideHeight))
+                drawRect(violet, Offset(size.width - sideWidth, sideTop), Size(sideWidth, sideHeight))
+                val accentX = size.width * .132f
+                drawLine(Color(0xFF968BBF), Offset(accentX, sideTop + 4.dp.toPx()), Offset(accentX, size.height - 12.dp.toPx()), strokeWidth = 3.dp.toPx())
             }
-            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(.31f).fillMaxSize().padding(start = 17.dp, top = 2.dp, bottom = 2.dp).clip(RoundedCornerShape(3.dp)).background(Color.White).border(1.dp, Color(0xFFBBB9B1), RoundedCornerShape(3.dp)).padding(3.dp)) {
-                    if (image != null) Image(image!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    else Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) { Text((givenName.ifBlank { user.name }).take(1).uppercase(), color = ink, fontSize = 24.sp, fontWeight = FontWeight.Black) }
-                }
-                Column(Modifier.weight(.69f).fillMaxSize().padding(end = 15.dp, top = 3.dp, bottom = 2.dp), verticalArrangement = Arrangement.Center) {
-                    val fullName = listOf(surname.uppercase(), givenName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { user.name }
-                    Text(fullName, color = ink, fontSize = 14.sp, fontWeight = FontWeight.Black, lineHeight = 16.sp, maxLines = 2)
-                    Spacer(Modifier.height(2.dp))
-                    LicenseDetail("Né le :", birthDate, ink)
-                    LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink)
-                    Box(Modifier.padding(top = 3.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 9.dp, vertical = 2.dp)) {
-                        Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+
+            LicenseSeal(
+                R.drawable.faf_logo,
+                "Fédération Algérienne de Football",
+                Modifier.offset(x = cardWidth * .025f, y = cardHeight * .035f).size(36.dp * fontScale)
+            )
+            LicenseSeal(
+                R.drawable.tiaret_league_logo,
+                "Ligue Wilaya de Football – Tiaret",
+                Modifier.align(Alignment.TopEnd).offset(x = -(cardWidth * .025f), y = cardHeight * .035f).size(36.dp * fontScale)
+            )
+            Column(
+                Modifier.offset(x = cardWidth * .16f, y = cardHeight * .025f)
+                    .width(cardWidth * .68f).height(cardHeight * .22f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("Fédération Algérienne de Football", color = federationGreen, fontSize = (12.5f * fontScale).sp, lineHeight = (15f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text("Ligue Wilaya de Football – Tiaret", color = leagueRed, fontSize = (12f * fontScale).sp, lineHeight = (14f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+            }
+
+            Box(
+                Modifier.offset(x = cardWidth * .132f, y = cardHeight * .282f)
+                    .width(cardWidth * .245f).height(cardHeight * .468f)
+                    .background(Color.White).border(1.dp, Color(0xFFAAA99F))
+                    .padding(3.dp)
+            ) {
+                if (image != null) {
+                    Image(image!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else {
+                    Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) {
+                        Text((givenName.ifBlank { surname }).take(1).ifBlank { "?" }.uppercase(), color = ink, fontSize = (26f * fontScale).sp, fontWeight = FontWeight.Black)
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().height(21.dp).padding(start = 16.dp, end = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(user.licenseNumber?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.43f), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Black, maxLines = 1)
-                Text(user.role.ifBlank { "—" }, modifier = Modifier.weight(.57f), color = ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp, maxLines = 2)
+
+            Column(
+                Modifier.offset(x = cardWidth * .425f, y = cardHeight * .30f)
+                    .width(cardWidth * .535f).height(cardHeight * .49f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(displayName, color = ink, fontSize = (16f * fontScale).sp, lineHeight = (18f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                LicenseDetail("Né le :", birthDate, ink, fontScale)
+                LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
+                Box(Modifier.padding(top = 2.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 10.dp, vertical = 3.dp)) {
+                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", color = Color.White, fontSize = (11.5f * fontScale).sp, lineHeight = (14f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
+            }
+
+            Row(
+                Modifier.offset(x = cardWidth * .12f, y = cardHeight * .835f)
+                    .width(cardWidth * .80f).height(cardHeight * .13f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(user.licenseNumber?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.40f), color = ink, fontSize = (14f * fontScale).sp, lineHeight = (17f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(user.licenseRole?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.60f), color = ink, fontSize = (10.5f * fontScale).sp, lineHeight = (12.5f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
 }
 
 @Composable
-private fun LicenseSeal(imageRes: Int, label: String) {
+private fun LicenseSeal(imageRes: Int, label: String, modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(imageRes),
         contentDescription = label,
-        modifier = Modifier.size(36.dp),
+        modifier = modifier,
         contentScale = ContentScale.Fit
     )
 }
 
 @Composable
-private fun LicenseDetail(label: String, value: String, color: Color) {
+private fun LicenseDetail(label: String, value: String, color: Color, scale: Float) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text(value, color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(label, color = color, fontSize = (12f * scale).sp, lineHeight = (14f * scale).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, color = color, fontSize = (13f * scale).sp, lineHeight = (15f * scale).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1569,6 +1781,37 @@ private fun MeetingCard(meeting: NativeMeeting, locale: String) {
 }
 
 @Composable
+private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
+    val accent = when (item.type) {
+        "MATCH" -> Red
+        "TRAINING" -> Color(0xFF4DA3FF)
+        "MEETING" -> Color(0xFFB18CFF)
+        else -> Mint
+    }
+    val kind = when (item.type) {
+        "MATCH" -> L(locale, "مباراة", "Match")
+        "TRAINING" -> L(locale, "تدريب", "Entraînement")
+        "MEETING" -> L(locale, "اجتماع", "Réunion")
+        else -> L(locale, "موعد / وثيقة", "Rendez-vous / document")
+    }
+    GlassCard {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.width(4.dp).height(48.dp).clip(CircleShape).background(accent))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(kind, color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(item.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.startDateTime.take(16).replace('T', ' '), color = Muted, fontSize = 9.sp)
+                    item.team?.takeIf { it.isNotBlank() }?.let { Text("· $it", color = Muted, fontSize = 9.sp, maxLines = 1) }
+                }
+                item.location?.takeIf { it.isNotBlank() }?.let { Text(it, color = Muted, fontSize = 9.sp, maxLines = 1) }
+            }
+            Icon(IconlyIcons.Calendar, contentDescription = null, tint = accent, modifier = Modifier.size(19.dp))
+        }
+    }
+}
+
+@Composable
 private fun AlertCard(alert: NativeAlert, locale: String) {
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1617,6 +1860,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
     var endTime by remember(type) { mutableStateOf("19:00") }
     var location by remember(type) { mutableStateOf("") }
     var category by remember(type) { mutableStateOf("") }
+    var announcementPriority by remember(type) { mutableStateOf("NORMAL") }
     var notes by remember(type) { mutableStateOf("") }
     var teamId by remember(type, orderedTeams) { mutableStateOf(orderedTeams.firstOrNull()?.id.orEmpty()) }
     var coachId by remember(type) { mutableStateOf("") }
@@ -1630,7 +1874,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         selectedImages.clear()
         selectedImages.addAll(images.distinct().take(10))
     }
-    val stepCount = if (type == "news") 2 else if (type == "training") 3 else 1
+    val stepCount = if (type == "news") 2 else if (type == "training" || type == "meeting") 3 else 1
     val validTimeRange = runCatching {
         val start = startTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
         val end = endTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
@@ -1648,11 +1892,13 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         type == "training" && step == 1 -> teamId.isNotBlank() && coachId.isNotBlank()
         type == "training" && step == 2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange
         type == "training" -> teamId.isNotBlank()
-        type == "meeting" -> teamId.isNotBlank() && date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange && titleAr.isNotBlank()
+        type == "meeting" && step == 1 -> teamId.isNotBlank() && titleAr.isNotBlank()
+        type == "meeting" && step == 2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange
+        type == "meeting" -> teamId.isNotBlank() && titleAr.isNotBlank()
         else -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank())
     }
     val actionLabel = when {
-        (type == "news" && step == 1) || (type == "training" && step < 3) -> L(locale, "متابعة", "Continuer")
+        (type == "news" && step == 1) || ((type == "training" || type == "meeting") && step < 3) -> L(locale, "متابعة", "Continuer")
         type == "news" -> L(locale, "نشر الخبر", "Publier l’actualité")
         type == "training" -> L(locale, "نشر التدريب", "Publier la séance")
         type == "meeting" -> L(locale, "جدولة الاجتماع", "Planifier la réunion")
@@ -1689,9 +1935,9 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                     Text(message, color = Red, fontFamily = CairoFamily, fontSize = 10.sp, lineHeight = 15.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(RedGlow).padding(10.dp))
                 }
                 if (type == "training" || type == "meeting") {
-                    if (type == "meeting") OutlinedTextField(value = titleAr, onValueChange = { titleAr = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "عنوان الاجتماع", "Titre de la réunion")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                    if (type == "meeting" && step == 1) OutlinedTextField(value = titleAr, onValueChange = { titleAr = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "عنوان الاجتماع", "Titre de la réunion")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                     val availableCoaches = coaches.filter { teamId in it.teamIds }
-                    if (type == "meeting" || step == 1) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if ((type == "meeting" && step == 1) || (type == "training" && step == 1)) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(IconlyIcons.People, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
                             Column {
@@ -1715,7 +1961,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             onSelected = { coachId = it }
                         )
                     }
-                    if (type == "meeting" || step == 2) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if ((type == "meeting" && step == 2) || (type == "training" && step == 2)) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(if (type == "meeting") IconlyIcons.Meeting else IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
                             Column {
@@ -1733,7 +1979,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             OutlinedTextField(value = endTime, onValueChange = {}, readOnly = true, modifier = Modifier.weight(1f).clickable { TimePickerDialog(context, { _, hour, minute -> endTime = "%02d:%02d".format(hour, minute) }, endTime.take(2).toIntOrNull() ?: 19, endTime.takeLast(2).toIntOrNull() ?: 0, true).show() }, singleLine = true, label = { Text(L(locale, "وقت النهاية", "Fin")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                         }
                     }
-                    if (type == "meeting" || step == 3) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (step == 3 && (type == "meeting" || type == "training")) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(value = location, onValueChange = { location = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "المكان · اختياري", "Lieu · facultatif")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                         OutlinedTextField(value = notes, onValueChange = { notes = it.take(2000) }, modifier = Modifier.fillMaxWidth().height(92.dp), label = { Text(if (type == "meeting") L(locale, "جدول الأعمال / ملاحظات", "Ordre du jour / notes") else L(locale, "ملاحظات للمدربين واللاعبين", "Notes pour l’équipe")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                     }
@@ -1775,6 +2021,36 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                         }
                     }
                     if (type == "news") OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف · اختياري", "Catégorie · facultative")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    if (type == "announcement") {
+                        val priorityOptions = listOf(
+                            "LOW" to L(locale, "منخفضة", "Basse"),
+                            "NORMAL" to L(locale, "عادية", "Normale"),
+                            "HIGH" to L(locale, "مرتفعة", "Haute"),
+                            "URGENT" to L(locale, "عاجلة", "Urgente")
+                        )
+                        val priorityColor = when (announcementPriority) {
+                            "LOW" -> Color(0xFF94A3B8)
+                            "HIGH" -> Color(0xFFF59E0B)
+                            "URGENT" -> Color(0xFFEF4444)
+                            else -> Color(0xFF38BDF8)
+                        }
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(Modifier.size(9.dp).background(priorityColor, CircleShape))
+                                Column {
+                                    Text(L(locale, "أولوية الإعلان", "Priorité de l’annonce"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(L(locale, "تظهر الأولوية في المنصة والموقع حسب درجتها", "La priorité sera visible sur la plateforme et le site"), color = Muted, fontSize = 9.sp)
+                                }
+                            }
+                            NativeDropdownField(
+                                label = L(locale, "درجة الأولوية", "Niveau de priorité"),
+                                value = priorityOptions.first { it.first == announcementPriority }.second,
+                                placeholder = L(locale, "اختر الأولوية", "Choisir la priorité"),
+                                options = priorityOptions,
+                                onSelected = { announcementPriority = it }
+                            )
+                        }
+                    }
                     }
                     if (type == "news" && step == 2) {
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1810,7 +2086,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                 loading = isSubmitting,
                 modifier = Modifier.width(190.dp),
                 onClick = {
-                if ((type == "news" && step == 1) || (type == "training" && step < 3)) {
+                if ((type == "news" && step == 1) || ((type == "training" || type == "meeting") && step < 3)) {
                     step += 1
                     return@ClubPrimaryButton
                 }
@@ -1819,7 +2095,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                 else if (type == "meeting") payload.put("teamId", teamId).put("title", titleAr.trim()).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("description", notes)
                 else {
                     payload.put("titleAr", titleAr.trim()).put("contentAr", contentAr.trim()).put("titleFr", titleFr.trim()).put("contentFr", contentFr.trim())
-                    if (type == "announcement") payload.put("priority", "NORMAL").put("teamId", if (teamScopeRestricted) teamId else "") else {
+                    if (type == "announcement") payload.put("priority", announcementPriority).put("teamId", if (teamScopeRestricted) teamId else "") else {
                         payload.put("category", category.trim())
                         val imageUris = org.json.JSONArray()
                         selectedImages.forEach { imageUris.put(it.toString()) }
@@ -1830,8 +2106,8 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
             })
         },
         dismissButton = {
-            TextButton(enabled = !isSubmitting, onClick = { if (step > 1 && (type == "news" || type == "training")) step -= 1 else onDismiss() }) {
-                Text(if (step > 1 && (type == "news" || type == "training")) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
+            TextButton(enabled = !isSubmitting, onClick = { if (step > 1 && (type == "news" || type == "training" || type == "meeting")) step -= 1 else onDismiss() }) {
+                Text(if (step > 1 && (type == "news" || type == "training" || type == "meeting")) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
             }
         }
     )
@@ -2028,7 +2304,7 @@ private fun EmptyNativeSection(icon: Int, title: String, body: String, badge: St
 }
 
 @Composable
-private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, locale: String, onSelect: (Section) -> Unit) {
+private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, locale: String, showPlayerStats: Boolean, onSelect: (Section) -> Unit) {
     Box(
         modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
@@ -2043,9 +2319,9 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        (if (locale == "ar") Section.entries.reversed() else Section.entries).forEach { item ->
+        (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { showPlayerStats || it != Section.PLAYER_STATS }.forEach { item ->
             val active = selected == item
-            val width by animateDpAsState(if (active) 68.dp else 54.dp, label = "nav-width")
+            val width by animateDpAsState(if (active) 62.dp else 48.dp, label = "nav-width")
             val interaction = remember { MutableInteractionSource() }
             Column(
                 Modifier.width(width).fillMaxSize().clip(CircleShape)
@@ -2055,7 +2331,7 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
                 verticalArrangement = Arrangement.Center
             ) {
                 AnimatedContent(targetState = active, label = "nav-icon-${item.name}") { isSelected ->
-                    val customFilledIcon = isSelected && (item == Section.MATCHES || item == Section.MEETINGS)
+                val customFilledIcon = isSelected && (item == Section.MATCHES || item == Section.MEETINGS)
                     Icon(item.icon, contentDescription = item.title(locale), tint = if (customFilledIcon) Color.Unspecified else if (isSelected) Red else Muted,
                         modifier = Modifier.size(22.dp), selectedIconRes = item.selectedIcon, selected = isSelected)
                 }

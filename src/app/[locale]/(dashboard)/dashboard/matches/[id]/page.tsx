@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
@@ -66,7 +67,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
       where: { id },
       include: {
         competition: true,
-        events: { include: { player: true, staff: true, shot: true }, orderBy: { minute: "asc" } },
+        events: { include: { player: true, staff: true, shot: { include: { assistPlayer: true } } }, orderBy: { minute: "asc" } },
         lineups: { include: { player: true } },
         documents: { orderBy: { createdAt: "desc" } },
         shootoutKicks: { orderBy: [{ attemptNumber: "asc" }, { createdAt: "asc" }] }
@@ -733,11 +734,38 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
           </span>
         </summary>
-        <ul className="mb-5 space-y-2">
-          {displayedEvents.map((display) => {
+        {(() => {
+          let runningHome = 0;
+          let runningAway = 0;
+          let halfTimeScore = "0 - 0";
+          const scoreAfter = new Map<string, string>();
+          for (const display of displayedEvents) {
+            const event = display.kind === "SUBSTITUTION" ? display.incoming : display.event;
+            if (["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(event.type)) {
+              const scoringSide = event.type === "OWN_GOAL" ? event.side === "HOME" ? "AWAY" : "HOME" : event.side;
+              if (scoringSide === "HOME") runningHome += 1;
+              else runningAway += 1;
+              scoreAfter.set(display.id, `${runningHome} - ${runningAway}`);
+            }
+            if (event.minute <= 45) halfTimeScore = `${runningHome} - ${runningAway}`;
+          }
+          const firstSecondHalfEvent = displayedEvents.findIndex((display) => (display.kind === "SUBSTITUTION" ? display.minute : display.event.minute) > 45);
+          const showHalfTime = match.status === "LIVE" || match.status === "FINISHED";
+          return <ul dir="ltr" className="mb-5 overflow-hidden rounded-2xl border border-border/70 bg-muted/10 px-3 py-4 sm:px-6">
+          <li className="mb-4 text-center text-xs font-bold tracking-wide text-muted-foreground">{locale === "ar" ? "أحداث المباراة" : "ÉVÉNEMENTS DU MATCH"}</li>
+          {displayedEvents.map((display, index) => {
             const isSubstitution = display.kind === "SUBSTITUTION";
             const e = isSubstitution ? display.incoming : display.event;
             const eventGroup = isSubstitution ? [display.outgoing, display.incoming] : [e];
+            const homeSide = e.side === "HOME";
+            const isGoal = ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(e.type);
+            const playerName = e.player
+              ? locale === "fr" ? [e.player.firstNameFr, e.player.lastNameFr].filter(Boolean).join(" ") || `${e.player.firstName} ${e.player.lastName}` : `${e.player.firstName} ${e.player.lastName}`
+              : e.playerName ? locale === "fr" ? e.playerNameFr || "Joueur" : e.playerName
+                : e.staff ? `${e.staff.firstName} ${e.staff.lastName}` : "";
+            const assistName = e.shot?.assistPlayer
+              ? locale === "fr" ? [e.shot.assistPlayer.firstNameFr, e.shot.assistPlayer.lastNameFr].filter(Boolean).join(" ") || `${e.shot.assistPlayer.firstName} ${e.shot.assistPlayer.lastName}` : `${e.shot.assistPlayer.firstName} ${e.shot.assistPlayer.lastName}`
+              : "";
             async function updateEvent(formData: FormData) {
               "use server";
               await updateMatchEventAction(id, e.id, formData);
@@ -747,36 +775,37 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               for (const groupedEvent of eventGroup) await deleteMatchEventAction(id, groupedEvent.id);
             }
             return (
-              <li key={display.id} className={`flex min-w-0 flex-col justify-between gap-3 rounded-xl border border-border/60 px-3 py-2.5 text-sm sm:flex-row sm:items-center ${isSubstitution ? "bg-club-primary/[0.035]" : "bg-muted/20"}`}>
-                {isSubstitution ? <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <span className="row-span-2 inline-flex h-9 min-w-12 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 px-2 font-mono text-xs font-black text-club-primary sm:row-span-1">{e.minute}&apos;</span>
-                  <span className="min-w-0 truncate text-muted-foreground"><span className="me-1 text-[10px] font-bold text-rose-500">{locale === "ar" ? "خروج" : "Sortie"}</span>{display.outgoing.player ? `${display.outgoing.player.firstName} ${display.outgoing.player.lastName}` : display.outgoing.playerName || "—"}</span>
-                  <span className="hidden text-club-primary sm:inline">→</span>
-                  <span className="min-w-0 truncate font-bold"><span className="me-1 text-[10px] font-bold text-emerald-500">{locale === "ar" ? "دخول" : "Entrée"}</span>{e.player ? `${e.player.firstName} ${e.player.lastName}` : e.playerName || "—"}</span>
-                </div> : <span>
-                <span>
-                  <span className="inline-flex items-center gap-1.5">
-                    {e.type === "GOAL" || e.type === "OWN_GOAL" ? <Target className="h-3.5 w-3.5 text-emerald-500" /> : null}
-                    {e.type === "PENALTY_GOAL" ? <CircleDot className="h-3.5 w-3.5 text-emerald-500" /> : null}
-                    {e.type === "PENALTY_MISSED" ? <CircleX className="h-3.5 w-3.5 text-red-500" /> : null}
-                    {e.type === "YELLOW_CARD" ? <Square className="h-3.5 w-3.5 fill-yellow-400 text-yellow-500" /> : null}
-                    {e.type === "RED_CARD" ? <Square className="h-3.5 w-3.5 fill-red-500 text-red-600" /> : null}
-                    {e.minute}&apos; — {t(`events.${e.type}` as any)} {e.player
-                      ? `(${locale === "fr" ? [e.player.firstNameFr, e.player.lastNameFr].filter(Boolean).join(" ") || `${e.player.firstName} ${e.player.lastName}` : `${e.player.firstName} ${e.player.lastName}`})`
-                      : e.playerName
-                        ? `(${locale === "fr" ? e.playerNameFr || "Joueur" : e.playerName})`
-                        : e.staff ? `(${e.staff.firstName} ${e.staff.lastName})` : ""}
-                    <span className="ms-2 inline-flex max-w-[12rem] items-center truncate rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-muted-foreground">
-                      {e.side === "HOME" ? homeTeamName : awayTeamName}
-                    </span>
-                    {e.source === "REFEREE_REPORT" && (
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        {locale === "ar" ? "تقرير الحكم" : "Rapport arbitral"}
-                      </span>
-                    )}
-                  </span>
-                </span></span>}
-                {canReport && <div className="flex shrink-0 items-center gap-2">
+              <Fragment key={display.id}>
+                {showHalfTime && index === (firstSecondHalfEvent === -1 ? displayedEvents.length : firstSecondHalfEvent) && <li className="my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center"><span className="h-px bg-border" /><span className="rounded-full border border-border bg-card px-3 py-1 text-[10px] font-extrabold text-foreground">{locale === "ar" ? `نهاية الشوط الأول · ${halfTimeScore}` : `MI-TEMPS · ${halfTimeScore}`}{match.firstHalfAddedTime > 0 ? ` · +${match.firstHalfAddedTime}′` : ""}</span><span className="h-px bg-border" /></li>}
+                <li className="grid grid-cols-[minmax(0,1fr)_42px_minmax(0,1fr)] items-center gap-1.5 py-2 sm:grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] sm:gap-3">
+                  <div className={`min-w-0 ${homeSide ? "text-end" : "invisible"}`} dir={locale === "ar" ? "rtl" : "ltr"}>
+                    {homeSide && (isSubstitution ? <><p className="truncate text-xs font-bold text-emerald-600 dark:text-emerald-400">{e.player ? `${e.player.firstName} ${e.player.lastName}` : e.playerName || "—"}</p><p className="truncate text-[10px] text-rose-500">{display.outgoing.player ? `${display.outgoing.player.firstName} ${display.outgoing.player.lastName}` : display.outgoing.playerName || "—"}</p><p className="text-[9px] text-muted-foreground">{locale === "ar" ? "تبديل" : "Remplacement"}</p></> : <>
+                      <p className={`flex items-center justify-end gap-1.5 truncate text-[11px] font-bold ${isGoal ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                        {e.type === "GOAL" || e.type === "OWN_GOAL" ? <Target className="h-3 w-3 shrink-0 text-emerald-500" /> : null}
+                        {e.type === "PENALTY_GOAL" ? <CircleDot className="h-3 w-3 shrink-0 text-emerald-500" /> : null}
+                        {e.type === "PENALTY_MISSED" ? <CircleX className="h-3 w-3 shrink-0 text-red-500" /> : null}
+                        {e.type === "YELLOW_CARD" ? <Square className="h-3 w-3 shrink-0 fill-yellow-400 text-yellow-500" /> : null}
+                        {e.type === "RED_CARD" ? <Square className="h-3 w-3 shrink-0 fill-red-500 text-red-600" /> : null}
+                        <span className="truncate">{playerName || t(`events.${e.type}` as any)}{isGoal && scoreAfter.has(display.id) ? ` (${scoreAfter.get(display.id)})` : ""}</span>
+                      </p>
+                      <p className="truncate text-[9px] text-muted-foreground">{assistName ? `${locale === "ar" ? "صناعة" : "Passe décisive"}: ${assistName}` : t(`events.${e.type}` as any)}{e.source === "REFEREE_REPORT" ? ` · ${locale === "ar" ? "تقرير الحكم" : "Rapport arbitral"}` : ""}</p>
+                    </>)}
+                  </div>
+                  <span className="relative z-10 mx-auto inline-flex h-8 min-w-10 items-center justify-center rounded-full border border-border bg-background px-1.5 font-mono text-[10px] font-extrabold text-foreground shadow-sm sm:h-9 sm:min-w-11">{e.minute}&apos;</span>
+                  <div className={`min-w-0 ${!homeSide ? "text-start" : "invisible"}`} dir={locale === "ar" ? "rtl" : "ltr"}>
+                    {!homeSide && (isSubstitution ? <><p className="truncate text-xs font-bold text-emerald-600 dark:text-emerald-400">{e.player ? `${e.player.firstName} ${e.player.lastName}` : e.playerName || "—"}</p><p className="truncate text-[10px] text-rose-500">{display.outgoing.player ? `${display.outgoing.player.firstName} ${display.outgoing.player.lastName}` : display.outgoing.playerName || "—"}</p><p className="text-[9px] text-muted-foreground">{locale === "ar" ? "تبديل" : "Remplacement"}</p></> : <>
+                      <p className={`flex items-center gap-1.5 truncate text-[11px] font-bold ${isGoal ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                        {e.type === "GOAL" || e.type === "OWN_GOAL" ? <Target className="h-3 w-3 shrink-0 text-emerald-500" /> : null}
+                        {e.type === "PENALTY_GOAL" ? <CircleDot className="h-3 w-3 shrink-0 text-emerald-500" /> : null}
+                        {e.type === "PENALTY_MISSED" ? <CircleX className="h-3 w-3 shrink-0 text-red-500" /> : null}
+                        {e.type === "YELLOW_CARD" ? <Square className="h-3 w-3 shrink-0 fill-yellow-400 text-yellow-500" /> : null}
+                        {e.type === "RED_CARD" ? <Square className="h-3 w-3 shrink-0 fill-red-500 text-red-600" /> : null}
+                        <span className="truncate">{playerName || t(`events.${e.type}` as any)}{isGoal && scoreAfter.has(display.id) ? ` (${scoreAfter.get(display.id)})` : ""}</span>
+                      </p>
+                      <p className="truncate text-[9px] text-muted-foreground">{assistName ? `${locale === "ar" ? "صناعة" : "Passe décisive"}: ${assistName}` : t(`events.${e.type}` as any)}{e.source === "REFEREE_REPORT" ? ` · ${locale === "ar" ? "تقرير الحكم" : "Rapport arbitral"}` : ""}</p>
+                    </>)}
+                  </div>
+                  {canReport && <div className="col-span-3 flex justify-center gap-2 pt-1">
                   {!isSubstitution && (match.status === "LIVE" || match.status === "FINISHED") && <MatchEventEditDialog
                     locale={locale}
                     event={{ id: e.id, type: e.type, side: e.side, minute: e.minute, playerId: e.playerId, staffId: e.staffId, playerName: e.playerName, playerNameFr: e.playerNameFr, bodyPart: e.shot?.bodyPart }}
@@ -806,11 +835,15 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     </button>
                   </ConfirmDialog>
                 </div>}
-              </li>
+                </li>
+              </Fragment>
             );
           })}
-          {match.events.length === 0 && <li className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">{tCommon("noResults")}</li>}
-        </ul>
+          {showHalfTime && firstSecondHalfEvent === -1 && <li className="my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center"><span className="h-px bg-border" /><span className="rounded-full border border-border bg-card px-3 py-1 text-[10px] font-extrabold text-foreground">{locale === "ar" ? `نهاية الشوط الأول · ${halfTimeScore}` : `MI-TEMPS · ${halfTimeScore}`}{match.firstHalfAddedTime > 0 ? ` · +${match.firstHalfAddedTime}′` : ""}</span><span className="h-px bg-border" /></li>}
+          {match.status === "FINISHED" && <li className="my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center"><span className="h-px bg-border" /><span className="rounded-full border border-club-primary/25 bg-club-primary/10 px-3 py-1 text-[10px] font-extrabold text-club-primary">{locale === "ar" ? `نهاية المباراة · ${match.homeScore ?? 0} - ${match.awayScore ?? 0}` : `FIN DU MATCH · ${match.homeScore ?? 0} - ${match.awayScore ?? 0}`}{match.secondHalfAddedTime > 0 ? ` · +${match.secondHalfAddedTime}′` : ""}</span><span className="h-px bg-border" /></li>}
+          {match.events.length === 0 && <li className="py-8 text-center text-sm text-muted-foreground">{tCommon("noResults")}</li>}
+        </ul>;
+        })()}
 
         {canReport && match.status === "LIVE" && (
           <MatchEventForm

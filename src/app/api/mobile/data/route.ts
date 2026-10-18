@@ -27,8 +27,14 @@ export async function GET(request: Request) {
   const canManageTraining = hasPermission(user, "training.manage");
   const canCreateNews = hasPermission(user, "news.create");
   const canManageAnnouncements = hasPermission(user, "announcements.manage");
+  const calendarTypes = [
+    ...(canViewMatches ? ["MATCH"] : []),
+    ...(canViewMeetings ? ["MEETING"] : []),
+    ...(canManageTraining ? ["TRAINING"] : []),
+    ...(canManageCalendar ? ["OTHER"] : [])
+  ];
 
-  const [matches, meetings, calendarMeetings, notifications, teams, coaches, currentSeason] = await Promise.all([
+  const [matches, meetings, calendarMeetings, calendarItems, notifications, teams, coaches, currentSeason] = await Promise.all([
     canViewMatches ? db.match.findMany({
       where: teamWhere,
       include: {
@@ -53,6 +59,19 @@ export async function GET(request: Request) {
       where: { ...meetingScopeWhere, type: "MEETING", endDateTime: { gte: new Date() } },
       include: { team: { select: { name: true } }, meetingMinute: { select: { id: true } } }, orderBy: { startDateTime: "asc" }, take: 25
     }) : Promise.resolve([]),
+    calendarTypes.length ? db.calendarEvent.findMany({
+      where: {
+        type: { in: calendarTypes as ("MATCH" | "TRAINING" | "MEETING" | "OTHER")[] },
+        startDateTime: { gte: new Date() },
+        ...meetingScopeWhere
+      },
+      include: {
+        team: { select: { name: true } },
+        relatedMatch: { select: { homeTeamName: true, awayTeamName: true, isHomeFixture: true } }
+      },
+      orderBy: { startDateTime: "asc" },
+      take: 120
+    }) : Promise.resolve([]),
     db.notification.findMany({ where: { userId: user.id, type: "UPCOMING_MATCH" }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
     (canManageTraining || canManageAnnouncements || canScheduleMeetings) ? db.team.findMany({ where: scope.restricted ? { id: { in: [...scope.teamIds] } } : {}, orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }) : Promise.resolve([]),
     canManageTraining ? db.staff.findMany({
@@ -71,7 +90,7 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json({
-    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
+    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({
@@ -134,6 +153,18 @@ export async function GET(request: Request) {
       location: event.location, team: event.team?.name ?? null, hasMinutes: Boolean(event.meetingMinute),
       canManage: canManageMeetings || canManageCalendar || canScheduleMeetings
     })),
+    calendarItems: calendarItems.map((event) => {
+      const names = event.relatedMatch ? getMatchDisplayNames(event.relatedMatch, locale) : null;
+      return {
+        id: event.id,
+        type: event.type,
+        title: names ? `${names.homeTeamName} ${locale === "fr" ? "vs" : "ضد"} ${names.awayTeamName}` : event.title,
+        startDateTime: event.startDateTime.toISOString(),
+        endDateTime: event.endDateTime.toISOString(),
+        location: event.location,
+        team: event.team?.name ?? null
+      };
+    }),
     notifications
   }, { headers: { "Cache-Control": "no-store" } });
 }

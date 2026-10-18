@@ -151,6 +151,10 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
             <input id="user-license-number" name="licenseNumber" maxLength={80} defaultValue={user.licenseNumber ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">
+            <label htmlFor="user-license-role" className="block text-sm font-medium leading-5">{locale === "ar" ? "الرتبة أو الصفة في الرخصة" : "Fonction sur la licence"}</label>
+            <input id="user-license-role" name="licenseRole" maxLength={120} defaultValue={user.licenseRole ?? ""} placeholder={locale === "ar" ? "مثال: مدرب مساعد — أكابر" : "Ex. : Entraîneur adjoint — Seniors"} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          </div>
+          <div className="min-w-0 space-y-2">
             <label htmlFor="user-last-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "اللقب (يظهر أولًا على البطاقة)" : "Nom de famille (affiché en premier)"}</label>
             <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>

@@ -21,7 +21,11 @@ export async function createScheduledMeetingAction(formData: FormData) {
   const user = await requirePermission("meetings.manage");
   const scopeContext = await getMutationScopeContext();
   assertTeamScope(scopeContext, null, "CalendarEvent");
-  const parsed = scheduledMeetingSchema.parse(Object.fromEntries(formData.entries()));
+  const result = scheduledMeetingSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!result.success) {
+    return { error: result.error.issues.some((issue) => issue.message === "endBeforeStart") ? "end-before-start" as const : "invalid-schedule" as const };
+  }
+  const parsed = result.data;
   const event = await db.$transaction(async (tx) => {
     const created = await tx.calendarEvent.create({
       data: { ...parsed, type: "MEETING", location: parsed.location || null, description: parsed.description || null }

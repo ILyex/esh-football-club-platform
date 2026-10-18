@@ -74,6 +74,7 @@ export async function createUserAction(formData: FormData) {
       roleId: parsed.roleId,
       image: photoUrl || null,
       licenseNumber: parsed.licenseNumber || null,
+      licenseRole: parsed.licenseRole || null,
       firstName: parsed.firstName || null,
       lastName: parsed.lastName || null,
       dateOfBirth: parsed.dateOfBirth ? new Date(`${parsed.dateOfBirth}T00:00:00.000Z`) : null,
@@ -87,7 +88,7 @@ export async function createUserAction(formData: FormData) {
     action: "user.create",
     entityType: "User",
     entityId: user.id,
-    changes: { after: { name: parsed.name, email: parsed.email, roleId: parsed.roleId, hasImage: Boolean(photoUrl), hasDigitalCardDetails: Boolean(parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup) } }
+    changes: { after: { name: parsed.name, email: parsed.email, roleId: parsed.roleId, hasImage: Boolean(photoUrl), hasDigitalCardDetails: Boolean(parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup || parsed.licenseRole) } }
   });
   revalidatePath("/[locale]/dashboard/users", "page");
   return { id: user.id };
@@ -162,6 +163,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
       isActive: parsed.isActive,
       image: nextImage,
       licenseNumber: parsed.licenseNumber || null,
+      licenseRole: parsed.licenseRole || null,
       firstName: parsed.firstName || null,
       lastName: parsed.lastName || null,
       dateOfBirth: parsed.dateOfBirth ? new Date(`${parsed.dateOfBirth}T00:00:00.000Z`) : null,
@@ -177,7 +179,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
     entityId: user.id,
     changes: {
       before: { name: before.name, email: before.email, roleId: before.roleId, isActive: before.isActive, hasImage: Boolean(before.image) },
-      after: { name: parsed.name, email: parsed.email, roleId: parsed.roleId, isActive: parsed.isActive, hasImage: Boolean(nextImage), hasDigitalCardDetails: Boolean(parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup) }
+      after: { name: parsed.name, email: parsed.email, roleId: parsed.roleId, isActive: parsed.isActive, hasImage: Boolean(nextImage), hasDigitalCardDetails: Boolean(parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup || parsed.licenseRole) }
     }
   });
   revalidatePath("/[locale]/dashboard/users", "page");

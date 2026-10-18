@@ -79,6 +79,7 @@ model User {
   lastName     String?
   dateOfBirth  DateTime?
   bloodGroup   String?
+  licenseRole  String?
   email        String    @unique
   passwordHash String
   image        String?

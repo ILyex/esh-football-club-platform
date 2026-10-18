@@ -5,10 +5,12 @@ import { getTranslations } from "next-intl/server";
 import { requirePagePermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
+import { ScheduleMeetingForm } from "@/components/meetings/schedule-meeting-form";
 import { createScheduledMeetingAction } from "../actions";
 
-export default async function ScheduleMeetingPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function ScheduleMeetingPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ error?: string }> }) {
   const { locale } = await params;
+  const query = await searchParams;
   await requirePagePermission("meetings.manage", locale);
   const t = await getTranslations("meetings");
   const tCommon = await getTranslations("common");
@@ -16,7 +18,11 @@ export default async function ScheduleMeetingPage({ params }: { params: Promise<
 
   async function action(formData: FormData) {
     "use server";
-    const { id } = await createScheduledMeetingAction(formData);
+    const result = await createScheduledMeetingAction(formData);
+    if ("error" in result) {
+      redirect(`/${locale}/dashboard/meeting-minutes/schedule?error=${result.error}`);
+    }
+    const { id } = result;
     redirect(`/${locale}/dashboard/meeting-minutes?created=${encodeURIComponent(id)}`);
   }
 
@@ -28,7 +34,7 @@ export default async function ScheduleMeetingPage({ params }: { params: Promise<
         <div><h1 className="text-xl font-bold text-foreground sm:text-2xl">{t("createMeeting")}</h1><p className="mt-1 text-sm leading-6 text-muted-foreground">{t("scheduleDescription")}</p></div>
       </div>
     </header>
-    <form action={action} className="grid grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:grid-cols-2 sm:p-7">
+    <ScheduleMeetingForm action={action} locale={locale} serverError={query.error === "end-before-start" || query.error === "invalid-schedule" ? query.error : undefined}>
       <div className="sm:col-span-2">
         <label htmlFor="meeting-title" className="mb-1.5 block text-sm font-semibold">{t("fields.meetingTitle")}</label>
         <input id="meeting-title" name="title" required maxLength={160} className={inputClass} />
@@ -48,6 +54,6 @@ export default async function ScheduleMeetingPage({ params }: { params: Promise<
         <Link href={`/${locale}/dashboard/meeting-minutes`} className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted">{tCommon("cancel")}</Link>
         <Button type="submit" className="h-10 gap-2 rounded-xl px-5"><Save className="h-4 w-4" />{t("saveMeeting")}</Button>
       </div>
-    </form>
+    </ScheduleMeetingForm>
   </div>;
 }

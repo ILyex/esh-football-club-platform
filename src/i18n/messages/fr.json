@@ -346,6 +346,7 @@
   },
   "calendar": {
     "title": "Calendrier",
+    "empty": "Aucun rendez-vous à venir ne correspond aux filtres sélectionnés.",
     "addEvent": "Ajouter un rendez-vous",
     "fields": {
       "eventTitle": "Titre",

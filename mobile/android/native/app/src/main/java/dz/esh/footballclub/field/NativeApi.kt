@@ -33,11 +33,23 @@ data class NativeMatch(
 data class NativePlayer(val id: String, val name: String, val nameFr: String, val number: Int?)
 data class NativeEvent(val id: String, val type: String, val minute: Int, val side: String, val playerName: String?, val xG: Double?, val source: String)
 data class NativeMeeting(val id: String, val title: String, val date: String, val location: String?, val status: String)
+data class NativeCalendarItem(val id: String, val type: String, val title: String, val startDateTime: String, val endDateTime: String, val location: String?, val team: String?)
 data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean, val kind: String = "MATCH")
 data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
+data class NativePlayerPerformance(
+    val id: String, val firstName: String, val lastName: String, val firstNameFr: String?, val lastNameFr: String?,
+    val number: Int?, val position: String, val photoUrl: String?, val team: String, val category: String,
+    val appearances: Int, val starts: Int, val goals: Int, val assists: Int, val shots: Int, val shotsOnTarget: Int,
+    val xg: Double, val xgShots: Int, val yellowCards: Int, val redCards: Int,
+    val rightFootShots: Int, val leftFootShots: Int, val headShots: Int,
+    val rightFootGoals: Int, val leftFootGoals: Int, val headGoals: Int, val otherGoals: Int,
+    val recentMatches: List<NativePlayerMatch>
+)
+data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
+data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
 data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val teamScopeRestricted: Boolean)
-data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
+data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
 data class NativeUser(
     val id: String,
     val name: String,
@@ -49,7 +61,9 @@ data class NativeUser(
     val lastName: String? = null,
     val dateOfBirth: String? = null,
     val bloodGroup: String? = null,
-    val season: String? = null
+    val season: String? = null,
+    val licenseRole: String? = null,
+    val roleKey: String? = null
 )
 data class NativeLoginResult(val token: String?, val user: NativeUser?, val error: String?)
 data class NativeRelease(val tag: String, val apkUrl: String, val sha256: String?)
@@ -124,6 +138,24 @@ object NativeApi {
         return parseData(JSONObject(raw))
     }
 
+    fun playerStats(token: String): NativePlayerStats {
+        val json = JSONObject(get("/api/mobile/player-stats", token))
+        val players = json.optJSONArray("players")?.objects()?.map { player ->
+            val team = player.optJSONObject("team") ?: JSONObject()
+            val recentMatches = player.optJSONArray("recentMatches")?.objects()?.map { match ->
+                NativePlayerMatch(match.optString("date"), match.optString("opponent"), match.optBoolean("isStarting"))
+            }.orEmpty()
+            NativePlayerPerformance(
+                player.optString("id"), player.optString("firstName"), player.optString("lastName"), player.optNullableString("firstNameFr"), player.optNullableString("lastNameFr"),
+                player.nullableInt("number"), player.optString("position"), player.optNullableString("photoUrl"), team.optString("name"), team.optString("category"),
+                player.optInt("appearances"), player.optInt("starts"), player.optInt("goals"), player.optInt("assists"), player.optInt("shots"), player.optInt("shotsOnTarget"),
+                player.optDouble("xg"), player.optInt("xgShots"), player.optInt("yellowCards"), player.optInt("redCards"),
+                player.optInt("rightFootShots"), player.optInt("leftFootShots"), player.optInt("headShots"), player.optInt("rightFootGoals"), player.optInt("leftFootGoals"), player.optInt("headGoals"), player.optInt("otherGoals"), recentMatches
+            )
+        }.orEmpty()
+        return NativePlayerStats(json.optNullableString("season"), players)
+    }
+
     @Volatile private var cachePreferences: android.content.SharedPreferences? = null
 
     fun initializeCache(context: Context) {
@@ -139,6 +171,7 @@ object NativeApi {
         }
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
+        val calendarItems = json.optJSONArray("calendarItems")?.objects()?.map { item -> NativeCalendarItem(item.optString("id"), item.optString("type", "OTHER"), item.optString("title"), item.optString("startDateTime"), item.optString("endDateTime"), item.optNullableString("location"), item.optNullableString("team")) }.orEmpty()
         val alerts = json.getJSONArray("notifications").objects().map { item -> NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), "MATCH") } + upcoming.map { meeting -> NativeAlert("meeting-${meeting.id}", meeting.title, meeting.location, false, "MEETING") }
         val teams = json.optJSONArray("teams")?.objects()?.map { NativeTeam(it.optString("id"), it.optString("name"), it.optString("category")) }.orEmpty()
         val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->
@@ -146,7 +179,7 @@ object NativeApi {
         }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("teamScopeRestricted")), user)
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("teamScopeRestricted")), user)
     }
 
     fun createContent(token: String, payload: JSONObject) {
@@ -346,7 +379,7 @@ object NativeApi {
         user.optString("id"), user.optString("name"), user.optString("email"), user.optString("roleName"),
         user.optNullableString("image"), user.optNullableString("licenseNumber"), user.optNullableString("firstName"),
         user.optNullableString("lastName"), user.optNullableString("dateOfBirth"), user.optNullableString("bloodGroup"),
-        user.optNullableString("season")
+        user.optNullableString("season"), user.optNullableString("licenseRole"), user.optNullableString("roleKey")
     )
     private class ApiFailure(val code: String) : Exception(code)
 }

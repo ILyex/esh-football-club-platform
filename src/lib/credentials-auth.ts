@@ -68,6 +68,7 @@ export async function authenticatePlatformCredentials(raw: Record<string, unknow
     email: user.email,
     image: user.image ?? undefined,
     licenseNumber: user.licenseNumber,
+    licenseRole: user.licenseRole,
     firstName: user.firstName,
     lastName: user.lastName,
     dateOfBirth: user.dateOfBirth?.toISOString() ?? null,

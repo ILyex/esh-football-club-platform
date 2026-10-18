@@ -62,6 +62,10 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
             <input name="licenseNumber" maxLength={80} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
           <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "الرتبة أو الصفة في الرخصة (اختياري)" : "Fonction sur la licence (facultatif)"}</span>
+            <input name="licenseRole" maxLength={120} placeholder={locale === "ar" ? "مثال: مدرب مساعد — أكابر" : "Ex. : Entraîneur adjoint — Seniors"} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{locale === "ar" ? "اللقب (يظهر أولًا على البطاقة)" : "Nom de famille (affiché en premier)"}</span>
             <input name="lastName" autoComplete="family-name" maxLength={100} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
