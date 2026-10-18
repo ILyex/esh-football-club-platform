@@ -10,7 +10,7 @@
     "dev": "node scripts/start-dev.mjs",
     "predev": "prisma generate",
     "build": "next build && node scripts/prepare-cpanel.mjs",
-    "prebuild": "prisma generate",
+    "prebuild": "prisma migrate deploy && prisma generate",
     "build:deno": "next build",
     "prebuild:deno": "prisma generate",
     "build:cloudflare": "node scripts/build-cloudflare.mjs",

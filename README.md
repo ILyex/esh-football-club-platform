@@ -1,5 +1,53 @@
 # Espoir Sidi Hosni Platform
 
+## Native matchday Android app
+
+The standalone Android app is in `mobile/android/native`. It uses Jetpack
+Compose and talks to the platform API directly; it does not embed the website
+in a WebView or open a browser. It uses the platform's Cairo font and red,
+charcoal, and mint palette, with Arabic RTL and French LTR layouts. It includes
+administrator login, meetings, matchday score/event controls, training-session
+creation, and bilingual news/announcement publishing to the shared platform
+database and public site. Its package ID is `dz.esh.footballclub.field`.
+
+Build the signed preview APK on the configured Windows workstation:
+
+```powershell
+.\mobile\android\build-native-preview.ps1
+```
+
+The resulting file is
+`mobile/android/native/app-release-native-signed.apk`. The app currently uses
+the preview API host `https://esh-platform-vercel-preview.vercel.app`; update
+`BASE_URL` in `mobile/android/native/app/src/main/java/dz/esh/footballclub/field/NativeApi.kt`
+when the club has its final domain.
+
+### Activate native phone notifications
+
+The app can display Android system notifications, but delivery from the
+platform requires a Firebase project. Register an Android app in Firebase
+with package ID `dz.esh.footballclub.field`, download `google-services.json`,
+and put it at `mobile/android/native/app/google-services.json`. Add the Firebase
+service-account JSON to the Vercel Preview environment as the secret
+`FIREBASE_SERVICE_ACCOUNT_JSON` and grant it Firebase Cloud Messaging send
+permission. Do not commit either credential. Then redeploy the platform and
+rebuild the APK. Android 13 and newer will ask the administrator to allow
+notifications after sign-in.
+
+Apply the additive database migration to the Vercel database before deploying
+the API changes, using the project's configured production migration process
+(`npm run db:migrate:deploy`). It adds revocable native sessions and linked
+push-device records. Without this migration, native login/device registration
+cannot persist. Without the Firebase configuration, the APK remains usable
+but cannot receive remote meeting notifications.
+
+The release build uses the existing private workstation signing key. Keep that
+key backed up: future APK updates must use the same key to install over this
+release. The old TWA project is retained separately and is not used by this
+native app.
+
+---
+
 Web platform for Espoir Sidi Hosni (ESH), a football club in Sidi Hosni,
 Tiaret. It combines the public club website with a role- and team-scoped
 management dashboard.

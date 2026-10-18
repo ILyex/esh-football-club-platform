@@ -1,13 +1,13 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getPushRuntimeEnv, isAllowedPushEndpoint } from "@/lib/push/match-push";
+import { sendNativePush } from "@/lib/push/firebase-native-push";
 
 type MeetingPushInput = { title: string; startDateTime: Date; location: string | null };
 
 /** Sends meeting alerts only to devices linked to active users who can manage the club calendar. */
 export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput): Promise<void> {
   const env = await getPushRuntimeEnv();
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return;
 
   const users = await db.user.findMany({
     where: {
@@ -22,12 +22,35 @@ export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput)
   });
   if (users.length === 0) return;
 
+  const userIds = users.map((user) => user.id);
+  const nativeDevices = await db.nativePushDevice.findMany({ where: { userId: { in: userIds } }, select: { id: true, userId: true, fcmToken: true, locale: true } });
+  const nativeUsers = new Map(users.map((user) => [user.id, user]));
+  const nativeMessages = nativeDevices.flatMap((device) => {
+    if (!nativeUsers.has(device.userId)) return [];
+    const isFrench = device.locale === "fr";
+    const date = new Intl.DateTimeFormat(isFrench ? "fr-FR" : "ar-DZ", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Algiers"
+    }).format(meeting.startDateTime);
+    return [{
+      token: device.fcmToken,
+      title: isFrench ? "Nouvelle réunion · ESH" : "اجتماع جديد · أمل سيدي حسني",
+      body: `${meeting.title} · ${date}${meeting.location ? ` · ${meeting.location}` : ""}`,
+      section: "meetings"
+    }];
+  });
+  try {
+    const nativeResult = await sendNativePush(nativeMessages);
+    if (nativeResult.failed) console.error(`[AdminMeetingPush] ${nativeResult.failed} native notification(s) failed.`);
+  } catch (error) {
+    console.error("[AdminMeetingPush] Native notifications failed.", error);
+  }
+
   const subscriptions = await db.pushSubscription.findMany({
-    where: { userId: { in: users.map((user) => user.id) } },
+    where: { userId: { in: userIds } },
     select: { id: true, endpoint: true, p256dh: true, auth: true, locale: true }
   });
   const targets = subscriptions.filter((subscription) => isAllowedPushEndpoint(subscription.endpoint));
-  if (targets.length === 0) return;
+  if (targets.length === 0 || !env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return;
 
   const { buildPushPayload } = await import("@block65/webcrypto-web-push");
   const results = await Promise.allSettled(targets.map(async (subscription) => {

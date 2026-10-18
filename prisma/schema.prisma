@@ -104,6 +104,8 @@ model User {
   generatedDocuments           GeneratedDocument[]
   notifications                Notification[]
   pushSubscriptions            PushSubscription[]
+  nativePushDevices            NativePushDevice[]
+  nativeSessions               NativeSession[]
   createdBudgets               Budget[]
   createdExpenses              Expense[]                 @relation("ExpenseCreatedBy")
   updatedExpenses              Expense[]                 @relation("ExpenseUpdatedBy")
@@ -963,6 +965,32 @@ model PushSubscription {
 
   @@index([ownerTokenHash])
   @@index([userId])
+}
+
+/// Android Firebase Cloud Messaging registration for the standalone native app.
+model NativePushDevice {
+  id        String   @id @default(cuid())
+  fcmToken  String   @unique @db.VarChar(512)
+  locale    String   @default("ar") @db.VarChar(5)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// Revocable, short-lived bearer sessions used only by the standalone Android client.
+model NativeSession {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique @db.VarChar(64)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 model PushSubscriptionCategory {

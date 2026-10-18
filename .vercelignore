@@ -1,0 +1,4 @@
+mobile/android/native/.gradle/
+mobile/android/native/.kotlin/
+mobile/android/native/app/build/
+mobile/android/native/**/*.apk
