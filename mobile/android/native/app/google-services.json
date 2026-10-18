@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "801304536730",
+    "project_id": "e-sidi-hosni",
+    "storage_bucket": "e-sidi-hosni.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801304536730:android:3f8137f551f7c2e02a2123",
+        "android_client_info": {
+          "package_name": "dz.esh.footballclub.field"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgFNmw7C89o0GCMlzuZOt0LWgFByR6hFs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

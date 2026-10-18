@@ -15,5 +15,3 @@ signing.properties
 /native/app/build/
 /native/build/
 /native/app-release-native-signed.apk
-/native/app/src/main/google-services.json
-/native/app/google-services.json
