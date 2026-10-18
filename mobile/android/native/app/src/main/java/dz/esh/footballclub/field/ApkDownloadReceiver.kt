@@ -7,6 +7,10 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.app.DownloadManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import java.security.MessageDigest
 
 class ApkDownloadReceiver : BroadcastReceiver() {
@@ -51,21 +55,58 @@ class ApkDownloadReceiver : BroadcastReceiver() {
                 return
             }
         }
-        prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_FAILED, false).apply()
-        requestInstall(context, prefs, apkUri)
+        prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256)
+            .putString(PENDING_URI, apkUri.toString()).putBoolean(DOWNLOAD_FAILED, false).apply()
+        if (MainActivity.isForeground) requestInstall(context, prefs, apkUri)
+        else postInstallNotification(context, apkUri, downloadId)
     }
 
     private fun requestInstall(context: Context, prefs: android.content.SharedPreferences, apkUri: Uri) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-            prefs.edit().putString(PENDING_URI, apkUri.toString()).apply()
             val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(settings)
+            runCatching { context.startActivity(settings) }
+                .onFailure { postInstallNotification(context, apkUri, apkUri.hashCode().toLong()) }
             return
         }
         val install = Intent(Intent.ACTION_VIEW).setDataAndType(apkUri, APK_MIME)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(install)
+        runCatching { context.startActivity(install) }
+            .onFailure { postInstallNotification(context, apkUri, apkUri.hashCode().toLong()) }
+    }
+
+    private fun postInstallNotification(context: Context, apkUri: Uri, notificationId: Long) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(INSTALL_CHANNEL, "تحديثات التطبيق", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
+        val openInstaller = Intent(context, MainActivity::class.java)
+            .setAction(ACTION_INSTALL_UPDATE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .setData(apkUri)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId.toInt(),
+            openInstaller,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, INSTALL_CHANNEL)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        })
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("التحديث جاهز للتثبيت")
+            .setContentText("اضغط هنا لفتح شاشة تثبيت التطبيق")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setCategory(Notification.CATEGORY_STATUS)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .build()
+        runCatching { manager.notify(INSTALL_NOTIFICATION_ID, notification) }
     }
 
     companion object {
@@ -75,5 +116,8 @@ class ApkDownloadReceiver : BroadcastReceiver() {
         const val PENDING_URI = "pending_install_uri"
         const val DOWNLOAD_FAILED = "download_failed"
         const val APK_MIME = "application/vnd.android.package-archive"
+        const val ACTION_INSTALL_UPDATE = "dz.esh.footballclub.field.INSTALL_UPDATE"
+        private const val INSTALL_CHANNEL = "app_update_install"
+        private const val INSTALL_NOTIFICATION_ID = 6302
     }
 }

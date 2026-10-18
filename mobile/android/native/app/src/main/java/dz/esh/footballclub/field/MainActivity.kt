@@ -8,6 +8,7 @@ import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -163,11 +164,18 @@ private val CairoFamily = FontFamily(Font(R.font.cairo_variable, FontWeight.Norm
 private fun L(locale: String, ar: String, fr: String): String = if (locale == "fr") fr else ar
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        @Volatile
+        var isForeground: Boolean = false
+    }
+
     private fun installDownloadedApk(uri: Uri) {
-        getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
+        val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+        prefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+        runCatching { startActivity(intent) }
+            .onFailure { prefs.edit().putString(ApkDownloadReceiver.PENDING_URI, uri.toString()).apply() }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,10 +196,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
-            val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
-            prefs.getString(ApkDownloadReceiver.PENDING_URI, null)?.let { installDownloadedApk(Uri.parse(it)) }
+        isForeground = true
+        val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+        val pendingUri = prefs.getString(ApkDownloadReceiver.PENDING_URI, null)
+        val installRequested = intent?.action == ApkDownloadReceiver.ACTION_INSTALL_UPDATE
+        if (installRequested) intent.action = null
+        if (pendingUri != null) {
+            val canInstall = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+            if (canInstall) {
+                installDownloadedApk(Uri.parse(pendingUri))
+            } else if (installRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+                runCatching { startActivity(settings) }
+            }
         }
+    }
+
+    override fun onPause() {
+        isForeground = false
+        super.onPause()
     }
 }
 
