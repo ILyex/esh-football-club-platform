@@ -22,6 +22,18 @@ the preview API host `https://esh-platform-vercel-preview.vercel.app`; update
 `BASE_URL` in `mobile/android/native/app/src/main/java/dz/esh/footballclub/field/NativeApi.kt`
 when the club has its final domain.
 
+### Publish native Android updates
+
+The updater reads `public/native-android-release.json` and downloads the signed
+APK from `public/downloads/esh-field-latest.apk`. The signed build script writes
+both files and records the APK's SHA-256 digest. Increase `versionCode` and
+`versionName` in `mobile/android/native/app/build.gradle`, run
+`mobile/android/build-native-preview.ps1`, then deploy the website to its public
+host. Keep the same signing key for every release: Android can install an update
+over the existing app without deleting it, but Android still asks the user to
+confirm installation. The updater verifies the APK digest before opening that
+installer.
+
 ### Activate native phone notifications
 
 The app can display Android system notifications, but delivery from the

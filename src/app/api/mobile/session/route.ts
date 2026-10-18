@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getNativePrincipal(request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-  return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, image: user.image, roleKey: user.roleKey, roleName: user.roleName, permissions: user.permissions } }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, image: user.image, licenseNumber: user.licenseNumber, roleKey: user.roleKey, roleName: user.roleName, permissions: user.permissions } }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function DELETE(request: Request) {

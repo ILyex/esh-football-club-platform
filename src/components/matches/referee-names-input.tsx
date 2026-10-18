@@ -30,7 +30,7 @@ export function RefereeNamesInput({ name, defaultValue, locale, disabled = false
         known.add(key);
         return true;
       });
-      return [...current, ...additions].slice(0, 4);
+      return [...current, ...additions].slice(0, 3);
     });
     setDraft("");
   };
@@ -38,7 +38,7 @@ export function RefereeNamesInput({ name, defaultValue, locale, disabled = false
   return (
     <div>
       {showOrderHint && <p className="mb-1.5 text-[11px] text-muted-foreground">
-        {isAr ? "ترتيب الأسماء: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي." : "Ordre : arbitre principal, deux assistants, puis arbitre remplaçant."}
+        {isAr ? "ترتيب الأسماء: الحكم الرئيسي، ثم حكما التماس." : "Ordre : arbitre principal, puis les deux assistants."}
       </p>}
       <div dir={isAr ? "rtl" : "ltr"} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 transition-colors focus-within:border-club-primary focus-within:ring-2 focus-within:ring-club-primary/15">
       <input type="hidden" name={name} value={names.join(", ")} />
@@ -59,10 +59,10 @@ export function RefereeNamesInput({ name, defaultValue, locale, disabled = false
             )}
           </span>
         ))}
-        <span className="ms-auto text-[10px] font-medium text-muted-foreground">{names.length}/4</span>
+        <span className="ms-auto text-[10px] font-medium text-muted-foreground">{names.length}/3</span>
         <input
           value={draft}
-          disabled={disabled || names.length >= 4}
+          disabled={disabled || names.length >= 3}
           dir={textDirection}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -73,7 +73,7 @@ export function RefereeNamesInput({ name, defaultValue, locale, disabled = false
               setNames((current) => current.slice(0, -1));
             }
           }}
-          placeholder={names.length >= 4 ? (isAr ? "الحد الأقصى 4 حكام" : "Maximum : 4 arbitres") : (isAr ? "اكتب اسم الحكم واضغط Enter" : "Saisissez un nom puis appuyez sur Entrée")}
+          placeholder={names.length >= 3 ? (isAr ? "اكتمل طاقم الحكام" : "Équipe arbitrale complète") : (isAr ? "اكتب اسم الحكم واضغط Enter" : "Saisissez un nom puis appuyez sur Entrée")}
           className="min-w-40 flex-1 border-0 bg-transparent px-1 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-0 disabled:opacity-60"
         />
       </div>

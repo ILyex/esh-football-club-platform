@@ -12,10 +12,18 @@ const templates = [
   {
     key: "coach",
     name: "مدرب فئة",
-    description: "عرض التدريب وقائمة لاعبي الفرق المسندة للمدرب دون تعديل.",
+    description: "إدارة تدريبات وإعلانات واجتماعات الفرق المسندة دون إدارة المباريات أو الأخبار.",
     teamScoped: true,
     isSystem: false,
-    permissions: ["players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"]
+    permissions: ["players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "training.manage", "calendar.view", "announcements.manage", "meetings.view", "meetings.schedule"]
+  },
+  {
+    key: "assistant_coach",
+    name: "مساعد المدرب",
+    description: "إدارة تدريبات وإعلانات واجتماعات الفرق المسندة دون إدارة المباريات أو الأخبار.",
+    teamScoped: true,
+    isSystem: false,
+    permissions: ["players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "training.manage", "calendar.view", "announcements.manage", "meetings.view", "meetings.schedule"]
   },
   {
     key: "treasurer",
@@ -99,7 +107,7 @@ async function main() {
   })), null, 2));
 
   if (!process.argv.includes("--apply")) {
-    console.log("Read-only preview. Pass --apply to synchronize these five role templates.");
+    console.log("Read-only preview. Pass --apply to synchronize these six role templates.");
     return;
   }
 

@@ -30,7 +30,9 @@ export async function checkRateLimit({ key, limit, windowMs }: RateLimitOptions)
   const now = Date.now();
   if (now >= nextCleanupAt) {
     nextCleanupAt = now + 5 * 60 * 1000;
-    await db.$executeRaw`
+    // Expired-key cleanup is maintenance; it must not add a full database
+    // round trip to the critical path of a login or other rate-limited action.
+    void db.$executeRaw`
       WITH expired AS (
         SELECT "key" FROM "RateLimitBucket"
         WHERE "expiresAt" < NOW()
@@ -40,7 +42,7 @@ export async function checkRateLimit({ key, limit, windowMs }: RateLimitOptions)
       DELETE FROM "RateLimitBucket" AS bucket
       USING expired
       WHERE bucket."key" = expired."key"
-    `;
+    `.catch(() => undefined);
   }
 
   const rows = await db.$queryRaw<Array<{ count: number; resetTimeMs: bigint }>>`

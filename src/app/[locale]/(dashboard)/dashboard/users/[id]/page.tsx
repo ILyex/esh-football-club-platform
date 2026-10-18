@@ -147,6 +147,10 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
             <input id="user-email" name="email" type="email" defaultValue={user.email} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">
+            <label htmlFor="user-license-number" className="block text-sm font-medium leading-5">{locale === "ar" ? "رقم الرخصة الإدارية (اختياري)" : "N° de licence administrative (facultatif)"}</label>
+            <input id="user-license-number" name="licenseNumber" maxLength={80} defaultValue={user.licenseNumber ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          </div>
+          <div className="min-w-0 space-y-2">
             <label className="block text-sm font-medium leading-5">{t("fields.role")}</label>
             <FormSelect
               name="roleId"

@@ -138,13 +138,13 @@ export async function redeemLoginChallenge(value: unknown) {
 export async function verifyLoginCaptcha(token: string): Promise<CapVerificationResult> {
   if (!isLoginCaptchaEnabled()) return "disabled";
   if (token.length < 12 || token.length > 256) {
-    await recordCaptchaAuditEvent("token_rejected");
+    void recordCaptchaAuditEvent("token_rejected");
     return "rejected";
   }
 
   const [id, verificationSecret, ...extra] = token.split(":");
   if (!id || !verificationSecret || extra.length > 0 || !/^[a-f0-9]{16}$/i.test(id) || !/^[a-f0-9]{30}$/i.test(verificationSecret)) {
-    await recordCaptchaAuditEvent("token_rejected");
+    void recordCaptchaAuditEvent("token_rejected");
     return "rejected";
   }
 
@@ -160,10 +160,12 @@ export async function verifyLoginCaptcha(token: string): Promise<CapVerification
       data: { count: 1 }
     });
     const verified = consumed.count === 1;
-    await recordCaptchaAuditEvent(verified ? "token_accepted" : "token_rejected");
+    // CAPTCHA telemetry is best-effort and should not delay credential
+    // verification once the single-use token has already been consumed.
+    void recordCaptchaAuditEvent(verified ? "token_accepted" : "token_rejected");
     return verified ? "verified" : "rejected";
   } catch {
-    await recordCaptchaAuditEvent("unavailable");
+    void recordCaptchaAuditEvent("unavailable");
     return "unavailable";
   }
 }

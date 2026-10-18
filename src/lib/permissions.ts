@@ -1,5 +1,6 @@
 import "server-only";
-import { auth } from "@/lib/auth";
+import { cache } from "react";
+import { getRequestAuthSession } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { redirect } from "next/navigation";
 
@@ -46,8 +47,8 @@ export function isProgrammer(user: Pick<SessionUser, "roleKey" | "permissions">)
 }
 
 /** Returns the current session's user, or throws UnauthenticatedError. */
-export async function getSessionOrThrow(): Promise<SessionUser> {
-  const session = await auth();
+export const getSessionOrThrow = cache(async (): Promise<SessionUser> => {
+  const session = await getRequestAuthSession();
   const user = session?.user as ({ id?: unknown; roleKey?: unknown; permissions?: unknown } & Record<string, unknown>) | null | undefined;
   if (
     !user ||
@@ -60,7 +61,7 @@ export async function getSessionOrThrow(): Promise<SessionUser> {
     throw new UnauthenticatedError();
   }
   return user as unknown as SessionUser;
-}
+});
 
 /** True if the user's role grants this permission key (or "*" super-admin wildcard). */
 export function hasPermission(user: SessionUser, permissionKey: string): boolean {

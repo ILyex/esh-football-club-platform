@@ -58,6 +58,10 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
             <input name="email" type="email" dir="ltr" autoComplete="email" required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
           <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "رقم الرخصة الإدارية (اختياري)" : "N° de licence administrative (facultatif)"}</span>
+            <input name="licenseNumber" maxLength={80} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{t("fields.password")}</span>
             <input name="password" type="password" dir="ltr" autoComplete="new-password" minLength={8} maxLength={72} required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
             <span className="mt-0.5 block text-[11px] leading-5 font-normal text-muted-foreground">

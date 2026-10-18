@@ -71,10 +71,17 @@ export default function LoginPage() {
   }, [publicSiteUrl]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between overflow-x-hidden bg-background text-foreground selection:bg-club-primary selection:text-white">
+    <div className="relative isolate flex min-h-[100svh] w-full flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-club-primary selection:text-white">
+
+      {/* Subtle club-colored atmosphere behind the login surfaces. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute -right-40 -top-48 h-[34rem] w-[34rem] rounded-full bg-[radial-gradient(circle,rgba(220,38,38,0.16)_0%,rgba(220,38,38,0.06)_38%,transparent_72%)] blur-2xl dark:bg-[radial-gradient(circle,rgba(220,38,38,0.22)_0%,rgba(220,38,38,0.08)_40%,transparent_72%)]" />
+        <div className="absolute -bottom-64 -left-48 h-[36rem] w-[36rem] rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.12)_0%,rgba(16,185,129,0.04)_42%,transparent_72%)] blur-2xl dark:bg-[radial-gradient(circle,rgba(32,215,160,0.14)_0%,rgba(32,215,160,0.05)_42%,transparent_72%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_35%,rgba(220,38,38,0.025)_58%,transparent_78%)] dark:bg-[linear-gradient(135deg,transparent_35%,rgba(220,38,38,0.035)_58%,transparent_78%)]" />
+      </div>
 
       {/* Top Header Bar */}
-      <header className="w-full border-b border-border/70 bg-background">
+      <header className="relative z-10 w-full border-b border-border/70 bg-background/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           {/* Link back to public site */}
           <Link
@@ -121,19 +128,20 @@ export default function LoginPage() {
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:px-6">
         <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-5 md:grid-cols-[minmax(0,0.9fr)_minmax(26rem,1.1fr)] md:gap-6">
           {/* Club identity panel: keeps the football visual distinct from the credential form. */}
-          <aside className="relative order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border bg-muted/60 p-8 text-foreground shadow-sm md:flex md:flex-col md:justify-between lg:p-10">
+          <aside className="relative order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border/80 bg-card/65 p-8 text-foreground shadow-lg shadow-black/[0.04] backdrop-blur-xl md:flex md:flex-col md:justify-between lg:p-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(220,38,38,0.07),transparent_55%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(220,38,38,0.12),transparent_55%)]" aria-hidden="true" />
             <div className="absolute inset-x-0 top-0 h-1 bg-club-primary" aria-hidden="true" />
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card p-2.5 shadow-xs">
-                <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt="ESH" animated className="h-full w-full object-contain" />
+            <div className="relative flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-club-primary/20 bg-white p-0.5 shadow-xs">
+                <ClubLogo src="/branding/esh-logo-256.png" fallbackSrc="/branding/esh-logo-256.png" alt={isRtl ? "الشعار الرسمي لنادي أمل سيدي حسني" : "Logo officiel d’Espoir Sidi Hosni"} className="h-full w-full object-contain" />
               </div>
               <div>
-                <p className="text-xs font-semibold tracking-wide text-club-primary">ESH · SIDI HOSNI</p>
+                <p className="text-xs font-semibold tracking-wide text-club-primary">E SIDI HOSNI</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{isRtl ? "بوابة النادي" : "Portail du club"}</p>
               </div>
             </div>
 
-            <div className="max-w-md py-10">
+            <div className="relative max-w-md py-10">
               <div className="mb-5 h-1 w-12 rounded-full bg-club-primary" />
               <h2 className="text-3xl font-black leading-tight tracking-tight lg:text-4xl">
                 {isRtl ? "نخطط للموسم، ونصنع الفوز معًا" : "Préparons la saison et gagnons ensemble"}
@@ -145,18 +153,19 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="border-t border-border pt-4 text-xs text-muted-foreground">
+            <div className="relative border-t border-border pt-4 text-xs text-muted-foreground">
               <span className="club-name">{isRtl ? "منذ 2018 · الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Depuis 2018 · Association Sportive Espoir Sidi Hosni de Football"}</span>
             </div>
           </aside>
 
-          <div className="relative order-2 overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-md shadow-black/5 sm:p-8 lg:p-9">
+          <div className="relative order-2 overflow-hidden rounded-3xl border border-border/80 bg-card/80 p-6 shadow-xl shadow-black/[0.08] backdrop-blur-2xl sm:p-8 lg:p-9">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.055),transparent_48%)] dark:bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.09),transparent_48%)]" aria-hidden="true" />
             <div className="absolute inset-x-0 top-0 h-1 bg-club-primary" />
 
-            <div className="mb-6 border-b border-border/70 pb-5">
+            <div className="relative mb-6 border-b border-border/70 pb-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background p-1.5 md:hidden">
-                  <ClubLogo src="/branding/esh-logo-128.png" fallbackSrc="/branding/esh-logo-128.png" alt="ESH" animated className="h-full w-full object-contain" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-club-primary/20 bg-white p-0.5 md:hidden">
+                  <ClubLogo src="/branding/esh-logo-256.png" fallbackSrc="/branding/esh-logo-256.png" alt={isRtl ? "الشعار الرسمي لنادي أمل سيدي حسني" : "Logo officiel d’Espoir Sidi Hosni"} className="h-full w-full object-contain" />
                 </div>
                 <div>
                   <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
@@ -183,7 +192,7 @@ export default function LoginPage() {
                   // ignore
                 }
               }}
-              className="space-y-4"
+              className="relative space-y-4"
             >
               <input type="hidden" name="callbackUrl" value={callbackUrl} />
               <input type="hidden" name="locale" value={locale} />
@@ -346,7 +355,7 @@ export default function LoginPage() {
       </main>
 
       {/* Footer Line */}
-      <footer className="login-copyright w-full border-t border-border/70 bg-background py-4 text-center text-xs text-muted-foreground">
+      <footer className="login-copyright relative z-10 w-full border-t border-border/70 bg-background/75 py-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
         <p>
           {isRtl ? (
             <><span className="club-name">الجمعية الرياضية أمل سيدي حسني لكرة القدم</span>. جميع الحقوق محفوظة. <bdi dir="ltr">© {new Date().getFullYear()}</bdi></>

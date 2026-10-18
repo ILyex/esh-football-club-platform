@@ -542,7 +542,7 @@ export function MatchFormClient({
                 {isRtl ? "حكام اللقاء والطاقم" : "Arbitres du match"}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                {isRtl ? "أدخل الأسماء بالترتيب: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي." : "Saisissez les noms dans l’ordre : arbitre principal, assistants, puis arbitre remplaçant."}
+                {isRtl ? "أدخل الأسماء بالترتيب: الحكم الرئيسي، ثم حكما التماس." : "Saisissez les noms dans l’ordre : arbitre principal, puis les deux assistants."}
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

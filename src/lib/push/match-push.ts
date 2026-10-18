@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma, TeamCategory } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { sendNativePush } from "@/lib/push/firebase-native-push";
 
 type QueueMessage = { kind: "fanout"; outboxId: string } | { kind: "delivery"; outboxId: string; subscriptionId: string };
 type QueueBinding = {
@@ -160,15 +161,58 @@ export async function sha256Hex(value: string): Promise<string> {
 
 export async function fanoutMatchPush(outboxId: string): Promise<void> {
   const [outbox, env] = await Promise.all([
-    db.matchPushOutbox.findUnique({ where: { id: outboxId }, select: { id: true, payload: true } }),
+    db.matchPushOutbox.findUnique({ where: { id: outboxId }, select: { id: true, kind: true, payload: true } }),
     getPushRuntimeEnv()
   ]);
   if (!outbox) return;
-  const payload = outbox.payload as { category?: string };
+  const payload = outbox.payload as { category?: string; teamId?: string };
   const subscribers = await db.pushSubscription.findMany({
     where: { categories: { some: { category: payload.category as TeamCategory } } },
     select: { id: true }
   });
+
+  // Native app devices are independent of Web Push subscriptions. Restrict
+  // alerts to active match operators and enforce team-scoped role assignments.
+  const devices = await db.nativePushDevice.findMany({
+    where: {
+      user: {
+        isActive: true,
+        deletedAt: null,
+        role: {
+          key: { in: ["super_admin", "president", "developer", "director", "sporting_director", "team_manager"] },
+          OR: [
+            { permissions: { some: { permission: { key: "*" } } } },
+            {
+              AND: [
+                { permissions: { some: { permission: { key: "matches.view" } } } },
+                { permissions: { some: { permission: { key: { in: ["matches.update", "matches.report"] } } } } }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    select: {
+      fcmToken: true,
+      locale: true,
+      user: { select: { role: { select: { teamScoped: true, key: true } }, teamAssignments: { select: { teamId: true } } } }
+    }
+  });
+  const nativeMessages = devices.flatMap((device) => {
+    const role = device.user.role;
+    const canAccessTeam = role.key === "super_admin" || !role.teamScoped || Boolean(payload.teamId && device.user.teamAssignments.some((assignment) => assignment.teamId === payload.teamId));
+    if (!canAccessTeam) return [];
+    const localized = buildNotification(outbox, device.locale);
+    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag }];
+  });
+  if (nativeMessages.length) {
+    const nativeResult = await sendNativePush(nativeMessages);
+    if (!nativeResult.configured) {
+      console.error("[MatchPush] Native match notifications were skipped: FIREBASE_SERVICE_ACCOUNT_JSON is not configured.");
+    } else if (nativeResult.failed) {
+      throw new Error(`${nativeResult.failed} native match notification(s) failed.`);
+    }
+  }
 
   const batchSize = 100;
   for (let start = 0; start < subscribers.length; start += batchSize) {

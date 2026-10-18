@@ -3,7 +3,7 @@ import "server-only";
 import { createSign } from "node:crypto";
 
 type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string; token_uri?: string };
-type FcmMessage = { token: string; title: string; body: string; section?: string };
+type FcmMessage = { token: string; title: string; body: string; section?: string; tag?: string };
 
 let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
@@ -49,19 +49,21 @@ async function getAccessToken(account: ServiceAccount): Promise<string> {
 
 /** Sends native system notifications through FCM when the deployment has its service account configured. */
 export async function sendNativePush(messages: FcmMessage[]): Promise<{ configured: boolean; failed: number }> {
-  if (messages.length === 0) return { configured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON), failed: 0 };
+  const eligibleMessages = messages.filter((message) => message.section === "matches" || message.section === "meetings");
+  if (eligibleMessages.length === 0) return { configured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON), failed: 0 };
   const account = loadServiceAccount();
   if (!account) return { configured: false, failed: 0 };
   const accessToken = await getAccessToken(account);
-  const results = await Promise.allSettled(messages.map(async (message) => {
+  const results = await Promise.allSettled(eligibleMessages.map(async (message) => {
     const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(account.project_id!)}/messages:send`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ message: {
         token: message.token,
-        notification: { title: message.title, body: message.body },
-        data: { section: message.section ?? "home" },
-        android: { priority: "high", notification: { channel_id: "esh_admin_alerts", sound: "default" } }
+        // Use a data-only message so NativeMessagingService can render the branded,
+        // high-priority notification consistently while the app is backgrounded.
+        data: { section: message.section!, title: message.title, body: message.body, ...(message.tag ? { tag: message.tag } : {}) },
+        android: { priority: "high" }
       } })
     });
     if (!response.ok) throw new Error(`FCM returned HTTP ${response.status}.`);

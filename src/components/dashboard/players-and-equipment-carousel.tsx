@@ -440,19 +440,25 @@ export function PlayersAndEquipmentCarousel({
         <button
           type="button"
           onClick={() => setActiveSlide(0)}
-          className={`h-2 rounded-full transition-all cursor-pointer ${
-            activeSlide === 0 ? "w-6 bg-club-primary" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-          }`}
+          data-mobile-compact
+          data-carousel-indicator
+          aria-current={activeSlide === 0 ? "true" : undefined}
+          className="dashboard-carousel-dot flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
           aria-label="Slide 1"
-        />
+        >
+          <span data-carousel-dot aria-hidden="true" className={activeSlide === 0 ? "bg-club-primary" : "bg-muted-foreground/30"} />
+        </button>
         <button
           type="button"
           onClick={() => setActiveSlide(1)}
-          className={`h-2 rounded-full transition-all cursor-pointer ${
-            activeSlide === 1 ? "w-6 bg-emerald-600" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-          }`}
+          data-mobile-compact
+          data-carousel-indicator
+          aria-current={activeSlide === 1 ? "true" : undefined}
+          className="dashboard-carousel-dot flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
           aria-label="Slide 2"
-        />
+        >
+          <span data-carousel-dot aria-hidden="true" className={activeSlide === 1 ? "bg-emerald-600" : "bg-muted-foreground/30"} />
+        </button>
       </div>
     </div>
   );

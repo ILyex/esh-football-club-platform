@@ -16,8 +16,8 @@ android {
         applicationId 'dz.esh.footballclub.field'
         minSdk 24
         targetSdk 35
-        versionCode 4
-        versionName '3.1.0-native-preview'
+        versionCode 17
+        versionName '3.5.0'
     }
 
     buildFeatures { compose true }
@@ -63,4 +63,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'androidx.core:core-ktx:1.15.0'
     debugImplementation 'androidx.compose.ui:ui-tooling'
+    implementation 'com.airbnb.android:lottie-compose:6.7.1'
 }

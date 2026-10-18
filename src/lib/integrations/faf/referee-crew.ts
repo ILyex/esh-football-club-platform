@@ -70,7 +70,9 @@ const ROLE_LABEL_KEYS = ["role", "roleName", "fonction", "libelle", "libelleFonc
 
 /** Reads the complete officiating crew, preserving role order and both EMS name variants. */
 export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
-  const slots: RefereeNames[] = Array.from({ length: 4 }, () => ({ ar: "", fr: "" }));
+  // The club's match records only contain the referee and two assistants.
+  // Never infer a fourth official from unrelated EMS entries such as players.
+  const slots: RefereeNames[] = Array.from({ length: 3 }, () => ({ ar: "", fr: "" }));
   const fill = (index: number, person: unknown) => {
     if (index < 0 || index >= slots.length) return;
     const names = namesFrom(person);
@@ -83,7 +85,7 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
     if (!value || typeof value !== "object" || depth > 7 || visited.has(value)) return;
     visited.add(value);
     if (Array.isArray(value)) {
-      value.forEach((item, index) => walk(item, depth + 1, inheritedIndex === null ? null : Math.min(3, inheritedIndex + index)));
+      value.forEach((item, index) => walk(item, depth + 1, inheritedIndex === null ? null : inheritedIndex + index));
       return;
     }
     if (inheritedIndex !== null) fill(inheritedIndex, value);
@@ -96,7 +98,7 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
         person.forEach((member, order) => {
           const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
           const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
-          const index = roleIndex(label) ?? Math.min(3, baseIndex + order);
+          const index = roleIndex(label) ?? baseIndex + order;
           fill(index, member);
           walk(member, depth + 1, index);
         });
@@ -108,7 +110,7 @@ export function extractFafRefereeCrew(...records: unknown[]): FafRefereeCrew {
           person.forEach((member, order) => {
             const memberRecord = member && typeof member === "object" ? member as Record<string, unknown> : null;
             const label = memberRecord ? firstText(memberRecord, ROLE_LABEL_KEYS) : "";
-            const memberIndex = roleIndex(label) ?? Math.min(3, (index ?? 0) + order);
+            const memberIndex = roleIndex(label) ?? (index ?? 0) + order;
             fill(memberIndex, member);
             walk(member, depth + 1, memberIndex);
           });

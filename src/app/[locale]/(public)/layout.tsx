@@ -27,9 +27,11 @@ export default async function PublicLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const tNav = await getTranslations({ locale, namespace: "nav" });
-  const tPublic = await getTranslations({ locale, namespace: "publicSite" });
-  const club = await getPublicClubSettings();
+  const [tNav, tPublic, club] = await Promise.all([
+    getTranslations({ locale, namespace: "nav" }),
+    getTranslations({ locale, namespace: "publicSite" }),
+    getPublicClubSettings()
+  ]);
   const clubDisplayName = locale === "ar"
     ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم"
     : "Association Sportive Espoir Sidi Hosni de Football";

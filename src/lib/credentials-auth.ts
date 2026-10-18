@@ -57,14 +57,17 @@ export async function authenticatePlatformCredentials(raw: Record<string, unknow
   }
 
   const loginTime = new Date();
-  await db.user.update({ where: { id: user.id }, data: { lastLoginAt: loginTime, lastSeenAt: loginTime } });
-  await writeAuditLog({ userId: user.id, action: "auth.login_success", entityType: "User", entityId: user.id });
-  await resetRateLimit(accountLimitKey);
+  await Promise.all([
+    db.user.update({ where: { id: user.id }, data: { lastLoginAt: loginTime, lastSeenAt: loginTime } }),
+    writeAuditLog({ userId: user.id, action: "auth.login_success", entityType: "User", entityId: user.id }),
+    resetRateLimit(accountLimitKey)
+  ]);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     image: user.image ?? undefined,
+    licenseNumber: user.licenseNumber,
     roleKey: user.role.key,
     roleName: user.role.name,
     tokenVersion: user.tokenVersion,

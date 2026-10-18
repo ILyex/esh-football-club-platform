@@ -55,7 +55,7 @@ export function DocumentsNavTabs({
     },
     {
       href: `/${locale}/dashboard/meeting-minutes`,
-      label: isAr ? "محاضر الاجتماعات" : "Procès-verbaux",
+      label: isAr ? "الاجتماعات والمحاضر" : "Réunions et comptes-rendus",
       icon: ClipboardList,
       visible: canViewMeetings,
       exact: false

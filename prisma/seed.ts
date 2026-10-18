@@ -86,6 +86,7 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "correspondence.manage", group: "correspondence", description: "Manage correspondence" },
 
   { key: "meetings.view", group: "meetings", description: "View meeting minutes" },
+  { key: "meetings.schedule", group: "meetings", description: "Schedule team meetings from the mobile app" },
   { key: "meetings.manage", group: "meetings", description: "Manage meeting minutes" },
 
   { key: "reports.view", group: "reports", description: "View reports dashboard" },
@@ -210,21 +211,21 @@ const ROLE_DEFINITIONS: {
   {
     key: "coach",
     name: "مدرب فئة",
-    description: "عرض التدريب وقائمة لاعبي الفرق المسندة للمدرب دون تعديل.",
+    description: "إدارة تدريبات وإعلانات واجتماعات الفرق المسندة دون إدارة المباريات أو الأخبار.",
     teamScoped: true,
     syncPermissions: true,
     permissions: [
-      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"
+      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "training.manage", "calendar.view", "announcements.manage", "meetings.view", "meetings.schedule"
     ]
   },
   {
     key: "assistant_coach",
     name: "مساعد المدرب",
-    description: "عرض بيانات التدريب واللاعبين والفرق المسندة لمساعد المدرب.",
+    description: "إدارة تدريبات وإعلانات واجتماعات الفرق المسندة دون إدارة المباريات أو الأخبار.",
     teamScoped: true,
     syncPermissions: true,
     permissions: [
-      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "calendar.view"
+      "players.view", "player.stats.view", "teams.view", "matches.view", "training.view", "training.manage", "calendar.view", "announcements.manage", "meetings.view", "meetings.schedule"
     ]
   },
   {

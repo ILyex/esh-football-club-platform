@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { cache } from "react";
 import { authenticatePlatformCredentials } from "@/lib/credentials-auth";
 import { db } from "@/lib/db";
 
@@ -120,3 +121,8 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
     }
   }
 });
+
+// Share the authoritative session lookup across layouts, pages, and nested
+// server components in the same render. Without request-scoped memoization,
+// each call re-queries the account and its complete role-permission graph.
+export const getRequestAuthSession = cache(() => auth());

@@ -167,7 +167,14 @@ export function FinancialHealthChart({
 
   // Budget consumption percentage
   const budgetConsumedPct = totalAllocatedBudget > 0
-    ? Math.min(100, Math.round((totalPostedExpenses / totalAllocatedBudget) * 100))
+    ? Math.min(100, Math.max(0, Math.round((totalPostedExpenses / totalAllocatedBudget) * 100)))
+    : 0;
+  const budgetAvailablePct = totalAllocatedBudget > 0
+    ? Math.min(100, Math.max(0, Math.round((remainingBudget / totalAllocatedBudget) * 100)))
+    : 0;
+  const largestFinanceMetric = Math.max(remainingBudget, totalPostedExpenses, totalTreasuryBalance, 0);
+  const treasuryBalancePct = largestFinanceMetric > 0
+    ? Math.min(100, Math.max(0, Math.round((Math.max(0, totalTreasuryBalance) / largestFinanceMetric) * 100)))
     : 0;
 
   return (
@@ -188,14 +195,14 @@ export function FinancialHealthChart({
               <span className="text-[10px] font-normal text-muted-foreground">{currencyUnit}</span>
             </span>
             <span className="text-[10px] font-mono font-bold text-muted-foreground">
-              {100 - budgetConsumedPct}% {isAr ? "متاح" : "disp."}
+              {budgetAvailablePct}% {isAr ? "متاح" : "disp."}
             </span>
           </div>
           {/* Progress track */}
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-500/15">
             <div
               className="h-full rounded-full bg-blue-500 transition-all duration-500"
-              style={{ width: `${Math.max(4, 100 - budgetConsumedPct)}%` }}
+              style={{ width: `${budgetAvailablePct}%` }}
             />
           </div>
         </div>
@@ -220,7 +227,7 @@ export function FinancialHealthChart({
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-red-500/15">
             <div
               className="h-full rounded-full bg-red-600 transition-all duration-500"
-              style={{ width: `${Math.max(4, budgetConsumedPct)}%` }}
+              style={{ width: `${budgetConsumedPct}%` }}
             />
           </div>
         </div>
@@ -240,11 +247,14 @@ export function FinancialHealthChart({
             </span>
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
               <ArrowDownLeft className="h-3 w-3" />
-              <span>{isAr ? "سيولة نشطة" : "Liquide"}</span>
+              <span>{isAr ? "سيولة نشطة" : "Liquide"} {treasuryBalancePct}%</span>
             </span>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
-            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500 w-full" />
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${treasuryBalancePct}%` }}
+            />
           </div>
         </div>
       </div>

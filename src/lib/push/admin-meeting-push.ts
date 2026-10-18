@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getPushRuntimeEnv, isAllowedPushEndpoint } from "@/lib/push/match-push";
 import { sendNativePush } from "@/lib/push/firebase-native-push";
 
-type MeetingPushInput = { title: string; startDateTime: Date; location: string | null };
+type MeetingPushInput = { title: string; startDateTime: Date; location: string | null; teamId?: string | null };
 
 /** Sends meeting alerts only to devices linked to active users who can manage the club calendar. */
 export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput): Promise<void> {
@@ -14,17 +14,20 @@ export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput)
       isActive: true,
       deletedAt: null,
       OR: [
+        { role: { permissions: { some: { permission: { key: "meetings.view" } } } } },
         { role: { teamScoped: false, permissions: { some: { permission: { key: "calendar.manage" } } } } },
         { role: { key: "super_admin", permissions: { some: { permission: { key: "*" } } } } }
       ]
     },
-    select: { id: true }
+    select: { id: true, role: { select: { key: true, teamScoped: true } }, teamAssignments: { select: { teamId: true } } }
   });
   if (users.length === 0) return;
 
-  const userIds = users.map((user) => user.id);
+  const eligibleUsers = users.filter((user) => !user.role.teamScoped || Boolean(meeting.teamId && user.teamAssignments.some((assignment) => assignment.teamId === meeting.teamId)));
+  const userIds = eligibleUsers.map((user) => user.id);
+  if (userIds.length === 0) return;
   const nativeDevices = await db.nativePushDevice.findMany({ where: { userId: { in: userIds } }, select: { id: true, userId: true, fcmToken: true, locale: true } });
-  const nativeUsers = new Map(users.map((user) => [user.id, user]));
+  const nativeUsers = new Map(eligibleUsers.map((user) => [user.id, user]));
   const nativeMessages = nativeDevices.flatMap((device) => {
     if (!nativeUsers.has(device.userId)) return [];
     const isFrench = device.locale === "fr";
@@ -40,6 +43,7 @@ export async function notifyCalendarManagersOfMeeting(meeting: MeetingPushInput)
   });
   try {
     const nativeResult = await sendNativePush(nativeMessages);
+    if (!nativeResult.configured && nativeMessages.length) console.error("[AdminMeetingPush] Native meeting notifications were skipped: FIREBASE_SERVICE_ACCOUNT_JSON is not configured.");
     if (nativeResult.failed) console.error(`[AdminMeetingPush] ${nativeResult.failed} native notification(s) failed.`);
   } catch (error) {
     console.error("[AdminMeetingPush] Native notifications failed.", error);

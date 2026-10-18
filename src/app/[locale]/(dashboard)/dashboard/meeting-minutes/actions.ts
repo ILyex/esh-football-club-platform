@@ -7,6 +7,44 @@ import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { validateUploadedFile, uploadPrivateFile, generateStorageKey, FileValidationError } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const scheduledMeetingSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  startDateTime: z.coerce.date(),
+  endDateTime: z.coerce.date(),
+  location: z.string().trim().max(160).optional(),
+  description: z.string().trim().max(2000).optional()
+}).refine((value) => value.endDateTime > value.startDateTime, { message: "endBeforeStart", path: ["endDateTime"] });
+
+export async function createScheduledMeetingAction(formData: FormData) {
+  const user = await requirePermission("meetings.manage");
+  const scopeContext = await getMutationScopeContext();
+  assertTeamScope(scopeContext, null, "CalendarEvent");
+  const parsed = scheduledMeetingSchema.parse(Object.fromEntries(formData.entries()));
+  const event = await db.$transaction(async (tx) => {
+    const created = await tx.calendarEvent.create({
+      data: { ...parsed, type: "MEETING", location: parsed.location || null, description: parsed.description || null }
+    });
+    await writeAuditLog({
+      userId: user.id,
+      action: "meeting.schedule",
+      entityType: "CalendarEvent",
+      entityId: created.id,
+      changes: { after: parsed }
+    }, tx);
+    return created;
+  });
+  try {
+    const { notifyCalendarManagersOfMeeting } = await import("@/lib/push/admin-meeting-push");
+    await notifyCalendarManagersOfMeeting(event);
+  } catch (error) {
+    console.error("[CalendarMeeting] Meeting was saved, but notification delivery failed.", error instanceof Error ? error.message : "unknown error");
+  }
+  revalidatePath("/[locale]/dashboard/meeting-minutes", "page");
+  revalidatePath("/[locale]/dashboard/calendar", "page");
+  return { id: event.id, startDateTime: event.startDateTime };
+}
 
 function splitAttendees(raw: string | undefined): string[] {
   return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
@@ -28,16 +66,18 @@ export async function createMeetingMinuteAction(formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = meetingMinuteSchema.parse(raw);
+  if (!parsed.calendarEventId) throw new Error("calendarMeetingRequiredForMinutes");
   assertTeamScope(scopeContext, parsed.teamId || null, "MeetingMinute");
 
   let linkedEvent: { id: string; type: string; teamId: string | null; title: string; startDateTime: Date; location: string | null } | null = null;
   if (parsed.calendarEventId) {
     const event = await db.calendarEvent.findUnique({
       where: { id: parsed.calendarEventId },
-      select: { id: true, type: true, teamId: true, title: true, startDateTime: true, location: true, meetingMinute: { select: { id: true } } }
+      select: { id: true, type: true, teamId: true, title: true, startDateTime: true, endDateTime: true, location: true, meetingMinute: { select: { id: true } } }
     });
     if (!event || event.type !== "MEETING") throw new Error("calendarMeetingNotFound");
     if (event.meetingMinute) throw new Error("calendarMeetingAlreadyHasMinutes");
+    if (event.endDateTime > new Date()) throw new Error("calendarMeetingNotFinished");
     assertTeamScope(scopeContext, event.teamId, "CalendarEvent", { allowClubWide: true });
     if (event.teamId !== (parsed.teamId || null)) throw new Error("calendarMeetingTeamMismatch");
     linkedEvent = event;

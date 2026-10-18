@@ -456,9 +456,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-bold text-foreground">{t("fields.refereeName")}</h4>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{locale === "ar" ? "رتّب الأسماء: الحكم الرئيسي، حكما التماس، ثم الحكم الاحتياطي. اضغط Enter بعد كل اسم." : "Ordre : arbitre principal, deux assistants, puis arbitre remplaçant. Appuyez sur Entrée après chaque nom."}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{locale === "ar" ? "رتّب الأسماء: الحكم الرئيسي، ثم حكما التماس. اضغط Enter بعد كل اسم." : "Ordre : arbitre principal, puis les deux assistants. Appuyez sur Entrée après chaque nom."}</p>
                 </div>
-                <span className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">4 {locale === "ar" ? "حكام كحد أقصى" : "max."}</span>
+                <span className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">3 {locale === "ar" ? "حكام كحد أقصى" : "max."}</span>
               </div>
               <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                 <div className="min-w-0 rounded-xl border border-border/60 bg-card/70 p-3">

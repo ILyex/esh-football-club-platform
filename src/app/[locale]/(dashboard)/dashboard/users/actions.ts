@@ -72,7 +72,8 @@ export async function createUserAction(formData: FormData) {
       email: parsed.email.toLowerCase(),
       passwordHash,
       roleId: parsed.roleId,
-      image: photoUrl || null
+      image: photoUrl || null,
+      licenseNumber: parsed.licenseNumber || null
     }
   });
 
@@ -156,6 +157,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
       roleId: parsed.roleId,
       isActive: parsed.isActive,
       image: nextImage,
+      licenseNumber: parsed.licenseNumber || null,
       ...(roleOrActiveChanged ? { tokenVersion: { increment: 1 }, lastSeenAt: null } : {})
     }
   });

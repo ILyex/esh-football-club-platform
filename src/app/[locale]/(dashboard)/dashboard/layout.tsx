@@ -44,14 +44,12 @@ export default async function DashboardLayout({
   children: ReactNode;
   params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
-
-  let user;
-  try {
-    user = await getSessionOrThrow();
-  } catch {
-    redirect(`/${locale}/login`);
-  }
+  const [{ locale }, sessionResult] = await Promise.all([
+    params,
+    getSessionOrThrow().then((user) => ({ user })).catch(() => ({ user: null }))
+  ]);
+  const user = sessionResult.user;
+  if (!user) redirect(`/${locale}/login`);
 
   const visibleGroups: NavGroup[] = DASHBOARD_NAV_GROUPS.map((group) => ({
     ...group,

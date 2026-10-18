@@ -370,6 +370,14 @@ export const PERMISSION_METAS: Record<string, PermissionMeta> = {
     descAr: "الاطلاع على محاضر اجتماعات مجلس الإدارة والجمعيات العامة",
     descFr: "Consulter les PV des réunions et assemblées"
   },
+  "meetings.schedule": {
+    key: "meetings.schedule",
+    category: "governance",
+    labelAr: "جدولة اجتماع للفئة",
+    labelFr: "Planifier une réunion d’équipe",
+    descAr: "إنشاء اجتماع ضمن الفرق المسندة إلى المدرب من التطبيق",
+    descFr: "Créer une réunion depuis l’application pour les équipes attribuées"
+  },
   "meetings.manage": {
     key: "meetings.manage",
     category: "governance",

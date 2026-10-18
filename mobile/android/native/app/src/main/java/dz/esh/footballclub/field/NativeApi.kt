@@ -1,5 +1,6 @@
 package dz.esh.footballclub.field
 
+import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -18,25 +19,47 @@ data class NativeMatch(
     val canUpdate: Boolean,
     val canReport: Boolean,
     val players: List<NativePlayer>,
-    val events: List<NativeEvent>
+    val events: List<NativeEvent>,
+    val shotsFor: Int,
+    val shotsAgainst: Int,
+    val xgFor: Double,
+    val xgAgainst: Double,
+    val yellowCardsFor: Int,
+    val redCardsFor: Int
 )
 
 data class NativePlayer(val id: String, val name: String, val nameFr: String, val number: Int?)
-data class NativeEvent(val id: String, val type: String, val minute: Int, val side: String, val playerName: String?)
+data class NativeEvent(val id: String, val type: String, val minute: Int, val side: String, val playerName: String?, val xG: Double?, val source: String)
 data class NativeMeeting(val id: String, val title: String, val date: String, val location: String?, val status: String)
-data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean)
+data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean, val kind: String = "MATCH")
 data class NativeTeam(val id: String, val name: String, val category: String)
-data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val teamScopeRestricted: Boolean)
-data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val permissions: NativePermissions)
-data class NativeUser(val name: String, val email: String, val role: String)
+data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
+data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val teamScopeRestricted: Boolean)
+data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
+data class NativeUser(val id: String, val name: String, val email: String, val role: String, val image: String?, val licenseNumber: String?)
 data class NativeLoginResult(val token: String?, val user: NativeUser?, val error: String?)
+data class NativeRelease(val tag: String, val apkUrl: String, val sha256: String?)
+class NoPublicNativeRelease : Exception("No publicly accessible Android release is available")
+class NativeSessionExpired : Exception("The native session is no longer valid")
+
+fun isNativeUpdateAvailable(releaseTag: String, installedVersion: String): Boolean {
+    fun parts(value: String) = Regex("\\d+").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
+    val remote = parts(releaseTag)
+    val installed = parts(installedVersion)
+    if (remote.isEmpty() || installed.isEmpty()) return releaseTag != installedVersion
+    for (index in 0..2) {
+        val comparison = remote.getOrElse(index) { 0 }.compareTo(installed.getOrElse(index) { 0 })
+        if (comparison != 0) return comparison > 0
+    }
+    return false
+}
 
 object NativeApi {
     private const val BASE_URL = "https://esh-platform-vercel-preview.vercel.app"
     private const val CONNECT_TIMEOUT = 20_000
     private const val READ_TIMEOUT = 40_000
 
-    fun login(email: String, password: String, locale: String): NativeLoginResult {
+    fun login(email: String, password: String, locale: String, rememberMe: Boolean): NativeLoginResult {
         return try {
             val challenge = JSONObject(post("/api/captcha/challenge", "{}"))
             val captchaToken = if (challenge.has("token")) {
@@ -44,10 +67,10 @@ object NativeApi {
                 val redeem = JSONObject().put("token", challenge.getString("token")).put("solutions", JSONArray(solutions))
                 JSONObject(post("/api/captcha/redeem", redeem.toString())).optString("token", "")
             } else ""
-            val body = JSONObject().put("email", email.trim().lowercase()).put("password", password).put("captchaToken", captchaToken)
+            val body = JSONObject().put("email", email.trim().lowercase()).put("password", password).put("captchaToken", captchaToken).put("rememberMe", rememberMe)
             val result = JSONObject(post("/api/mobile/auth/login", body.toString()))
             val user = result.getJSONObject("user")
-            NativeLoginResult(result.getString("token"), NativeUser(user.optString("name"), user.optString("email"), user.optString("roleName")), null)
+            NativeLoginResult(result.getString("token"), parseUser(user), null)
         } catch (error: ApiFailure) {
             NativeLoginResult(null, null, when (error.code) {
                 "invalid_credentials" -> if (locale == "fr") "Adresse e-mail ou mot de passe incorrect." else "البريد الإلكتروني أو كلمة المرور غير صحيحة."
@@ -64,22 +87,52 @@ object NativeApi {
     fun session(token: String): NativeUser? {
         val json = JSONObject(get("/api/mobile/session", token))
         val user = json.getJSONObject("user")
-        return NativeUser(user.optString("name"), user.optString("email"), user.optString("roleName"))
+        return parseUser(user)
     }
 
-    fun data(token: String, locale: String): NativeData {
-        val json = JSONObject(get("/api/mobile/data?locale=$locale", token))
+    fun cachedData(context: Context, locale: String): NativeData? {
+        val raw = context.getSharedPreferences("esh_native_cache", Context.MODE_PRIVATE)
+            .getString("summary_$locale", null) ?: return null
+        return runCatching { parseData(JSONObject(raw)) }.getOrNull()
+    }
+
+    fun clearCachedData(context: Context) {
+        context.getSharedPreferences("esh_native_cache", Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    fun data(token: String, locale: String, summary: Boolean = false): NativeData {
+        val raw = get("/api/mobile/data?locale=$locale${if (summary) "&summary=1" else ""}", token)
+        if (summary) {
+            // Keep the compact dashboard payload for immediate rendering on the next cold start.
+            // The cache contains no bearer token and is stored in the app's private preferences.
+            cachePreferences?.edit()?.putString("summary_$locale", raw)?.apply()
+        }
+        return parseData(JSONObject(raw))
+    }
+
+    @Volatile private var cachePreferences: android.content.SharedPreferences? = null
+
+    fun initializeCache(context: Context) {
+        cachePreferences = context.applicationContext.getSharedPreferences("esh_native_cache", Context.MODE_PRIVATE)
+    }
+
+    private fun parseData(json: JSONObject): NativeData {
         val matches = json.getJSONArray("matches").objects().map { item ->
             val players = item.getJSONArray("players").objects().map { player -> NativePlayer(player.getString("id"), player.optString("name"), player.optString("nameFr"), player.nullableInt("number")) }
-            val events = item.getJSONArray("events").objects().map { event -> NativeEvent(event.getString("id"), event.optString("type"), event.optInt("minute"), event.optString("side"), event.optNullableString("playerName")) }
-            NativeMatch(item.getString("id"), item.optString("opponent"), item.optString("date"), item.optString("status"), item.nullableInt("clubScore"), item.nullableInt("opponentScore"), item.optString("competition"), item.optBoolean("isHomeFixture"), item.optBoolean("canUpdate"), item.optBoolean("canReport"), players, events)
+            val events = item.getJSONArray("events").objects().map { event -> NativeEvent(event.getString("id"), event.optString("type"), event.optInt("minute"), event.optString("side"), event.optNullableString("playerName"), event.optNullableDouble("xG"), event.optString("source", "MANUAL")) }
+            val stats = item.optJSONObject("stats") ?: JSONObject()
+            NativeMatch(item.getString("id"), item.optString("opponent"), item.optString("date"), item.optString("status"), item.nullableInt("clubScore"), item.nullableInt("opponentScore"), item.optString("competition"), item.optBoolean("isHomeFixture"), item.optBoolean("canUpdate"), item.optBoolean("canReport"), players, events, stats.optInt("shotsFor"), stats.optInt("shotsAgainst"), stats.optDouble("xgFor"), stats.optDouble("xgAgainst"), stats.optInt("yellowCardsFor"), stats.optInt("redCardsFor"))
         }
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
-        val alerts = json.getJSONArray("notifications").objects().map { item -> NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead")) }
+        val alerts = json.getJSONArray("notifications").objects().map { item -> NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), "MATCH") } + upcoming.map { meeting -> NativeAlert("meeting-${meeting.id}", meeting.title, meeting.location, false, "MEETING") }
         val teams = json.optJSONArray("teams")?.objects()?.map { NativeTeam(it.optString("id"), it.optString("name"), it.optString("category")) }.orEmpty()
+        val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->
+            NativeCoach(item.optString("id"), item.optString("name"), item.optJSONArray("teamIds")?.let { ids -> (0 until ids.length()).map { ids.optString(it) } }.orEmpty())
+        }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
-        return NativeData(matches, meetings, upcoming, alerts, teams, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("teamScopeRestricted")))
+        val user = parseUser(json.optJSONObject("user") ?: JSONObject())
+        return NativeData(matches, meetings, upcoming, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("teamScopeRestricted")), user)
     }
 
     fun createContent(token: String, payload: JSONObject) {
@@ -98,6 +151,27 @@ object NativeApi {
         request("/api/mobile/session", token, null, "DELETE")
     }
 
+    fun latestRelease(): NativeRelease? {
+        val connection = URL("$BASE_URL/native-android-release.json?t=${System.currentTimeMillis()}").openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = 7_000
+            connection.readTimeout = 9_000
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Cache-Control", "no-cache")
+            when (connection.responseCode) {
+                404 -> throw NoPublicNativeRelease()
+                in 200..299 -> Unit
+                else -> throw ApiFailure("release_check_failed")
+            }
+            val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            val tag = release.optString("version").takeIf { it.isNotBlank() } ?: return null
+            val apkPath = release.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
+            val apkUrl = if (apkPath.startsWith("https://")) apkPath else URL(URL(BASE_URL), apkPath.removePrefix("/")).toString()
+            if (!apkUrl.startsWith("https://")) return null
+            return NativeRelease(tag, apkUrl, release.optString("sha256").takeIf { it.matches(Regex("(?i)[a-f0-9]{64}")) })
+        } finally { connection.disconnect() }
+    }
+
     fun updateScore(token: String, matchId: String, homeScore: Int, awayScore: Int, status: String? = null) {
         val body = JSONObject().put("homeScore", homeScore).put("awayScore", awayScore)
         status?.let { body.put("status", it) }
@@ -111,6 +185,14 @@ object NativeApi {
         request("/api/mobile/matches/$matchId/events", token, body.toString(), "POST")
     }
 
+    fun addMatchEvent(token: String, matchId: String, payload: JSONObject) {
+        request("/api/mobile/matches/$matchId/events", token, payload.toString(), "POST")
+    }
+
+    fun deleteMatchEvent(token: String, matchId: String, eventId: String) {
+        request("/api/mobile/matches/$matchId/events/$eventId", token, null, "DELETE")
+    }
+
     private fun solveChallenge(token: String, challenge: JSONObject): List<Long> {
         val count = challenge.getInt("c")
         val size = challenge.getInt("s")
@@ -118,21 +200,42 @@ object NativeApi {
         val tokenHash = fnv1a(token)
         val solutions = ArrayList<Long>(count)
         val digest = MessageDigest.getInstance("SHA-256")
+        val hashBytes = ByteArray(digest.digestLength)
+        val nonceBytes = ByteArray(20)
         for (index in 1..count) {
             val saltSeed = fnvResume(tokenHash, index.toString())
             val targetSeed = fnvResume(saltSeed, "d")
-            val salt = prng(saltSeed, size)
+            val saltBytes = prng(saltSeed, size).toByteArray(Charsets.UTF_8)
             val target = prng(targetSeed, difficulty)
             var nonce = 0L
             while (true) {
                 if (Thread.currentThread().isInterrupted) throw InterruptedException("CAPTCHA solve cancelled")
-                val hash = digest.digest("$salt$nonce".toByteArray(Charsets.UTF_8)).toHex()
-                if (hash.startsWith(target)) break
+                digest.update(saltBytes)
+                var value = nonce
+                var cursor = nonceBytes.size
+                do {
+                    nonceBytes[--cursor] = ('0'.code + (value % 10).toInt()).toByte()
+                    value /= 10
+                } while (value > 0)
+                digest.update(nonceBytes, cursor, nonceBytes.size - cursor)
+                digest.digest(hashBytes, 0, hashBytes.size)
+                if (hashStartsWithHex(hashBytes, target)) break
                 nonce++
             }
             solutions.add(nonce)
         }
         return solutions
+    }
+
+    /** Compare the challenge's hex prefix directly, avoiding millions of String.format calls on phones. */
+    private fun hashStartsWithHex(hash: ByteArray, target: String): Boolean {
+        for (index in target.indices) {
+            val byte = hash[index ushr 1].toInt() and 0xff
+            val actual = if ((index and 1) == 0) byte ushr 4 else byte and 0x0f
+            val expected = target[index].digitToIntOrNull(16) ?: return false
+            if (actual != expected) return false
+        }
+        return true
     }
 
     private fun fnv1a(value: String): Int = fnvResume(2166136261L.toInt(), value)
@@ -155,8 +258,6 @@ object NativeApi {
         }
         return out.substring(0, length)
     }
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
-
     private fun post(path: String, body: String): String = request(path, null, body, "POST")
     private fun get(path: String, token: String): String = request(path, token, null)
 
@@ -176,6 +277,7 @@ object NativeApi {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status == HttpURLConnection.HTTP_UNAUTHORIZED && token != null) throw NativeSessionExpired()
             if (status !in 200..299) throw ApiFailure(runCatching { JSONObject(text).optString("error") }.getOrDefault("request_failed"))
             return text
         } finally { connection.disconnect() }
@@ -183,6 +285,8 @@ object NativeApi {
 
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).mapNotNull { optJSONObject(it) }
     private fun JSONObject.nullableInt(key: String): Int? = if (isNull(key)) null else optInt(key)
+    private fun JSONObject.optNullableDouble(key: String): Double? = if (isNull(key) || !has(key)) null else optDouble(key)
     private fun JSONObject.optNullableString(key: String): String? = if (isNull(key)) null else optString(key)
+    private fun parseUser(user: JSONObject): NativeUser = NativeUser(user.optString("id"), user.optString("name"), user.optString("email"), user.optString("roleName"), user.optNullableString("image"), user.optNullableString("licenseNumber"))
     private class ApiFailure(val code: String) : Exception(code)
 }

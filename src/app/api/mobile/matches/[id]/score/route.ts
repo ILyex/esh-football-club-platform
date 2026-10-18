@@ -6,6 +6,7 @@ import { getNativePrincipal } from "@/lib/native-session";
 import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope, scopeIncludesTeam } from "@/lib/authz/policy";
 import { writeAuditLog } from "@/lib/audit";
+import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
@@ -24,11 +25,36 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const parsed = scoreSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_score" }, { status: 400 });
-  const match = await db.match.findUnique({ where: { id }, select: { id: true, teamId: true, homeScore: true, awayScore: true, status: true } });
+  const match = await db.match.findUnique({ where: { id }, include: { team: { select: { category: true } } } });
   if (!match) return NextResponse.json({ error: "match_not_found" }, { status: 404 });
   const scope = await resolveTeamScope(db, user);
   if (!scopeIncludesTeam(scope, match.teamId)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const updated = await db.match.update({ where: { id }, data: parsed.data });
+  const { updated, outbox } = await db.$transaction(async (tx) => {
+    const updated = await tx.match.update({ where: { id }, data: parsed.data });
+    const status = parsed.data.status;
+    const shouldNotify = status !== undefined && status !== match.status && (status === "LIVE" || status === "FINISHED") && match.team?.category;
+    const outbox = shouldNotify
+      ? await createMatchPushOutbox(tx, {
+          // A fixture can be reopened after it has ended. Include the mutation
+          // timestamp so each real status transition gets its own notification,
+          // while retries that do not change status still produce no duplicate.
+          dedupKey: `${status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}:${updated.updatedAt.getTime()}`,
+          matchId: updated.id,
+          kind: status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          payload: {
+            matchId: updated.id,
+            teamId: updated.teamId,
+            category: match.team!.category,
+            homeTeamName: updated.homeTeamName,
+            awayTeamName: updated.awayTeamName,
+            homeScore: updated.homeScore,
+            awayScore: updated.awayScore
+          }
+        })
+      : null;
+    return { updated, outbox };
+  });
+  if (outbox) await enqueueMatchPushOutbox(outbox.id);
   await writeAuditLog({
     userId: user.id,
     action: "match.mobile_score.update",

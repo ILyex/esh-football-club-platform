@@ -1,6 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getRequestAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { resolveTeamScope, type TeamScope, type ScopeSubjectUser } from "@/lib/authz/policy";
 import {
@@ -55,9 +56,9 @@ export type UserTeamContext = {
  * @param requestedTeamId Optional explicit override (e.g. from URL `sp.team`).
  *                        If omitted, reads the `esh_current_team` cookie.
  */
-export async function resolveUserTeamContext(requestedTeamId?: string | null): Promise<UserTeamContext> {
+const resolveUserTeamContextForRequest = cache(async (requestedTeamId: string | null): Promise<UserTeamContext> => {
   const [session, allTeams, cookieStore] = await Promise.all([
-    auth(),
+    getRequestAuthSession(),
     db.team.findMany({
       where: { active: true },
       select: {
@@ -110,6 +111,11 @@ export async function resolveUserTeamContext(requestedTeamId?: string | null): P
     activeTeamId,
     canSelectAll: !scope.restricted
   };
+});
+
+export function resolveUserTeamContext(requestedTeamId?: string | null): Promise<UserTeamContext> {
+  // Normalize undefined and null so layouts and child pages share one result.
+  return resolveUserTeamContextForRequest(requestedTeamId ?? null);
 }
 
 /**

@@ -81,7 +81,7 @@
       "insurance": "Assurance Sportive",
       "medicalRecords": "Dossiers médicaux des joueurs",
       "correspondence": "Correspondances et recours",
-      "meetingMinutes": "Procès-verbaux",
+      "meetingMinutes": "Réunions et comptes-rendus",
       "reports": "Rapports",
       "dataQuality": "Qualité des données",
       "users": "Utilisateurs",
@@ -505,8 +505,24 @@
     "noDocument": "Aucun document avec cet identifiant, ou hors de vos autorisations"
   },
   "meetings": {
-    "title": "Procès-verbaux",
-    "addMeeting": "Ajouter un procès-verbal",
+    "title": "Réunions et comptes-rendus",
+    "addMeeting": "Créer un compte-rendu",
+    "createMeeting": "Créer une réunion",
+    "saveMeeting": "Enregistrer et notifier",
+    "scheduleDescription": "Planifiez la réunion et indiquez son lieu. Elle apparaîtra dans l’application et une notification sera envoyée aux personnes concernées.",
+    "notificationInfo": "La réunion apparaîtra dans l’application du club et une notification sera envoyée à l’enregistrement.",
+    "meetingsSection": {
+      "title": "Réunions",
+      "description": "Planifiez et suivez les réunions, puis ajoutez le compte-rendu une fois terminées.",
+      "count": "{count} réunion(s)",
+      "upcoming": "À venir",
+      "viewMinutes": "Voir le compte-rendu",
+      "empty": "Aucune réunion pour le moment. Créez-en une pour l’afficher ici et dans l’application."
+    },
+    "minutesSection": {
+      "title": "Comptes-rendus",
+      "description": "Les comptes-rendus rédigés après les réunions."
+    },
     "pendingMinutes": {
       "title": "Réunions en attente de compte-rendu",
       "description": "Ces réunions sont terminées et aucun compte-rendu n’a été enregistré. Créez le compte-rendu et associez-le au rendez-vous ici.",
@@ -520,6 +536,9 @@
     },
     "fields": {
       "meetingTitle": "Titre de la réunion",
+      "startDateTime": "Début de la réunion",
+      "endDateTime": "Fin de la réunion",
+      "description": "Détails complémentaires",
       "date": "Date et heure",
       "location": "Lieu",
       "attendees": "Participants",
@@ -654,7 +673,7 @@
       "news": "Actualités",
       "announcements": "Annonces",
       "correspondence": "Correspondance",
-      "meetings": "Procès-verbaux",
+      "meetings": "Réunions et comptes-rendus",
       "users": "Utilisateurs",
       "roles": "Rôles & Permissions"
     }

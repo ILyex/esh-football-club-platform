@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { SafeImage } from "@/components/shared/safe-image";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
-import { computeInsights, filterInsightsForUser, type Insight } from "@/lib/insights/rules";
 import {
   FinancialHealthChart,
   TreasuryTrendChart,
@@ -39,11 +39,11 @@ import {
 import { calculateClubDebtSummary } from "@/lib/finance/debt-service";
 import { getDashboardFinancialTrend } from "@/lib/dashboard/financial-trend";
 
-function severityRank(severity: string): number {
-  if (severity === "critical") return 3;
-  if (severity === "warning") return 2;
-  return 1;
-}
+const getCachedDebtSummary = unstable_cache(
+  calculateClubDebtSummary,
+  ["dashboard-club-debt-summary-v1"],
+  { revalidate: 30, tags: ["dashboard-financial-trend"] }
+);
 
 export default async function DashboardHomePage({
   params
@@ -55,27 +55,22 @@ export default async function DashboardHomePage({
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
   const Chevron = isRtl ? ChevronLeft : ChevronRight;
 
-  const user = await getSessionOrThrow();
-  const t = await getTranslations("dashboard.stats");
-  const tQuick = await getTranslations("dashboard.quickActions");
-  const tInsights = await getTranslations("insights");
-  const tTeams = await getTranslations("teams");
-  const tFinance = await getTranslations("finance");
-
-  const teamId = await getCurrentTeamId();
+  const [user, t, tQuick, tInsights, tTeams, tFinance, teamId] = await Promise.all([
+    getSessionOrThrow(),
+    getTranslations("dashboard.stats"),
+    getTranslations("dashboard.quickActions"),
+    getTranslations("insights"),
+    getTranslations("teams"),
+    getTranslations("finance"),
+    getCurrentTeamId()
+  ]);
   const teamWhere = teamId ? { teamId } : {};
 
   const canViewFinance = hasPermission(user, "finance.view");
   // Keep this shortcut aligned with the tactics section's actual access rule.
   const canViewTacticsCard = hasPermission(user, "training.view");
-  const canViewMatches = hasPermission(user, "matches.view");
-  const canViewTraining = hasPermission(user, "training.view");
-  const canViewPlayers = hasPermission(user, "players.view");
   const canViewDocs = hasPermission(user, "documents.view");
-  const canViewContracts = hasPermission(user, "contracts.view");
   const canViewMeetings = hasPermission(user, "meetings.view");
-  const canViewMedia = hasPermission(user, "news.view") || hasPermission(user, "gallery.view") || hasPermission(user, "announcements.view");
-  const canManageDocs = hasPermission(user, "documents.create") || hasPermission(user, "documents.generate");
 
   // Date for 12 months trend (allows client to filter 1m, 3m, 6m, 1y)
   const oneYearAgo = new Date();
@@ -83,23 +78,18 @@ export default async function DashboardHomePage({
   oneYearAgo.setDate(1);
   oneYearAgo.setHours(0, 0, 0, 0);
 
-  const debtSummaryPromise = canViewFinance ? calculateClubDebtSummary() : null;
+  const debtSummaryPromise = canViewFinance ? getCachedDebtSummary() : null;
 
   const [
-    team,
-    currentSeason,
-    allInsights,
     debtSummaryResult,
+    opponentLogos,
     activePlayers,
     activeStaff,
     upcomingMatches,
     upcomingTrainings,
     recentMeetings,
-    recentDocuments,
-    latestAnnouncements,
     postedExpensesAgg,
-    withdrawalsAgg,
-    budgets,
+    budgetTotals,
     tacticalPlansCount,
     monthlyTransactionTotals,
     expenseCategoriesGrouped,
@@ -110,28 +100,34 @@ export default async function DashboardHomePage({
     teamsWithPlayers,
     dashboardBranding
   ] = await Promise.all([
-    teamId ? db.team.findUnique({ where: { id: teamId } }) : Promise.resolve(null),
-    db.season.findFirst({ where: { isCurrent: true } }),
-    computeInsights({
-      teamId: teamId ?? undefined,
-      permissions: user.permissions,
-      includeDataQuality: false,
-      clubDebtSummary: debtSummaryPromise ?? undefined
-    }),
     debtSummaryPromise,
+    getOpponentsMap(),
     db.player.count({ where: { ...teamWhere, status: "ACTIVE" } }),
     db.staff.count({ where: { ...teamWhere, status: "ACTIVE" } }),
     db.match.findMany({
       where: { ...teamWhere, status: "SCHEDULED", matchDate: { gte: new Date() } },
       take: 4,
       orderBy: { matchDate: "asc" },
-      include: { competition: true }
+      select: {
+        id: true,
+        matchDate: true,
+        homeTeamName: true,
+        awayTeamName: true,
+        isHomeFixture: true,
+        competition: { select: { name: true } }
+      }
     }),
     db.trainingSession.findMany({
       where: { ...teamWhere, date: { gte: new Date() } },
       take: 4,
       orderBy: { date: "asc" },
-      include: { team: true }
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        location: true,
+        team: { select: { category: true } }
+      }
     }),
     canViewMeetings || canViewDocs
       ? db.meetingMinute.findMany({
@@ -139,24 +135,8 @@ export default async function DashboardHomePage({
           orderBy: { date: "desc" }
         })
       : Promise.resolve([]),
-    canViewDocs
-      ? db.document.findMany({
-          take: 4,
-          orderBy: { createdAt: "desc" },
-          select: { id: true, name: true, createdAt: true, category: { select: { name: true } } }
-        })
-      : Promise.resolve([]),
-    canViewMedia
-      ? db.announcement.findMany({
-          where: { status: "PUBLISHED" },
-          include: { translations: true },
-          take: 3,
-          orderBy: { createdAt: "desc" }
-        })
-      : Promise.resolve([]),
     canViewFinance ? db.expense.aggregate({ where: { status: "POSTED" }, _sum: { amount: true } }) : Promise.resolve({ _sum: { amount: 0 } }),
-    canViewFinance ? db.treasuryTransaction.aggregate({ where: { type: "WITHDRAWAL" }, _sum: { amount: true } }) : Promise.resolve({ _sum: { amount: 0 } }),
-    canViewFinance ? db.budget.findMany({ where: { status: "ACTIVE" } }) : Promise.resolve([]),
+    canViewFinance ? db.budget.aggregate({ where: { status: "ACTIVE" }, _sum: { allocatedAmount: true } }) : Promise.resolve({ _sum: { allocatedAmount: 0 } }),
     canViewTacticsCard ? db.tacticalPlan.count({ where: { creatorId: user.id } }) : Promise.resolve(0),
     canViewFinance ? getDashboardFinancialTrend(oneYearAgo) : Promise.resolve([]),
     canViewFinance
@@ -204,27 +184,15 @@ export default async function DashboardHomePage({
       select: { dashboardWelcomeBannerUrl: true }
     })
   ]);
-  const opponentLogos = upcomingMatches.length > 0 ? await getOpponentsMap() : {};
 
   // Budgets & Expenses & Debt
-  let totalAllocatedBudget = 0;
-  for (const b of budgets) {
-    totalAllocatedBudget += b.allocatedAmount;
-  }
+  const totalAllocatedBudget = budgetTotals._sum.allocatedAmount ?? 0;
   const totalPostedExpenses = postedExpensesAgg._sum.amount ?? 0;
-  const totalWithdrawn = withdrawalsAgg._sum.amount ?? 0;
   const debtSummary = debtSummaryResult ?? { hasDebt: false, debtAmount: 0, totalTreasuryBalance: 0 };
   const isDebt = debtSummary.hasDebt;
   const debtAmount = debtSummary.debtAmount;
   const totalTreasuryBalance = debtSummary.totalTreasuryBalance;
   const remainingBudget = Math.max(0, totalAllocatedBudget - totalPostedExpenses);
-
-  // Filter urgent tasks/insights
-  const insights = filterInsightsForUser(allInsights, user);
-  const urgentTasks = insights
-    .filter((i) => i.category === "attention")
-    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
-    .slice(0, 4);
 
   // Compute 6 months monthly trend data for chart
   const monthsNamesAr = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];

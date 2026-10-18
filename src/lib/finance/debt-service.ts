@@ -57,7 +57,10 @@ export async function calculateClubDebtSummary(): Promise<ClubDebtSummary> {
   const [expenses, treasuryAccounts] = await Promise.all([
     db.expense.findMany({
       where: {
-        status: "POSTED"
+        status: "POSTED",
+        // Only explicit debt markers are considered below; filtering them in
+        // the database avoids loading every posted expense on dashboard visits.
+        notes: { contains: "[DEBT]" }
       },
       select: {
         id: true,

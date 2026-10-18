@@ -291,10 +291,14 @@ export function DashboardEventsCarousel({
               key={idx}
               type="button"
               onClick={() => setSlide(idx as 0 | 1 | 2)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                slide === idx ? "w-6 bg-club-primary" : "w-2 bg-border"
-              }`}
-            />
+              data-mobile-compact
+              data-carousel-indicator
+              aria-label={`Slide ${idx + 1}`}
+              aria-current={slide === idx ? "true" : undefined}
+              className="dashboard-carousel-dot flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+            >
+              <span data-carousel-dot aria-hidden="true" className={slide === idx ? "bg-club-primary" : "bg-border"} />
+            </button>
           ))}
         </div>
       </div>

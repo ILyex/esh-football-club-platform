@@ -102,9 +102,9 @@ export async function createMatchAction(formData: FormData) {
       competitionId: { ar: "اختر المسابقة قبل حفظ المباراة.", fr: "Choisissez une compétition avant d’enregistrer." },
       opponent: { ar: "أدخل اسم الفريق الخصم.", fr: "Saisissez le nom de l’équipe adverse." },
       matchDate: { ar: "أدخل تاريخاً ووقتاً صالحين للمباراة.", fr: "Saisissez une date et une heure valides." },
-      refereeName: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." },
-      refereeNameAr: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." },
-      refereeNameFr: { ar: "أدخل أربعة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum quatre noms d’arbitres." }
+      refereeName: { ar: "أدخل ثلاثة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum trois noms d’arbitres." },
+      refereeNameAr: { ar: "أدخل ثلاثة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum trois noms d’arbitres." },
+      refereeNameFr: { ar: "أدخل ثلاثة أسماء حكام كحد أقصى.", fr: "Saisissez au maximum trois noms d’arbitres." }
     };
     const message = fieldMessages[field]?.[locale] ?? (locale === "fr"
       ? "Certaines données du match sont invalides. Vérifiez les champs puis réessayez."
@@ -333,6 +333,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
           kind: updated.status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
           payload: {
             matchId: updated.id,
+            teamId: updated.teamId,
             category: team.category,
             homeTeamName,
             awayTeamName,
@@ -401,6 +402,7 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
           kind: nextStatus === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
           payload: {
             matchId: updated.id,
+            teamId: updated.teamId,
             category: before.team?.category ?? null,
             homeTeamName: updated.homeTeamName,
             awayTeamName: updated.awayTeamName,
@@ -676,6 +678,7 @@ export async function addMatchEventAction(matchId: string, formData: FormData) {
           kind: "GOAL",
           payload: {
             matchId,
+            teamId: match.teamId,
             category: match.team.category,
             homeTeamName: match.homeTeamName,
             awayTeamName: match.awayTeamName,

@@ -200,8 +200,8 @@ const RAW_COMMANDS: RawCommandDefinition[] = [
     href: "/dashboard/meeting-minutes",
     category: "navigation",
     requiredPermission: "meetings.view",
-    titleAr: "محاضر الاجتماعات",
-    titleFr: "Procès-verbaux",
+    titleAr: "الاجتماعات والمحاضر",
+    titleFr: "Réunions et comptes-rendus",
     subtitleAr: "سجل جلسات المكتب المسير",
     subtitleFr: "Réunions du bureau et décisions"
   },
@@ -361,13 +361,13 @@ const RAW_COMMANDS: RawCommandDefinition[] = [
   },
   {
     id: "act-new-meeting",
-    href: "/dashboard/meeting-minutes/new",
+    href: "/dashboard/meeting-minutes/schedule",
     category: "action",
     requiredPermission: "meetings.manage",
-    titleAr: "تحرير محضر اجتماع",
-    titleFr: "Rédiger un procès-verbal",
-    subtitleAr: "تسجيل مداولات وقرارات الجلسة",
-    subtitleFr: "Nouveau PV de réunion de bureau"
+    titleAr: "إنشاء اجتماع جديد",
+    titleFr: "Créer une réunion",
+    subtitleAr: "جدولة اجتماع وإرسال إشعار للمشاركين",
+    subtitleFr: "Planifier une réunion et notifier les participants"
   },
   {
     id: "act-new-news",

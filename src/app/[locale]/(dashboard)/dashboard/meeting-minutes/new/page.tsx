@@ -23,7 +23,7 @@ export default async function NewMeetingMinutePage({ params, searchParams }: { p
     getCurrentTeamId(),
     eventId ? db.calendarEvent.findUnique({ where: { id: eventId }, include: { meetingMinute: { select: { id: true } } } }) : Promise.resolve(null)
   ]);
-  const linkedEvent = calendarEvent?.type === "MEETING" && !calendarEvent.meetingMinute ? calendarEvent : null;
+  const linkedEvent = calendarEvent?.type === "MEETING" && calendarEvent.endDateTime <= new Date() && !calendarEvent.meetingMinute ? calendarEvent : null;
 
   async function action(formData: FormData) {
     "use server";

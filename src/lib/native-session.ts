@@ -6,9 +6,10 @@ import type { SessionUser } from "@/lib/permissions";
 
 const TOKEN_ISSUER = "esh-matchday-native";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
-const ADMIN_ROLE_KEYS = new Set(["super_admin", "president", "developer", "director", "sporting_director", "team_manager"]);
+const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const ADMIN_ROLE_KEYS = new Set(["super_admin", "president", "developer", "director", "sporting_director", "team_manager", "coach", "assistant_coach"]);
 
-export type NativePrincipal = SessionUser & { tokenVersion: number; image: string | null };
+export type NativePrincipal = SessionUser & { tokenVersion: number; image: string | null; licenseNumber: string | null };
 
 function sessionKey(): string {
   const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim();
@@ -18,14 +19,18 @@ function sessionKey(): string {
 
 export function canUseNativeMatchday(user: Pick<NativePrincipal, "roleKey" | "permissions">): boolean {
   if (!ADMIN_ROLE_KEYS.has(user.roleKey)) return false;
-  return (user.permissions.includes("matches.view") && (user.permissions.includes("matches.update") || user.permissions.includes("matches.report") || user.permissions.includes("*"))) ||
+  const superAdminWildcard = user.roleKey === "super_admin" && user.permissions.includes("*");
+  return (user.permissions.includes("matches.view") && (user.permissions.includes("matches.update") || user.permissions.includes("matches.report") || superAdminWildcard)) ||
     user.permissions.includes("meetings.view") || user.permissions.includes("calendar.manage") || user.permissions.includes("training.manage") ||
-    user.permissions.includes("news.create") || user.permissions.includes("announcements.manage") || user.permissions.includes("*");
+    user.permissions.includes("news.create") || user.permissions.includes("announcements.manage") || user.permissions.includes("meetings.schedule") || superAdminWildcard;
 }
 
-export async function createNativeSessionToken(user: Pick<NativePrincipal, "id" | "tokenVersion">): Promise<{ token: string; expiresAt: string }> {
+export async function createNativeSessionToken(
+  user: Pick<NativePrincipal, "id" | "tokenVersion">,
+  rememberMe = false
+): Promise<{ token: string; expiresAt: string }> {
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = now + SESSION_TTL_SECONDS;
+  const expiresAt = now + (rememberMe ? REMEMBERED_SESSION_TTL_SECONDS : SESSION_TTL_SECONDS);
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(JSON.stringify({ iss: TOKEN_ISSUER, sub: user.id, tv: user.tokenVersion, iat: now, exp: expiresAt, jti: randomBytes(16).toString("hex") })).toString("base64url");
   const input = `${header}.${payload}`;
@@ -61,7 +66,7 @@ export async function getNativePrincipal(request: Request): Promise<NativePrinci
   const user = await db.user.findUnique({
     where: { id: claims.sub, deletedAt: null },
     select: {
-      id: true, name: true, email: true, isActive: true, image: true, tokenVersion: true,
+      id: true, name: true, email: true, isActive: true, image: true, licenseNumber: true, tokenVersion: true,
       role: { select: { key: true, name: true, permissions: { select: { permission: { select: { key: true } } } } } }
     }
   });
@@ -69,7 +74,7 @@ export async function getNativePrincipal(request: Request): Promise<NativePrinci
   const permissions = user.role.permissions.map(({ permission }) => permission.key).filter((key) => key !== "*" || user.role.key === "super_admin");
   const principal: NativePrincipal = {
     id: user.id, name: user.name, email: user.email, roleKey: user.role.key, roleName: user.role.name,
-    permissions, tokenVersion: user.tokenVersion, image: user.image
+    permissions, tokenVersion: user.tokenVersion, image: user.image, licenseNumber: user.licenseNumber
   };
   return canUseNativeMatchday(principal) ? principal : null;
 }

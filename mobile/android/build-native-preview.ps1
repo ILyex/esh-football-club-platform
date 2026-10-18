@@ -32,7 +32,20 @@ try {
   $output = Join-Path $project "app\build\outputs\apk\release\app-release.apk"
   $delivery = Join-Path $project "app-release-native-signed.apk"
   Copy-Item -LiteralPath $output -Destination $delivery -Force
+  $releaseVersion = (Select-String -Path (Join-Path $project "app\build.gradle") -Pattern "versionName\s+'([^']+)'" ).Matches[0].Groups[1].Value
+  $releaseVersionCode = [int](Select-String -Path (Join-Path $project "app\build.gradle") -Pattern "versionCode\s+(\d+)" ).Matches[0].Groups[1].Value
+  $platformRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+  $downloadRoot = Join-Path $platformRoot "public\downloads"
+  New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+  $publicApk = Join-Path $downloadRoot "esh-field-latest.apk"
+  Copy-Item -LiteralPath $output -Destination $publicApk -Force
+  $sha256 = (Get-FileHash -LiteralPath $publicApk -Algorithm SHA256).Hash.ToLowerInvariant()
+  $manifest = [ordered]@{ version = $releaseVersion; versionCode = $releaseVersionCode; apkUrl = "/downloads/esh-field-latest.apk"; sha256 = $sha256 }
+  $manifestPath = Join-Path $platformRoot "public\native-android-release.json"
+  [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
   Write-Output "Native APK: $delivery"
+  Write-Output "Public update APK: $publicApk"
+  Write-Output "Public update manifest: $manifestPath"
 } finally {
   Remove-Item Env:ESH_SIGNING_PROPERTIES -ErrorAction SilentlyContinue
   if (Test-Path $signingProperties) { Remove-Item -LiteralPath $signingProperties -Force }

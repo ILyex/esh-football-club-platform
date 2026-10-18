@@ -1,16 +1,25 @@
 package dz.esh.footballclub.field
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
@@ -21,6 +30,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,10 +39,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -42,36 +54,33 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.Campaign
-import androidx.compose.material.icons.rounded.EmojiEvents
-import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Logout
-import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material.icons.rounded.Article
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.FitnessCenter
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.SportsSoccer
-import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,39 +96,74 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.ImageBitmap
+import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import android.app.DownloadManager
+import android.content.Context
+import android.os.Environment
+import androidx.core.net.toUri
+import android.app.Activity
+import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URL
 
-private val Ink = Color(0xFF0D0E0F)
-private val Panel = Color(0xFF161819)
-private val Glass = Color(0xCC1D2023)
+private var nativeThemeIsLight by mutableStateOf(false)
+private val Ink get() = if (nativeThemeIsLight) Color(0xFFF2F3F5) else Color(0xFF111315)
+private val Panel get() = if (nativeThemeIsLight) Color(0xFFFFFFFF) else Color(0xFF1A1D20)
+private val Glass get() = if (nativeThemeIsLight) Color(0xFFF8F9FA) else Color(0xFF22262A)
 private val Red = Color(0xFFDC2626)
-private val Mint = Color(0xFF20D7A0)
-private val Muted = Color(0xFF98A0AA)
-private val GlassBorder = Color.White.copy(alpha = .09f)
-private val RedGlow = Red.copy(alpha = .20f)
-private val MintGlow = Red.copy(alpha = .12f)
+private val Mint get() = if (nativeThemeIsLight) Color(0xFF008B68) else Color(0xFF20D7A0)
+private val AppText get() = if (nativeThemeIsLight) Color(0xFF20242A) else Color(0xFFF5F6F7)
+private val Muted get() = if (nativeThemeIsLight) Color(0xFF66717D) else Color(0xFF9AA1A9)
+private val GlassBorder get() = if (nativeThemeIsLight) Color(0xFFD9DEE4) else Color.White.copy(alpha = .09f)
+private val RedGlow get() = Red.copy(alpha = if (nativeThemeIsLight) .10f else .20f)
+private val MintGlow get() = Mint.copy(alpha = if (nativeThemeIsLight) .09f else .12f)
+private val CardStart get() = if (nativeThemeIsLight) Color(0xFFFFFFFF) else Color(0xFF202328)
+private val CardEnd get() = if (nativeThemeIsLight) Color(0xFFFFFFFF) else Color(0xFF202328)
 private val CairoFamily = FontFamily(Font(R.font.cairo_variable, FontWeight.Normal))
 private fun L(locale: String, ar: String, fr: String): String = if (locale == "fr") fr else ar
 
 class MainActivity : ComponentActivity() {
+    private fun installDownloadedApk(uri: Uri) {
+        getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        NativeApi.initializeCache(applicationContext)
         window.statusBarColor = android.graphics.Color.rgb(9, 11, 14)
         window.navigationBarColor = android.graphics.Color.rgb(9, 11, 14)
         val baseTypography = Typography()
@@ -132,13 +176,60 @@ class MainActivity : ComponentActivity() {
         )
         setContent { MaterialTheme(typography = cairoTypography) { MatchdayApp() } }
     }
+
+    override fun onResume() {
+        super.onResume()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
+            val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+            prefs.getString(ApkDownloadReceiver.PENDING_URI, null)?.let { installDownloadedApk(Uri.parse(it)) }
+        }
+    }
 }
 
-private enum class Section(val icon: ImageVector) {
-    HOME(Icons.Rounded.Home), MATCHES(Icons.Rounded.SportsSoccer), MEETINGS(Icons.Rounded.Groups), ALERTS(Icons.Rounded.NotificationsNone)
+private object IconlyIcons {
+    val Home = R.drawable.iconly_home
+    val Match = R.drawable.ic_match_ball
+    val People = R.drawable.iconly_users
+    val Calendar = R.drawable.iconly_calendar
+    val Notification = R.drawable.iconly_notification
+    val Logout = R.drawable.iconly_logout
+    val More = R.drawable.iconly_more_circle
+    val Theme = R.drawable.ic_contrast_mode
+    val Sun = R.drawable.iconly_sun
+    val Moon = R.drawable.iconly_moon
+    val Refresh = R.drawable.iconly_swap
+    val Update = R.drawable.iconly_download
+    val Language = R.drawable.iconly_language
+    val Trophy = R.drawable.iconly_star
+    val ArrowLeft = R.drawable.iconly_arrow_left
+    val ArrowRight = R.drawable.iconly_arrow_right
+    val ArrowDown = R.drawable.iconly_arrow_down
+    val Document = R.drawable.iconly_document
+    val Paper = R.drawable.iconly_paper
+    val Plus = R.drawable.iconly_plus
+    val Close = R.drawable.iconly_close_square
+    val Check = R.drawable.iconly_tick_square
+    val Search = R.drawable.iconly_search
+    val Setting = R.drawable.iconly_setting
+    val Hide = R.drawable.iconly_hide
+    val Show = R.drawable.iconly_eye
+    val Mail = R.drawable.iconly_mail
+    val Lock = R.drawable.iconly_lock
+    val Download = R.drawable.iconly_download
+    val Wallet = R.drawable.iconly_wallet
+    val Camera = R.drawable.iconly_camera
+    val Activity = R.drawable.iconly_activity
+    val Star = R.drawable.iconly_star
+}
+
+private enum class Section(val icon: Int, val selectedIcon: Int) {
+    HOME(IconlyIcons.Home, R.drawable.iconly_home_filled),
+    MATCHES(IconlyIcons.Match, R.drawable.ic_match_ball_filled),
+    MEETINGS(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
+    ALERTS(IconlyIcons.Notification, R.drawable.iconly_notification_filled)
 }
 private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
-private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "مساحة العمل الميداني", "Espace de gestion terrain"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
+private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
 
 @Composable
 private fun MatchdayApp() {
@@ -146,28 +237,183 @@ private fun MatchdayApp() {
     val sessionStore = remember { NativeSessionStore(context) }
     val scope = rememberCoroutineScope()
     var token by remember { mutableStateOf(sessionStore.read()) }
-    var user by remember { mutableStateOf<NativeUser?>(null) }
-    var data by remember { mutableStateOf<NativeData?>(null) }
+    val preferences = remember { context.getSharedPreferences("esh_native_ui", android.content.Context.MODE_PRIVATE) }
+    val cachedStartData = remember { NativeApi.cachedData(context, preferences.getString("locale", "ar") ?: "ar") }
+    var user by remember { mutableStateOf<NativeUser?>(cachedStartData?.user) }
+    var data by remember { mutableStateOf<NativeData?>(cachedStartData) }
+    var matchDetailsLoaded by remember(token) { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var connectionError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
-    val preferences = remember { context.getSharedPreferences("esh_native_ui", android.content.Context.MODE_PRIVATE) }
+    var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("matches", "meetings")) }
     var locale by remember { mutableStateOf(preferences.getString("locale", "ar") ?: "ar") }
+    var lightMode by remember {
+        val saved = preferences.getBoolean("light_mode", false)
+        nativeThemeIsLight = saved
+        mutableStateOf(saved)
+    }
+    var soundEffectsEnabled by remember { mutableStateOf(preferences.getBoolean("sound_effects", true)) }
+    LaunchedEffect(Unit) { NativeSoundEffects.initialize(context) }
+    LaunchedEffect(token, notificationRoutePending) {
+        if (notificationRoutePending && token != null) {
+            section = Section.ALERTS
+            notificationRoutePending = false
+            (context as? Activity)?.intent?.removeExtra("notification_section")
+        }
+    }
+    var refreshNonce by remember { mutableIntStateOf(0) }
+    var updateCheckNonce by remember { mutableIntStateOf(0) }
+    var firstResumeHandled by remember { mutableStateOf(false) }
+    var updateNotice by remember { mutableStateOf<String?>(null) }
+    var updateRelease by remember { mutableStateOf<NativeRelease?>(null) }
+    var checkingUpdate by remember { mutableStateOf(false) }
     var composerType by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(token, locale) {
-        val activeToken = token ?: return@LaunchedEffect
-        loading = true
-        connectionError = null
-        val result = runCatching {
-            withContext(Dispatchers.IO) {
-                val profile = NativeApi.session(activeToken)
-                val payload = NativeApi.data(activeToken, locale)
-                profile to payload
+    fun toggleTheme() {
+        val next = !lightMode
+        nativeThemeIsLight = next
+        lightMode = next
+        preferences.edit().putBoolean("light_mode", next).apply()
+    }
+
+    fun toggleSoundEffects() {
+        val next = !soundEffectsEnabled
+        soundEffectsEnabled = next
+        preferences.edit().putBoolean("sound_effects", next).apply()
+    }
+
+    fun switchLocale() {
+        val next = if (locale == "ar") "fr" else "ar"
+        locale = next
+        matchDetailsLoaded = section == Section.MATCHES
+        preferences.edit().putString("locale", next).apply()
+        val activeToken = token ?: return
+        NativeMessagingService.updateLocale(context, activeToken, next)
+        scope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { NativeApi.data(activeToken, next, summary = section != Section.MATCHES) } }
+            if (token != activeToken || locale != next) return@launch
+            result.onSuccess { payload ->
+                user = payload.user.takeIf { it.id.isNotBlank() } ?: user
+                data = payload
+                matchDetailsLoaded = section == Section.MATCHES
+                connectionError = null
+            }.onFailure { error ->
+                if (error is NativeSessionExpired) {
+                    sessionStore.clear()
+                    NativeApi.clearCachedData(context)
+                    token = null
+                    user = null
+                    data = null
+                    connectionError = L(locale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.")
+                } else {
+                    connectionError = L(locale, "تعذر تحديث اللغة من الخادم؛ بقيت جلستك محفوظة.", "Impossible d’actualiser la langue depuis le serveur ; votre session est conservée.")
+                }
             }
         }
-        result.onSuccess { (profile, payload) -> user = profile; data = payload }
-            .onFailure { sessionStore.clear(); token = null; user = null; data = null; connectionError = L(locale, "انتهت الجلسة أو تعذر الاتصال. سجّل الدخول مجددًا.", "Session expirée ou serveur inaccessible. Reconnectez-vous.") }
+    }
+
+    fun checkForUpdate() {
+        if (checkingUpdate) return
+        scope.launch {
+            checkingUpdate = true
+            val releaseCheck = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() } }
+            checkingUpdate = false
+            val release = releaseCheck.getOrNull()
+            when {
+                releaseCheck.exceptionOrNull() is NoPublicNativeRelease -> updateNotice = L(locale, "لا يتوفر إصدار تحديث عام يمكن للتطبيق الوصول إليه حاليًا.", "Aucune version publique de mise à jour n’est accessible pour le moment.")
+                releaseCheck.isFailure -> updateNotice = L(locale, "تعذر الاتصال بمصدر التحديث. تحقق من الإنترنت وحاول لاحقًا.", "Impossible de joindre la source de mise à jour. Vérifiez votre connexion et réessayez plus tard.")
+                release == null -> updateNotice = L(locale, "لا يتوفر إصدار تحديث عام يمكن للتطبيق الوصول إليه حاليًا.", "Aucune version publique de mise à jour n’est accessible pour le moment.")
+                isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "") -> updateRelease = release
+                else -> updateNotice = L(locale, "التطبيق محدّث بالفعل.", "L’application est déjà à jour.")
+            }
+        }
+    }
+
+    LaunchedEffect(updateCheckNonce) {
+        // Let the authenticated dashboard request use the network first on cold start.
+        delay(2_000)
+        checkingUpdate = true
+        val release = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() }.getOrNull() }
+        checkingUpdate = false
+        if (release != null && isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "")) updateRelease = release
+    }
+
+    SideEffect {
+        windowStatusBars(context, lightMode)
+    }
+
+    DisposableEffect(token) {
+        val activity = context as? ComponentActivity
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val updaterPrefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                if (updaterPrefs.getBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false)) {
+                    updaterPrefs.edit().putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false).apply()
+                    updateNotice = L(locale, "فشل تنزيل التحديث أو تعذر التحقق من سلامته. تحقق من الاتصال ثم أعد المحاولة.", "Échec du téléchargement ou de la vérification du fichier. Vérifiez la connexion et réessayez.")
+                }
+                if (!firstResumeHandled) {
+                    firstResumeHandled = true
+                } else {
+                    updateCheckNonce++
+                    if (token != null) refreshNonce++
+                }
+            }
+        }
+        activity?.lifecycle?.addObserver(observer)
+        onDispose { activity?.lifecycle?.removeObserver(observer) }
+    }
+
+    LaunchedEffect(token) {
+        if (token == null) return@LaunchedEffect
+        while (true) {
+            delay(60_000)
+            if (token != null) refreshNonce++
+        }
+    }
+
+    LaunchedEffect(token, locale, refreshNonce) {
+        val activeToken = token ?: return@LaunchedEffect
+        val requestLocale = locale
+        val requestSummary = section != Section.MATCHES
+        loading = data == null
+        if (data == null) connectionError = null
+        val result = runCatching {
+            withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale, summary = requestSummary) }
+        }
+        if (token == activeToken && locale == requestLocale) {
+            result.onSuccess { payload ->
+                user = payload.user.takeIf { it.id.isNotBlank() } ?: user
+                data = if (requestSummary && section == Section.MATCHES && matchDetailsLoaded) payload.copy(matches = data?.matches.orEmpty()) else payload
+                matchDetailsLoaded = !requestSummary
+            }
+                .onFailure { error ->
+                    if (error is NativeSessionExpired) {
+                        sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                        connectionError = L(locale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.")
+                    } else {
+                        connectionError = L(locale, "تعذر تحديث البيانات. تحقق من الاتصال وحاول مجددًا؛ بقيت جلستك محفوظة.", "Actualisation impossible. Vérifiez la connexion et réessayez ; votre session est conservée.")
+                    }
+                }
+        }
+        loading = false
+    }
+
+    LaunchedEffect(token, locale, section, matchDetailsLoaded) {
+        val activeToken = token ?: return@LaunchedEffect
+        if (section != Section.MATCHES || matchDetailsLoaded) return@LaunchedEffect
+        val requestLocale = locale
+        loading = true
+        val result = runCatching { withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale) } }
+        if (token == activeToken && locale == requestLocale) {
+            result.onSuccess { payload ->
+                data = payload
+                user = payload.user.takeIf { it.id.isNotBlank() } ?: user
+                matchDetailsLoaded = true
+                connectionError = null
+            }.onFailure { error ->
+                connectionError = if (error is NativeSessionExpired) L(locale, "انتهت صلاحية الجلسة. سجّل الدخول مجددًا.", "Session expirée. Reconnectez-vous.") else L(locale, "تعذر تحميل تفاصيل المباريات. حاول مجددًا.", "Impossible de charger les détails des matchs. Réessayez.")
+            }
+        }
         loading = false
     }
 
@@ -189,41 +435,55 @@ private fun MatchdayApp() {
         }
     }
 
-    fun addGoal(match: NativeMatch, isClubGoal: Boolean, playerId: String?, opponentName: String?, minute: Int) {
+    fun addMatchEvent(match: NativeMatch, payload: org.json.JSONObject) {
         val activeToken = token ?: return
         scope.launch {
             loading = true
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    val clubSide = if (match.isHomeFixture) "HOME" else "AWAY"
-                    val side = if (isClubGoal) clubSide else if (clubSide == "HOME") "AWAY" else "HOME"
-                    NativeApi.addGoal(activeToken, match.id, side, minute, if (isClubGoal) playerId else null, opponentName)
+                    NativeApi.addMatchEvent(activeToken, match.id, payload)
+                    NativeApi.data(activeToken, locale)
+                }
+            }
+            result.onSuccess { data = it; connectionError = null
+                if (payload.optString("type") in setOf("GOAL", "PENALTY_GOAL", "OWN_GOAL")) {
+                    NativeSoundEffects.play(context, R.raw.sound_goal_winner, soundEffectsEnabled)
+                }
+            }.onFailure { connectionError = L(locale, "تعذر حفظ الحدث. تأكد من المباراة واللاعب المختار.", "Événement non enregistré. Vérifiez le match et le joueur sélectionné.") }
+            loading = false
+        }
+    }
+
+    fun deleteMatchEvent(match: NativeMatch, event: NativeEvent) {
+        val activeToken = token ?: return
+        scope.launch {
+            loading = true
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    NativeApi.deleteMatchEvent(activeToken, match.id, event.id)
                     NativeApi.data(activeToken, locale)
                 }
             }
             result.onSuccess { data = it; connectionError = null }
-                .onFailure { connectionError = L(locale, "تعذر تسجيل الهدف. تأكد من حالة المباراة واختيار اللاعب.", "But non enregistré. Vérifiez le statut du match et le joueur sélectionné.") }
+                .onFailure { connectionError = L(locale, "تعذر حذف الحدث؛ قد يكون رسميًا أو لا تملك الصلاحية.", "Suppression impossible ; l’événement est peut-être officiel ou votre compte n’a pas l’autorisation.") }
             loading = false
         }
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides if (locale == "fr") LayoutDirection.Ltr else LayoutDirection.Rtl) {
     Box(Modifier.fillMaxSize().background(Ink)) {
-        AmbientGlow(Modifier.align(Alignment.TopEnd).offset(x = 125.dp, y = 45.dp).size(330.dp), RedGlow)
-        AmbientGlow(Modifier.align(Alignment.BottomStart).offset(x = (-145).dp, y = (-30).dp).size(350.dp), MintGlow)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Ink.copy(alpha = .35f)))))
+        AppBackdrop()
         if (token == null) {
-            NativeLoginScreen(connectionError = connectionError, loading = loading, locale = locale, onToggleLocale = {
-                locale = if (locale == "ar") "fr" else "ar"
-                preferences.edit().putString("locale", locale).apply()
-            }) { email, password ->
+            NativeLoginScreen(connectionError = connectionError, loading = loading, locale = locale, lightMode = lightMode, onToggleTheme = { toggleTheme() }, onToggleLocale = { switchLocale() }) { email, password, rememberMe ->
                 scope.launch {
                     loading = true
                     connectionError = null
-                    val login = withContext(Dispatchers.IO) { NativeApi.login(email, password, locale) }
+                    val login = withContext(Dispatchers.IO) { NativeApi.login(email, password, locale, rememberMe) }
                     if (login.token != null && login.user != null) {
+                        NativeSoundEffects.play(context, R.raw.sound_success_chime, soundEffectsEnabled)
                         sessionStore.write(login.token)
                         user = login.user
+                        section = if (notificationRoutePending) Section.ALERTS else Section.HOME
                         val nativePushConfigured = NativeMessagingService.registerIfConfigured(context, login.token, locale)
                         if (nativePushConfigured && Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             (context as? ComponentActivity)?.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4301)
@@ -234,14 +494,12 @@ private fun MatchdayApp() {
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize()) {
-                TopHeader(user?.role ?: L(locale, "حساب إداري", "Compte administrateur"), locale = locale, onToggleLocale = {
-                    locale = if (locale == "ar") "fr" else "ar"
-                    preferences.edit().putString("locale", locale).apply()
-                    token?.let { NativeMessagingService.updateLocale(context, it, locale) }
-                }, onNotifications = { section = Section.ALERTS }, onLogout = {
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
+                TopHeader(user?.role ?: L(locale, "حساب إداري", "Compte administrateur"), locale = locale, lightMode = lightMode, soundEffectsEnabled = soundEffectsEnabled, unreadCount = data?.alerts.orEmpty().count { !it.read }, onToggleSoundEffects = { toggleSoundEffects() }, onToggleTheme = { toggleTheme() }, onCheckUpdate = { checkForUpdate() }, onToggleLocale = { switchLocale() }, onNotifications = { section = Section.ALERTS }, onLogout = {
                     val activeToken = token
-                    sessionStore.clear(); token = null; data = null
+                    sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null
+                    connectionError = null
+                    section = Section.HOME
                     if (activeToken != null) scope.launch(Dispatchers.IO) {
                         runCatching {
                             val pushToken = context.getSharedPreferences(NativeMessagingService.PUSH_PREFS, android.content.Context.MODE_PRIVATE).getString(NativeMessagingService.PUSH_TOKEN_KEY, null)
@@ -251,16 +509,16 @@ private fun MatchdayApp() {
                     }
                 })
                 AnimatedContent(
-                    targetState = section,
-                    modifier = Modifier.weight(1f),
+                    targetState = locale,
+                    modifier = Modifier.weight(1f).padding(bottom = 106.dp),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "section-content"
-                ) { selected -> SectionPage(selected, data, loading, connectionError, locale, onNavigate = { section = it }, onCreate = { composerType = it }, onUpdateMatch = ::updateMatch, onAddGoal = ::addGoal) }
-                GlassNavigation(selected = section, locale = locale, onSelect = { section = it })
+                    label = "language-content"
+                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, onNavigate = { section = it }, onCreate = { composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
             }
+            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, onSelect = { section = it })
         }
         composerType?.let { type ->
-            NativeCreateDialog(type, data?.teams.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, onDismiss = { composerType = null }) { payload ->
+            NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, onDismiss = { composerType = null }) { payload ->
                 val activeToken = token ?: return@NativeCreateDialog
                 composerType = null
                 scope.launch {
@@ -271,8 +529,55 @@ private fun MatchdayApp() {
                 }
             }
         }
+        updateRelease?.let { release ->
+            AlertDialog(
+                onDismissRequest = { updateRelease = null },
+                shape = RoundedCornerShape(22.dp),
+                containerColor = Panel,
+                title = { Text(L(locale, "تحديث جديد متاح", "Nouvelle mise à jour disponible"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(L(locale, "الإصدار ${release.tag} جاهز للتنزيل.", "La version ${release.tag} est prête à être téléchargée."), color = AppText, fontSize = 13.sp)
+                        Text(L(locale, "اضغط تنزيل التحديث؛ عند اكتمال التحميل ستفتح شاشة التثبيت تلقائيًا. لن تحتاج إلى حذف التطبيق أو تسجيل الدخول من جديد.", "Appuyez sur Télécharger. L’installateur s’ouvrira dès la fin du téléchargement. Inutile de désinstaller l’application ou de vous reconnecter."), color = Muted, fontSize = 11.sp, lineHeight = 18.sp)
+                    }
+                },
+                confirmButton = {
+                    ClubPrimaryButton(
+                        text = L(locale, "تنزيل التحديث", "Télécharger"),
+                        onClick = {
+                        val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
+                        val request = DownloadManager.Request(release.apkUrl.toUri())
+                            .setTitle(L(locale, "تحديث E SIDI HOSNI", "Mise à jour E SIDI HOSNI"))
+                            .setDescription(L(locale, "سيُفتح مُثبّت Android تلقائيًا بعد التنزيل.", "L’installateur Android s’ouvrira après le téléchargement."))
+                            .setMimeType(ApkDownloadReceiver.APK_MIME)
+                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
+                        val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+                        context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+                            .putLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, id)
+                            .putString(ApkDownloadReceiver.PENDING_SHA256, release.sha256)
+                            .putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false).apply()
+                        updateRelease = null
+                        updateNotice = L(locale, "جارٍ تنزيل التحديث. ستظهر شاشة التثبيت تلقائيًا عند اكتمال التحميل.", "Téléchargement en cours. L’écran d’installation apparaîtra automatiquement à la fin.")
+                    }, modifier = Modifier.width(170.dp))
+                },
+                dismissButton = { TextButton(onClick = { updateRelease = null }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
+            )
+        }
+        updateNotice?.let { message ->
+            AlertDialog(onDismissRequest = { updateNotice = null }, text = { Text(message, color = AppText) }, confirmButton = { TextButton(onClick = { updateNotice = null }) { Text(L(locale, "حسنًا", "OK"), color = Red) } }, containerColor = Panel)
+        }
     }
     }
+}
+
+private fun windowStatusBars(context: Context, light: Boolean) {
+    val activity = context as? Activity ?: return
+    val color = if (light) android.graphics.Color.rgb(242, 243, 245) else android.graphics.Color.rgb(17, 19, 21)
+    activity.window.statusBarColor = color
+    activity.window.navigationBarColor = color
+    WindowInsetsControllerCompat(activity.window, activity.window.decorView).isAppearanceLightStatusBars = light
+    WindowInsetsControllerCompat(activity.window, activity.window.decorView).isAppearanceLightNavigationBars = light
 }
 
 @Composable
@@ -281,29 +586,139 @@ private fun AmbientGlow(modifier: Modifier, color: Color) {
 }
 
 @Composable
-private fun TopHeader(role: String, locale: String, onToggleLocale: () -> Unit, onNotifications: () -> Unit, onLogout: () -> Unit) {
+private fun AppBackdrop() {
+    Box(Modifier.fillMaxSize().background(Ink))
+}
+
+@Composable
+private fun ClubPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    enabled: Boolean = true,
+    loading: Boolean = false
+) {
+    val shape = RoundedCornerShape(15.dp)
+    Box(
+        modifier.heightIn(min = 52.dp).clip(shape)
+            .background(if (enabled) Red else if (nativeThemeIsLight) Color(0xFFE1E4E8) else Color(0xFF34383D))
+            .border(1.dp, if (enabled) Red else GlassBorder, shape)
+            .clickable(enabled = enabled && !loading, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            if (loading) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(17.dp))
+            Text(text, color = if (enabled || !nativeThemeIsLight) Color.White else Muted, fontWeight = FontWeight.Bold, fontFamily = CairoFamily, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(icon: Int, description: String, tint: Color = AppText, onClick: () -> Unit) {
+    Box(
+        Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Glass)
+            .border(1.dp, GlassBorder, RoundedCornerShape(13.dp)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(18.dp)) }
+}
+
+@Composable
+private fun Icon(
+    iconRes: Int,
+    contentDescription: String?,
+    tint: Color = Color.Unspecified,
+    modifier: Modifier = Modifier,
+    selectedIconRes: Int? = null,
+    selected: Boolean = false
+) {
+    Image(
+        painter = painterResource(if (selected) selectedIconRes ?: iconRes else iconRes),
+        contentDescription = contentDescription,
+        modifier = modifier,
+        colorFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(tint)
+    )
+}
+
+@Composable
+private fun IconlyAnimated(animationRes: Int, modifier: Modifier = Modifier) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(animationRes))
+    val progress by animateLottieCompositionAsState(composition = composition, iterations = 1)
+    LottieAnimation(composition = composition, progress = { progress }, modifier = modifier)
+}
+
+@Composable
+private fun TopHeader(role: String, locale: String, lightMode: Boolean, soundEffectsEnabled: Boolean, unreadCount: Int, onToggleSoundEffects: () -> Unit, onToggleTheme: () -> Unit, onCheckUpdate: () -> Unit, onToggleLocale: () -> Unit, onNotifications: () -> Unit, onLogout: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 14.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 7.dp)
+            .shadow(14.dp, RoundedCornerShape(23.dp))
+            .clip(RoundedCornerShape(23.dp))
+            .background(if (lightMode) Color.White.copy(alpha = .84f) else Color(0xFF191B1F).copy(alpha = .86f))
+            .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .22f), GlassBorder, Red.copy(alpha = .12f))), RoundedCornerShape(23.dp))
+            .padding(horizontal = 11.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .06f)), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.esh_logo), contentDescription = "شعار النادي", modifier = Modifier.size(35.dp))
+        Row(Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+                Image(painterResource(R.drawable.esh_logo), contentDescription = "شعار النادي", modifier = Modifier.size(33.dp))
             }
-            Spacer(Modifier.width(11.dp))
-            Column {
-                Text("E SIDI HOSNI", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text(L(locale, "إدارة ميدانية", "GESTION TERRAIN") + " · $role", color = Muted, fontSize = 9.sp, letterSpacing = 1.1.sp, maxLines = 1)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("E SIDI HOSNI", color = AppText, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .45.sp, maxLines = 1)
+                Text(L(locale, "إدارة ميدانية", "GESTION TERRAIN") + " · $role", color = Muted, fontSize = 8.sp, letterSpacing = .2.sp, maxLines = 1)
             }
         }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (locale == "ar") "FR" else "عربي", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(Glass).border(1.dp, Color.White.copy(alpha = .1f), CircleShape).clickable(onClick = onToggleLocale).padding(horizontal = 13.dp, vertical = 10.dp))
-                Box(Modifier.size(40.dp).clip(CircleShape).background(Glass).border(1.dp, Color.White.copy(alpha = .10f), CircleShape).clickable(onClick = onNotifications), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.NotificationsNone, contentDescription = L(locale, "الإشعارات", "Notifications"), tint = Color.White, modifier = Modifier.size(21.dp))
-                    Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 8.dp).size(7.dp).background(Red, CircleShape))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(13.dp)).clickable(onClick = onNotifications), contentAlignment = Alignment.Center) {
+                    Icon(IconlyIcons.Notification, contentDescription = L(locale, "الإشعارات", "Notifications"), tint = AppText, modifier = Modifier.size(19.dp))
+                    if (unreadCount > 0) {
+                        val badge = if (unreadCount > 9) "+9" else unreadCount.toString()
+                        Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 1.dp).height(15.dp).widthIn(min = 15.dp).clip(CircleShape).background(Red).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+                            Text(badge, color = Color.White, fontSize = 8.sp, lineHeight = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
                 }
-                Icon(Icons.Rounded.Logout, contentDescription = L(locale, "تسجيل الخروج", "Déconnexion"), tint = Muted, modifier = Modifier.size(19.dp).clickable(onClick = onLogout))
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    HeaderIconButton(IconlyIcons.More, L(locale, "المزيد من الخيارات", "Plus d’options"), onClick = { menuExpanded = true })
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier,
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Panel,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 10.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(L(locale, if (lightMode) "الوضع الداكن" else "الوضع الفاتح", if (lightMode) "Mode sombre" else "Mode clair"), color = AppText, fontFamily = CairoFamily, fontSize = 13.sp) },
+                            leadingIcon = { Icon(if (lightMode) IconlyIcons.Moon else IconlyIcons.Sun, contentDescription = null, tint = AppText) },
+                            onClick = { menuExpanded = false; onToggleTheme() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(L(locale, if (soundEffectsEnabled) "إيقاف أصوات التطبيق" else "تشغيل أصوات التطبيق", if (soundEffectsEnabled) "Désactiver les sons" else "Activer les sons"), color = AppText, fontFamily = CairoFamily, fontSize = 13.sp) },
+                            leadingIcon = { Icon(IconlyIcons.Notification, contentDescription = null, tint = AppText) },
+                            onClick = { menuExpanded = false; onToggleSoundEffects() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(L(locale, "تحديث التطبيق", "Mettre à jour l’application"), color = AppText, fontFamily = CairoFamily, fontSize = 13.sp) },
+                            leadingIcon = { Icon(IconlyIcons.Update, contentDescription = null, tint = AppText) },
+                            onClick = { menuExpanded = false; onCheckUpdate() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (locale == "ar") "Français" else "العربية", color = AppText, fontFamily = CairoFamily, fontSize = 13.sp) },
+                            leadingIcon = { Icon(IconlyIcons.Language, contentDescription = null, tint = AppText) },
+                            onClick = { menuExpanded = false; onToggleLocale() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(L(locale, "تسجيل الخروج", "Déconnexion"), fontFamily = CairoFamily, fontSize = 13.sp, color = Red) },
+                            leadingIcon = { Icon(IconlyIcons.Logout, contentDescription = null, tint = Red) },
+                            onClick = { menuExpanded = false; onLogout() }
+                        )
+                    }
+                }
             }
         }
     }
@@ -311,13 +726,15 @@ private fun TopHeader(role: String, locale: String, onToggleLocale: () -> Unit, 
 private fun SectionPage(
     section: Section,
     data: NativeData?,
+    user: NativeUser?,
     loading: Boolean,
     connectionError: String?,
     locale: String,
     onNavigate: (Section) -> Unit,
     onCreate: (String) -> Unit,
     onUpdateMatch: (NativeMatch, Int, Int, String?) -> Unit,
-    onAddGoal: (NativeMatch, Boolean, String?, String?, Int) -> Unit
+    onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
+    onDeleteEvent: (NativeMatch, NativeEvent) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -326,28 +743,37 @@ private fun SectionPage(
     ) {
         item {
             Column(Modifier.padding(bottom = 4.dp)) {
-                Text(section.title(locale), color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    if (section == Section.HOME) {
+                        val name = user?.name?.takeIf { it.isNotBlank() }
+                        if (locale == "ar") "👋 أهلاً${name?.let { "، $it" }.orEmpty()}"
+                        else "👋 Bonjour${name?.let { " $it" }.orEmpty()}"
+                    } else section.title(locale),
+                    color = AppText,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
                 Spacer(Modifier.height(5.dp))
                 Text(section.subtitle(locale), color = Muted, fontSize = 12.sp)
             }
         }
         when (section) {
             Section.HOME -> {
-                item { WelcomeCard(data, locale) }
+                item { WelcomeCard(data, locale, onNavigate) }
+                if (user != null) item { DigitalAdminCard(user, locale) }
                 item { QuickActions(onNavigate, data, locale, onCreate) }
-                item { StatusCard(loading, connectionError, locale) }
             }
             Section.MATCHES -> {
-                if (data?.matches.isNullOrEmpty()) item { EmptyNativeSection(Icons.Rounded.SportsSoccer, L(locale, "إدارة المباريات", "Gestion des matchs"), L(locale, "لا توجد مباريات متاحة لحسابك حاليًا.", "Aucun match n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(data!!.matches) { match -> MatchCard(match, loading, locale, onUpdateMatch, onAddGoal) }
+                if (data?.matches.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Match, L(locale, "إدارة المباريات", "Gestion des matchs"), L(locale, "لا توجد مباريات متاحة لحسابك حاليًا.", "Aucun match n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                else items(data!!.matches) { match -> MatchCard(match, loading, locale, onUpdateMatch, onAddEvent, onDeleteEvent) }
             }
             Section.MEETINGS -> {
                 val meetings = data?.upcomingMeetings.orEmpty() + data?.meetings.orEmpty()
-                if (meetings.isEmpty()) item { EmptyNativeSection(Icons.Rounded.CalendarMonth, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Calendar, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(meetings) { meeting -> MeetingCard(meeting, locale) }
             }
             Section.ALERTS -> {
-                if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(Icons.Rounded.Campaign, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Notification, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(data!!.alerts) { alert -> AlertCard(alert, locale) }
             }
         }
@@ -355,88 +781,525 @@ private fun SectionPage(
 }
 
 @Composable
-private fun WelcomeCard(data: NativeData?, locale: String) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Color(0xEE35131E), Color(0xDC1A1B1D), Color(0xD6161819)))).border(1.dp, Color.White.copy(alpha = .12f), RoundedCornerShape(24.dp))) {
-      AmbientGlow(Modifier.align(Alignment.TopEnd).offset(x = 70.dp, y = (-75).dp).size(210.dp), RedGlow)
-      Column(Modifier.padding(22.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(8.dp).background(Red, CircleShape))
-            Text(L(locale, "مساحة الإدارة الميدانية", "Espace d’administration terrain"), color = Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section) -> Unit) {
+    val featuredMatch = data?.matches.orEmpty()
+        .firstOrNull { it.status == "LIVE" }
+        ?: data?.matches.orEmpty().firstOrNull { it.status == "SCHEDULED" }
+        ?: data?.matches.orEmpty().firstOrNull()
+    val matchAccent = if (featuredMatch?.status == "LIVE") Red else Mint
+    Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(
+            if (nativeThemeIsLight) listOf(Color(0xFFFFFFFF), Color(0xFFFAFBFC), Color(0xFFF6F7F8))
+            else listOf(Color(0xFF202328), Color(0xFF1B1E22), Color(0xFF17191C))
+        )).border(1.dp, GlassBorder, RoundedCornerShape(26.dp))) {
+            AmbientGlow(Modifier.align(Alignment.TopEnd).offset(x = 70.dp, y = (-95).dp).size(230.dp), if (featuredMatch?.status == "LIVE") RedGlow else MintGlow)
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(38.dp).clip(CircleShape).background(Color.White).padding(2.dp))
+                        Column {
+                            Text("E SIDI HOSNI", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .5.sp)
+                            Text(L(locale, "المركز الميداني للنادي", "Centre opérationnel du club"), color = Muted, fontSize = 9.sp)
+                        }
+                    }
+                    Row(Modifier.clip(CircleShape).background(matchAccent.copy(alpha = .12f)).border(1.dp, matchAccent.copy(alpha = .24f), CircleShape).padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.size(6.dp).background(matchAccent, CircleShape))
+                        Text(if (featuredMatch?.status == "LIVE") L(locale, "مباشر", "EN DIRECT") else L(locale, "محدّث", "À JOUR"), color = matchAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (featuredMatch != null) {
+                    Text(L(locale, "المباراة الأخيرة", "DERNIER MATCH"), color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .08f)).border(1.dp, GlassBorder, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(32.dp))
+                            }
+                            Text(L(locale, "أمل سيدي حسني", "E Sidi Hosni"), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(if (featuredMatch.status == "SCHEDULED") "VS" else {
+                                val clubScore = featuredMatch.clubScore ?: 0
+                                val opponentScore = featuredMatch.opponentScore ?: 0
+                                if (featuredMatch.isHomeFixture) "$clubScore : $opponentScore" else "$opponentScore : $clubScore"
+                            }, color = AppText, fontSize = 22.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            Text(featuredMatch.competition.ifBlank { L(locale, "مباراة النادي", "Match du club") }, color = Muted, fontSize = 8.sp, maxLines = 1)
+                        }
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Glass))).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                Icon(IconlyIcons.Trophy, contentDescription = null, tint = Color(0xFFFF737A), modifier = Modifier.size(24.dp))
+                            }
+                            Text(featuredMatch.opponent, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(featuredMatch.date.take(16).replace('T', ' '), color = Muted, fontSize = 9.sp)
+                        Text(featuredMatch.statusLabel(locale), color = matchAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Text(L(locale, "كل شؤون النادي في مكان واحد", "Toute la vie du club, au même endroit"), color = AppText, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 29.sp)
+                    Text(L(locale, "المباريات والاجتماعات والمستجدات، متزامنة مع المنصة.", "Matchs, réunions et actualités synchronisés avec la plateforme."), color = Muted, fontSize = 11.sp, lineHeight = 18.sp)
+                }
+
+                Box(Modifier.fillMaxWidth().height(1.dp).background(GlassBorder))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CompactMetric(IconlyIcons.Match, data?.matches?.size?.toString() ?: "—", L(locale, "مباراة", "matchs"))
+                        CompactMetric(IconlyIcons.Calendar, data?.upcomingMeetings?.size?.toString() ?: "—", L(locale, "اجتماع", "réunions"))
+                    }
+                    Row(Modifier.clip(RoundedCornerShape(13.dp)).background(Red).clickable { onNavigate(Section.MATCHES) }.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(L(locale, "إدارة المباريات", "Gérer les matchs"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Icon(if (locale == "ar") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                    }
+                }
+            }
         }
-        Spacer(Modifier.height(18.dp))
-        Text(L(locale, "كل تفاصيل يوم المباراة،\nفي مكان واحد.", "Toute l’organisation du match,\nen un seul endroit."), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 33.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(L(locale, "متابعة المباريات والاجتماعات بتنبيهات مباشرة على هاتفك.", "Suivez matchs et réunions avec des alertes directes sur votre téléphone."), color = Color(0xFFBEC8D2), fontSize = 12.sp, lineHeight = 20.sp)
-        Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            MetricChip(L(locale, "مباريات", "Matchs"), data?.matches?.size?.toString() ?: "…", Icons.Rounded.SportsSoccer)
-            MetricChip(L(locale, "اجتماعات", "Réunions"), data?.let { it.meetings.size + it.upcomingMeetings.size }?.toString() ?: "…", Icons.Rounded.CalendarMonth)
-        }
-      }
     }
 }
 
 @Composable
-private fun MetricChip(label: String, value: String, icon: ImageVector) {
-    Row(Modifier.clip(RoundedCornerShape(15.dp)).background(Color.Black.copy(alpha = .22f)).border(1.dp, Color.White.copy(alpha = .08f), RoundedCornerShape(15.dp)).padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = .75f), modifier = Modifier.size(16.dp))
+private fun CompactMetric(icon: Int, value: String, label: String) {
+    Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Icon(icon, contentDescription = null, tint = Mint, modifier = Modifier.size(14.dp))
+        Text(value, color = AppText, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+        Text(label, color = Muted, fontSize = 9.sp)
+    }
+}
+
+@Composable
+private fun DigitalAdminCard(user: NativeUser, locale: String) {
+    var flipped by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(if (flipped) 180f else 0f, label = "admin-card-flip")
+    val density = LocalDensity.current
+    val image by produceState<ImageBitmap?>(initialValue = null, user.image) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val source = user.image?.takeIf { it.startsWith("https://") } ?: return@runCatching null
+                URL(source).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+            }.getOrNull()
+        }
+    }
+    Box(
+        Modifier.fillMaxWidth().height(174.dp).graphicsLayer {
+            rotationY = rotation
+            cameraDistance = 12 * density.density
+        }.clip(RoundedCornerShape(23.dp)).background(Brush.linearGradient(listOf(if (nativeThemeIsLight) Color(0xFFFFE5E7) else Color(0xFF551923), CardStart, CardEnd))).border(1.dp, Red.copy(alpha = .36f), RoundedCornerShape(23.dp)).clickable { flipped = !flipped }.padding(18.dp)
+    ) {
+        if (rotation <= 90f) {
+            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                if (image != null) Image(image!!, contentDescription = null, modifier = Modifier.size(72.dp).clip(CircleShape).border(2.dp, Red, CircleShape), contentScale = ContentScale.Crop)
+                else Box(Modifier.size(72.dp).clip(CircleShape).background(Red.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text(user.name.take(1).uppercase(), color = Red, fontSize = 25.sp, fontWeight = FontWeight.Black) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(L(locale, "بطاقة إدارية · أمل سيدي حسني", "CARTE ADMIN · ES SIDI HOSNI"), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(user.name, color = AppText, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                    Text(user.role, color = Muted, fontSize = 12.sp)
+                    Text(L(locale, "الرخصة: ", "Licence : ") + (user.licenseNumber ?: L(locale, "غير مسجل", "Non renseignée")), color = AppText, fontSize = 11.sp)
+                }
+                Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(36.dp))
+            }
+        } else {
+            Column(Modifier.fillMaxSize().graphicsLayer { rotationY = 180f }, verticalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(36.dp))
+                    Text(L(locale, "الهوية الإدارية الرقمية", "IDENTITÉ ADMINISTRATIVE NUMÉRIQUE"), color = Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+                Text(L(locale, "اضغط للعودة إلى الوجه الأمامي", "Touchez pour revenir au recto"), color = Muted, fontSize = 11.sp)
+                Text(user.email, color = AppText, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricChip(label: String, value: String, icon: Int) {
+    Row(Modifier.clip(RoundedCornerShape(15.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(15.dp)).padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = Red, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
-        Text(label, color = Color.White.copy(alpha = .78f), fontSize = 10.sp)
+        Text(label, color = Muted, fontSize = 10.sp)
         Spacer(Modifier.width(10.dp))
-        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun QuickActions(onNavigate: (Section) -> Unit, data: NativeData?, locale: String, onCreate: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        Text(L(locale, "وصول سريع", "Accès rapide"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(L(locale, "مساحة العمل", "Espace de travail"), color = AppText, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                Text(L(locale, "إجراءات مباشرة مرتبطة بحسابك", "Actions liées à votre compte"), color = Muted, fontSize = 9.sp)
+            }
+            Box(Modifier.size(7.dp).background(Mint, CircleShape))
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-            ActionTile(L(locale, "إدارة مباراة", "Gérer un match"), L(locale, "النتيجة والأحداث", "Score et événements"), Icons.Rounded.SportsSoccer, Red, Modifier.weight(1f).clickable { onNavigate(Section.MATCHES) })
-            ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), Icons.Rounded.CalendarMonth, Red, Modifier.weight(1f).clickable { onNavigate(Section.MEETINGS) })
+            if (data?.permissions?.updateMatches == true) {
+            ActionTile(L(locale, "إدارة مباراة", "Gérer un match"), L(locale, "النتيجة والأحداث", "Score et événements"), IconlyIcons.Match, Red, onClick = { onNavigate(Section.MATCHES) }, modifier = Modifier.weight(1f))
+            }
+            ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), IconlyIcons.Calendar, Mint, onClick = { onNavigate(Section.MEETINGS) }, modifier = Modifier.weight(1f))
         }
         if (data?.permissions?.training == true || data?.permissions?.announcements == true) {
             Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                if (data.permissions.training) ActionTile(L(locale, "إضافة تدريب", "Ajouter un entraînement"), L(locale, "إلى جدول النادي", "Au calendrier du club"), Icons.Rounded.FitnessCenter, Red, Modifier.weight(1f).clickable { onCreate("training") })
-                if (data.permissions.announcements) ActionTile(L(locale, "إضافة إعلان", "Publier une annonce"), L(locale, "على الموقع العام", "Sur le site public"), Icons.Rounded.Campaign, Red, Modifier.weight(1f).clickable { onCreate("announcement") })
+                if (data.permissions.training) ActionTile(L(locale, "إضافة تدريب", "Ajouter un entraînement"), L(locale, "إلى جدول النادي", "Au calendrier du club"), IconlyIcons.Activity, Mint, onClick = { onCreate("training") }, modifier = Modifier.weight(1f))
+                if (data.permissions.announcements) ActionTile(L(locale, "إضافة إعلان", "Publier une annonce"), L(locale, "على الموقع العام", "Sur le site public"), IconlyIcons.Document, Red, onClick = { onCreate("announcement") }, modifier = Modifier.weight(1f))
             }
         }
         if (data?.permissions?.news == true) {
-            ActionTile(L(locale, "إضافة خبر", "Publier une actualité"), L(locale, "باللغتين على الموقع العام", "En arabe et en français sur le site"), Icons.Rounded.Article, Red, Modifier.fillMaxWidth().clickable { onCreate("news") })
+            ActionTile(L(locale, "إضافة خبر", "Publier une actualité"), L(locale, "باللغتين على الموقع العام", "En arabe et en français sur le site"), IconlyIcons.Paper, Red, onClick = { onCreate("news") })
+        }
+        if (data?.permissions?.scheduleMeetings == true) {
+            ActionTile(L(locale, "إضافة اجتماع", "Planifier une réunion"), L(locale, "لفئتك مع إرسال تنبيه", "Pour votre équipe avec alerte"), IconlyIcons.Calendar, Mint, onClick = { onCreate("meeting") })
         }
     }
 }
 
 @Composable
-private fun ActionTile(title: String, detail: String, icon: ImageVector, accent: Color, modifier: Modifier = Modifier) {
-    Column(modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xDD20242D), Color(0xB314191F)))).border(1.dp, GlassBorder, RoundedCornerShape(20.dp)).padding(15.dp)) {
-        Box(Modifier.size(35.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(19.dp))
+private fun ActionTile(title: String, detail: String, icon: Int, accent: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) .975f else 1f, label = "action-tile-press")
+    val iconScale by animateFloatAsState(if (pressed) .84f else 1f, label = "action-icon-press")
+    val shape = RoundedCornerShape(20.dp)
+    Column(modifier.graphicsLayer { scaleX = scale; scaleY = scale }.clip(shape)
+        .background(Brush.linearGradient(listOf(CardStart, CardEnd)))
+        .border(1.dp, if (pressed) accent.copy(alpha = .34f) else GlassBorder, shape)
+        .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+        .padding(14.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Brush.linearGradient(listOf(accent.copy(alpha = .24f), accent.copy(alpha = .08f)))), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale })
+            }
+            Icon(if (LocalLayoutDirection.current == LayoutDirection.Rtl) IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = null, tint = Muted, modifier = Modifier.size(18.dp))
         }
-        Spacer(Modifier.height(13.dp))
-        Text(title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(4.dp))
-        Text(detail, color = Muted, fontSize = 10.sp)
-    }
-}
-
-@Composable
-private fun StatusCard(loading: Boolean, error: String?, locale: String) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xCC20252D), Color(0xA814191F)))).border(1.dp, GlassBorder, RoundedCornerShape(18.dp)).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(36.dp).clip(CircleShape).background(Red.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Tune, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(L(locale, "حالة الاتصال", "État de connexion"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(error ?: if (loading) L(locale, "جارٍ مزامنة حساب المنصة", "Synchronisation de la plateforme…") else L(locale, "متصل بحساب المنصة", "Connecté à la plateforme"), color = Muted, fontSize = 10.sp)
-        }
-        Box(Modifier.size(8.dp).background(Color(0xFFF1A84B), CircleShape))
+        Spacer(Modifier.height(12.dp))
+        Text(title, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Spacer(Modifier.height(3.dp))
+        Text(detail, color = Muted, fontSize = 9.sp, maxLines = 1)
     }
 }
 
 @Composable
 private fun MatchCard(
+    match: NativeMatch,
+    saving: Boolean,
+    locale: String,
+    onUpdate: (NativeMatch, Int, Int, String?) -> Unit,
+    onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
+    onDeleteEvent: (NativeMatch, NativeEvent) -> Unit
+) {
+    var expanded by remember(match.id) { mutableStateOf(false) }
+    var clubScore by remember(match.id, match.clubScore) { mutableIntStateOf(match.clubScore ?: 0) }
+    var opponentScore by remember(match.id, match.opponentScore) { mutableIntStateOf(match.opponentScore ?: 0) }
+    var eventToDelete by remember(match.id) { mutableStateOf<NativeEvent?>(null) }
+    val clubSide = if (match.isHomeFixture) "HOME" else "AWAY"
+    val displayedScore = if (match.isHomeFixture) "${match.clubScore ?: 0} : ${match.opponentScore ?: 0}" else "${match.opponentScore ?: 0} : ${match.clubScore ?: 0}"
+    val currentClubScore = if (match.isHomeFixture) clubScore else opponentScore
+    val currentOpponentScore = if (match.isHomeFixture) opponentScore else clubScore
+    val statusAccent = when (match.status) { "LIVE" -> Red; "FINISHED" -> Mint; "POSTPONED" -> Color(0xFFF0A52B); else -> Muted }
+    val shape = RoundedCornerShape(22.dp)
+    Column(Modifier.fillMaxWidth().animateContentSize().clip(shape).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, shape)) {
+        Box(Modifier.fillMaxWidth().height(3.dp).background(statusAccent))
+        Column(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.size(6.dp).background(statusAccent, CircleShape))
+                        Text(match.competition.ifBlank { L(locale, "مباراة النادي", "Match du club") }, color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Text(match.opponent, color = AppText, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Icon(IconlyIcons.Calendar, contentDescription = null, tint = Muted, modifier = Modifier.size(12.dp))
+                        Text(match.date.take(16).replace('T', ' '), color = Muted, fontSize = 9.sp, maxLines = 1)
+                    }
+                }
+                Column(Modifier.clip(RoundedCornerShape(15.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .19f), RoundedCornerShape(15.dp)).padding(horizontal = 14.dp, vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(displayedScore, color = Red, fontSize = 21.sp, fontWeight = FontWeight.Black, maxLines = 1)
+                    Text(L(locale, "النادي  ·  الخصم", "CLUB  ·  ADV."), color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                MatchStatChip(L(locale, "التسديدات", "Tirs"), "${match.shotsFor}  ·  ${match.shotsAgainst}", IconlyIcons.Activity)
+                MatchStatChip("xG", "${"%.2f".format(java.util.Locale.US, match.xgFor)}  ·  ${"%.2f".format(java.util.Locale.US, match.xgAgainst)}", IconlyIcons.Trophy)
+                MatchStatChip(L(locale, "البطاقات", "Cartons"), "${match.yellowCardsFor} 🟨  ${match.redCardsFor} 🟥", IconlyIcons.Match)
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                val latestEvents = match.events.takeLast(2)
+                Text(
+                    if (latestEvents.isNotEmpty()) latestEvents.joinToString("   ·   ") { "${it.minute}′ ${it.playerName ?: eventLabel(it.type, locale)}" }
+                    else match.statusLabel(locale),
+                    color = if (match.status == "LIVE") statusAccent else Muted,
+                    fontSize = 9.sp,
+                    fontWeight = if (match.status == "LIVE") FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(if (expanded) L(locale, "إخفاء التفاصيل", "Réduire") else L(locale, "التفاصيل", "Détails"), color = Muted, fontSize = 9.sp)
+                    Icon(IconlyIcons.ArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(14.dp).graphicsLayer { rotationZ = if (expanded) 180f else 0f })
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(GlassBorder))
+                if (match.canUpdate) {
+                    Text(L(locale, "تعديل النتيجة وحالة المباراة", "Score et état du match"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(14.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                        ScoreStepper(L(locale, "فريق النادي", "Notre équipe"), currentClubScore) { value ->
+                            if (!saving && value >= 0) { clubScore = value; onUpdate(match, if (match.isHomeFixture) value else currentOpponentScore, if (match.isHomeFixture) currentOpponentScore else value, null) }
+                        }
+                        Text(":", color = Muted, fontWeight = FontWeight.Bold)
+                        ScoreStepper(L(locale, "الخصم", "Adversaire"), currentOpponentScore) { value ->
+                            if (!saving && value >= 0) { opponentScore = value; onUpdate(match, if (match.isHomeFixture) currentClubScore else value, if (match.isHomeFixture) value else currentClubScore, null) }
+                        }
+                    }
+                    val statusActions = when (match.status) {
+                        "SCHEDULED" -> listOf("LIVE" to L(locale, "بدء المباراة", "Démarrer"), "POSTPONED" to L(locale, "تأجيل", "Reporter"))
+                        "LIVE" -> listOf("FINISHED" to L(locale, "إنهاء المباراة", "Terminer"), "POSTPONED" to L(locale, "تأجيل", "Reporter"))
+                        "FINISHED" -> listOf("LIVE" to L(locale, "إعادة فتح المباراة", "Rouvrir le match"))
+                        "POSTPONED" -> listOf("SCHEDULED" to L(locale, "إعادتها للجدول", "Remettre au calendrier"))
+                        else -> listOf("SCHEDULED" to L(locale, "إعادة جدولة المباراة", "Reprogrammer"))
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        statusActions.forEach { (status, label) ->
+                            val primary = status == "LIVE" || status == "FINISHED"
+                            Text(label, color = if (primary) Color.White else AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(11.dp)).background(if (primary) Red else Glass).border(1.dp, if (primary) Red else GlassBorder, RoundedCornerShape(11.dp)).clickable(enabled = !saving) { onUpdate(match, clubScore, opponentScore, status) }.padding(horizontal = 8.dp, vertical = 11.dp))
+                        }
+                    }
+                }
+                if (match.events.isNotEmpty()) {
+                    Text(L(locale, "أحداث المباراة", "Événements du match"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        match.events.asReversed().forEach { event ->
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${event.minute}′", color = Red, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                Spacer(Modifier.width(9.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(event.playerName?.let { "$it · ${eventLabel(event.type, locale)}" } ?: eventLabel(event.type, locale), color = AppText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(if (event.side == clubSide) L(locale, "النادي", "Club") else L(locale, "الخصم", "Adversaire"), color = Muted, fontSize = 9.sp)
+                                }
+                                event.xG?.let { Text("xG ${"%.2f".format(java.util.Locale.US, it)}", color = Mint, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                                if (match.canReport && event.source == "MANUAL") {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(IconlyIcons.Close, contentDescription = L(locale, "حذف الحدث", "Supprimer l’événement"), tint = Red, modifier = Modifier.size(19.dp).clickable(enabled = !saving) { eventToDelete = event })
+                                }
+                            }
+                        }
+                    }
+                } else Text(L(locale, "لا توجد أحداث مسجلة بعد.", "Aucun événement enregistré."), color = Muted, fontSize = 11.sp)
+                if (match.canReport && (match.status == "LIVE" || match.status == "FINISHED")) {
+                    NativeMatchEventComposer(match, saving, locale, onAddEvent)
+                }
+            }
+        }
+    }
+    eventToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { eventToDelete = null },
+            title = { Text(L(locale, "حذف الحدث؟", "Supprimer l’événement ?"), color = AppText, fontWeight = FontWeight.Bold) },
+            text = { Text(L(locale, "سيُحذف الحدث وتُعدّل النتيجة تلقائيًا إذا كان هدفًا. الأحداث الرسمية لا يمكن حذفها.", "L’événement sera supprimé et le score ajusté s’il s’agit d’un but. Les événements officiels sont protégés."), color = Muted) },
+            confirmButton = { TextButton(onClick = { onDeleteEvent(match, target); eventToDelete = null }) { Text(L(locale, "حذف", "Supprimer"), color = Red) } },
+            dismissButton = { TextButton(onClick = { eventToDelete = null }) { Text(L(locale, "إلغاء", "Annuler"), color = Muted) } },
+            containerColor = Panel
+        )
+    }
+}
+
+@Composable
+private fun RowScope.MatchStatChip(label: String, value: String, icon: Int) {
+    Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(icon, contentDescription = null, tint = Red.copy(alpha = .85f), modifier = Modifier.size(11.dp))
+            Text(label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        Text(value, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun NativeMatchEventComposer(match: NativeMatch, saving: Boolean, locale: String, onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit) {
+    val clubSide = if (match.isHomeFixture) "HOME" else "AWAY"
+    var eventType by remember(match.id, match.events.size) { mutableStateOf("GOAL") }
+    var side by remember(match.id, match.events.size) { mutableStateOf(clubSide) }
+    var minute by remember(match.id, match.events.size) { mutableStateOf("1") }
+    var playerId by remember(match.id, match.events.size) { mutableStateOf(match.players.firstOrNull()?.id.orEmpty()) }
+    var outgoingPlayerId by remember(match.id, match.events.size) { mutableStateOf("") }
+    var playerName by remember(match.id, match.events.size) { mutableStateOf("") }
+    var outgoingPlayerName by remember(match.id, match.events.size) { mutableStateOf("") }
+    var assistId by remember(match.id, match.events.size) { mutableStateOf("") }
+    var bodyPart by remember(match.id, match.events.size) { mutableStateOf("RIGHT_FOOT") }
+    var situation by remember(match.id, match.events.size) { mutableStateOf("OPEN_PLAY") }
+    var outcome by remember(match.id, match.events.size) { mutableStateOf("SAVED") }
+    var shotPoint by remember(match.id, match.events.size) { mutableStateOf<Pair<Float, Float>?>(null) }
+    val isClub = side == clubSide
+    val isShot = eventType in setOf("GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED")
+    val penalty = eventType == "PENALTY_GOAL" || eventType == "PENALTY_MISSED"
+    val isGoal = eventType == "GOAL" || eventType == "PENALTY_GOAL"
+    val isSubstitution = eventType == "SUBSTITUTION_IN"
+    val eventTypes = listOf(
+        "GOAL" to L(locale, "هدف", "But"), "SHOT" to L(locale, "تسديدة", "Tir"),
+        "PENALTY_GOAL" to L(locale, "هدف جزاء", "But sur penalty"), "PENALTY_MISSED" to L(locale, "جزاء ضائع", "Penalty manqué"),
+        "OWN_GOAL" to L(locale, "هدف عكسي", "But contre son camp"), "YELLOW_CARD" to L(locale, "بطاقة صفراء", "Carton jaune"),
+        "RED_CARD" to L(locale, "بطاقة حمراء", "Carton rouge"), "SUBSTITUTION_IN" to L(locale, "تبديل", "Remplacement")
+    )
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Text(L(locale, "تسجيل حدث ميداني", "Ajouter un événement"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        NativeDropdownField(L(locale, "نوع الحدث", "Événement"), eventTypes.first { it.first == eventType }.second, L(locale, "اختر الحدث", "Choisir"), eventTypes, onSelected = { eventType = it; shotPoint = null })
+        NativeDropdownField(L(locale, "الفريق", "Équipe"), if (side == clubSide) L(locale, "النادي", "Club") else match.opponent, L(locale, "اختر الفريق", "Choisir l’équipe"), listOf(clubSide to L(locale, "النادي", "Club"), (if (clubSide == "HOME") "AWAY" else "HOME") to match.opponent), onSelected = { side = it; playerName = ""; playerId = match.players.firstOrNull()?.id.orEmpty() })
+        OutlinedTextField(value = minute, onValueChange = { minute = it.filter(Char::isDigit).take(3) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "الدقيقة", "Minute")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+        if (isClub) {
+            val eligiblePlayers = match.players
+            NativeDropdownField(
+                L(locale, if (isSubstitution) "اللاعب الداخل" else "لاعب النادي", if (isSubstitution) "Joueur entrant" else "Joueur du club"),
+                eligiblePlayers.firstOrNull { it.id == playerId }?.let { it.number?.let { n -> "$n · " }.orEmpty() + it.name } ?: "",
+                if (eligiblePlayers.isEmpty()) L(locale, "لاعبو الفئة غير متاحين", "Aucun joueur disponible") else L(locale, "اختر لاعبًا", "Choisir un joueur"),
+                eligiblePlayers.map { player -> player.id to (player.number?.let { "$it · " }.orEmpty() + (if (locale == "fr" && player.nameFr.isNotBlank()) player.nameFr else player.name)) },
+                onSelected = { playerId = it }
+            )
+            if (isSubstitution) NativeDropdownField(L(locale, "اللاعب الخارج", "Joueur sortant"), match.players.firstOrNull { it.id == outgoingPlayerId }?.name.orEmpty(), L(locale, "اختر اللاعب الخارج", "Choisir le joueur sortant"), match.players.filter { it.id != playerId }.map { it.id to it.name }, onSelected = { outgoingPlayerId = it })
+        } else {
+            OutlinedTextField(value = playerName, onValueChange = { playerName = it.take(120) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "اسم لاعب الخصم", "Joueur adverse")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+            if (isSubstitution) OutlinedTextField(value = outgoingPlayerName, onValueChange = { outgoingPlayerName = it.take(120) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "اسم اللاعب الخارج", "Joueur sortant")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+        }
+        if (isShot && isClub) {
+            if (isGoal) NativeDropdownField(L(locale, "طريقة التسديد", "Finition"), bodyPartLabel(bodyPart, locale), L(locale, "اختر الطريقة", "Choisir"), listOf("RIGHT_FOOT" to L(locale, "القدم اليمنى", "Pied droit"), "LEFT_FOOT" to L(locale, "القدم اليسرى", "Pied gauche"), "HEAD" to L(locale, "الرأس", "Tête"), "OTHER" to L(locale, "أخرى", "Autre")), onSelected = { bodyPart = it })
+            if (!penalty) NativeDropdownField(L(locale, "نوع الهجمة", "Phase de jeu"), situationLabel(situation, locale), L(locale, "اختر النوع", "Choisir"), listOf("OPEN_PLAY" to L(locale, "لعب مفتوح", "Jeu ouvert"), "FREE_KICK" to L(locale, "ركلة حرة", "Coup franc"), "CORNER" to L(locale, "ركنية", "Corner"), "OTHER" to L(locale, "أخرى", "Autre")), onSelected = { situation = it })
+            if (eventType == "SHOT") NativeDropdownField(L(locale, "نتيجة التسديدة", "Résultat"), outcomeLabel(outcome, locale), L(locale, "اختر النتيجة", "Choisir"), listOf("SAVED" to L(locale, "تصدى لها الحارس", "Arrêtée"), "OFF_TARGET" to L(locale, "خارج المرمى", "Hors cadre"), "BLOCKED" to L(locale, "مصدودة", "Contrée"), "WOODWORK" to L(locale, "القائم أو العارضة", "Poteau / barre")), onSelected = { outcome = it })
+            if (isGoal && match.players.size > 1) NativeDropdownField(L(locale, "التمريرة الحاسمة (اختياري)", "Passe décisive (facultatif)"), match.players.firstOrNull { it.id == assistId }?.name.orEmpty(), L(locale, "بدون تمريرة حاسمة", "Sans passe décisive"), listOf("" to L(locale, "بدون تمريرة حاسمة", "Sans passe décisive")) + match.players.filter { it.id != playerId }.map { it.id to it.name }, onSelected = { assistId = it })
+            if (!penalty) {
+                ShotLocationPicker(
+                    point = shotPoint,
+                    locale = locale,
+                    onPoint = { x, y -> shotPoint = x to y },
+                    onClear = { shotPoint = null }
+                )
+            } else {
+                Text(L(locale, "xG ركلة الجزاء يُحسب تلقائيًا (0.76)", "Le xG du penalty est calculé automatiquement (0,76)"), color = Mint, fontSize = 10.sp)
+            }
+        }
+        val canSave = !saving && minute.toIntOrNull() != null && (if (isClub) playerId.isNotBlank() else playerName.isNotBlank()) && (!isSubstitution || if (isClub) outgoingPlayerId.isNotBlank() else outgoingPlayerName.isNotBlank()) && (!isShot || !isClub || eventType in setOf("PENALTY_GOAL", "PENALTY_MISSED") || shotPoint != null)
+        ClubPrimaryButton(text = L(locale, "إضافة الحدث", "Ajouter l’événement"), enabled = canSave, onClick = {
+            val payload = org.json.JSONObject().put("type", eventType).put("side", side).put("minute", minute.toIntOrNull() ?: 0)
+            if (isClub) payload.put("playerId", playerId) else payload.put("playerName", playerName.trim())
+            if (isSubstitution) { if (isClub) payload.put("outPlayerId", outgoingPlayerId) else payload.put("outPlayerName", outgoingPlayerName.trim()) }
+            if (isGoal && isClub) payload.put("bodyPart", bodyPart)
+            if (isShot && isClub) {
+                payload.put("situation", if (penalty) "PENALTY" else situation)
+                if (eventType == "SHOT") payload.put("outcome", outcome)
+                shotPoint?.let { payload.put("x", it.first.toDouble()).put("y", it.second.toDouble()) }
+                if (assistId.isNotBlank()) payload.put("assistPlayerId", assistId)
+            }
+            onAddEvent(match, payload)
+        })
+    }
+}
+
+@Composable
+private fun ShotLocationPicker(
+    point: Pair<Float, Float>?,
+    locale: String,
+    onPoint: (Float, Float) -> Unit,
+    onClear: () -> Unit
+) {
+    val markerScale by animateFloatAsState(if (point == null) .9f else 1.08f, label = "shot-marker")
+    val fieldShape = RoundedCornerShape(17.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(19.dp))
+            .background(Brush.linearGradient(if (nativeThemeIsLight) listOf(Color(0xFFEFF5F2), Color(0xFFE6EEEA)) else listOf(Color(0xFF171E1C), Color(0xFF101514))))
+            .border(1.dp, if (point != null) Mint.copy(alpha = .30f) else GlassBorder, RoundedCornerShape(19.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(L(locale, "موقع التسديدة", "Emplacement du tir"), color = AppText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(L(locale, "المس الملعب لتحديد نقطة احتساب xG", "Touchez le terrain pour définir le point xG"), color = Muted, fontSize = 9.sp)
+            }
+            Row(Modifier.clip(CircleShape).background((if (point == null) Red else Mint).copy(alpha = .12f)).padding(horizontal = 9.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.size(6.dp).background(if (point == null) Red else Mint, CircleShape))
+                Text(if (point == null) L(locale, "مطلوب", "REQUIS") else L(locale, "تم التحديد", "DÉFINI"), color = if (point == null) Red else Mint, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Box(Modifier.fillMaxWidth().height(151.dp).clip(fieldShape).background(Color(0xFF063F31))) {
+            Canvas(Modifier.fillMaxSize().pointerInput(locale) {
+                detectTapGestures { tap ->
+                    onPoint(
+                        (tap.x / size.width * 100f).coerceIn(0f, 100f),
+                        (tap.y / size.height * 100f).coerceIn(0f, 100f)
+                    )
+                }
+            }) {
+                val stripe = Color(0xFF1C7657).copy(alpha = .20f)
+                val marking = Color.White.copy(alpha = .66f)
+                drawRect(brush = Brush.linearGradient(listOf(Color(0xFF0B6549), Color(0xFF064333), Color(0xFF07513B))), size = size)
+                for (lane in 0..5) {
+                    if (lane % 2 == 0) drawRect(
+                        color = stripe,
+                        topLeft = Offset(size.width * lane / 6f, 0f),
+                        size = Size(size.width / 6f, size.height)
+                    )
+                }
+                val inset = 7.dp.toPx()
+                val left = inset
+                val right = size.width - inset
+                val top = inset
+                val bottom = size.height - inset
+                val centerY = size.height / 2f
+                drawRect(color = marking, topLeft = Offset(left, top), size = Size(right - left, bottom - top), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+                drawLine(marking, Offset(size.width / 2f, top), Offset(size.width / 2f, bottom), 1.1.dp.toPx())
+                drawCircle(marking, size.height * .19f, Offset(size.width / 2f, centerY), style = androidx.compose.ui.graphics.drawscope.Stroke(1.1.dp.toPx()))
+                drawCircle(Mint.copy(alpha = .75f), 1.8.dp.toPx(), Offset(size.width / 2f, centerY))
+
+                // The xG model treats the opponent goal as x=100, y=50; keep
+                // this visual attack direction aligned with the saved values.
+                val boxLeft = right - size.width * .19f
+                val sixLeft = right - size.width * .075f
+                drawRect(color = marking, topLeft = Offset(boxLeft, size.height * .19f), size = Size(right - boxLeft, size.height * .62f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.1.dp.toPx()))
+                drawRect(color = marking, topLeft = Offset(sixLeft, size.height * .36f), size = Size(right - sixLeft, size.height * .28f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.1.dp.toPx()))
+                drawCircle(marking, 1.8.dp.toPx(), Offset(right - size.width * .13f, centerY))
+                drawRect(color = Color.White.copy(alpha = .82f), topLeft = Offset(right - 1.dp.toPx(), centerY - size.height * .13f), size = Size(5.dp.toPx(), size.height * .26f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.4.dp.toPx()))
+
+                point?.let { (x, y) ->
+                    val marker = Offset(size.width * x / 100f, size.height * y / 100f)
+                    drawCircle(Color.White.copy(alpha = .23f), 15.dp.toPx() * markerScale, marker)
+                    drawCircle(Color.White, 10.dp.toPx() * markerScale, marker)
+                    drawCircle(Red, 7.5.dp.toPx() * markerScale, marker)
+                    drawCircle(Color.White, 2.dp.toPx(), marker)
+                }
+            }
+            Row(Modifier.align(Alignment.TopStart).padding(8.dp).clip(CircleShape).background(Color.Black.copy(alpha = .32f)).padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(IconlyIcons.ArrowRight, contentDescription = null, tint = Mint, modifier = Modifier.size(12.dp))
+                Text(L(locale, "اتجاه الهجوم", "Attaque"), color = Color.White.copy(alpha = .9f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(L(locale, "مرمى الخصم", "BUT ADVERSE"), color = Color.White.copy(alpha = .9f), fontSize = 7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).graphicsLayer { rotationZ = -90f })
+            if (point == null) {
+                Text(L(locale, "المس لتحديد الموقع", "Touchez pour placer le tir"), color = Color.White.copy(alpha = .85f), fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = .34f)).padding(horizontal = 10.dp, vertical = 5.dp))
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            if (point != null) {
+                Text("x ${point.first.toInt()}%   ·   y ${point.second.toInt()}%", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                Text(L(locale, "مسح النقطة", "Effacer"), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = onClear).padding(horizontal = 8.dp, vertical = 5.dp))
+            } else {
+                Text(L(locale, "الهجوم نحو المرمى الظاهر يمين الملعب", "Attaque vers le but à droite"), color = Muted, fontSize = 8.sp)
+                Text("xG", color = Mint, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+private fun bodyPartLabel(value: String, locale: String) = when(value) { "RIGHT_FOOT" -> L(locale, "القدم اليمنى", "Pied droit"); "LEFT_FOOT" -> L(locale, "القدم اليسرى", "Pied gauche"); "HEAD" -> L(locale, "الرأس", "Tête"); else -> L(locale, "أخرى", "Autre") }
+private fun situationLabel(value: String, locale: String) = when(value) { "FREE_KICK" -> L(locale, "ركلة حرة", "Coup franc"); "CORNER" -> L(locale, "ركنية", "Corner"); "OTHER" -> L(locale, "أخرى", "Autre"); else -> L(locale, "لعب مفتوح", "Jeu ouvert") }
+private fun outcomeLabel(value: String, locale: String) = when(value) { "OFF_TARGET" -> L(locale, "خارج المرمى", "Hors cadre"); "BLOCKED" -> L(locale, "مصدودة", "Contrée"); "WOODWORK" -> L(locale, "القائم أو العارضة", "Poteau / barre"); else -> L(locale, "تصدى لها الحارس", "Arrêtée") }
+
+@Composable
+private fun LegacyMatchCard(
     match: NativeMatch,
     saving: Boolean,
     locale: String,
@@ -452,10 +1315,10 @@ private fun MatchCard(
     var minute by remember { mutableStateOf("0") }
     val selectedPlayerName = match.players.firstOrNull { it.id == selectedPlayer }?.let { if (locale == "fr" && it.nameFr.isNotBlank()) it.nameFr else it.name } ?: L(locale, "اختر لاعبًا", "Choisir un joueur")
 
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(Color(0xD921252D), Color(0xB313181E)))).border(1.dp, GlassBorder, RoundedCornerShape(22.dp)).clickable { expanded = !expanded }.padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(22.dp)).clickable { expanded = !expanded }.padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(match.opponent, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(match.opponent, color = AppText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
                 Text(match.competition, color = Muted, fontSize = 10.sp)
                 Text(match.date.take(16).replace('T', ' '), color = Muted, fontSize = 10.sp)
@@ -467,7 +1330,7 @@ private fun MatchCard(
         }
         if (match.events.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text(match.events.takeLast(3).joinToString("   ·   ") { "${it.minute}′ ${it.playerName ?: eventLabel(it.type, locale)}" }, color = Color(0xFFB8C5CE), fontSize = 10.sp, maxLines = 2)
+            Text(match.events.takeLast(3).joinToString("   ·   ") { "${it.minute}′ ${it.playerName ?: eventLabel(it.type, locale)}" }, color = Muted, fontSize = 10.sp, maxLines = 2)
         }
 
         if (expanded) {
@@ -475,7 +1338,7 @@ private fun MatchCard(
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = .08f)))
             if (match.canUpdate) {
                 Spacer(Modifier.height(13.dp))
-                Text(L(locale, "تحديث النتيجة", "Modifier le score"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(L(locale, "تحديث النتيجة", "Modifier le score"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     ScoreStepper(L(locale, "فريق النادي", "Notre équipe"), clubScore, onChange = { next -> if (!saving && next >= 0) { clubScore = next; onUpdate(match, next, opponentScore, null) } })
@@ -491,22 +1354,28 @@ private fun MatchCard(
 
             if (match.canReport && (match.status == "LIVE" || match.status == "FINISHED")) {
                 Spacer(Modifier.height(14.dp))
-                Text(L(locale, "تسجيل هدف", "Ajouter un but"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(L(locale, "تسجيل هدف", "Ajouter un but"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(value = minute, onValueChange = { minute = it.filter(Char::isDigit).take(3) }, modifier = Modifier.width(84.dp), singleLine = true, label = { Text(L(locale, "الدقيقة", "Minute")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                     if (match.players.isNotEmpty()) {
                         Box {
-                            Text(selectedPlayerName, color = Color.White, fontSize = 10.sp, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = .06f)).clickable { playerMenu = true }.padding(horizontal = 10.dp, vertical = 12.dp))
-                            DropdownMenu(expanded = playerMenu, onDismissRequest = { playerMenu = false }) {
-                                match.players.forEach { player -> DropdownMenuItem(text = { Text(player.number?.let { "$it · ${player.name}" } ?: player.name) }, onClick = { selectedPlayer = player.id; playerMenu = false }) }
-                            }
+                            Text(selectedPlayerName, color = AppText, fontSize = 10.sp, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(10.dp)).clickable { playerMenu = true }.padding(horizontal = 10.dp, vertical = 12.dp))
+                            ClubDropdownMenu(
+                                expanded = playerMenu,
+                                onDismissRequest = { playerMenu = false },
+                                title = L(locale, "قائمة اللاعبين", "Joueurs disponibles"),
+                                locale = locale,
+                                selectedKey = selectedPlayer.orEmpty(),
+                                options = match.players.map { player -> player.id to (player.number?.let { "$it · " }.orEmpty() + (if (locale == "fr" && player.nameFr.isNotBlank()) player.nameFr else player.name)) },
+                                onSelected = { selectedPlayer = it; playerMenu = false }
+                            )
                         }
                     }
                 }
                 OutlinedTextField(value = opponentName, onValueChange = { opponentName = it.take(120) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "اسم لاعب الخصم", "Nom du joueur adverse")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(L(locale, "هدف للنادي", "But pour le club"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).clip(RoundedCornerShape(11.dp)).background(Red.copy(alpha = .75f)).clickable(enabled = !saving && selectedPlayer != null) { onAddGoal(match, true, selectedPlayer, null, minute.toIntOrNull() ?: 0) }.padding(horizontal = 8.dp, vertical = 11.dp), textAlign = TextAlign.Center)
-                    Text(L(locale, "هدف للخصم", "But adverse"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = .09f)).clickable(enabled = !saving && opponentName.isNotBlank()) { onAddGoal(match, false, null, opponentName.trim(), minute.toIntOrNull() ?: 0); opponentName = "" }.padding(horizontal = 8.dp, vertical = 11.dp), textAlign = TextAlign.Center)
+                    Text(L(locale, "هدف للخصم", "But adverse"), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).clip(RoundedCornerShape(11.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(11.dp)).clickable(enabled = !saving && opponentName.isNotBlank()) { onAddGoal(match, false, null, opponentName.trim(), minute.toIntOrNull() ?: 0); opponentName = "" }.padding(horizontal = 8.dp, vertical = 11.dp), textAlign = TextAlign.Center)
                 }
             }
         }
@@ -518,8 +1387,8 @@ private fun ScoreStepper(label: String, score: Int, onChange: (Int) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, color = Muted, fontSize = 9.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("−", color = Color.White, fontSize = 19.sp, modifier = Modifier.clip(CircleShape).clickable { onChange(score - 1) }.padding(horizontal = 11.dp, vertical = 3.dp))
-            Text(score.toString(), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 5.dp))
+            Text("−", color = AppText, fontSize = 19.sp, modifier = Modifier.clip(CircleShape).background(Glass).clickable { onChange(score - 1) }.padding(horizontal = 11.dp, vertical = 3.dp))
+            Text(score.toString(), color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 5.dp))
             Text("+", color = Red, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable { onChange(score + 1) }.padding(horizontal = 11.dp, vertical = 3.dp))
         }
     }
@@ -535,8 +1404,14 @@ private fun NativeMatch.statusLabel(locale: String): String = when (status) {
 
 private fun eventLabel(type: String, locale: String): String = when (type) {
     "GOAL", "PENALTY_GOAL" -> L(locale, "هدف", "But")
+    "OWN_GOAL" -> L(locale, "هدف عكسي", "But contre son camp")
+    "SHOT" -> L(locale, "تسديدة", "Tir")
+    "PENALTY_MISSED" -> L(locale, "جزاء ضائع", "Penalty manqué")
+    "ASSIST" -> L(locale, "تمريرة حاسمة", "Passe décisive")
     "YELLOW_CARD" -> L(locale, "إنذار", "Carton jaune")
     "RED_CARD" -> L(locale, "طرد", "Carton rouge")
+    "SUBSTITUTION_IN" -> L(locale, "دخول لاعب", "Entrée")
+    "SUBSTITUTION_OUT" -> L(locale, "خروج لاعب", "Sortie")
     else -> type
 }
 
@@ -548,14 +1423,20 @@ private fun categoryLabel(category: String, locale: String): String = when (cate
     else -> category
 }
 
+/** Keep native team pickers aligned with the platform's category order. */
+private fun orderedNativeTeams(teams: List<NativeTeam>): List<NativeTeam> {
+    val categoryOrder = mapOf("SENIOR" to 0, "U20" to 1, "U17" to 2, "U15" to 3)
+    return teams.sortedBy { categoryOrder[it.category] ?: Int.MAX_VALUE }
+}
+
 @Composable
 private fun MeetingCard(meeting: NativeMeeting, locale: String) {
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = Red, modifier = Modifier.size(23.dp))
+            Icon(IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(23.dp))
             Spacer(Modifier.width(13.dp))
             Column {
-                Text(meeting.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(meeting.title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
                 Text(meeting.date.take(16).replace('T', ' '), color = Muted, fontSize = 10.sp)
                 meeting.location?.takeIf { it.isNotBlank() }?.let { Text(it, color = Muted, fontSize = 10.sp) }
@@ -568,10 +1449,10 @@ private fun MeetingCard(meeting: NativeMeeting, locale: String) {
 private fun AlertCard(alert: NativeAlert, locale: String) {
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.NotificationsNone, contentDescription = null, tint = if (alert.read) Muted else Red, modifier = Modifier.size(22.dp))
+            Icon(IconlyIcons.Notification, contentDescription = null, tint = if (alert.read) Muted else Red, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(alert.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(alert.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 alert.message?.let { Text(it, color = Muted, fontSize = 10.sp) }
             }
         }
@@ -580,11 +1461,12 @@ private fun AlertCard(alert: NativeAlert, locale: String) {
 
 @Composable
 private fun GlassCard(content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(21.dp)).background(Brush.linearGradient(listOf(Color(0xD920252D), Color(0xB313181E)))).border(1.dp, GlassBorder, RoundedCornerShape(21.dp)).padding(16.dp)) { content() }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(21.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(21.dp)).padding(16.dp)) { content() }
 }
 
 @Composable
-private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, teamScopeRestricted: Boolean, locale: String, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {
+private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: List<NativeCoach>, teamScopeRestricted: Boolean, locale: String, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {
+    val orderedTeams = orderedNativeTeams(teams)
     var titleAr by remember(type) { mutableStateOf("") }
     var contentAr by remember(type) { mutableStateOf("") }
     var titleFr by remember(type) { mutableStateOf("") }
@@ -595,10 +1477,13 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, teamScopeR
     var location by remember(type) { mutableStateOf("") }
     var category by remember(type) { mutableStateOf("") }
     var notes by remember(type) { mutableStateOf("") }
-    var teamId by remember(type, teams) { mutableStateOf(teams.firstOrNull()?.id.orEmpty()) }
+    var teamId by remember(type, orderedTeams) { mutableStateOf(orderedTeams.firstOrNull()?.id.orEmpty()) }
+    var coachId by remember(type) { mutableStateOf("") }
     var teamMenu by remember { mutableStateOf(false) }
+    var contentLocale by remember(type) { mutableStateOf("ar") }
     val title = when (type) {
         "training" -> L(locale, "إضافة تدريب", "Nouvel entraînement")
+        "meeting" -> L(locale, "إضافة اجتماع", "Nouvelle réunion")
         "announcement" -> L(locale, "إضافة إعلان", "Nouvelle annonce")
         else -> L(locale, "إضافة خبر", "Nouvelle actualité")
     }
@@ -608,121 +1493,301 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, teamScopeR
         containerColor = Panel,
         titleContentColor = Color.White,
         textContentColor = Muted,
-        title = { Text(title, fontWeight = FontWeight.Bold, fontFamily = CairoFamily) },
+        title = {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .22f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                    Icon(if (type == "training") IconlyIcons.Activity else if (type == "meeting") IconlyIcons.Calendar else IconlyIcons.Paper, contentDescription = null, tint = Red, modifier = Modifier.size(22.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily, fontSize = 19.sp)
+                    Text(when (type) { "training" -> L(locale, "نظّم الحصة وحدد موعدها", "Organisez la séance et son horaire"); "meeting" -> L(locale, "حدد اجتماعًا لفئتك وأرسل التنبيه", "Planifiez une réunion d’équipe et envoyez l’alerte"); else -> L(locale, "محتوى منسق للنشر على الموقع", "Contenu prêt à publier sur le site") }, color = Muted, fontFamily = CairoFamily, fontSize = 10.sp)
+                }
+            }
+        },
         text = {
             Column(Modifier.heightIn(max = 490.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (type == "training") {
-                    if (teams.isEmpty()) Text(L(locale, "لا توجد فئات متاحة لحسابك.", "Aucune équipe n’est accessible à ce compte."), color = Color(0xFFFF8792), fontSize = 12.sp)
-                    else Box {
-                        OutlinedTextField(value = teams.firstOrNull { it.id == teamId }?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable { teamMenu = true }, label = { Text(L(locale, "الفريق / الفئة", "Équipe / catégorie")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                        DropdownMenu(expanded = teamMenu, onDismissRequest = { teamMenu = false }) { teams.forEach { team -> DropdownMenuItem(text = { Text("${team.name} · ${categoryLabel(team.category, locale)}") }, onClick = { teamId = team.id; teamMenu = false }) } }
+                if (type == "training" || type == "meeting") {
+                    if (type == "meeting") OutlinedTextField(value = titleAr, onValueChange = { titleAr = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "عنوان الاجتماع", "Titre de la réunion")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                    val availableCoaches = coaches.filter { teamId in it.teamIds }
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(IconlyIcons.People, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
+                            Column {
+                                Text(if (type == "meeting") L(locale, "الفئة المستهدفة", "Équipe concernée") else L(locale, "الفئة والجهاز الفني", "Catégorie et encadrement"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(if (type == "meeting") L(locale, "سيصل التنبيه لمستخدمي هذه الفئة", "Les membres de cette équipe recevront une alerte") else L(locale, "اختر الفريق والمدرب المسؤول", "Choisissez l’équipe et l’entraîneur"), color = Muted, fontSize = 9.sp)
+                            }
+                        }
+                        if (teams.isEmpty()) Text(L(locale, "لا توجد فئات متاحة لحسابك.", "Aucune équipe n’est accessible à ce compte."), color = Red, fontSize = 12.sp)
+                        else NativeDropdownField(
+                            label = L(locale, "الفئة", "Catégorie"),
+                            value = orderedTeams.firstOrNull { it.id == teamId }?.let { categoryLabel(it.category, locale) }.orEmpty(),
+                            placeholder = L(locale, "اختر الفئة", "Choisir une catégorie"),
+                            options = orderedTeams.map { it.id to categoryLabel(it.category, locale) },
+                            onSelected = { teamId = it; coachId = "" }
+                        )
+                        if (type == "training") NativeDropdownField(
+                            label = L(locale, "المدرب · اختياري", "Entraîneur · facultatif"),
+                            value = availableCoaches.firstOrNull { it.id == coachId }?.name.orEmpty(),
+                            placeholder = if (availableCoaches.isEmpty()) L(locale, "لا يوجد مدرب مسجل لهذه الفئة", "Aucun entraîneur pour cette catégorie") else L(locale, "اختر المدرب", "Choisir un entraîneur"),
+                            options = listOf("" to L(locale, "بدون مدرب", "Sans entraîneur")) + availableCoaches.map { it.id to it.name },
+                            onSelected = { coachId = it }
+                        )
                     }
-                    OutlinedTextField(value = date, onValueChange = { date = it.take(10) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التاريخ (YYYY-MM-DD)", "Date (AAAA-MM-JJ)")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = startTime, onValueChange = { startTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "من", "Début")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                        OutlinedTextField(value = endTime, onValueChange = { endTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "إلى", "Fin")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
+                            Column {
+                                Text(if (type == "meeting") L(locale, "موعد الاجتماع", "Horaire de la réunion") else L(locale, "موعد التدريب", "Horaire de la séance"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(L(locale, "حدد التاريخ ووقت البداية والنهاية", "Date, heure de début et de fin"), color = Muted, fontSize = 9.sp)
+                            }
+                        }
+                        OutlinedTextField(value = date, onValueChange = { date = it.take(10) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التاريخ · YYYY-MM-DD", "Date · AAAA-MM-JJ")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(value = startTime, onValueChange = { startTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "وقت البداية", "Début")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                            OutlinedTextField(value = endTime, onValueChange = { endTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "وقت النهاية", "Fin")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                        }
                     }
-                    OutlinedTextField(value = location, onValueChange = { location = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "المكان", "Lieu")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    OutlinedTextField(value = notes, onValueChange = { notes = it.take(2000) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "ملاحظات التدريب", "Notes d’entraînement")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(value = location, onValueChange = { location = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "المكان · اختياري", "Lieu · facultatif")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                        OutlinedTextField(value = notes, onValueChange = { notes = it.take(2000) }, modifier = Modifier.fillMaxWidth().height(92.dp), label = { Text(if (type == "meeting") L(locale, "جدول الأعمال / ملاحظات", "Ordre du jour / notes") else L(locale, "ملاحظات للمدربين واللاعبين", "Notes pour l’équipe")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                    }
                 } else {
-                    Text(L(locale, "سيظهر المحتوى فور حفظه في المنصة والموقع العام.", "Le contenu sera publié sur la plateforme et le site public."), color = Red, fontSize = 11.sp)
-                    if (type == "announcement" && teamScopeRestricted && teams.isNotEmpty()) Box {
-                        OutlinedTextField(value = teams.firstOrNull { it.id == teamId }?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable { teamMenu = true }, label = { Text(L(locale, "الفريق / الفئة", "Équipe / catégorie")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                        DropdownMenu(expanded = teamMenu, onDismissRequest = { teamMenu = false }) { teams.forEach { team -> DropdownMenuItem(text = { Text("${team.name} · ${categoryLabel(team.category, locale)}") }, onClick = { teamId = team.id; teamMenu = false }) } }
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(12.dp)).padding(11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Icon(IconlyIcons.Paper, contentDescription = null, tint = Red, modifier = Modifier.size(17.dp))
+                        Text(L(locale, "سيظهر المحتوى بعد نشره على المنصة والموقع العام.", "Le contenu sera publié sur la plateforme et le site public."), color = AppText, fontSize = 10.sp, lineHeight = 15.sp)
                     }
-                    OutlinedTextField(value = titleAr, onValueChange = { titleAr = it.take(200) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("العنوان · العربية") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    OutlinedTextField(value = contentAr, onValueChange = { contentAr = it.take(20000) }, modifier = Modifier.fillMaxWidth().height(100.dp), label = { Text("النص · العربية") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    OutlinedTextField(value = titleFr, onValueChange = { titleFr = it.take(200) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Titre · Français") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    OutlinedTextField(value = contentFr, onValueChange = { contentFr = it.take(20000) }, modifier = Modifier.fillMaxWidth().height(100.dp), label = { Text("Texte · Français") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    if (type == "news") OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف (اختياري)", "Catégorie (facultatif)")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    if (type == "announcement" && teamScopeRestricted && teams.isNotEmpty()) Box {
+                        OutlinedTextField(value = orderedTeams.firstOrNull { it.id == teamId }?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable { teamMenu = true }, label = { Text(L(locale, "الفريق / الفئة", "Équipe / catégorie")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        ClubDropdownMenu(
+                            expanded = teamMenu,
+                            onDismissRequest = { teamMenu = false },
+                            title = L(locale, "اختر الفريق", "Choisir une équipe"),
+                            locale = locale,
+                            selectedKey = teamId,
+                            options = orderedTeams.map { it.id to "${it.name} · ${categoryLabel(it.category, locale)}" },
+                            onSelected = { teamId = it; teamMenu = false }
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Glass).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("ar" to L(locale, "العربية", "Arabe"), "fr" to "Français").forEach { (code, label) ->
+                            val activeLanguage = contentLocale == code
+                            Text(label, color = if (activeLanguage) Color.White else Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                                    .background(if (activeLanguage) Red else Color.Transparent).clickable { contentLocale = code }.padding(vertical = 10.dp))
+                        }
+                    }
+                    AnimatedContent(targetState = contentLocale, label = "news-language-fields") { language ->
+                        val arabic = language == "ar"
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Glass).border(1.dp, if (arabic) Red.copy(alpha = .28f) else GlassBorder, RoundedCornerShape(15.dp)).padding(11.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (arabic) "العربية" else "Français", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = CairoFamily)
+                                Text(if (arabic) L(locale, "النسخة الأساسية", "Version principale") else L(locale, "النسخة الفرنسية", "Version française"), color = if (arabic) Red else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(if (arabic) Red.copy(alpha = .10f) else Panel).padding(horizontal = 9.dp, vertical = 5.dp))
+                            }
+                            OutlinedTextField(value = if (arabic) titleAr else titleFr, onValueChange = { if (arabic) titleAr = it.take(200) else titleFr = it.take(200) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(if (arabic) L(locale, "عنوان الخبر", "Titre de l’actualité") else "Titre de l’actualité") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                            OutlinedTextField(value = if (arabic) contentAr else contentFr, onValueChange = { if (arabic) contentAr = it.take(20000) else contentFr = it.take(20000) }, modifier = Modifier.fillMaxWidth().height(132.dp), label = { Text(if (arabic) L(locale, "نص الخبر", "Texte de l’actualité") else "Texte de l’actualité") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        }
+                    }
+                    if (type == "news") OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف · اختياري", "Catégorie · facultative")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                 }
             }
         },
         confirmButton = {
-            Button(onClick = {
+            ClubPrimaryButton(
+                text = when (type) { "training" -> L(locale, "حفظ التدريب", "Enregistrer la séance"); "meeting" -> L(locale, "جدولة الاجتماع", "Planifier la réunion"); else -> L(locale, "حفظ ونشر", "Enregistrer et publier") },
+                enabled = if (type == "training" || type == "meeting") teamId.isNotBlank() && date.length == 10 && startTime.length == 5 && endTime.length == 5 && (type != "meeting" || titleAr.isNotBlank()) else titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank()),
+                modifier = Modifier.width(190.dp),
+                onClick = {
                 val payload = org.json.JSONObject().put("type", type)
-                if (type == "training") payload.put("teamId", teamId).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("notes", notes)
+                if (type == "training") payload.put("teamId", teamId).put("coachId", coachId).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("notes", notes)
+                else if (type == "meeting") payload.put("teamId", teamId).put("title", titleAr.trim()).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("description", notes)
                 else {
                     payload.put("titleAr", titleAr.trim()).put("contentAr", contentAr.trim()).put("titleFr", titleFr.trim()).put("contentFr", contentFr.trim())
                     if (type == "announcement") payload.put("priority", "NORMAL").put("teamId", if (teamScopeRestricted) teamId else "") else payload.put("category", category.trim())
                 }
                 onSubmit(payload)
-            }, enabled = if (type == "training") teamId.isNotBlank() && date.length == 10 && startTime.length == 5 && endTime.length == 5 else titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank()), colors = ButtonDefaults.buttonColors(containerColor = Red), shape = RoundedCornerShape(12.dp)) { Text(if (type == "training") L(locale, "حفظ التدريب", "Enregistrer la séance") else L(locale, "حفظ ونشر", "Enregistrer et publier"), color = Color.White, fontFamily = CairoFamily) }
+            })
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily) } }
     )
 }
 
 @Composable
-private fun NativeLoginScreen(connectionError: String?, loading: Boolean, locale: String, onToggleLocale: () -> Unit, onLogin: (String, String) -> Unit) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    val emailFocus = remember { FocusRequester() }
-    val passwordFocus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    Box(Modifier.fillMaxSize()) {
-      AmbientGlow(Modifier.align(Alignment.TopEnd).offset(x = 155.dp, y = (-10).dp).size(370.dp), RedGlow)
-      AmbientGlow(Modifier.align(Alignment.BottomStart).offset(x = (-185).dp, y = 22.dp).size(400.dp), MintGlow)
-      Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 22.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text(if (locale == "ar") "FR" else "عربي", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(Color(0xAA20252D)).border(1.dp, GlassBorder, CircleShape).clickable(onClick = onToggleLocale).padding(horizontal = 15.dp, vertical = 9.dp))
-        }
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.size(82.dp).clip(RoundedCornerShape(27.dp)).background(Brush.linearGradient(listOf(Color(0xCC29252C), Color(0xAA11171D)))).border(1.dp, Color.White.copy(alpha = .17f), RoundedCornerShape(27.dp)), contentAlignment = Alignment.Center) {
-            Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(62.dp))
-        }
-        Spacer(Modifier.height(15.dp))
-        Text("E SIDI HOSNI", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-        Text(L(locale, "بوابة الإدارة الميدانية", "Espace d’administration terrain"), color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
-        Spacer(Modifier.height(22.dp))
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Color(0xF01A1B1D), Color(0xE6111214)))).border(1.dp, Color.White.copy(alpha = .12f), RoundedCornerShape(24.dp)).padding(21.dp)) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(4.dp, 32.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Red, Red.copy(alpha = .50f)))))
-            Spacer(Modifier.width(12.dp))
-            Column {
-              Text(L(locale, "أهلًا بعودتك", "Bon retour"), color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-              Text(L(locale, "سجّل الدخول بحساب إداري للمتابعة", "Connectez-vous avec votre compte administrateur."), color = Muted, fontSize = 11.sp)
+private fun NativeDropdownField(
+    label: String,
+    value: String,
+    placeholder: String,
+    options: List<Pair<String, String>>,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember(label, options) { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 58.dp).clip(RoundedCornerShape(13.dp))
+                .background(Glass).border(1.dp, if (expanded) Red else GlassBorder, RoundedCornerShape(13.dp))
+                .clickable(enabled = options.isNotEmpty()) { expanded = true }.padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(label, color = Red, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(value.ifBlank { placeholder }, color = if (value.isBlank()) Muted else AppText, fontSize = 13.sp, maxLines = 1)
             }
-          }
-          Spacer(Modifier.height(22.dp))
-          CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-              OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth().focusRequester(emailFocus), enabled = !loading, singleLine = true, label = { Text(L(locale, "البريد الإلكتروني", "Adresse e-mail")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), keyboardActions = KeyboardActions(onNext = { passwordFocus.requestFocus() }), shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-          }
-          Spacer(Modifier.height(12.dp))
-          CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-              OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus), enabled = !loading, singleLine = true, label = { Text(L(locale, "كلمة المرور", "Mot de passe")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); if (email.isNotBlank() && password.isNotBlank()) onLogin(email.trim(), password) }), shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-          }
-          connectionError?.let { Text(it, color = Color(0xFFFF8792), fontSize = 11.sp, modifier = Modifier.padding(top = 9.dp)) }
-          Spacer(Modifier.height(17.dp))
-          Button(onClick = { keyboard?.hide(); onLogin(email.trim(), password) }, enabled = !loading && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Red, disabledContainerColor = Color(0xFF551522), contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = .76f))) {
-              if (loading) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(19.dp)) else Text(L(locale, "تسجيل الدخول", "Se connecter"), color = Color.White, fontWeight = FontWeight.Bold)
-          }
-          Text(L(locale, "التحقق الأمني يعمل داخل التطبيق", "La vérification de sécurité est intégrée à l’application."), color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 14.dp))
+            val arrowRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "dropdown-arrow")
+            Icon(IconlyIcons.ArrowDown, contentDescription = label, tint = if (expanded) Mint else Red, modifier = Modifier.graphicsLayer { rotationZ = arrowRotation })
         }
-        Spacer(Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(Modifier.size(6.dp).background(Red, CircleShape)); Spacer(Modifier.width(7.dp))
-          Text(L(locale, "إدارة المباريات والاجتماعات بأمان", "Gérez matchs et réunions en toute sécurité"), color = Muted, fontSize = 10.sp)
-        }
-      }
+        ClubDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            title = label,
+            locale = if (LocalLayoutDirection.current == LayoutDirection.Rtl) "ar" else "fr",
+            selectedKey = options.firstOrNull { it.second == value }?.first,
+            options = options,
+            onSelected = { onSelected(it); expanded = false }
+        )
     }
 }
 
 @Composable
+private fun ClubDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    title: String,
+    locale: String,
+    selectedKey: String?,
+    options: List<Pair<String, String>>,
+    onSelected: (String) -> Unit
+) {
+    val shape = RoundedCornerShape(19.dp)
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier.widthIn(min = 218.dp, max = 330.dp).heightIn(max = 340.dp),
+        shape = shape,
+        containerColor = Panel,
+        tonalElevation = 0.dp,
+        shadowElevation = 12.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(Modifier.padding(horizontal = 7.dp, vertical = 8.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(title, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(options.size.toString(), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+            Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(1.dp).background(GlassBorder))
+            if (options.isEmpty()) {
+                Text(L(locale, "لا توجد خيارات متاحة", "Aucune option disponible"), color = Muted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp))
+            } else options.forEach { (key, label) ->
+                val selected = key == selectedKey
+                val itemShape = RoundedCornerShape(12.dp)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 3.dp).clip(itemShape)
+                        .background(if (selected) RedGlow else Color.Transparent)
+                        .clickable { onSelected(key) }.padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Box(Modifier.size(7.dp).background(if (selected) Red else GlassBorder, CircleShape))
+                    Text(label, color = if (selected) AppText else AppText.copy(alpha = .88f), fontFamily = CairoFamily, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 2)
+                    if (selected) Icon(IconlyIcons.Check, contentDescription = null, tint = Red, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeLoginScreen(connectionError: String?, loading: Boolean, locale: String, lightMode: Boolean, onToggleTheme: () -> Unit, onToggleLocale: () -> Unit, onLogin: (String, String, Boolean) -> Unit) {
+    val context = LocalContext.current
+    val loginPreferences = remember { context.getSharedPreferences("esh_native_ui", Context.MODE_PRIVATE) }
+    var rememberMe by remember { mutableStateOf(loginPreferences.getBoolean("remember_login", false)) }
+    var email by remember { mutableStateOf(if (rememberMe) loginPreferences.getString("remembered_email", "").orEmpty() else "") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val emailFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val rtl = locale == "ar"
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.clip(RoundedCornerShape(13.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(13.dp)).clickable(enabled = !loading, onClick = onToggleLocale).padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Icon(IconlyIcons.Language, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
+                    Text(if (rtl) "FR" else "عربي", color = AppText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
+                HeaderIconButton(if (lightMode) IconlyIcons.Moon else IconlyIcons.Sun, L(locale, "تبديل المظهر", "Changer le thème"), tint = AppText, onClick = onToggleTheme)
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.size(72.dp).clip(RoundedCornerShape(23.dp)).background(Panel).border(1.dp, GlassBorder, RoundedCornerShape(23.dp)), contentAlignment = Alignment.Center) {
+                Image(painterResource(R.drawable.esh_logo), contentDescription = L(locale, "شعار نادي أمل سيدي حسني", "Logo d’Espoir Sidi Hosni"), modifier = Modifier.size(55.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text("E SIDI HOSNI", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+            Text(L(locale, "بوابة الإدارة الميدانية", "Espace d’administration terrain"), color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+            Spacer(Modifier.height(18.dp))
+            Column(Modifier.fillMaxWidth().widthIn(max = 520.dp).clip(RoundedCornerShape(22.dp)).background(Panel).border(1.dp, GlassBorder, RoundedCornerShape(22.dp)).padding(horizontal = 20.dp, vertical = 20.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f), horizontalAlignment = if (rtl) Alignment.End else Alignment.Start) {
+                        Text(L(locale, "أهلًا بعودتك", "Bon retour"), color = AppText, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(L(locale, "سجّل الدخول بحسابك للمتابعة", "Connectez-vous pour continuer"), color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                    }
+                    Box(Modifier.size(4.dp, 36.dp).clip(CircleShape).background(Red))
+                }
+                Spacer(Modifier.height(18.dp))
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    OutlinedTextField(value = email, onValueChange = { value -> email = value; if (rememberMe) loginPreferences.edit().putString("remembered_email", value.trim()).apply() }, modifier = Modifier.fillMaxWidth().focusRequester(emailFocus), readOnly = loading, singleLine = true, label = { Text(L(locale, "البريد الإلكتروني", "Adresse e-mail")) }, leadingIcon = { Icon(IconlyIcons.Mail, contentDescription = null, tint = Muted, modifier = Modifier.size(18.dp)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), keyboardActions = KeyboardActions(onNext = { passwordFocus.requestFocus() }), shape = RoundedCornerShape(14.dp), colors = loginFieldColors())
+                }
+                Spacer(Modifier.height(12.dp))
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus), readOnly = loading, singleLine = true, label = { Text(L(locale, "كلمة المرور", "Mot de passe")) }, leadingIcon = { Icon(IconlyIcons.Lock, contentDescription = null, tint = Muted, modifier = Modifier.size(18.dp)) }, visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = !loading) {
+                            Icon(iconRes = if (passwordVisible) IconlyIcons.Hide else IconlyIcons.Show, contentDescription = if (passwordVisible) L(locale, "إخفاء كلمة المرور", "Masquer le mot de passe") else L(locale, "إظهار كلمة المرور", "Afficher le mot de passe"), tint = if (passwordVisible) Red else Muted)
+                        }
+                    }, keyboardOptions = KeyboardOptions(keyboardType = if (passwordVisible) KeyboardType.Text else KeyboardType.Password, imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); if (email.isNotBlank() && password.isNotBlank() && !loading) onLogin(email.trim(), password, rememberMe) }), shape = RoundedCornerShape(14.dp), colors = loginFieldColors())
+                }
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(enabled = !loading) { rememberMe = !rememberMe; loginPreferences.edit().putBoolean("remember_login", rememberMe).apply(); if (rememberMe) loginPreferences.edit().putString("remembered_email", email.trim()).apply() else loginPreferences.edit().remove("remembered_email").apply() }.padding(horizontal = 2.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = rememberMe, onCheckedChange = { checked -> rememberMe = checked; loginPreferences.edit().putBoolean("remember_login", checked).apply(); if (checked) loginPreferences.edit().putString("remembered_email", email.trim()).apply() else loginPreferences.edit().remove("remembered_email").apply() }, enabled = !loading, colors = CheckboxDefaults.colors(checkedColor = Red, uncheckedColor = Muted, checkmarkColor = Color.White))
+                    Spacer(Modifier.width(7.dp))
+                    Text(L(locale, "تذكّرني على هذا الجهاز", "Se souvenir de moi sur cet appareil"), color = AppText, fontSize = 11.sp)
+                }
+                AnimatedVisibility(visible = connectionError != null) {
+                    connectionError?.let {
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .28f), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(IconlyIcons.Close, contentDescription = null, tint = Red, modifier = Modifier.size(17.dp))
+                            Text(it, color = if (lightMode) Color(0xFF9F2525) else Color(0xFFFFA3A3), fontSize = 11.sp, lineHeight = 17.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                ClubPrimaryButton(text = L(locale, "تسجيل الدخول", "Se connecter"), onClick = { keyboard?.hide(); onLogin(email.trim(), password, rememberMe) }, enabled = email.isNotBlank() && password.isNotBlank() && !loading, loading = loading, modifier = Modifier.fillMaxWidth().height(52.dp))
+                Text(L(locale, "تسجيل آمن ومشفّر", "Connexion sécurisée et chiffrée"), color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+            }
+            Spacer(Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(6.dp).background(Red, CircleShape))
+                Spacer(Modifier.width(7.dp))
+                Text(L(locale, "إدارة المباريات والاجتماعات بأمان", "Gérez matchs et réunions en toute sécurité"), color = Muted, fontSize = 10.sp)
+            }
+        }
+    }
+}
+@Composable
 private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
-    focusedContainerColor = Color(0xFF181A1C),
-    unfocusedContainerColor = Color(0xFF121416),
-    focusedBorderColor = Red,
-    unfocusedBorderColor = Color.White.copy(alpha = .12f),
+    focusedTextColor = AppText,
+    unfocusedTextColor = AppText,
+    focusedContainerColor = Panel,
+    unfocusedContainerColor = Glass,
+        focusedBorderColor = Red,
+    unfocusedBorderColor = GlassBorder,
     focusedLabelColor = Red,
     unfocusedLabelColor = Muted,
     cursorColor = Red
 )
 
 @Composable
-private fun EmptyNativeSection(icon: ImageVector, title: String, body: String, badge: String, locale: String) {
+private fun EmptyNativeSection(icon: Int, title: String, body: String, badge: String, locale: String) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Glass, Panel))).border(1.dp, Color.White.copy(alpha = .09f), RoundedCornerShape(24.dp)).padding(23.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(62.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Red.copy(alpha = .08f)))), contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
@@ -737,27 +1802,40 @@ private fun EmptyNativeSection(icon: ImageVector, title: String, body: String, b
 }
 
 @Composable
-private fun GlassNavigation(selected: Section, locale: String, onSelect: (Section) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(start = 18.dp, end = 18.dp, bottom = 10.dp, top = 9.dp).height(66.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Color(0xE620252D), Color(0xE612171D)))).border(1.dp, Color.White.copy(alpha = .15f), CircleShape).padding(horizontal = 7.dp, vertical = 6.dp),
+private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, locale: String, onSelect: (Section) -> Unit) {
+    Box(
+        modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+      Row(
+        Modifier.fillMaxWidth().height(66.dp)
+            .shadow(16.dp, RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(28.dp))
+            .background(if (nativeThemeIsLight) Color.White.copy(alpha = .84f) else Color(0xFF191B1F).copy(alpha = .88f))
+            .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .22f), GlassBorder, Red.copy(alpha = .12f))), RoundedCornerShape(28.dp))
+            .padding(horizontal = 7.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
-    ) {
+      ) {
         (if (locale == "ar") Section.entries.reversed() else Section.entries).forEach { item ->
             val active = selected == item
-            val activeColor by animateColorAsState(if (active) Color(0xFF3B1420) else Color.Transparent, label = "nav-bg")
-            val width by animateDpAsState(if (active) 76.dp else 54.dp, label = "nav-width")
+            val width by animateDpAsState(if (active) 68.dp else 54.dp, label = "nav-width")
             Column(
-                Modifier.width(width).fillMaxSize().clip(CircleShape).background(activeColor).clickable { onSelect(item) }.padding(horizontal = 6.dp),
+                Modifier.width(width).fillMaxSize().clip(CircleShape).clickable { onSelect(item) }.padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(21.dp))
+                AnimatedContent(targetState = active, label = "nav-icon-${item.name}") { isSelected ->
+                    val customFilledIcon = isSelected && (item == Section.MATCHES || item == Section.MEETINGS)
+                    Icon(item.icon, contentDescription = item.title(locale), tint = if (customFilledIcon) Color.Unspecified else if (isSelected) Red else Muted,
+                        modifier = Modifier.size(22.dp), selectedIconRes = item.selectedIcon, selected = isSelected)
+                }
                 if (active) {
                     Spacer(Modifier.height(2.dp))
-                    Text(item.title(locale), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(item.title(locale), color = Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
             }
         }
+      }
     }
 }
