@@ -81,12 +81,20 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // Revalidate HTML and RSC responses after a local rebuild. This avoids
-      // stale pages retaining references to chunks from a previous build.
+      // Revalidate HTML and RSC responses after a local rebuild. Keep public
+      // media out of this rule: no-store on static images disables both browser
+      // caching and Vercel's CDN cache, making every first visit refetch logos.
       {
-        source: "/((?!_next/static|_next/image|favicon.ico).*)",
+        source: "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:avif|gif|jpe?g|png|svg|webp|mp4|webm|woff2?)$).*)",
         headers: [
           { key: "Cache-Control", value: "no-store, max-age=0" }
+        ]
+      },
+      {
+        source: "/((?:branding/|.*\\.(?:avif|gif|jpe?g|png|svg|webp|mp4|webm|woff2?))$)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=43200, stale-while-revalidate=86400" },
+          { key: "Vercel-CDN-Cache-Control", value: "public, s-maxage=31536000, stale-while-revalidate=86400" }
         ]
       },
       {
