@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { getPublicClubSettings, PublicClubSettings } from "./club";
 import { getPublicNextMatch, getPublicMatches, getPublicUpcomingMatches, PublicMatchItem } from "./matches";
@@ -27,7 +28,47 @@ export interface PublicHomeData {
   announcements: PublicAnnouncementItem[];
 }
 
-export async function getPublicHomeData(locale: string): Promise<PublicHomeData> {
+async function loadPublicHomeSupportingData() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [scheduledTrainings, totalActivePlayers, clubMedia] = await Promise.all([
+    db.trainingSession.findMany({
+      where: { date: { gte: today }, status: "SCHEDULED" },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        notes: true,
+        team: { select: { category: true, name: true } }
+      },
+      orderBy: { date: "asc" },
+      take: 6
+    }),
+    db.player.count({ where: { status: "ACTIVE" } }),
+    db.media.findMany({
+      where: { album: { published: true } },
+      select: {
+        id: true,
+        url: true,
+        caption: true,
+        album: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 8
+    })
+  ]);
+  return { scheduledTrainings, totalActivePlayers, clubMedia };
+}
+
+export const getPublicHomeSupportingData = unstable_cache(
+  loadPublicHomeSupportingData,
+  ["public-home-supporting-data-v1"],
+  { revalidate: 15, tags: ["public-home"] }
+);
+
+async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
   const now = new Date();
 
   const [club, nextMatch, upcomingMatches, recentResults, newsResult, rawAnnouncements] = await Promise.all([
@@ -96,3 +137,12 @@ export async function getPublicHomeData(locale: string): Promise<PublicHomeData>
     announcements
   };
 }
+
+// The homepage is public and shared by all visitors. Cache its verified public
+// data briefly to reduce repeated database round trips without hiding live edits
+// for more than a few seconds.
+export const getPublicHomeData = unstable_cache(
+  loadPublicHomeData,
+  ["public-home-data-v1"],
+  { revalidate: 15, tags: ["public-home"] }
+);

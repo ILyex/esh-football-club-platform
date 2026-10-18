@@ -15,9 +15,8 @@ import {
   Bell,
   Shield
 } from "lucide-react";
-import { getPublicHomeData } from "@/lib/public/home";
+import { getPublicHomeData, getPublicHomeSupportingData } from "@/lib/public/home";
 import { localizedClubName } from "@/lib/public/locale-text";
-import { db } from "@/lib/db";
 import {
   UpcomingMatchesCarousel,
   UpcomingTrainingsCarousel
@@ -50,42 +49,11 @@ export default async function HomePage({
   const tPublic = await getTranslations({ locale, namespace: "publicSite" });
   const tCategories = await getTranslations({ locale, namespace: "teams.categories" });
 
-  const [homeData, scheduledTrainings, totalActivePlayers, clubMedia] = await Promise.all([
+  const [homeData, supportingData] = await Promise.all([
     getPublicHomeData(locale),
-    db.trainingSession.findMany({
-      where: {
-        date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-        status: "SCHEDULED"
-      },
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        location: true,
-        notes: true,
-        team: { select: { category: true, name: true } }
-      },
-      orderBy: { date: "asc" },
-      take: 6
-    }),
-    db.player.count({ where: { status: "ACTIVE" } }),
-    db.media.findMany({
-      where: {
-        album: { published: true }
-      },
-      select: {
-        id: true,
-        url: true,
-        caption: true,
-        album: {
-          select: { id: true, name: true }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 8
-    })
+    getPublicHomeSupportingData()
   ]);
+  const { scheduledTrainings, totalActivePlayers, clubMedia } = supportingData;
   const { nextMatch, upcomingMatches, recentResults, latestNews, announcements } = homeData;
 
   const matchesForCarousel = upcomingMatches && upcomingMatches.length > 0

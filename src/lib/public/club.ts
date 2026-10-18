@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { readSocialReels, type SocialReel } from "@/lib/social-reels";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
@@ -27,7 +28,7 @@ export interface PublicClubSettings {
   defaultLocale: string;
 }
 
-export async function getPublicClubSettings(): Promise<PublicClubSettings> {
+async function loadPublicClubSettings(): Promise<PublicClubSettings> {
   const settings = await db.clubSettings.findUnique({
     where: { id: "singleton" },
     select: {
@@ -88,3 +89,11 @@ export async function getPublicClubSettings(): Promise<PublicClubSettings> {
     socialReels: readSocialReels(rawSocialLinks)
   };
 }
+
+// Public branding changes infrequently. A short shared cache avoids repeating
+// the settings query in both the public layout and page while keeping edits fresh.
+export const getPublicClubSettings = unstable_cache(
+  loadPublicClubSettings,
+  ["public-club-settings-v1"],
+  { revalidate: 30, tags: ["public-club-settings"] }
+);

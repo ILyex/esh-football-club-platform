@@ -18,19 +18,30 @@ export function OpponentCrest({
   iconClassName = "h-6 w-6 text-muted-foreground"
 }: OpponentCrestProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const showImage = Boolean(src && failedSrc !== src && loadedSrc === src);
 
-  if (src && failedSrc !== src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className={className}
-        referrerPolicy="no-referrer"
-        onError={() => setFailedSrc(src)}
-      />
-    );
-  }
-
-  return <Shield className={iconClassName} role="img" aria-label={alt || undefined} aria-hidden={alt ? undefined : true} />;
+  return (
+    <span
+      className={`relative inline-flex h-full w-full shrink-0 items-center justify-center ${className.replace(/\b(object-contain|object-cover)\b/g, "")}`}
+      role={alt ? "img" : undefined}
+      aria-label={alt || undefined}
+    >
+      <Shield className={`${iconClassName} ${showImage ? "invisible" : ""}`} aria-hidden="true" />
+      {src && failedSrc !== src && (
+        // Keep the fallback visible until the image has fully loaded. Empty alt
+        // prevents browsers from rendering the opponent name as broken-image text.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          aria-hidden="true"
+          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${showImage ? "opacity-100" : "opacity-0"}`}
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoadedSrc(src)}
+          onError={() => setFailedSrc(src)}
+        />
+      )}
+    </span>
+  );
 }
