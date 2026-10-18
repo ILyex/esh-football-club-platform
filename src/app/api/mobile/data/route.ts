@@ -6,6 +6,7 @@ import { resolveTeamScope } from "@/lib/authz/policy";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
+import { getCompetitionDisplayData, OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   const canManageTraining = hasPermission(user, "training.manage");
   const canCreateNews = hasPermission(user, "news.create");
   const canManageAnnouncements = hasPermission(user, "announcements.manage");
+  const coachRole = ["coach", "assistant_coach", "goalkeeping_coach", "fitness_coach"].includes(user.roleKey);
+  const canViewCompetitions = hasPermission(user, "competitions.view") || coachRole || user.roleKey === "developer" || user.roleKey === "super_admin";
+  const canManageCompetitions = hasPermission(user, "competitions.manage") || user.roleKey === "developer" || user.roleKey === "super_admin";
   const calendarTypes = [
     ...(canViewMatches ? ["MATCH"] : []),
     ...(canViewMeetings ? ["MEETING"] : []),
@@ -35,7 +39,7 @@ export async function GET(request: Request) {
     ...(canManageCalendar ? ["OTHER"] : [])
   ];
 
-  const [matches, meetings, calendarMeetings, calendarItems, notifications, teams, coaches, currentSeason] = await Promise.all([
+  const [matches, meetings, calendarMeetings, calendarItems, notifications, teams, coaches, currentSeason, competitions] = await Promise.all([
     canViewMatches ? db.match.findMany({
       where: teamWhere,
       include: {
@@ -88,6 +92,11 @@ export async function GET(request: Request) {
       select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, teamId: true, teamAssignments: { select: { teamId: true } } }
     }) : Promise.resolve([]),
     db.season.findFirst({ where: { isCurrent: true }, select: { label: true }, orderBy: { startDate: "desc" } })
+    ,canViewCompetitions ? db.competition.findMany({
+      where: { ...(scope.restricted ? { OR: [{ teamId: { in: [...scope.teamIds] } }, { teamId: null }] } : {}), season: { isCurrent: true } },
+      include: { season: { select: { label: true } }, team: { select: { category: true } } },
+      orderBy: { name: "asc" }
+    }) : Promise.resolve([])
   ]);
 
   const opponentLogos = calendarItems.some((event) => event.type === "MATCH" && event.relatedMatch)
@@ -96,7 +105,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
-    permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
+    permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({
       id: coach.id,
@@ -175,6 +184,23 @@ export async function GET(request: Request) {
         opponentLogo: opponentName ? findOpponentLogo(opponentLogos, opponentName) : null
       };
     }),
-    notifications
+    notifications,
+    competitions: competitions.map((competition) => {
+      const category = competition.team?.category || "SENIOR";
+      const display = getCompetitionDisplayData(competition.standingsData, competition.bracketData);
+      return {
+        id: competition.id,
+        name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
+        type: competition.type,
+        logoUrl: competition.logoUrl,
+        organization: competition.organization,
+        seasonLabel: competition.season.label,
+        category,
+        categoryLabel: OFFICIAL_CATEGORY_NAMES[category as keyof typeof OFFICIAL_CATEGORY_NAMES]?.[locale === "fr" ? "fr" : "ar"] || category,
+        standings: display.standings,
+        bracket: display.bracket,
+        canManage: canManageCompetitions
+      };
+    })
   }, { headers: { "Cache-Control": "no-store" } });
 }

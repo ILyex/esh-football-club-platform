@@ -35,6 +35,8 @@ data class NativeEvent(val id: String, val type: String, val minute: Int, val si
 data class NativeMeeting(val id: String, val title: String, val date: String, val location: String?, val status: String)
 data class NativeCalendarItem(val id: String, val type: String, val title: String, val startDateTime: String, val endDateTime: String, val location: String?, val team: String?, val isHomeFixture: Boolean? = null, val opponentLogo: String? = null)
 data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean, val kind: String = "MATCH")
+data class NativeStanding(val id: String, val rank: Int, val teamName: String, val teamLogo: String?, val isOurClub: Boolean, val played: Int, val won: Int, val drawn: Int, val lost: Int, val goalsFor: Int, val goalsAgainst: Int, val goalDifference: Int, val points: Int, val form: List<String>)
+data class NativeCompetition(val id: String, val name: String, val type: String, val logoUrl: String?, val organization: String?, val seasonLabel: String, val category: String, val categoryLabel: String, val standings: List<NativeStanding>, val canManage: Boolean)
 data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
 data class NativePlayerPerformance(
@@ -48,8 +50,8 @@ data class NativePlayerPerformance(
 )
 data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
 data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
-data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val teamScopeRestricted: Boolean)
-data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
+data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val competitions: Boolean, val manageCompetitions: Boolean, val teamScopeRestricted: Boolean)
+data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser)
 data class NativeUser(
     val id: String,
     val name: String,
@@ -177,9 +179,15 @@ object NativeApi {
         val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->
             NativeCoach(item.optString("id"), item.optString("name"), item.optJSONArray("teamIds")?.let { ids -> (0 until ids.length()).map { ids.optString(it) } }.orEmpty())
         }.orEmpty()
+        val competitions = json.optJSONArray("competitions")?.objects()?.map { item ->
+            val standings = item.optJSONArray("standings")?.objects()?.map { row ->
+                NativeStanding(row.optString("id"), row.optInt("rank"), row.optString("teamName"), row.optNullableString("teamLogo"), row.optBoolean("isOurClub"), row.optInt("played"), row.optInt("won"), row.optInt("drawn"), row.optInt("lost"), row.optInt("goalsFor"), row.optInt("goalsAgainst"), row.optInt("goalDifference"), row.optInt("points"), row.optJSONArray("form")?.let { form -> (0 until form.length()).map { form.optString(it) } }.orEmpty())
+            }.orEmpty()
+            NativeCompetition(item.optString("id"), item.optString("name"), item.optString("type"), item.optNullableString("logoUrl"), item.optNullableString("organization"), item.optString("seasonLabel"), item.optString("category"), item.optString("categoryLabel"), standings, item.optBoolean("canManage"))
+        }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("teamScopeRestricted")), user)
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user)
     }
 
     fun createContent(token: String, payload: JSONObject) {
@@ -287,6 +295,16 @@ object NativeApi {
 
     fun deleteAllNotifications(token: String) {
         request("/api/mobile/notifications", token, null, "DELETE")
+    }
+
+    fun updateCompetitionStandings(token: String, competitionId: String, standings: List<NativeStanding>) {
+        val rows = JSONArray()
+        standings.forEach { row ->
+            rows.put(JSONObject().put("id", row.id).put("rank", row.rank).put("teamName", row.teamName).put("teamLogo", row.teamLogo)
+                .put("isOurClub", row.isOurClub).put("played", row.played).put("won", row.won).put("drawn", row.drawn).put("lost", row.lost)
+                .put("goalsFor", row.goalsFor).put("goalsAgainst", row.goalsAgainst).put("goalDifference", row.goalDifference).put("points", row.points).put("form", JSONArray(row.form)))
+        }
+        request("/api/mobile/competitions/$competitionId/standings", token, JSONObject().put("standings", rows).toString(), "PATCH")
     }
 
     private fun solveChallenge(token: String, challenge: JSONObject): List<Long> {

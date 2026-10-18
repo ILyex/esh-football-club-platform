@@ -268,11 +268,12 @@ private enum class Section(val icon: Int, val selectedIcon: Int) {
     MATCHES(IconlyIcons.Trophy, R.drawable.iconly_ticket_star_filled),
     CALENDAR(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
     MEETINGS(IconlyIcons.Meeting, IconlyIcons.MeetingFilled),
+    COMPETITIONS(IconlyIcons.Star, IconlyIcons.Star),
     PLAYER_STATS(IconlyIcons.Activity, IconlyIcons.Activity),
     ALERTS(IconlyIcons.Notification, R.drawable.iconly_notification_filled)
 }
-private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.CALENDAR -> L(locale, "الرزنامة", "Calendrier"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.PLAYER_STATS -> L(locale, "إحصائيات اللاعبين", "Stats joueurs"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
-private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.CALENDAR -> L(locale, "كل ما هو قادم للنادي في مكان واحد", "Tous les rendez-vous à venir du club"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.PLAYER_STATS -> L(locale, "أداء لاعبي فئتك متزامن مع المنصة", "Performances synchronisées avec la plateforme"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
+private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.CALENDAR -> L(locale, "الرزنامة", "Calendrier"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.COMPETITIONS -> L(locale, "المسابقات", "Compétitions"); Section.PLAYER_STATS -> L(locale, "إحصائيات اللاعبين", "Stats joueurs"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
+private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.CALENDAR -> L(locale, "كل ما هو قادم للنادي في مكان واحد", "Tous les rendez-vous à venir du club"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.COMPETITIONS -> L(locale, "الترتيب الرسمي المتزامن مع المنصة", "Classements officiels synchronisés"); Section.PLAYER_STATS -> L(locale, "أداء لاعبي فئتك متزامن مع المنصة", "Performances synchronisées avec la plateforme"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
 
 @Composable
 private fun MatchdayApp() {
@@ -539,6 +540,25 @@ private fun MatchdayApp() {
         }
     }
 
+    fun saveCompetitionStandings(competition: NativeCompetition, standings: List<NativeStanding>) {
+        val activeToken = token ?: return
+        scope.launch {
+            loading = true
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    NativeApi.updateCompetitionStandings(activeToken, competition.id, standings)
+                    NativeApi.data(activeToken, locale, summary = true)
+                }
+            }
+            result.onSuccess { data = visiblePayload(it); connectionError = null }
+                .onFailure { error ->
+                    if (error is NativeSessionExpired) { sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null }
+                    else connectionError = L(locale, "تعذر حفظ ترتيب المسابقة.", "Impossible d’enregistrer le classement.")
+                }
+            loading = false
+        }
+    }
+
     fun dismissAlert(alert: NativeAlert) {
         val activeToken = token ?: return
         scope.launch {
@@ -620,9 +640,9 @@ private fun MatchdayApp() {
                     modifier = Modifier.weight(1f).padding(bottom = 106.dp),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "language-content"
-                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts) }
+                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onSaveStandings = ::saveCompetitionStandings, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts) }
             }
-            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), onSelect = { section = it })
+            GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), showCompetitions = data?.permissions?.competitions == true, onSelect = { section = it })
         }
         composerType?.let { type ->
             NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, isSubmitting = loading, errorMessage = createError, onDismiss = { composerType = null }) { payload ->
@@ -860,6 +880,7 @@ private fun SectionPage(
     onUpdateMatch: (NativeMatch, Int, Int, String?) -> Unit,
     onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
     onDeleteEvent: (NativeMatch, NativeEvent) -> Unit,
+    onSaveStandings: (NativeCompetition, List<NativeStanding>) -> Unit,
     onDeleteAlert: (NativeAlert) -> Unit,
     onDeleteAllAlerts: () -> Unit
 ) {
@@ -911,7 +932,7 @@ private fun SectionPage(
             Section.HOME -> {
                 item { WelcomeCard(data, locale, onNavigate) }
                 if (user != null) item { DigitalAdminCard(user, locale) }
-                item { QuickActions(onNavigate, data, locale, onCreate) }
+        item { QuickActions(onNavigate, data, locale, onCreate) }
             }
             Section.MATCHES -> {
                 if (data?.matches.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Match, L(locale, "إدارة المباريات", "Gestion des matchs"), L(locale, "لا توجد مباريات متاحة لحسابك حاليًا.", "Aucun match n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
@@ -921,6 +942,11 @@ private fun SectionPage(
                 val meetings = data?.upcomingMeetings.orEmpty() + data?.meetings.orEmpty()
                 if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Meeting, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(meetings) { meeting -> MeetingCard(meeting, locale) }
+            }
+            Section.COMPETITIONS -> {
+                val competitions = data?.competitions.orEmpty()
+                if (competitions.isEmpty()) item { EmptyNativeSection(IconlyIcons.Star, L(locale, "المسابقات", "Compétitions"), L(locale, "لا توجد مسابقات مرتبطة بالموسم الحالي.", "Aucune compétition liée à la saison actuelle."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                else items(competitions, key = { it.id }) { competition -> NativeCompetitionCard(competition, locale, onSaveStandings) }
             }
             Section.PLAYER_STATS -> {
                 val players = playerStats?.players.orEmpty()
@@ -1342,6 +1368,9 @@ private fun QuickActions(onNavigate: (Section) -> Unit, data: NativeData?, local
             ActionTile(L(locale, "إدارة مباراة", "Gérer un match"), L(locale, "النتيجة والأحداث", "Score et événements"), IconlyIcons.Match, Red, onClick = { onNavigate(Section.MATCHES) }, modifier = Modifier.weight(1f))
             }
             ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), IconlyIcons.Meeting, Mint, onClick = { onNavigate(Section.MEETINGS) }, modifier = Modifier.weight(1f))
+        }
+        if (data?.permissions?.competitions == true) {
+            ActionTile(L(locale, "المسابقات", "Compétitions"), L(locale, "الترتيب الرسمي للفئات", "Classements officiels"), IconlyIcons.Star, Color(0xFFFFC45D), onClick = { onNavigate(Section.COMPETITIONS) })
         }
         if (data?.permissions?.playerStats == true) {
             ActionTile(L(locale, "إحصائيات اللاعبين", "Statistiques joueurs"), L(locale, "أداء لاعبي الفئات ومؤشراتهم", "Performances et indicateurs des joueurs"), IconlyIcons.Activity, Color(0xFF7C5CFC), onClick = { onNavigate(Section.PLAYER_STATS) })
@@ -1919,6 +1948,73 @@ private fun AlertCard(alert: NativeAlert, locale: String, onDelete: () -> Unit) 
 }
 
 @Composable
+private fun NativeCompetitionCard(competition: NativeCompetition, locale: String, onSave: (NativeCompetition, List<NativeStanding>) -> Unit) {
+    var editing by remember(competition.id) { mutableStateOf(false) }
+    var rows by remember(competition.id, competition.standings) { mutableStateOf(competition.standings) }
+    val canManage = competition.canManage && competition.type == "LEAGUE"
+    GlassCard {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFC45D).copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+                if (!competition.logoUrl.isNullOrBlank()) NativeRemoteImage(competition.logoUrl!!, Modifier.size(28.dp).clip(CircleShape))
+                else Icon(IconlyIcons.Star, contentDescription = null, tint = Color(0xFFFFC45D), modifier = Modifier.size(23.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(competition.name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${competition.categoryLabel} · ${competition.seasonLabel}", color = Muted, fontSize = 10.sp)
+            }
+            if (canManage) TextButton(onClick = { editing = !editing }) { Text(if (editing) L(locale, "إلغاء", "Annuler") else L(locale, "تعديل", "Modifier"), color = Red, fontSize = 11.sp) }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (competition.type != "LEAGUE") {
+            Text(L(locale, "هذه مسابقة كأس. تابع الرسم الهيكلي في المنصة.", "Cette compétition est une coupe. Consultez le tableau sur la plateforme."), color = Muted, fontSize = 11.sp)
+        } else if (rows.isEmpty()) {
+            Text(L(locale, "لم يتم إدخال ترتيب هذه المسابقة بعد.", "Le classement de cette compétition n’est pas encore renseigné."), color = Muted, fontSize = 11.sp)
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("#", color = Muted, fontSize = 9.sp, modifier = Modifier.width(18.dp))
+                Text(L(locale, "الفريق", "Équipe"), color = Muted, fontSize = 9.sp, modifier = Modifier.weight(1f))
+                listOf("لعب", "ن", "ت", "خ", "له", "عليه", "نقاط").forEach { Text(it, color = Muted, fontSize = 8.sp, textAlign = TextAlign.Center, modifier = Modifier.width(25.dp)) }
+            }
+            rows.forEachIndexed { index, row ->
+                val rowColor = if (row.isOurClub) Mint else AppText
+                if (editing) {
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text((index + 1).toString(), color = if (row.isOurClub) Red else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(18.dp), textAlign = TextAlign.Center)
+                        Text(row.teamName, color = rowColor, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        listOf(row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst).forEachIndexed { field, value ->
+                            OutlinedTextField(value = value.toString(), onValueChange = { raw ->
+                                val next = raw.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                                rows = rows.mapIndexed { i, current ->
+                                    if (i != index) current else when (field) {
+                                        0 -> current.copy(won = next)
+                                        1 -> current.copy(drawn = next)
+                                        2 -> current.copy(lost = next)
+                                        3 -> current.copy(goalsFor = next)
+                                        else -> current.copy(goalsAgainst = next)
+                                    }.let { updated -> updated.copy(played = updated.won + updated.drawn + updated.lost, points = updated.won * 3 + updated.drawn, goalDifference = updated.goalsFor - updated.goalsAgainst) }
+                                }
+                            }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = AppText, textAlign = TextAlign.Center), modifier = Modifier.width(31.dp).height(46.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Red, unfocusedBorderColor = GlassBorder, cursorColor = Red))
+                        }
+                        Text((row.won * 3 + row.drawn).toString(), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(25.dp), textAlign = TextAlign.Center)
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(row.rank.toString(), color = if (row.isOurClub) Red else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(18.dp), textAlign = TextAlign.Center)
+                        Text(row.teamName, color = rowColor, fontSize = 10.sp, fontWeight = if (row.isOurClub) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        listOf(row.played, row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst, row.points).forEach { value -> Text(value.toString(), color = if (row.isOurClub) AppText else Muted, fontSize = 9.sp, textAlign = TextAlign.Center, modifier = Modifier.width(25.dp)) }
+                    }
+                }
+            }
+            if (editing) {
+                Spacer(Modifier.height(10.dp))
+                ClubPrimaryButton(text = L(locale, "حفظ الترتيب", "Enregistrer le classement"), onClick = { onSave(competition, rows); editing = false }, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp))
+            }
+        }
+    }
+}
+
+@Composable
 private fun GlassCard(content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(21.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(21.dp)).padding(16.dp)) { content() }
 }
@@ -2408,7 +2504,7 @@ private fun EmptyNativeSection(icon: Int, title: String, body: String, badge: St
 }
 
 @Composable
-private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, locale: String, showPlayerStats: Boolean, onSelect: (Section) -> Unit) {
+private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, locale: String, showPlayerStats: Boolean, showCompetitions: Boolean, onSelect: (Section) -> Unit) {
     Box(
         modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
@@ -2423,7 +2519,7 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { showPlayerStats || it != Section.PLAYER_STATS }.forEach { item ->
+        (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { (showPlayerStats || it != Section.PLAYER_STATS) && (showCompetitions || it != Section.COMPETITIONS) }.forEach { item ->
             val active = selected == item
             val width by animateDpAsState(if (active) 62.dp else 48.dp, label = "nav-width")
             val interaction = remember { MutableInteractionSource() }
