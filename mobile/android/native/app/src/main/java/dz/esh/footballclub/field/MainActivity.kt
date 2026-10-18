@@ -2023,8 +2023,11 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
         (if (locale == "ar") Section.entries.reversed() else Section.entries).forEach { item ->
             val active = selected == item
             val width by animateDpAsState(if (active) 68.dp else 54.dp, label = "nav-width")
+            val interaction = remember { MutableInteractionSource() }
             Column(
-                Modifier.width(width).fillMaxSize().clip(CircleShape).clickable { onSelect(item) }.padding(horizontal = 6.dp),
+                Modifier.width(width).fillMaxSize().clip(CircleShape)
+                    .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
+                    .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
