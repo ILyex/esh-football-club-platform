@@ -86,29 +86,29 @@ export default async function HomePage({
       id: "senior",
       category: "SENIOR",
       href: `/${locale}/team/senior`,
-      video: "/branding/teams/category-senior.mp4",
-      poster: homeData.club.websiteImages.teamSenior || "/branding/teams/category-senior.jpg",
+      poster: homeData.club.websiteImages.teamSenior || "/branding/teams/category-senior-card.webp",
+      fallback: "/branding/teams/category-senior-card.webp",
     },
     {
       id: "u20",
       category: "U20",
       href: `/${locale}/team/u20`,
-      video: "/branding/teams/category-u20.mp4",
-      poster: homeData.club.websiteImages.teamU20 || "/branding/teams/category-u20.jpg",
+      poster: homeData.club.websiteImages.teamU20 || "/branding/teams/category-u20-card.webp",
+      fallback: "/branding/teams/category-u20-card.webp",
     },
     {
       id: "u17",
       category: "U17",
       href: `/${locale}/team/u17`,
-      video: "/branding/teams/category-u17.mp4",
-      poster: homeData.club.websiteImages.teamU17 || "/branding/teams/category-u17.jpg",
+      poster: homeData.club.websiteImages.teamU17 || "/branding/teams/category-u17-card.webp",
+      fallback: "/branding/teams/category-u17-card.webp",
     },
     {
       id: "u15",
       category: "U15",
       href: `/${locale}/team/u15`,
-      video: "/branding/teams/category-u15.mp4",
-      poster: homeData.club.websiteImages.teamU15 || "/branding/teams/category-u15.jpg",
+      poster: homeData.club.websiteImages.teamU15 || "/branding/teams/category-u15-card.webp",
+      fallback: "/branding/teams/category-u15-card.webp",
     }
   ];
 
@@ -329,19 +329,12 @@ export default async function HomePage({
                     className="group relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs transition-all hover:-translate-y-1 hover:border-club-primary/60 hover:shadow-md block"
                   >
                     <div className="relative aspect-[507/249] w-full overflow-hidden">
-                      <video
-                        src={sec.video}
-                        poster={sec.poster}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        controls={false}
-                        disablePictureInPicture
-                        disableRemotePlayback
-                        preload="metadata"
-                        aria-hidden="true"
-                        tabIndex={-1}
+                      <SafeImage
+                        src={sec.poster}
+                        fallbackSrc={sec.fallback}
+                        alt={tCategories(sec.category)}
+                        loading="lazy"
+                        decoding="async"
                         className="pointer-events-none h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/75 via-black/10 to-transparent p-2.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">

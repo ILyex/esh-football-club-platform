@@ -3,6 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { getLocalPublicFilePath, getPublicFileObject, isDatabaseStorageMode, isLocalStorageMode, isPublicStorageConfigured } from "@/lib/storage";
 
+const publicAssetCacheHeaders = {
+  // Public storage keys are random/versioned on upload, so immutable CDN
+  // caching is safe and avoids reading the same bytes from DB/S3 per visitor.
+  "Cache-Control": "public, max-age=31536000, immutable",
+  "Vercel-CDN-Cache-Control": "public, s-maxage=31536000, stale-while-revalidate=86400"
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
@@ -39,7 +46,7 @@ export async function GET(req: NextRequest) {
           "Accept-Ranges": "bytes",
           ...(object.contentRange ? { "Content-Range": object.contentRange } : {}),
           "Content-Length": String(object.contentLength ?? object.body.byteLength),
-          "Cache-Control": "public, max-age=31536000, immutable",
+          ...publicAssetCacheHeaders,
           "Content-Disposition": "inline"
         }
       });
@@ -87,7 +94,7 @@ export async function GET(req: NextRequest) {
           "Accept-Ranges": "bytes",
           "Content-Length": String(chunkSize),
           "Content-Type": mimeType,
-          "Cache-Control": "public, max-age=31536000, immutable"
+          ...publicAssetCacheHeaders
         }
       });
     }
@@ -98,7 +105,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": mimeType,
         "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        ...publicAssetCacheHeaders,
         "Content-Disposition": "inline"
       }
     });
