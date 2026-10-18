@@ -763,6 +763,27 @@ private fun SectionPage(
     onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
     onDeleteEvent: (NativeMatch, NativeEvent) -> Unit
 ) {
+    var isMorning by remember { mutableStateOf(java.time.LocalTime.now().hour in 6 until 12) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            isMorning = now.hour in 6 until 12
+            val nextBoundary = now.toLocalDate().atTime(java.time.LocalTime.of(if (isMorning) 12 else 6, 0))
+                .let { if (it.isAfter(now)) it else it.plusDays(1) }
+            delay(java.time.Duration.between(now, nextBoundary).toMillis().coerceAtLeast(1_000))
+        }
+    }
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val activity = context as? ComponentActivity
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isMorning = java.time.LocalTime.now().hour in 6 until 12
+            }
+        }
+        activity?.lifecycle?.addObserver(observer)
+        onDispose { activity?.lifecycle?.removeObserver(observer) }
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 20.dp),
@@ -773,8 +794,9 @@ private fun SectionPage(
                 Text(
                     if (section == Section.HOME) {
                         val name = user?.name?.takeIf { it.isNotBlank() }
-                        if (locale == "ar") "👋 أهلاً${name?.let { "، $it" }.orEmpty()}"
-                        else "👋 Bonjour${name?.let { " $it" }.orEmpty()}"
+                        val greeting = if (isMorning) L(locale, "صباح الخير", "Bonjour") else L(locale, "مساء الخير", "Bonsoir")
+                        if (locale == "ar") "👋 $greeting${name?.let { "، $it" }.orEmpty()}"
+                        else "👋 $greeting${name?.let { " $it" }.orEmpty()}"
                     } else section.title(locale),
                     color = AppText,
                     fontSize = 25.sp,
