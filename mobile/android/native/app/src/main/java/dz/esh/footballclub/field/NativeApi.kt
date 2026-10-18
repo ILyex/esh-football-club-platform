@@ -1,6 +1,8 @@
 package dz.esh.footballclub.field
 
 import android.content.Context
+import android.net.Uri
+import java.io.ByteArrayOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -36,7 +38,19 @@ data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
 data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val teamScopeRestricted: Boolean)
 data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val permissions: NativePermissions, val user: NativeUser)
-data class NativeUser(val id: String, val name: String, val email: String, val role: String, val image: String?, val licenseNumber: String?)
+data class NativeUser(
+    val id: String,
+    val name: String,
+    val email: String,
+    val role: String,
+    val image: String?,
+    val licenseNumber: String?,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val dateOfBirth: String? = null,
+    val bloodGroup: String? = null,
+    val season: String? = null
+)
 data class NativeLoginResult(val token: String?, val user: NativeUser?, val error: String?)
 data class NativeRelease(val tag: String, val apkUrl: String, val sha256: String?)
 class NoPublicNativeRelease : Exception("No publicly accessible Android release is available")
@@ -137,6 +151,47 @@ object NativeApi {
 
     fun createContent(token: String, payload: JSONObject) {
         request("/api/mobile/content", token, payload.toString(), "POST")
+    }
+
+    fun uploadNewsImage(context: Context, token: String, uri: Uri): String {
+        val mime = context.contentResolver.getType(uri)?.takeIf { it in listOf("image/jpeg", "image/png", "image/webp") }
+            ?: throw IllegalArgumentException("صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP.")
+        val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(16 * 1024)
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                if (total > 4 * 1024 * 1024) throw IllegalArgumentException("يجب ألا يتجاوز حجم الصورة 4 ميغابايت.")
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        } ?: throw IllegalArgumentException("تعذر قراءة الصورة المحددة.")
+        if (bytes.isEmpty()) throw IllegalArgumentException("الصورة المحددة فارغة.")
+        val boundary = "----ESH${System.currentTimeMillis()}${(1000..9999).random()}"
+        val connection = URL("$BASE_URL/api/mobile/news/media").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = CONNECT_TIMEOUT
+            connection.readTimeout = READ_TIMEOUT
+            connection.doOutput = true
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            connection.outputStream.use { output ->
+                output.write("--$boundary\r\nContent-Disposition: form-data; name=\"image\"; filename=\"news-image\"\r\nContent-Type: $mime\r\n\r\n".toByteArray(Charsets.UTF_8))
+                output.write(bytes)
+                output.write("\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8))
+            }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status == HttpURLConnection.HTTP_UNAUTHORIZED) throw NativeSessionExpired()
+            if (status !in 200..299) throw ApiFailure(runCatching { JSONObject(text).optString("error") }.getOrDefault("image_upload_failed"))
+            return JSONObject(text).getString("url")
+        } finally { connection.disconnect() }
     }
 
     fun registerPush(token: String, fcmToken: String, locale: String) {
@@ -287,6 +342,11 @@ object NativeApi {
     private fun JSONObject.nullableInt(key: String): Int? = if (isNull(key)) null else optInt(key)
     private fun JSONObject.optNullableDouble(key: String): Double? = if (isNull(key) || !has(key)) null else optDouble(key)
     private fun JSONObject.optNullableString(key: String): String? = if (isNull(key)) null else optString(key)
-    private fun parseUser(user: JSONObject): NativeUser = NativeUser(user.optString("id"), user.optString("name"), user.optString("email"), user.optString("roleName"), user.optNullableString("image"), user.optNullableString("licenseNumber"))
+    private fun parseUser(user: JSONObject): NativeUser = NativeUser(
+        user.optString("id"), user.optString("name"), user.optString("email"), user.optString("roleName"),
+        user.optNullableString("image"), user.optNullableString("licenseNumber"), user.optNullableString("firstName"),
+        user.optNullableString("lastName"), user.optNullableString("dateOfBirth"), user.optNullableString("bloodGroup"),
+        user.optNullableString("season")
+    )
     private class ApiFailure(val code: String) : Exception(code)
 }

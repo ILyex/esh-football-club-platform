@@ -48,11 +48,11 @@ async function getAccessToken(account: ServiceAccount): Promise<string> {
 }
 
 /** Sends native system notifications through FCM when the deployment has its service account configured. */
-export async function sendNativePush(messages: FcmMessage[]): Promise<{ configured: boolean; failed: number }> {
+export async function sendNativePush(messages: FcmMessage[]): Promise<{ configured: boolean; failed: number; errors: string[] }> {
   const eligibleMessages = messages.filter((message) => message.section === "matches" || message.section === "meetings");
-  if (eligibleMessages.length === 0) return { configured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON), failed: 0 };
+  if (eligibleMessages.length === 0) return { configured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON), failed: 0, errors: [] };
   const account = loadServiceAccount();
-  if (!account) return { configured: false, failed: 0 };
+  if (!account) return { configured: false, failed: 0, errors: [] };
   const accessToken = await getAccessToken(account);
   const results = await Promise.allSettled(eligibleMessages.map(async (message) => {
     const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(account.project_id!)}/messages:send`, {
@@ -66,7 +66,13 @@ export async function sendNativePush(messages: FcmMessage[]): Promise<{ configur
         android: { priority: "high" }
       } })
     });
-    if (!response.ok) throw new Error(`FCM returned HTTP ${response.status}.`);
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null) as { error?: { status?: string } } | null;
+      throw new Error(`FCM HTTP ${response.status}${errorBody?.error?.status ? ` (${errorBody.error.status})` : ""}`);
+    }
   }));
-  return { configured: true, failed: results.filter((result) => result.status === "rejected").length };
+  const errors = results.flatMap((result) => result.status === "rejected"
+    ? [result.reason instanceof Error ? result.reason.message : "FCM request failed"]
+    : []);
+  return { configured: true, failed: errors.length, errors };
 }

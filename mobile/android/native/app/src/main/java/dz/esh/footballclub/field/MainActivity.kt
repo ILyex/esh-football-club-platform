@@ -9,6 +9,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -27,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,6 +87,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -125,16 +129,21 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.ImageBitmap
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
+import android.util.Base64
 import android.app.DownloadManager
 import android.content.Context
 import android.os.Environment
 import androidx.core.net.toUri
 import android.app.Activity
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import java.util.Calendar
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
 import java.net.URL
 
 private var nativeThemeIsLight by mutableStateOf(false)
@@ -188,7 +197,10 @@ class MainActivity : ComponentActivity() {
 
 private object IconlyIcons {
     val Home = R.drawable.iconly_home
-    val Match = R.drawable.ic_match_ball
+    val Match = R.drawable.iconly_ticket_star
+    val MatchFilled = R.drawable.iconly_ticket_star_filled
+    val Meeting = R.drawable.iconly_calendar
+    val MeetingFilled = R.drawable.iconly_calendar_filled
     val People = R.drawable.iconly_users
     val Calendar = R.drawable.iconly_calendar
     val Notification = R.drawable.iconly_notification
@@ -224,8 +236,8 @@ private object IconlyIcons {
 
 private enum class Section(val icon: Int, val selectedIcon: Int) {
     HOME(IconlyIcons.Home, R.drawable.iconly_home_filled),
-    MATCHES(IconlyIcons.Match, R.drawable.ic_match_ball_filled),
-    MEETINGS(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
+    MATCHES(IconlyIcons.Match, IconlyIcons.MatchFilled),
+    MEETINGS(IconlyIcons.Meeting, IconlyIcons.MeetingFilled),
     ALERTS(IconlyIcons.Notification, R.drawable.iconly_notification_filled)
 }
 private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
@@ -268,6 +280,7 @@ private fun MatchdayApp() {
     var updateRelease by remember { mutableStateOf<NativeRelease?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
     var composerType by remember { mutableStateOf<String?>(null) }
+    var createError by remember { mutableStateOf<String?>(null) }
 
     fun toggleTheme() {
         val next = !lightMode
@@ -513,18 +526,32 @@ private fun MatchdayApp() {
                     modifier = Modifier.weight(1f).padding(bottom = 106.dp),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "language-content"
-                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, onNavigate = { section = it }, onCreate = { composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
+                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent) }
             }
             GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, onSelect = { section = it })
         }
         composerType?.let { type ->
-            NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, onDismiss = { composerType = null }) { payload ->
+            NativeCreateDialog(type, data?.teams.orEmpty(), data?.coaches.orEmpty(), data?.permissions?.teamScopeRestricted == true, locale, isSubmitting = loading, errorMessage = createError, onDismiss = { composerType = null }) { payload ->
                 val activeToken = token ?: return@NativeCreateDialog
-                composerType = null
                 scope.launch {
+                    createError = null
                     loading = true
-                    val result = runCatching { withContext(Dispatchers.IO) { NativeApi.createContent(activeToken, payload); NativeApi.data(activeToken, locale) } }
-                    result.onSuccess { data = it; connectionError = L(locale, "تم الحفظ ومزامنة المنصة والموقع.", "Enregistré et synchronisé avec la plateforme et le site.") }.onFailure { connectionError = L(locale, "تعذر الحفظ. تحقق من الصلاحيات والاتصال.", "Enregistrement impossible. Vérifiez vos droits et la connexion.") }
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            if (type == "news") {
+                                val pickedUris = payload.optJSONArray("imageUris") ?: org.json.JSONArray()
+                                val uploadedUrls = org.json.JSONArray()
+                                for (index in 0 until pickedUris.length()) {
+                                    uploadedUrls.put(NativeApi.uploadNewsImage(context, activeToken, Uri.parse(pickedUris.getString(index))))
+                                }
+                                payload.remove("imageUris")
+                                payload.put("imageUrls", uploadedUrls)
+                            }
+                            NativeApi.createContent(activeToken, payload)
+                            NativeApi.data(activeToken, locale)
+                        }
+                    }
+                    result.onSuccess { data = it; composerType = null; connectionError = L(locale, "تم النشر ومزامنة المنصة والموقع العام.", "Publié et synchronisé avec la plateforme et le site public.") }.onFailure { createError = L(locale, "تعذر النشر. تحقق من حجم الصور والاتصال ثم حاول مجددًا.", "Publication impossible. Vérifiez la taille des images et la connexion puis réessayez.") }
                     loading = false
                 }
             }
@@ -769,7 +796,7 @@ private fun SectionPage(
             }
             Section.MEETINGS -> {
                 val meetings = data?.upcomingMeetings.orEmpty() + data?.meetings.orEmpty()
-                if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Calendar, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
+                if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Meeting, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(meetings) { meeting -> MeetingCard(meeting, locale) }
             }
             Section.ALERTS -> {
@@ -845,7 +872,7 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CompactMetric(IconlyIcons.Match, data?.matches?.size?.toString() ?: "—", L(locale, "مباراة", "matchs"))
-                        CompactMetric(IconlyIcons.Calendar, data?.upcomingMeetings?.size?.toString() ?: "—", L(locale, "اجتماع", "réunions"))
+                        CompactMetric(IconlyIcons.Meeting, data?.upcomingMeetings?.size?.toString() ?: "—", L(locale, "اجتماع", "réunions"))
                     }
                     Row(Modifier.clip(RoundedCornerShape(13.dp)).background(Red).clickable { onNavigate(Section.MATCHES) }.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(L(locale, "إدارة المباريات", "Gérer les matchs"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -868,45 +895,96 @@ private fun CompactMetric(icon: Int, value: String, label: String) {
 
 @Composable
 private fun DigitalAdminCard(user: NativeUser, locale: String) {
-    var flipped by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(if (flipped) 180f else 0f, label = "admin-card-flip")
-    val density = LocalDensity.current
     val image by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                val source = user.image?.takeIf { it.startsWith("https://") } ?: return@runCatching null
-                URL(source).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+                val source = user.image?.takeIf { it.isNotBlank() } ?: return@runCatching null
+                val bitmap = if (source.startsWith("data:image/")) {
+                    val encoded = source.substringAfter(',', "")
+                    if (encoded.isBlank()) null else Base64.decode(encoded, Base64.DEFAULT).let { bytes ->
+                        ByteArrayInputStream(bytes).use { BitmapFactory.decodeStream(it) }
+                    }
+                } else if (source.startsWith("https://")) {
+                    URL(source).openStream().use { BitmapFactory.decodeStream(it) }
+                } else null
+                bitmap?.asImageBitmap()
             }.getOrNull()
         }
     }
+    val surname = user.lastName?.trim().orEmpty()
+    val givenName = user.firstName?.trim().orEmpty().ifBlank { if (surname.isBlank()) user.name else "" }
+    val birthDate = user.dateOfBirth?.take(10)?.let { raw ->
+        runCatching { java.time.LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", java.util.Locale.FRANCE)) }.getOrNull()
+    } ?: "—"
+    val paper = Color(0xFFF5F2E8)
+    val ink = Color(0xFF28323A)
+    val leagueRed = Color(0xFFB43E51)
+    val federationGreen = Color(0xFF41775D)
+    val violet = Color(0xFF6659AC)
     Box(
-        Modifier.fillMaxWidth().height(174.dp).graphicsLayer {
-            rotationY = rotation
-            cameraDistance = 12 * density.density
-        }.clip(RoundedCornerShape(23.dp)).background(Brush.linearGradient(listOf(if (nativeThemeIsLight) Color(0xFFFFE5E7) else Color(0xFF551923), CardStart, CardEnd))).border(1.dp, Red.copy(alpha = .36f), RoundedCornerShape(23.dp)).clickable { flipped = !flipped }.padding(18.dp)
+        Modifier.fillMaxWidth().aspectRatio(1.58f).clip(RoundedCornerShape(14.dp)).background(paper).border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(14.dp)).shadow(5.dp, RoundedCornerShape(14.dp))
     ) {
-        if (rotation <= 90f) {
-            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                if (image != null) Image(image!!, contentDescription = null, modifier = Modifier.size(72.dp).clip(CircleShape).border(2.dp, Red, CircleShape), contentScale = ContentScale.Crop)
-                else Box(Modifier.size(72.dp).clip(CircleShape).background(Red.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text(user.name.take(1).uppercase(), color = Red, fontSize = 25.sp, fontWeight = FontWeight.Black) }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(L(locale, "بطاقة إدارية · أمل سيدي حسني", "CARTE ADMIN · ES SIDI HOSNI"), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text(user.name, color = AppText, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-                    Text(user.role, color = Muted, fontSize = 12.sp)
-                    Text(L(locale, "الرخصة: ", "Licence : ") + (user.licenseNumber ?: L(locale, "غير مسجل", "Non renseignée")), color = AppText, fontSize = 11.sp)
-                }
-                Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(36.dp))
+        Canvas(Modifier.fillMaxSize()) {
+            val step = 10.dp.toPx()
+            var x = -size.height
+            while (x < size.width) {
+                drawLine(Color(0x1C817C70), Offset(x, 0f), Offset(x + size.height, size.height), strokeWidth = 0.65.dp.toPx())
+                x += step
             }
-        } else {
-            Column(Modifier.fillMaxSize().graphicsLayer { rotationY = 180f }, verticalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(36.dp))
-                    Text(L(locale, "الهوية الإدارية الرقمية", "IDENTITÉ ADMINISTRATIVE NUMÉRIQUE"), color = Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            val sideHeight = size.height * .43f
+            val sideTop = size.height * .48f
+            drawRect(violet, Offset.Zero.copy(y = sideTop), Size(26.dp.toPx(), sideHeight))
+            drawRect(violet, Offset(size.width - 26.dp.toPx(), sideTop), Size(26.dp.toPx(), sideHeight))
+            drawLine(Color(0xFF968BBF), Offset(35.dp.toPx(), sideTop + 4.dp.toPx()), Offset(35.dp.toPx(), size.height - 12.dp.toPx()), strokeWidth = 4.dp.toPx())
+        }
+        Column(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth().height(35.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                LicenseSeal(R.drawable.faf_logo, "Fédération Algérienne de Football")
+                Column(Modifier.weight(1f).padding(horizontal = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Text("Fédération Algérienne de Football", color = federationGreen, fontSize = 10.sp, fontWeight = FontWeight.Black, maxLines = 1, textAlign = TextAlign.Center)
+                    Text("Ligue Wilaya de Football – Tiaret", color = leagueRed, fontSize = 10.sp, fontWeight = FontWeight.Black, maxLines = 1, textAlign = TextAlign.Center)
                 }
-                Text(L(locale, "اضغط للعودة إلى الوجه الأمامي", "Touchez pour revenir au recto"), color = Muted, fontSize = 11.sp)
-                Text(user.email, color = AppText, fontSize = 11.sp, maxLines = 1)
+                LicenseSeal(R.drawable.tiaret_league_logo, "Ligue Wilaya de Football – Tiaret")
+            }
+            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(.31f).fillMaxSize().padding(start = 17.dp, top = 2.dp, bottom = 2.dp).clip(RoundedCornerShape(3.dp)).background(Color.White).border(1.dp, Color(0xFFBBB9B1), RoundedCornerShape(3.dp)).padding(3.dp)) {
+                    if (image != null) Image(image!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    else Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) { Text((givenName.ifBlank { user.name }).take(1).uppercase(), color = ink, fontSize = 24.sp, fontWeight = FontWeight.Black) }
+                }
+                Column(Modifier.weight(.69f).fillMaxSize().padding(end = 15.dp, top = 3.dp, bottom = 2.dp), verticalArrangement = Arrangement.Center) {
+                    val fullName = listOf(surname.uppercase(), givenName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { user.name }
+                    Text(fullName, color = ink, fontSize = 14.sp, fontWeight = FontWeight.Black, lineHeight = 16.sp, maxLines = 2)
+                    Spacer(Modifier.height(2.dp))
+                    LicenseDetail("Né le :", birthDate, ink)
+                    LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink)
+                    Box(Modifier.padding(top = 3.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 9.dp, vertical = 2.dp)) {
+                        Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth().height(21.dp).padding(start = 16.dp, end = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(user.licenseNumber?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.43f), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Black, maxLines = 1)
+                Text(user.role.ifBlank { "—" }, modifier = Modifier.weight(.57f), color = ink, fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp, maxLines = 2)
             }
         }
+    }
+}
+
+@Composable
+private fun LicenseSeal(imageRes: Int, label: String) {
+    Image(
+        painter = painterResource(imageRes),
+        contentDescription = label,
+        modifier = Modifier.size(36.dp),
+        contentScale = ContentScale.Fit
+    )
+}
+
+@Composable
+private fun LicenseDetail(label: String, value: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 
@@ -935,7 +1013,7 @@ private fun QuickActions(onNavigate: (Section) -> Unit, data: NativeData?, local
             if (data?.permissions?.updateMatches == true) {
             ActionTile(L(locale, "إدارة مباراة", "Gérer un match"), L(locale, "النتيجة والأحداث", "Score et événements"), IconlyIcons.Match, Red, onClick = { onNavigate(Section.MATCHES) }, modifier = Modifier.weight(1f))
             }
-            ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), IconlyIcons.Calendar, Mint, onClick = { onNavigate(Section.MEETINGS) }, modifier = Modifier.weight(1f))
+            ActionTile(L(locale, "الاجتماعات", "Réunions"), L(locale, "المواعيد والتنبيهات", "Dates et rappels"), IconlyIcons.Meeting, Mint, onClick = { onNavigate(Section.MEETINGS) }, modifier = Modifier.weight(1f))
         }
         if (data?.permissions?.training == true || data?.permissions?.announcements == true) {
             Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -947,7 +1025,7 @@ private fun QuickActions(onNavigate: (Section) -> Unit, data: NativeData?, local
             ActionTile(L(locale, "إضافة خبر", "Publier une actualité"), L(locale, "باللغتين على الموقع العام", "En arabe et en français sur le site"), IconlyIcons.Paper, Red, onClick = { onCreate("news") })
         }
         if (data?.permissions?.scheduleMeetings == true) {
-            ActionTile(L(locale, "إضافة اجتماع", "Planifier une réunion"), L(locale, "لفئتك مع إرسال تنبيه", "Pour votre équipe avec alerte"), IconlyIcons.Calendar, Mint, onClick = { onCreate("meeting") })
+            ActionTile(L(locale, "إضافة اجتماع", "Planifier une réunion"), L(locale, "لفئتك مع إرسال تنبيه", "Pour votre équipe avec alerte"), IconlyIcons.Meeting, Mint, onClick = { onCreate("meeting") })
         }
     }
 }
@@ -1433,7 +1511,7 @@ private fun orderedNativeTeams(teams: List<NativeTeam>): List<NativeTeam> {
 private fun MeetingCard(meeting: NativeMeeting, locale: String) {
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(23.dp))
+            Icon(IconlyIcons.Meeting, contentDescription = null, tint = Red, modifier = Modifier.size(23.dp))
             Spacer(Modifier.width(13.dp))
             Column {
                 Text(meeting.title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -1465,7 +1543,25 @@ private fun GlassCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: List<NativeCoach>, teamScopeRestricted: Boolean, locale: String, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {
+private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val bitmap by produceState<ImageBitmap?>(null, uri) {
+        val decoded = withContext(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, BitmapFactory.Options().apply { inSampleSize = 4 })
+                }
+            }.getOrNull()
+        }
+        value = decoded?.asImageBitmap()
+    }
+    if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Crop)
+    else Box(modifier.background(Glass))
+}
+
+@Composable
+private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: List<NativeCoach>, teamScopeRestricted: Boolean, locale: String, isSubmitting: Boolean, errorMessage: String?, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {
+    val context = LocalContext.current
     val orderedTeams = orderedNativeTeams(teams)
     var titleAr by remember(type) { mutableStateOf("") }
     var contentAr by remember(type) { mutableStateOf("") }
@@ -1481,14 +1577,44 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
     var coachId by remember(type) { mutableStateOf("") }
     var teamMenu by remember { mutableStateOf(false) }
     var contentLocale by remember(type) { mutableStateOf("ar") }
+    var step by remember(type) { mutableIntStateOf(1) }
+    val selectedImages = remember(type) { mutableStateListOf<Uri>() }
+    val formScrollState = rememberScrollState()
+    LaunchedEffect(step) { formScrollState.scrollTo(0) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { images ->
+        selectedImages.clear()
+        selectedImages.addAll(images.distinct().take(10))
+    }
+    val stepCount = if (type == "news") 2 else if (type == "training") 3 else 1
+    val validTimeRange = runCatching {
+        val start = startTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
+        val end = endTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
+        startTime.matches(Regex("\\d{2}:\\d{2}")) && endTime.matches(Regex("\\d{2}:\\d{2}")) && end > start
+    }.getOrDefault(false)
     val title = when (type) {
         "training" -> L(locale, "إضافة تدريب", "Nouvel entraînement")
         "meeting" -> L(locale, "إضافة اجتماع", "Nouvelle réunion")
         "announcement" -> L(locale, "إضافة إعلان", "Nouvelle annonce")
         else -> L(locale, "إضافة خبر", "Nouvelle actualité")
     }
+    val canContinue = when {
+        type == "news" && step == 1 -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank()
+        type == "news" -> true
+        type == "training" && step == 1 -> teamId.isNotBlank() && coachId.isNotBlank()
+        type == "training" && step == 2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange
+        type == "training" -> teamId.isNotBlank()
+        type == "meeting" -> teamId.isNotBlank() && date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange && titleAr.isNotBlank()
+        else -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank())
+    }
+    val actionLabel = when {
+        (type == "news" && step == 1) || (type == "training" && step < 3) -> L(locale, "متابعة", "Continuer")
+        type == "news" -> L(locale, "نشر الخبر", "Publier l’actualité")
+        type == "training" -> L(locale, "نشر التدريب", "Publier la séance")
+        type == "meeting" -> L(locale, "جدولة الاجتماع", "Planifier la réunion")
+        else -> L(locale, "حفظ ونشر", "Enregistrer et publier")
+    }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         shape = RoundedCornerShape(22.dp),
         containerColor = Panel,
         titleContentColor = Color.White,
@@ -1496,7 +1622,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         title = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .22f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                    Icon(if (type == "training") IconlyIcons.Activity else if (type == "meeting") IconlyIcons.Calendar else IconlyIcons.Paper, contentDescription = null, tint = Red, modifier = Modifier.size(22.dp))
+                    Icon(if (type == "training") IconlyIcons.Activity else if (type == "meeting") IconlyIcons.Meeting else IconlyIcons.Paper, contentDescription = null, tint = Red, modifier = Modifier.size(22.dp))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(title, color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily, fontSize = 19.sp)
@@ -1505,11 +1631,22 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
             }
         },
         text = {
-            Column(Modifier.heightIn(max = 490.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.animateContentSize().heightIn(max = 490.dp).verticalScroll(formScrollState), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (stepCount > 1) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(stepCount) { index ->
+                            Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(if (index < step) Red else GlassBorder))
+                        }
+                    }
+                    Text(L(locale, "الخطوة $step من $stepCount", "Étape $step sur $stepCount"), color = Muted, fontFamily = CairoFamily, fontSize = 10.sp)
+                }
+                errorMessage?.let { message ->
+                    Text(message, color = Red, fontFamily = CairoFamily, fontSize = 10.sp, lineHeight = 15.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(RedGlow).padding(10.dp))
+                }
                 if (type == "training" || type == "meeting") {
                     if (type == "meeting") OutlinedTextField(value = titleAr, onValueChange = { titleAr = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "عنوان الاجتماع", "Titre de la réunion")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                     val availableCoaches = coaches.filter { teamId in it.teamIds }
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (type == "meeting" || step == 1) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(IconlyIcons.People, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
                             Column {
@@ -1526,28 +1663,32 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             onSelected = { teamId = it; coachId = "" }
                         )
                         if (type == "training") NativeDropdownField(
-                            label = L(locale, "المدرب · اختياري", "Entraîneur · facultatif"),
+                            label = L(locale, "المدرب", "Entraîneur"),
                             value = availableCoaches.firstOrNull { it.id == coachId }?.name.orEmpty(),
                             placeholder = if (availableCoaches.isEmpty()) L(locale, "لا يوجد مدرب مسجل لهذه الفئة", "Aucun entraîneur pour cette catégorie") else L(locale, "اختر المدرب", "Choisir un entraîneur"),
-                            options = listOf("" to L(locale, "بدون مدرب", "Sans entraîneur")) + availableCoaches.map { it.id to it.name },
+                            options = availableCoaches.map { it.id to it.name },
                             onSelected = { coachId = it }
                         )
                     }
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (type == "meeting" || step == 2) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
+                            Icon(if (type == "meeting") IconlyIcons.Meeting else IconlyIcons.Calendar, contentDescription = null, tint = Red, modifier = Modifier.size(18.dp))
                             Column {
                                 Text(if (type == "meeting") L(locale, "موعد الاجتماع", "Horaire de la réunion") else L(locale, "موعد التدريب", "Horaire de la séance"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 Text(L(locale, "حدد التاريخ ووقت البداية والنهاية", "Date, heure de début et de fin"), color = Muted, fontSize = 9.sp)
                             }
                         }
-                        OutlinedTextField(value = date, onValueChange = { date = it.take(10) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التاريخ · YYYY-MM-DD", "Date · AAAA-MM-JJ")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                        OutlinedTextField(value = date, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable {
+                            val parts = date.split("-").mapNotNull { it.toIntOrNull() }
+                            val calendar = Calendar.getInstance()
+                            DatePickerDialog(context, { _, year, month, day -> date = "%04d-%02d-%02d".format(year, month + 1, day) }, parts.getOrElse(0) { calendar.get(Calendar.YEAR) }, (parts.getOrElse(1) { calendar.get(Calendar.MONTH) + 1 } - 1).coerceIn(0, 11), parts.getOrElse(2) { calendar.get(Calendar.DAY_OF_MONTH) }).show()
+                        }, singleLine = true, label = { Text(if (type == "meeting") L(locale, "موعد الاجتماع · اختر التاريخ", "Date de la réunion") else L(locale, "موعد التدريب · اختر التاريخ", "Date de la séance")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(value = startTime, onValueChange = { startTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "وقت البداية", "Début")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
-                            OutlinedTextField(value = endTime, onValueChange = { endTime = it.take(5) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(L(locale, "وقت النهاية", "Fin")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                            OutlinedTextField(value = startTime, onValueChange = {}, readOnly = true, modifier = Modifier.weight(1f).clickable { TimePickerDialog(context, { _, hour, minute -> startTime = "%02d:%02d".format(hour, minute) }, startTime.take(2).toIntOrNull() ?: 18, startTime.takeLast(2).toIntOrNull() ?: 0, true).show() }, singleLine = true, label = { Text(L(locale, "وقت البداية", "Début")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
+                            OutlinedTextField(value = endTime, onValueChange = {}, readOnly = true, modifier = Modifier.weight(1f).clickable { TimePickerDialog(context, { _, hour, minute -> endTime = "%02d:%02d".format(hour, minute) }, endTime.take(2).toIntOrNull() ?: 19, endTime.takeLast(2).toIntOrNull() ?: 0, true).show() }, singleLine = true, label = { Text(L(locale, "وقت النهاية", "Fin")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                         }
                     }
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (type == "meeting" || step == 3) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(value = location, onValueChange = { location = it.take(160) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "المكان · اختياري", "Lieu · facultatif")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                         OutlinedTextField(value = notes, onValueChange = { notes = it.take(2000) }, modifier = Modifier.fillMaxWidth().height(92.dp), label = { Text(if (type == "meeting") L(locale, "جدول الأعمال / ملاحظات", "Ordre du jour / notes") else L(locale, "ملاحظات للمدربين واللاعبين", "Notes pour l’équipe")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                     }
@@ -1568,6 +1709,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             onSelected = { teamId = it; teamMenu = false }
                         )
                     }
+                    if (type != "news" || step == 1) {
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Glass).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf("ar" to L(locale, "العربية", "Arabe"), "fr" to "Français").forEach { (code, label) ->
                             val activeLanguage = contentLocale == code
@@ -1588,26 +1730,65 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                         }
                     }
                     if (type == "news") OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف · اختياري", "Catégorie · facultative")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    }
+                    if (type == "news" && step == 2) {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Icon(IconlyIcons.Camera, contentDescription = null, tint = Mint, modifier = Modifier.size(20.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(L(locale, "صور الخبر", "Photos de l’actualité"), color = AppText, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(L(locale, "اختر حتى 10 صور من هاتفك · JPG أو PNG أو WebP · 4 MB للصورة", "Jusqu’à 10 images · JPG, PNG ou WebP · 4 Mo par image"), color = Muted, fontSize = 9.sp, lineHeight = 14.sp)
+                                }
+                            }
+                            ClubPrimaryButton(text = L(locale, "اختيار الصور من الهاتف", "Choisir des photos"), onClick = { imagePicker.launch("image/*") }, modifier = Modifier.fillMaxWidth(), enabled = !isSubmitting)
+                            if (selectedImages.isNotEmpty()) {
+                                Text(L(locale, "${selectedImages.size} صور محددة · الصورة الأولى هي الغلاف", "${selectedImages.size} images · la première sera la couverture"), color = Mint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    selectedImages.forEachIndexed { index, uri ->
+                                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel).padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                            NativeImageThumbnail(uri, Modifier.size(42.dp).clip(RoundedCornerShape(9.dp)))
+                                            Text(L(locale, "صورة ${index + 1}", "Image ${index + 1}"), color = AppText, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                                            TextButton(onClick = { selectedImages.remove(uri) }, enabled = !isSubmitting) { Text(L(locale, "حذف", "Retirer"), color = Red, fontSize = 10.sp) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
             ClubPrimaryButton(
-                text = when (type) { "training" -> L(locale, "حفظ التدريب", "Enregistrer la séance"); "meeting" -> L(locale, "جدولة الاجتماع", "Planifier la réunion"); else -> L(locale, "حفظ ونشر", "Enregistrer et publier") },
-                enabled = if (type == "training" || type == "meeting") teamId.isNotBlank() && date.length == 10 && startTime.length == 5 && endTime.length == 5 && (type != "meeting" || titleAr.isNotBlank()) else titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank()),
+                text = actionLabel,
+                enabled = canContinue && !isSubmitting,
+                loading = isSubmitting,
                 modifier = Modifier.width(190.dp),
                 onClick = {
+                if ((type == "news" && step == 1) || (type == "training" && step < 3)) {
+                    step += 1
+                    return@ClubPrimaryButton
+                }
                 val payload = org.json.JSONObject().put("type", type)
                 if (type == "training") payload.put("teamId", teamId).put("coachId", coachId).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("notes", notes)
                 else if (type == "meeting") payload.put("teamId", teamId).put("title", titleAr.trim()).put("date", date).put("startTime", startTime).put("endTime", endTime).put("location", location).put("description", notes)
                 else {
                     payload.put("titleAr", titleAr.trim()).put("contentAr", contentAr.trim()).put("titleFr", titleFr.trim()).put("contentFr", contentFr.trim())
-                    if (type == "announcement") payload.put("priority", "NORMAL").put("teamId", if (teamScopeRestricted) teamId else "") else payload.put("category", category.trim())
+                    if (type == "announcement") payload.put("priority", "NORMAL").put("teamId", if (teamScopeRestricted) teamId else "") else {
+                        payload.put("category", category.trim())
+                        val imageUris = org.json.JSONArray()
+                        selectedImages.forEach { imageUris.put(it.toString()) }
+                        payload.put("imageUris", imageUris)
+                    }
                 }
                 onSubmit(payload)
             })
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily) } }
+        dismissButton = {
+            TextButton(enabled = !isSubmitting, onClick = { if (step > 1 && (type == "news" || type == "training")) step -= 1 else onDismiss() }) {
+                Text(if (step > 1 && (type == "news" || type == "training")) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
+            }
+        }
     )
 }
 

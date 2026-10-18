@@ -17,6 +17,15 @@ type RuntimeEnv = {
   CRON_SECRET?: string;
 };
 
+export type MatchPushKind = "MATCH_STARTED" | "MATCH_REOPENED" | "GOAL" | "MATCH_FINISHED";
+
+export function getMatchPushKind(previousStatus: string, nextStatus: string): MatchPushKind | null {
+  if (previousStatus === nextStatus) return null;
+  if (nextStatus === "LIVE") return previousStatus === "FINISHED" ? "MATCH_REOPENED" : "MATCH_STARTED";
+  if (nextStatus === "FINISHED") return "MATCH_FINISHED";
+  return null;
+}
+
 export async function getPushRuntimeEnv(): Promise<RuntimeEnv> {
   if (process.env.DENO_DEPLOY !== "true" && process.env.DEPLOY_TARGET === "cloudflare") {
     try {
@@ -41,7 +50,7 @@ export async function createMatchPushOutbox(
     dedupKey: string;
     matchId: string;
     matchEventId?: string | null;
-    kind: "MATCH_STARTED" | "GOAL" | "MATCH_FINISHED";
+    kind: MatchPushKind;
     payload: Record<string, string | number | null>;
   }
 ) {
@@ -65,6 +74,7 @@ async function queueOutbox(outboxId: string, force = false): Promise<boolean> {
   const claimed = await db.matchPushOutbox.updateMany({
     where: {
       id: outboxId,
+      processedAt: null,
       OR: [
         { queuedAt: null },
         ...(force ? [{ queuedAt: { lt: new Date(now.getTime() - 2 * 60_000) } }] : [])
@@ -86,7 +96,27 @@ async function queueOutbox(outboxId: string, force = false): Promise<boolean> {
 
 export async function enqueueMatchPushOutbox(outboxId: string): Promise<void> {
   try {
-    await queueOutbox(outboxId);
+    const env = await getPushRuntimeEnv();
+    if (env.GOAL_PUSH_QUEUE) {
+      await queueOutbox(outboxId);
+      return;
+    }
+
+    // Vercel and other Node deployments do not expose the Cloudflare queue.
+    // Deliver from the durable outbox now instead of silently waiting for a
+    // cron job that may not be configured on the deployment.
+    const claimedAt = new Date();
+    const claim = await db.matchPushOutbox.updateMany({
+      where: { id: outboxId, processedAt: null, OR: [{ queuedAt: null }, { queuedAt: { lt: new Date(claimedAt.getTime() - 2 * 60_000) } }] },
+      data: { queuedAt: claimedAt }
+    });
+    if (!claim.count) return;
+    try {
+      await fanoutMatchPush(outboxId);
+    } catch (error) {
+      await db.matchPushOutbox.updateMany({ where: { id: outboxId, queuedAt: claimedAt, processedAt: null }, data: { queuedAt: null } });
+      throw error;
+    }
   } catch (error) {
     // The domain mutation and outbox record already committed together. A
     // transient dispatch problem must not tell the operator that the match
@@ -99,7 +129,7 @@ export async function enqueueMatchPushOutbox(outboxId: string): Promise<void> {
 export async function flushPendingMatchPushOutbox(limit = 20): Promise<number> {
   const staleBefore = new Date(Date.now() - 2 * 60_000);
   const pending = await db.matchPushOutbox.findMany({
-    where: { OR: [{ queuedAt: null }, { queuedAt: { lt: staleBefore } }] },
+    where: { processedAt: null, OR: [{ queuedAt: null }, { queuedAt: { lt: staleBefore } }] },
     orderBy: { createdAt: "asc" },
     take: Math.max(1, Math.min(limit, 100)),
     select: { id: true }
@@ -110,7 +140,7 @@ export async function flushPendingMatchPushOutbox(limit = 20): Promise<number> {
     for (const outbox of pending) {
       const claimedAt = new Date();
       const claim = await db.matchPushOutbox.updateMany({
-        where: { id: outbox.id, OR: [{ queuedAt: null }, { queuedAt: { lt: staleBefore } }] },
+        where: { id: outbox.id, processedAt: null, OR: [{ queuedAt: null }, { queuedAt: { lt: staleBefore } }] },
         data: { queuedAt: claimedAt }
       });
       if (!claim.count) continue;
@@ -161,10 +191,10 @@ export async function sha256Hex(value: string): Promise<string> {
 
 export async function fanoutMatchPush(outboxId: string): Promise<void> {
   const [outbox, env] = await Promise.all([
-    db.matchPushOutbox.findUnique({ where: { id: outboxId }, select: { id: true, kind: true, payload: true } }),
+    db.matchPushOutbox.findUnique({ where: { id: outboxId }, select: { id: true, kind: true, payload: true, processedAt: true } }),
     getPushRuntimeEnv()
   ]);
-  if (!outbox) return;
+  if (!outbox || outbox.processedAt) return;
   const payload = outbox.payload as { category?: string; teamId?: string };
   const subscribers = await db.pushSubscription.findMany({
     where: { categories: { some: { category: payload.category as TeamCategory } } },
@@ -209,8 +239,9 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     const nativeResult = await sendNativePush(nativeMessages);
     if (!nativeResult.configured) {
       console.error("[MatchPush] Native match notifications were skipped: FIREBASE_SERVICE_ACCOUNT_JSON is not configured.");
+      throw new Error("Native match notifications require FIREBASE_SERVICE_ACCOUNT_JSON.");
     } else if (nativeResult.failed) {
-      throw new Error(`${nativeResult.failed} native match notification(s) failed.`);
+      throw new Error(`${nativeResult.failed} native match notification(s) failed: ${nativeResult.errors.slice(0, 3).join(", ")}`);
     }
   }
 
@@ -231,6 +262,8 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     }));
     await env.GOAL_PUSH_QUEUE.sendBatch(messages);
   }
+
+  await db.matchPushOutbox.updateMany({ where: { id: outboxId, processedAt: null }, data: { processedAt: new Date() } });
 }
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
@@ -265,6 +298,9 @@ function buildNotification(outbox: {
 
   if (outbox.kind === "MATCH_STARTED") {
     title = isAr ? "بدأت المباراة ⚽" : "Le match commence ⚽";
+    body = `${home} ${score} ${away} · ${teamLabel}`;
+  } else if (outbox.kind === "MATCH_REOPENED") {
+    title = isAr ? "أُعيد فتح المباراة ⚽" : "Le match a repris ⚽";
     body = `${home} ${score} ${away} · ${teamLabel}`;
   } else if (outbox.kind === "MATCH_FINISHED") {
     title = isAr ? "انتهت المباراة 🏁" : "Match terminé 🏁";

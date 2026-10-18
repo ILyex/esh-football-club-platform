@@ -6,7 +6,7 @@ import { getNativePrincipal } from "@/lib/native-session";
 import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope, scopeIncludesTeam } from "@/lib/authz/policy";
 import { writeAuditLog } from "@/lib/audit";
-import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
+import { createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
@@ -32,15 +32,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { updated, outbox } = await db.$transaction(async (tx) => {
     const updated = await tx.match.update({ where: { id }, data: parsed.data });
     const status = parsed.data.status;
-    const shouldNotify = status !== undefined && status !== match.status && (status === "LIVE" || status === "FINISHED") && match.team?.category;
+    const pushKind = status ? getMatchPushKind(match.status, status) : null;
+    const shouldNotify = pushKind && match.team?.category;
     const outbox = shouldNotify
       ? await createMatchPushOutbox(tx, {
           // A fixture can be reopened after it has ended. Include the mutation
           // timestamp so each real status transition gets its own notification,
           // while retries that do not change status still produce no duplicate.
-          dedupKey: `${status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}:${updated.updatedAt.getTime()}`,
+          dedupKey: `${pushKind}:${updated.id}:${updated.updatedAt.getTime()}`,
           matchId: updated.id,
-          kind: status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          kind: pushKind,
           payload: {
             matchId: updated.id,
             teamId: updated.teamId,

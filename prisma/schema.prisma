@@ -75,6 +75,10 @@ model PrivateAsset {
 model User {
   id           String    @id @default(cuid())
   name         String
+  firstName    String?
+  lastName     String?
+  dateOfBirth  DateTime?
+  bloodGroup   String?
   email        String    @unique
   passwordHash String
   image        String?
@@ -940,6 +944,7 @@ model MatchPushOutbox {
   kind         String              @db.VarChar(32)
   payload      Json
   queuedAt     DateTime?
+  processedAt  DateTime?
   createdAt    DateTime            @default(now())
   deliveries   MatchPushDelivery[]
 

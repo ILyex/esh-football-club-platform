@@ -27,7 +27,22 @@ const bilingual = {
 };
 const arabicScript = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/u;
 const announcementInput = z.object({ type: z.literal("announcement"), ...bilingual, priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"), teamId: z.string().optional().default("") });
-const newsInput = z.object({ type: z.literal("news"), ...bilingual, category: z.string().trim().max(80).optional().default("") });
+const newsInput = z.object({
+  type: z.literal("news"), ...bilingual, category: z.string().trim().max(80).optional().default(""),
+  imageUrls: z.array(z.string().min(1).max(2000)).max(10).optional().default([])
+});
+
+function isUploadedNewsImageUrl(value: string, request: Request): boolean {
+  if (value.startsWith("/api/storage/public-file?key=public/news/")) return true;
+  const publicBase = process.env.STORAGE_PUBLIC_BASE_URL?.trim().replace(/\/$/, "");
+  if (publicBase && value.startsWith(`${publicBase}/public/news/`)) return true;
+  try {
+    const url = new URL(value);
+    return url.origin === new URL(request.url).origin && url.pathname.startsWith("/api/storage/public-file") && url.searchParams.get("key")?.startsWith("public/news/") === true;
+  } catch {
+    return false;
+  }
+}
 
 async function uniqueNewsSlug(locale: string, title: string): Promise<string> {
   const base = slugify(title) || (locale === "fr" ? "actualite" : "khabar");
@@ -138,18 +153,30 @@ export async function POST(request: Request) {
   if (news.success) {
     if (!hasPermission(user, "news.create")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
     if (arabicScript.test(news.data.titleFr) || arabicScript.test(news.data.contentFr)) return NextResponse.json({ error: "french_translation_must_be_in_french" }, { status: 400 });
+    if (news.data.imageUrls.some((url) => !isUploadedNewsImageUrl(url, request))) return NextResponse.json({ error: "invalid_news_image" }, { status: 400 });
     const [slugAr, slugFr] = await Promise.all([uniqueNewsSlug("ar", news.data.titleAr), uniqueNewsSlug("fr", news.data.titleFr)]);
-    const created = await db.$transaction(async (tx) => {
-      const item = await tx.news.create({ data: {
-        authorId: user.id, category: news.data.category || null, status: "PUBLISHED", publishedAt: new Date(),
-        translations: { create: [
-          { locale: "ar", title: news.data.titleAr, slug: slugAr, content: news.data.contentAr },
-          { locale: "fr", title: news.data.titleFr, slug: slugFr, content: news.data.contentFr }
-        ] }
-      } });
-      await writeAuditLog({ userId: user.id, action: "news.create", entityType: "News", entityId: item.id, changes: { after: news.data } }, tx);
-      return item;
-    });
+    const imageUrls = [...new Set(news.data.imageUrls)];
+    let created;
+    try {
+      created = await db.$transaction(async (tx) => {
+        const item = await tx.news.create({ data: {
+          authorId: user.id, category: news.data.category || null, status: "PUBLISHED", publishedAt: new Date(),
+          featuredImageUrl: imageUrls[0] ?? null, imageUrls,
+          translations: { create: [
+            { locale: "ar", title: news.data.titleAr, slug: slugAr, content: news.data.contentAr },
+            { locale: "fr", title: news.data.titleFr, slug: slugFr, content: news.data.contentFr }
+          ] }
+        } });
+        await writeAuditLog({ userId: user.id, action: "news.create", entityType: "News", entityId: item.id, changes: { after: news.data } }, tx);
+        return item;
+      });
+    } catch (error) {
+      await Promise.all(imageUrls.map(async (url) => {
+        try { await (await import("@/lib/storage")).deletePublicFile(url); }
+        catch (cleanupError) { console.error("[MobileNews] Could not clean up uncommitted image", cleanupError instanceof Error ? cleanupError.message : "unknown error"); }
+      }));
+      throw error;
+    }
     revalidatePath("/[locale]/dashboard/news", "page");
     revalidatePath("/[locale]/news", "page");
     revalidatePath("/[locale]", "page");

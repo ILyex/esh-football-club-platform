@@ -62,6 +62,22 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
             <input name="licenseNumber" maxLength={80} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
           <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "اللقب (يظهر أولًا على البطاقة)" : "Nom de famille (affiché en premier)"}</span>
+            <input name="lastName" autoComplete="family-name" maxLength={100} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "الاسم" : "Prénom"}</span>
+            <input name="firstName" autoComplete="given-name" maxLength={100} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</span>
+            <input name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+          </label>
+          <div className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
+            <span>{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</span>
+            <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} options={[{ value: "A+", label: "A+" }, { value: "A-", label: "A−" }, { value: "B+", label: "B+" }, { value: "B-", label: "B−" }, { value: "AB+", label: "AB+" }, { value: "AB-", label: "AB−" }, { value: "O+", label: "O+" }, { value: "O-", label: "O−" }]} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
+          </div>
+          <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{t("fields.password")}</span>
             <input name="password" type="password" dir="ltr" autoComplete="new-password" minLength={8} maxLength={72} required className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-start text-sm font-normal outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
             <span className="mt-0.5 block text-[11px] leading-5 font-normal text-muted-foreground">

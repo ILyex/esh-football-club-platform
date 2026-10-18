@@ -151,6 +151,22 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
             <input id="user-license-number" name="licenseNumber" maxLength={80} defaultValue={user.licenseNumber ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">
+            <label htmlFor="user-last-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "اللقب (يظهر أولًا على البطاقة)" : "Nom de famille (affiché en premier)"}</label>
+            <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم" : "Prénom"}</label>
+            <input id="user-first-name" name="firstName" autoComplete="given-name" maxLength={100} defaultValue={user.firstName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <label htmlFor="user-date-of-birth" className="block text-sm font-medium leading-5">{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</label>
+            <input id="user-date-of-birth" name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} defaultValue={user.dateOfBirth?.toISOString().slice(0, 10) ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <label className="block text-sm font-medium leading-5">{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</label>
+            <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} defaultValue={user.bloodGroup ?? ""} options={[{ value: "A+", label: "A+" }, { value: "A-", label: "A−" }, { value: "B+", label: "B+" }, { value: "B-", label: "B−" }, { value: "AB+", label: "AB+" }, { value: "AB-", label: "AB−" }, { value: "O+", label: "O+" }, { value: "O-", label: "O−" }]} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
+          </div>
+          <div className="min-w-0 space-y-2">
             <label className="block text-sm font-medium leading-5">{t("fields.role")}</label>
             <FormSelect
               name="roleId"

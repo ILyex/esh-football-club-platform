@@ -1,0 +1,1 @@
+ALTER TABLE "MatchPushOutbox" ADD COLUMN "processedAt" TIMESTAMP(3);

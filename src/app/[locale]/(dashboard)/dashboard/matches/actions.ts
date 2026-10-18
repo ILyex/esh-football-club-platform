@@ -17,7 +17,7 @@ import { enqueueJob } from "@/lib/jobs/queue";
 import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
-import { createMatchPushOutbox, enqueueMatchPushOutbox } from "@/lib/push/match-push";
+import { createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
 import { estimateShotXg } from "@/lib/matches/xg";
 import { matchStadium } from "@/lib/matches/stadium";
 import { deletePrivateFile } from "@/lib/storage";
@@ -324,13 +324,14 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
     });
     await syncCalendarEvent(tx, updated.id, `${homeTeamName} vs ${awayTeamName}`, updated.matchDate, updated.teamId, updated.stadium || null);
     let notification = null;
-    if (updated.teamId && before.status !== updated.status && (updated.status === "LIVE" || updated.status === "FINISHED")) {
+    const pushKind = getMatchPushKind(before.status, updated.status);
+    if (updated.teamId && pushKind) {
       const team = await tx.team.findUnique({ where: { id: updated.teamId }, select: { category: true } });
       if (team) {
         notification = await createMatchPushOutbox(tx, {
-          dedupKey: `${updated.status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}`,
+          dedupKey: `${pushKind}:${updated.id}:${updated.updatedAt.getTime()}`,
           matchId: updated.id,
-          kind: updated.status === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          kind: pushKind,
           payload: {
             matchId: updated.id,
             teamId: updated.teamId,
@@ -394,12 +395,13 @@ export async function updateMatchStatusAction(matchId: string, status: string) {
       }
     });
     await syncCalendarEvent(tx, updated.id, `${updated.homeTeamName} vs ${updated.awayTeamName}`, updated.matchDate, updated.teamId, updated.stadium || null);
-    const shouldNotify = before.status !== nextStatus && (nextStatus === "LIVE" || nextStatus === "FINISHED") && before.teamId && before.team?.category;
+    const pushKind = getMatchPushKind(before.status, nextStatus);
+    const shouldNotify = pushKind && before.teamId && before.team?.category;
     const notification = shouldNotify
       ? await createMatchPushOutbox(tx, {
-          dedupKey: `${nextStatus === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED"}:${updated.id}:${updated.matchDate.getTime()}`,
+          dedupKey: `${pushKind}:${updated.id}:${updated.updatedAt.getTime()}`,
           matchId: updated.id,
-          kind: nextStatus === "LIVE" ? "MATCH_STARTED" : "MATCH_FINISHED",
+          kind: pushKind,
           payload: {
             matchId: updated.id,
             teamId: updated.teamId,

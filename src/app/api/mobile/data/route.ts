@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const canCreateNews = hasPermission(user, "news.create");
   const canManageAnnouncements = hasPermission(user, "announcements.manage");
 
-  const [matches, meetings, calendarMeetings, notifications, teams, coaches] = await Promise.all([
+  const [matches, meetings, calendarMeetings, notifications, teams, coaches, currentSeason] = await Promise.all([
     canViewMatches ? db.match.findMany({
       where: teamWhere,
       include: {
@@ -66,11 +66,12 @@ export async function GET(request: Request) {
       },
       orderBy: { lastName: "asc" },
       select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, teamId: true, teamAssignments: { select: { teamId: true } } }
-    }) : Promise.resolve([])
+    }) : Promise.resolve([]),
+    db.season.findFirst({ where: { isCurrent: true }, select: { label: true }, orderBy: { startDate: "desc" } })
   ]);
 
   return NextResponse.json({
-    user: { id: user.id, name: user.name, email: user.email, image: user.image, licenseNumber: user.licenseNumber, roleKey: user.roleKey, roleName: user.roleName },
+    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({

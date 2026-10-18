@@ -9,7 +9,7 @@ const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const ADMIN_ROLE_KEYS = new Set(["super_admin", "president", "developer", "director", "sporting_director", "team_manager", "coach", "assistant_coach"]);
 
-export type NativePrincipal = SessionUser & { tokenVersion: number; image: string | null; licenseNumber: string | null };
+export type NativePrincipal = SessionUser & { tokenVersion: number; image: string | null; licenseNumber: string | null; firstName: string | null; lastName: string | null; dateOfBirth: Date | null; bloodGroup: string | null };
 
 function sessionKey(): string {
   const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim();
@@ -66,7 +66,7 @@ export async function getNativePrincipal(request: Request): Promise<NativePrinci
   const user = await db.user.findUnique({
     where: { id: claims.sub, deletedAt: null },
     select: {
-      id: true, name: true, email: true, isActive: true, image: true, licenseNumber: true, tokenVersion: true,
+      id: true, name: true, email: true, isActive: true, image: true, licenseNumber: true, firstName: true, lastName: true, dateOfBirth: true, bloodGroup: true, tokenVersion: true,
       role: { select: { key: true, name: true, permissions: { select: { permission: { select: { key: true } } } } } }
     }
   });
@@ -74,7 +74,8 @@ export async function getNativePrincipal(request: Request): Promise<NativePrinci
   const permissions = user.role.permissions.map(({ permission }) => permission.key).filter((key) => key !== "*" || user.role.key === "super_admin");
   const principal: NativePrincipal = {
     id: user.id, name: user.name, email: user.email, roleKey: user.role.key, roleName: user.role.name,
-    permissions, tokenVersion: user.tokenVersion, image: user.image, licenseNumber: user.licenseNumber
+    permissions, tokenVersion: user.tokenVersion, image: user.image, licenseNumber: user.licenseNumber,
+    firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth, bloodGroup: user.bloodGroup
   };
   return canUseNativeMatchday(principal) ? principal : null;
 }
