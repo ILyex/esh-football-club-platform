@@ -268,32 +268,17 @@ private fun installDownloadedApkUri(context: Context, apkUri: Uri): Boolean {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(settings); false }.getOrDefault(false)
     }
+    // Let Android's trusted package installer own the replacement flow. A
+    // PackageInstaller session committed from the current Activity can tear
+    // down this process while Compose is still rendering and is reported as
+    // an app crash by several OEM builds. The system installer handles the
+    // confirmation and process replacement safely from this content URI.
     return runCatching {
-        val installer = context.packageManager.packageInstaller
-        val length = context.contentResolver.openAssetFileDescriptor(apkUri, "r")?.use { it.length } ?: -1L
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-            setAppPackageName(context.packageName)
-            if (length > 0) setSize(length)
-        }
-        val sessionId = installer.createSession(params)
-        val session = installer.openSession(sessionId)
-        try {
-            context.contentResolver.openInputStream(apkUri)?.use { input ->
-                session.openWrite("base.apk", 0L, if (length > 0) length else -1L).use { output ->
-                    input.copyTo(output)
-                    session.fsync(output)
-                }
-            } ?: return@runCatching false
-            val resultIntent = Intent(context, ApkInstallReceiver::class.java)
-                .setAction(ApkInstallReceiver.ACTION_INSTALL_RESULT)
-                .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            session.commit(PendingIntent.getBroadcast(context, sessionId, resultIntent, flags).intentSender)
-            // A self-replacement legitimately terminates this process. Finish
-            // the current task first so Android does not report the expected
-            // package replacement as an application crash.
-            (context as? Activity)?.finishAndRemoveTask()
-        } finally { session.close() }
+        val install = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(apkUri, ApkDownloadReceiver.APK_MIME)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply { clipData = android.content.ClipData.newRawUri("ESH update", apkUri) }
+        context.startActivity(install)
         true
     }.getOrElse { false }
 }
