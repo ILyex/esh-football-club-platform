@@ -12,7 +12,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { id } = await params;
   if (!id || id.length > 120) return NextResponse.json({ error: "invalid_notification" }, { status: 400 });
 
+  // Deletion is intentionally idempotent. A refresh, retry, or another device
+  // may have removed the row already; the mobile client must still persist its
+  // local tombstone instead of treating that perfectly valid state as an error.
   const result = await db.notification.deleteMany({ where: { id, userId: user.id } });
-  if (result.count === 0) return NextResponse.json({ error: "notification_not_found" }, { status: 404 });
-  return NextResponse.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ success: true, deleted: result.count }, { headers: { "Cache-Control": "no-store" } });
 }

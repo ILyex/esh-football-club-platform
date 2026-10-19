@@ -421,7 +421,11 @@ private fun MatchdayApp() {
         if (token == activeToken && locale == requestLocale) {
             result.onSuccess { payload ->
                 user = payload.user.takeIf { it.id.isNotBlank() } ?: user
-                data = if (requestSummary && section == Section.MATCHES && matchDetailsLoaded) payload.copy(matches = data?.matches.orEmpty()) else payload
+                // Apply the local deletion tombstones to every refresh path.  The
+                // periodic refresh used to assign the raw payload here, which made
+                // a deleted notification reappear on the next sync.
+                val filteredPayload = visiblePayload(payload)
+                data = if (requestSummary && section == Section.MATCHES && matchDetailsLoaded) filteredPayload.copy(matches = data?.matches.orEmpty()) else filteredPayload
                 matchDetailsLoaded = !requestSummary
             }
                 .onFailure { error ->
