@@ -7,8 +7,9 @@ import { Monitor, Smartphone } from "lucide-react";
 type ThemeMode = "light" | "dark" | "system";
 type SystemIconBreakpoint = "sm" | "md" | "lg" | "xl";
 let themeTransitionTimer: number | undefined;
+let liquidTransitionTimer: number | undefined;
 
-function setDocumentTheme(isDark: boolean, animate: boolean) {
+function setDocumentTheme(isDark: boolean, animate: boolean, origin?: { x: number; y: number }) {
   const root = document.documentElement;
   root.style.backgroundColor = isDark ? "#0c0d0e" : "#f8f9fa";
   root.style.colorScheme = isDark ? "dark" : "light";
@@ -18,6 +19,19 @@ function setDocumentTheme(isDark: boolean, animate: boolean) {
     root.classList.toggle("dark", isDark);
     return;
   }
+
+  const overlay = document.createElement("div");
+  overlay.className = "theme-liquid-overlay";
+  overlay.dataset.mode = isDark ? "dark" : "light";
+  overlay.style.setProperty("--theme-x", `${origin?.x ?? window.innerWidth / 2}px`);
+  overlay.style.setProperty("--theme-y", `${origin?.y ?? window.innerHeight / 2}px`);
+  document.body.appendChild(overlay);
+  window.requestAnimationFrame(() => overlay.classList.add("is-active"));
+  if (liquidTransitionTimer) window.clearTimeout(liquidTransitionTimer);
+  liquidTransitionTimer = window.setTimeout(() => {
+    overlay.remove();
+    liquidTransitionTimer = undefined;
+  }, 780);
 
   root.classList.add("theme-transition");
   window.requestAnimationFrame(() => {
@@ -98,7 +112,7 @@ export function ThemeToggle({ locale, className, showLabels = false, systemIconB
     return () => media.removeEventListener("change", onSystemThemeChange);
   }, [locale]);
 
-  const applyTheme = (mode: ThemeMode) => {
+  const applyTheme = (mode: ThemeMode, origin?: { x: number; y: number }) => {
     setTheme(mode);
     try {
       localStorage.setItem("theme", mode);
@@ -106,7 +120,7 @@ export function ThemeToggle({ locale, className, showLabels = false, systemIconB
       // localStorage may fail in private mode
     }
     document.cookie = `theme=${mode};path=/;max-age=31536000;SameSite=Lax`;
-    setDocumentTheme(isDarkForMode(mode, window.matchMedia("(prefers-color-scheme: dark)").matches), true);
+    setDocumentTheme(isDarkForMode(mode, window.matchMedia("(prefers-color-scheme: dark)").matches), true, origin);
     window.dispatchEvent(new CustomEvent("theme-mode-change", { detail: mode }));
   };
 
@@ -144,7 +158,7 @@ export function ThemeToggle({ locale, className, showLabels = false, systemIconB
     >
       <button
         type="button"
-        onClick={() => applyTheme("light")}
+        onClick={(event) => applyTheme("light", { x: event.clientX, y: event.clientY })}
         aria-pressed={theme === "light"}
         title={labels.light}
         className={cn(
@@ -160,7 +174,7 @@ export function ThemeToggle({ locale, className, showLabels = false, systemIconB
 
       <button
         type="button"
-        onClick={() => applyTheme("dark")}
+        onClick={(event) => applyTheme("dark", { x: event.clientX, y: event.clientY })}
         aria-pressed={theme === "dark"}
         title={labels.dark}
         className={cn(
@@ -176,7 +190,7 @@ export function ThemeToggle({ locale, className, showLabels = false, systemIconB
 
       <button
         type="button"
-        onClick={() => applyTheme("system")}
+        onClick={(event) => applyTheme("system", { x: event.clientX, y: event.clientY })}
         aria-pressed={theme === "system"}
         title={labels.system}
         className={cn(

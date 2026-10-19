@@ -121,6 +121,40 @@ html.theme-transition body *::after {
   transition-timing-function: ease;
 }
 
+/* The incoming theme spreads from the toggle like a soft liquid sheet. The
+   page underneath is switched at the same time, so the new surface is visible
+   only where the wipe has already reached. */
+.theme-liquid-overlay {
+  --theme-x: 50vw;
+  --theme-y: 50vh;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  clip-path: circle(0 at var(--theme-x) var(--theme-y));
+  will-change: clip-path, filter;
+  filter: saturate(1.04) blur(0.2px);
+}
+
+.theme-liquid-overlay[data-mode="dark"] {
+  background: radial-gradient(circle at 18% 12%, rgb(220 38 38 / 0.15), transparent 32%), #0c0d0e;
+}
+
+.theme-liquid-overlay[data-mode="light"] {
+  background: radial-gradient(circle at 18% 12%, rgb(220 38 38 / 0.07), transparent 32%), #f8f9fa;
+}
+
+.theme-liquid-overlay.is-active {
+  animation: theme-liquid-spread 720ms cubic-bezier(.16, 1, .3, 1) forwards;
+}
+
+@keyframes theme-liquid-spread {
+  0% { clip-path: circle(0 at var(--theme-x) var(--theme-y)); filter: saturate(1.04) blur(1.5px); }
+  58% { clip-path: circle(78vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.08) blur(.5px); }
+  78% { clip-path: circle(112vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.04) blur(.15px); }
+  100% { clip-path: circle(155vmax at var(--theme-x) var(--theme-y)); filter: saturate(1) blur(0); }
+}
+
 .chart-view-transition {
   animation: chart-view-enter 180ms ease-out both;
 }
@@ -138,6 +172,8 @@ html.theme-transition body *::after {
   html.theme-transition body *::after {
     transition-duration: 0ms !important;
   }
+
+  .theme-liquid-overlay { animation: none !important; clip-path: none !important; }
 
   .chart-view-transition {
     animation: none;
