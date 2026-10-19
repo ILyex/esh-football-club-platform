@@ -23,7 +23,14 @@ class ApkInstallReceiver : BroadcastReceiver() {
         }
         if (status != PackageInstaller.STATUS_SUCCESS) {
             Log.e(TAG, "APK update failed: ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
+            return
         }
+        context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+            .remove(ApkDownloadReceiver.PENDING_URI)
+            .remove(ApkDownloadReceiver.PENDING_TAG)
+            .remove(ApkDownloadReceiver.SUPPRESS_TAG)
+            .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false)
+            .apply()
     }
 
     companion object {

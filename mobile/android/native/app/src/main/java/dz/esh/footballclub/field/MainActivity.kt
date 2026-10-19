@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.content.pm.PackageManager
+import android.app.DownloadManager
+import android.os.Environment
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -190,6 +192,20 @@ class MainActivity : ComponentActivity() {
             labelLarge = baseTypography.labelLarge.copy(fontFamily = CairoFamily), labelMedium = baseTypography.labelMedium.copy(fontFamily = CairoFamily), labelSmall = baseTypography.labelSmall.copy(fontFamily = CairoFamily)
         )
         setContent { MaterialTheme(typography = cairoTypography) { MatchdayApp() } }
+        handleInstallIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleInstallIntent(intent)
+    }
+
+    private fun handleInstallIntent(intent: Intent?) {
+        if (intent?.action != ApkDownloadReceiver.ACTION_INSTALL_UPDATE) return
+        val uri = intent.data ?: return
+        intent.action = null
+        installDownloadedApkUri(this, uri)
     }
 
     override fun onResume() {
@@ -240,6 +256,59 @@ private fun installDownloadedApk(context: Context, apkFile: File): Boolean {
         }
         true
     }.getOrElse { false }
+}
+
+private fun installDownloadedApkUri(context: Context, apkUri: Uri): Boolean {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+        val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(settings); false }.getOrDefault(false)
+    }
+    return runCatching {
+        val installer = context.packageManager.packageInstaller
+        val length = context.contentResolver.openAssetFileDescriptor(apkUri, "r")?.use { it.length } ?: -1L
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            if (length > 0) setSize(length)
+        }
+        val sessionId = installer.createSession(params)
+        val session = installer.openSession(sessionId)
+        try {
+            context.contentResolver.openInputStream(apkUri)?.use { input ->
+                session.openWrite("base.apk", 0L, if (length > 0) length else -1L).use { output ->
+                    input.copyTo(output)
+                    session.fsync(output)
+                }
+            } ?: return@runCatching false
+            val resultIntent = Intent(context, ApkInstallReceiver::class.java)
+                .setAction(ApkInstallReceiver.ACTION_INSTALL_RESULT)
+                .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+            session.commit(PendingIntent.getBroadcast(context, sessionId, resultIntent, flags).intentSender)
+        } finally { session.close() }
+        true
+    }.getOrElse { false }
+}
+
+private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): Long {
+    val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
+    val request = DownloadManager.Request(Uri.parse(release.apkUrl))
+        .setTitle("تحديث تطبيق ESH")
+        .setDescription("جارٍ تنزيل التحديث في الخلفية")
+        .setMimeType(ApkDownloadReceiver.APK_MIME)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
+        .setAllowedOverMetered(true)
+        .setAllowedOverRoaming(false)
+        .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
+    val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+    context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+        .putLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, id)
+        .putString(ApkDownloadReceiver.PENDING_SHA256, release.sha256)
+        .putString(ApkDownloadReceiver.PENDING_TAG, release.tag)
+        .putString(ApkDownloadReceiver.SUPPRESS_TAG, release.tag)
+        .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, true)
+        .apply()
+    return id
 }
 
 private object IconlyIcons {
@@ -415,6 +484,10 @@ private fun MatchdayApp() {
 
     LaunchedEffect(updateCheckNonce) {
         if (updateSnoozedThisSession) return@LaunchedEffect
+        val updaterPrefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+        if (updaterPrefs.getBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false) ||
+            updaterPrefs.getString(ApkDownloadReceiver.PENDING_URI, null) != null ||
+            updaterPrefs.getString(ApkDownloadReceiver.SUPPRESS_TAG, null) != null) return@LaunchedEffect
         // Let the authenticated dashboard request use the network first on cold start.
         delay(2_000)
         checkingUpdate = true
@@ -729,8 +802,11 @@ private fun MatchdayApp() {
                 confirmButton = { TextButton(onClick = {
                     updateDownloadJob?.cancel()
                     updateDownloadJob = null
-                    updateFile?.delete()
-                    updateFile = null
+                    val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                    prefs.getLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, -1L).takeIf { it >= 0L }?.let { id ->
+                        (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).remove(id)
+                    }
+                    prefs.edit().remove(ApkDownloadReceiver.PENDING_DOWNLOAD_ID).remove(ApkDownloadReceiver.PENDING_SHA256).remove(ApkDownloadReceiver.PENDING_TAG).remove(ApkDownloadReceiver.SUPPRESS_TAG).putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false).apply()
                     updateDownloading = false
                 }) { Text(L(locale, "إلغاء", "Annuler"), color = Muted) } }
             )
@@ -754,30 +830,39 @@ private fun MatchdayApp() {
                         updateProgress = 0
                         updateDownloading = true
                         updateRelease = null
-                        val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
-                        val destination = File(context.cacheDir, "updates/$fileName")
-                        updateFile = destination
+                        val downloadId = enqueueBackgroundUpdate(context, release)
                         updateDownloadJob = scope.launch {
-                            val result = runCatching {
-                                withContext(Dispatchers.IO) {
-                                    NativeApi.downloadApk(release.apkUrl, destination, release.sha256) { progress ->
-                                        withContext(Dispatchers.Main.immediate) { updateProgress = progress }
+                            val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                            while (true) {
+                                val state = withContext(Dispatchers.IO) {
+                                    manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { cursor ->
+                                        if (!cursor.moveToFirst()) return@withContext null
+                                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                                        val progress = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                                        val total = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                                        Triple(status, progress, total)
                                     }
                                 }
-                            }
-                            if (result.isSuccess) {
-                                updateDownloading = false
-                                updateDownloadJob = null
-                                if (!installDownloadedApk(context, destination)) {
-                                    updateFile?.delete()
-                                    updateFile = null
-                                    updateNotice = L(locale, "تعذر فتح مثبت Android. فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم أعد المحاولة.", "Impossible d’ouvrir l’installateur Android. Autorisez l’installation depuis cette source puis réessayez.")
+                                if (state == null) break
+                                val (status, bytes, total) = state
+                                if (total > 0) updateProgress = (bytes * 100L / total).toInt().coerceIn(0, 99)
+                                when (status) {
+                                    DownloadManager.STATUS_SUCCESSFUL -> {
+                                        updateProgress = 100
+                                        updateDownloading = false
+                                        updateDownloadJob = null
+                                        val uri = manager.getUriForDownloadedFile(downloadId)
+                                        if (uri == null || !installDownloadedApkUri(context, uri)) updateNotice = L(locale, "تعذر فتح مثبت Android. فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم أعد المحاولة.", "Impossible d’ouvrir l’installateur Android. Autorisez l’installation depuis cette source puis réessayez.")
+                                        break
+                                    }
+                                    DownloadManager.STATUS_FAILED -> {
+                                        updateDownloading = false
+                                        updateDownloadJob = null
+                                        updateNotice = L(locale, "فشل تنزيل التحديث أو التحقق من سلامته. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement ou la vérification de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
+                                        break
+                                    }
                                 }
-                            } else if (result.exceptionOrNull() !is kotlinx.coroutines.CancellationException) {
-                                updateDownloading = false
-                                updateDownloadJob = null
-                                updateFile = null
-                                updateNotice = L(locale, "فشل تنزيل التحديث أو التحقق من سلامته. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement ou la vérification de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
+                                delay(500)
                             }
                         }
                     }, modifier = Modifier.width(170.dp))

@@ -26,13 +26,13 @@ class ApkDownloadReceiver : BroadcastReceiver() {
             if (!cursor.moveToFirst()) return
             val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
             if (status != DownloadManager.STATUS_SUCCESSFUL) {
-                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_FAILED, true).apply()
+                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
                 return
             }
         }
 
         val apkUri = manager.getUriForDownloadedFile(downloadId) ?: run {
-            prefs.edit().remove(PENDING_DOWNLOAD_ID).putBoolean(DOWNLOAD_FAILED, true).apply()
+            prefs.edit().remove(PENDING_DOWNLOAD_ID).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
             return
         }
         val expectedSha256 = prefs.getString(PENDING_SHA256, null)
@@ -51,12 +51,12 @@ class ApkDownloadReceiver : BroadcastReceiver() {
             }.getOrNull()
             if (!expectedSha256.equals(actualSha256, ignoreCase = true)) {
                 manager.remove(downloadId)
-                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_FAILED, true).apply()
+                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
                 return
             }
         }
         prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256)
-            .putString(PENDING_URI, apkUri.toString()).putBoolean(DOWNLOAD_FAILED, false).apply()
+            .putString(PENDING_URI, apkUri.toString()).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, false).apply()
         // Foreground updates are completed by MainActivity's in-app progress flow.
         // When the app is not open, keep the notification fallback so the user can
         // resume the installation later.
@@ -115,7 +115,10 @@ class ApkDownloadReceiver : BroadcastReceiver() {
         const val PREFS = "esh_native_updater"
         const val PENDING_DOWNLOAD_ID = "pending_download_id"
         const val PENDING_SHA256 = "pending_sha256"
+        const val PENDING_TAG = "pending_tag"
         const val PENDING_URI = "pending_install_uri"
+        const val DOWNLOAD_ACTIVE = "download_active"
+        const val SUPPRESS_TAG = "suppress_update_tag"
         const val DOWNLOAD_FAILED = "download_failed"
         const val APK_MIME = "application/vnd.android.package-archive"
         const val ACTION_INSTALL_UPDATE = "dz.esh.footballclub.field.INSTALL_UPDATE"
