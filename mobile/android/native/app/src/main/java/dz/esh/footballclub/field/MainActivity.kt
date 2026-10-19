@@ -224,7 +224,9 @@ private object IconlyIcons {
     val Refresh = R.drawable.iconly_swap
     val Update = R.drawable.iconly_download
     val Language = R.drawable.iconly_language
-    val Trophy = R.drawable.iconly_ticket_star
+    // A football communicates goals and xG directly; the old ticket icon was
+    // misleading in the match and player statistics cards.
+    val GoalBall = R.drawable.ic_match_ball
     val ArrowLeft = R.drawable.iconly_arrow_left
     val ArrowRight = R.drawable.iconly_arrow_right
     val ArrowDown = R.drawable.iconly_arrow_down
@@ -1041,7 +1043,7 @@ private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, err
         else if (stats != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NativeMiniStat(L(locale, "اللاعبون", "Joueurs"), stats.players.size.toString(), IconlyIcons.People, Mint, Modifier.weight(1f))
-                NativeMiniStat(L(locale, "الأهداف", "Buts"), stats.players.sumOf { it.goals }.toString(), IconlyIcons.Trophy, Color(0xFFFFC45D), Modifier.weight(1f))
+                NativeMiniStat(L(locale, "الأهداف", "Buts"), stats.players.sumOf { it.goals }.toString(), IconlyIcons.GoalBall, Color(0xFFFFC45D), Modifier.weight(1f))
                 NativeMiniStat(L(locale, "المشاركات", "Apparitions"), stats.players.sumOf { it.appearances }.toString(), IconlyIcons.Activity, Color(0xFF7DB8FF), Modifier.weight(1f))
             }
         } else if (!loading) Text(L(locale, "لا يوجد لاعبون نشطون ضمن الفئات المرتبطة بحسابك.", "Aucun joueur actif dans les catégories attribuées."), color = Muted, fontSize = 11.sp)
@@ -1109,7 +1111,7 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             NativeMiniStat(L(locale, "مشاركات", "MJ"), player.appearances.toString(), IconlyIcons.Match, Color(0xFF7DB8FF), Modifier.weight(1f))
             NativeMiniStat(L(locale, "أساسي", "Titul."), player.starts.toString(), IconlyIcons.Star, Color(0xFFFFC45D), Modifier.weight(1f))
-            NativeMiniStat(L(locale, "أهداف", "Buts"), player.goals.toString(), IconlyIcons.Trophy, Red, Modifier.weight(1f))
+            NativeMiniStat(L(locale, "أهداف", "Buts"), player.goals.toString(), IconlyIcons.GoalBall, Red, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             NativeMiniStat(L(locale, "تمريرات حاسمة", "Passes D."), player.assists.toString(), IconlyIcons.Activity, Mint, Modifier.weight(1f))
@@ -1191,7 +1193,7 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
                         }
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Glass))).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                                Icon(IconlyIcons.Trophy, contentDescription = null, tint = Color(0xFFFF737A), modifier = Modifier.size(24.dp))
+                                Icon(IconlyIcons.GoalBall, contentDescription = null, tint = Color(0xFFFF737A), modifier = Modifier.size(24.dp))
                             }
                             Text(featuredMatch.opponent, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
@@ -1505,7 +1507,7 @@ private fun MatchCard(
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 MatchStatChip(L(locale, "التسديدات", "Tirs"), "${match.shotsFor}  ·  ${match.shotsAgainst}", IconlyIcons.Activity)
-                MatchStatChip("xG", "${"%.2f".format(java.util.Locale.US, match.xgFor)}  ·  ${"%.2f".format(java.util.Locale.US, match.xgAgainst)}", IconlyIcons.Trophy)
+                MatchStatChip("xG", "${"%.2f".format(java.util.Locale.US, match.xgFor)}  ·  ${"%.2f".format(java.util.Locale.US, match.xgAgainst)}", IconlyIcons.GoalBall)
                 MatchStatChip(L(locale, "البطاقات", "Cartons"), "${match.yellowCardsFor} 🟨  ${match.redCardsFor} 🟥", IconlyIcons.Match)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
