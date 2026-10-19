@@ -1031,9 +1031,6 @@ private fun SectionPage(
             Section.PLAYER_STATS -> {
                 val players = playerStats?.players.orEmpty()
                 item { PlayerStatsOverview(playerStats, playerStatsLoading, playerStatsError, locale, onRetryPlayerStats) }
-                if (selectedStatPlayer != null) {
-                    item { PlayerStatsDetail(selectedStatPlayer!!, locale) }
-                }
                 if (players.isNotEmpty()) items(players, key = { it.id }) { player ->
                     PlayerStatsCard(player, locale, selected = selectedStatPlayer?.id == player.id) {
                         selectedStatPlayer = if (selectedStatPlayer?.id == player.id) null else player
@@ -1110,11 +1107,14 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
     val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
     val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
-    Row(
+    Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(if (nativeThemeIsLight) listOf(Color(0xFFFFFFFF), Color(0xFFF4F7F8)) else listOf(Color(0xFF202329), Color(0xFF191B20))))
-            .border(1.dp, if (selected) Red.copy(alpha = .65f) else GlassBorder, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(13.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)
+            .border(1.dp, if (selected) Red.copy(alpha = .65f) else GlassBorder, RoundedCornerShape(20.dp))
+            .animateContentSize(animationSpec = tween(320))
+            .clickable(onClick = onClick).padding(13.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
         Box(Modifier.size(47.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, Red.copy(alpha = .25f), CircleShape), contentAlignment = Alignment.Center) {
             if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
             else Text(player.number?.toString() ?: "—", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Black)
@@ -1133,7 +1133,11 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
                 Text("${L(locale, "مباريات", "MJ")} ${player.appearances}", color = AppText.copy(alpha = .78f), fontSize = 10.sp)
             }
         }
-        Icon(IconlyIcons.ArrowLeft, contentDescription = L(locale, "التفاصيل", "Détails"), tint = Muted, modifier = Modifier.size(18.dp))
+            Icon(IconlyIcons.ArrowLeft, contentDescription = L(locale, "التفاصيل", "Détails"), tint = if (selected) Red else Muted, modifier = Modifier.size(18.dp))
+        }
+        AnimatedVisibility(visible = selected, enter = expandVertically(tween(320)) + fadeIn(tween(220)), exit = shrinkVertically(tween(260)) + fadeOut(tween(160))) {
+            PlayerStatsDetail(player, locale)
+        }
     }
 }
 
@@ -2141,13 +2145,30 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
 @Composable
 private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
     val bitmap by produceState<ImageBitmap?>(null, url) {
-        value = withContext(Dispatchers.IO) {
-            runCatching { URL(NativeApi.absolutePublicUrl(url)).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
-        }
+        value = withContext(Dispatchers.IO) { decodeNativeRemoteImage(url) }
     }
     if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Inside)
     else Box(modifier.background(Glass))
 }
+
+private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching {
+    if (source.startsWith("data:image/", ignoreCase = true)) {
+        val payload = source.substringAfter(',', "")
+        if (payload.isBlank()) return@runCatching null
+        return@runCatching Base64.decode(payload, Base64.DEFAULT).let { bytes ->
+            ByteArrayInputStream(bytes).use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+        }
+    }
+    val connection = URL(NativeApi.absolutePublicUrl(source)).openConnection() as java.net.HttpURLConnection
+    connection.connectTimeout = 10_000
+    connection.readTimeout = 15_000
+    connection.setRequestProperty("Accept", "image/*")
+    connection.setRequestProperty("Cache-Control", "no-cache")
+    try {
+        if (connection.responseCode !in 200..299) return@runCatching null
+        connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+    } finally { connection.disconnect() }
+}.getOrNull()
 
 @Composable
 private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: List<NativeCoach>, teamScopeRestricted: Boolean, locale: String, isSubmitting: Boolean, errorMessage: String?, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {
