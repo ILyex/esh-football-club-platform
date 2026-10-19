@@ -158,6 +158,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import java.io.File
+import androidx.core.content.FileProvider
 import java.io.ByteArrayInputStream
 import java.net.URL
 
@@ -828,42 +829,23 @@ private fun MatchdayApp() {
                         updateProgress = 0
                         updateDownloading = true
                         updateRelease = null
-                        val downloadId = enqueueBackgroundUpdate(context, release)
-                        if (downloadId < 0L) {
-                            updateDownloading = false
-                            updateNotice = L(locale, "تعذر بدء تنزيل التحديث. تحقق من الاتصال ومساحة التخزين ثم حاول مرة أخرى.", "Impossible de démarrer le téléchargement. Vérifiez la connexion et l’espace de stockage puis réessayez.")
-                        } else updateDownloadJob = scope.launch {
-                            val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                            while (true) {
-                                val state = withContext(Dispatchers.IO) {
-                                    manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { cursor ->
-                                        if (!cursor.moveToFirst()) return@withContext null
-                                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                                        val progress = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                                        val total = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-                                        Triple(status, progress, total)
+                        updateDownloadJob = scope.launch {
+                            val destination = File(context.cacheDir, "updates/esh-update-${release.tag}.apk")
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    NativeApi.downloadApk(release.apkUrl, destination, release.sha256) { progress ->
+                                        withContext(Dispatchers.Main) { updateProgress = progress }
                                     }
                                 }
-                                if (state == null) break
-                                val (status, bytes, total) = state
-                                if (total > 0) updateProgress = (bytes * 100L / total).toInt().coerceIn(0, 99)
-                                when (status) {
-                                    DownloadManager.STATUS_SUCCESSFUL -> {
-                                        updateProgress = 100
-                                        updateDownloading = false
-                                        updateDownloadJob = null
-                                        val uri = manager.getUriForDownloadedFile(downloadId)
-                                        if (uri == null || !installDownloadedApkUri(context, uri)) updateNotice = L(locale, "تعذر فتح مثبت Android. فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم أعد المحاولة.", "Impossible d’ouvrir l’installateur Android. Autorisez l’installation depuis cette source puis réessayez.")
-                                        break
-                                    }
-                                    DownloadManager.STATUS_FAILED -> {
-                                        updateDownloading = false
-                                        updateDownloadJob = null
-                                        updateNotice = L(locale, "فشل تنزيل التحديث أو التحقق من سلامته. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement ou la vérification de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
-                                        break
-                                    }
-                                }
-                                delay(500)
+                                updateProgress = 100
+                                updateDownloading = false
+                                updateDownloadJob = null
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
+                                if (!installDownloadedApkUri(context, uri)) error("installer_unavailable")
+                            }.onFailure {
+                                updateDownloading = false
+                                updateDownloadJob = null
+                                updateNotice = L(locale, "تعذر تنزيل التحديث. تحقق من الاتصال ثم حاول مرة أخرى.", "Impossible de télécharger la mise à jour. Vérifiez la connexion puis réessayez.")
                             }
                         }
                     }, modifier = Modifier.width(170.dp))
