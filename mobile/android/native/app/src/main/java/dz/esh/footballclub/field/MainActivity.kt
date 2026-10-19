@@ -333,6 +333,10 @@ private fun MatchdayApp() {
     var refreshNonce by remember { mutableIntStateOf(0) }
     var updateCheckNonce by remember { mutableIntStateOf(0) }
     var firstResumeHandled by remember { mutableStateOf(false) }
+    // "Later" suppresses the automatic update prompt for this app session.
+    // The flag is intentionally in Compose state, so it resets when the app
+    // process is launched again and the next entry can check for updates.
+    var updateSnoozedThisSession by remember { mutableStateOf(false) }
     var updateNotice by remember { mutableStateOf<String?>(null) }
     var updateRelease by remember { mutableStateOf<NativeRelease?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
@@ -389,6 +393,9 @@ private fun MatchdayApp() {
 
     fun checkForUpdate() {
         if (checkingUpdate) return
+        // A manual check from Settings is always allowed, even after the user
+        // dismissed the automatic prompt with "Later".
+        updateSnoozedThisSession = false
         scope.launch {
             checkingUpdate = true
             val releaseCheck = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() } }
@@ -405,6 +412,7 @@ private fun MatchdayApp() {
     }
 
     LaunchedEffect(updateCheckNonce) {
+        if (updateSnoozedThisSession) return@LaunchedEffect
         // Let the authenticated dashboard request use the network first on cold start.
         delay(2_000)
         checkingUpdate = true
@@ -727,7 +735,7 @@ private fun MatchdayApp() {
         }
         updateRelease?.let { release ->
             AlertDialog(
-                onDismissRequest = { updateRelease = null },
+                onDismissRequest = { updateRelease = null; updateSnoozedThisSession = true },
                 shape = RoundedCornerShape(22.dp),
                 containerColor = Panel,
                 title = { Text(L(locale, "تحديث جديد متاح", "Nouvelle mise à jour disponible"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily) },
@@ -772,7 +780,7 @@ private fun MatchdayApp() {
                         }
                     }, modifier = Modifier.width(170.dp))
                 },
-                dismissButton = { TextButton(onClick = { updateRelease = null }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
+                dismissButton = { TextButton(onClick = { updateRelease = null; updateSnoozedThisSession = true }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
             )
         }
         updateNotice?.let { message ->
