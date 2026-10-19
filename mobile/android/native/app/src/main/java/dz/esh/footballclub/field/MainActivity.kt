@@ -1228,14 +1228,16 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
 
 @Composable
 private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
-    val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
+    val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Glass, Panel))).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-            PlayerAvatar(player.photoUrl, player.number, 48.dp, Red)
-            Column(Modifier.weight(1f)) {
-                Text(name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-                Text("${player.team} · $position", color = Muted, fontSize = 10.sp)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(L(locale, "تفاصيل الإحصائيات", "Détails des statistiques"), color = AppText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                Text("$category · ${player.team} · $position", color = Muted, fontSize = 9.sp, maxLines = 1)
+            }
+            Box(Modifier.clip(RoundedCornerShape(9.dp)).background(Red.copy(alpha = .15f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
+                Text(L(locale, "مفصلة", "Détaillée"), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
