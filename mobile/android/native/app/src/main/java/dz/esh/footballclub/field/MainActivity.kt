@@ -8,7 +8,6 @@ import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -137,7 +136,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.util.Base64
 import android.content.Context
-import android.os.Environment
 import androidx.core.content.FileProvider
 import android.app.Activity
 import android.app.DatePickerDialog
@@ -175,10 +173,6 @@ class MainActivity : ComponentActivity() {
         var isForeground: Boolean = false
     }
 
-    private fun installDownloadedApk(uri: Uri) {
-        installDownloadedApk(this, uri)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NativeApi.initializeCache(applicationContext)
@@ -198,19 +192,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isForeground = true
-        val prefs = getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
-        val pendingUri = prefs.getString(ApkDownloadReceiver.PENDING_URI, null)
-        val installRequested = intent?.action == ApkDownloadReceiver.ACTION_INSTALL_UPDATE
-        if (installRequested) intent.action = null
-        if (pendingUri != null) {
-            val canInstall = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
-            if (canInstall) {
-                installDownloadedApk(Uri.parse(pendingUri))
-            } else if (installRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
-                runCatching { startActivity(settings) }
-            }
-        }
     }
 
     override fun onPause() {
@@ -219,13 +200,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun installDownloadedApk(context: Context, uri: Uri) {
-    val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
-    prefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
-    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+private fun installDownloadedApk(context: Context, uri: Uri): Boolean {
+    val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-    runCatching { context.startActivity(intent) }
-        .onFailure { prefs.edit().putString(ApkDownloadReceiver.PENDING_URI, uri.toString()).apply() }
+    return runCatching { context.startActivity(intent); true }.getOrDefault(false)
 }
 
 private object IconlyIcons {
@@ -740,7 +718,11 @@ private fun MatchdayApp() {
                                 updateDownloading = false
                                 updateDownloadJob = null
                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
-                                installDownloadedApk(context, uri)
+                                if (!installDownloadedApk(context, uri)) {
+                                    updateFile?.delete()
+                                    updateFile = null
+                                    updateNotice = L(locale, "تعذر فتح مثبت Android. فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم أعد المحاولة.", "Impossible d’ouvrir l’installateur Android. Autorisez l’installation depuis cette source puis réessayez.")
+                                }
                             } else if (result.exceptionOrNull() !is kotlinx.coroutines.CancellationException) {
                                 updateDownloading = false
                                 updateDownloadJob = null
