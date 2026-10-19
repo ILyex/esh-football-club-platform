@@ -86,6 +86,11 @@ fun isNativeUpdateAvailable(releaseTag: String, installedVersion: String): Boole
 
 object NativeApi {
     private const val BASE_URL = "https://esh-platform-vercel-preview.vercel.app"
+
+    /** Resolve storage paths returned by the platform to an absolute URL for Android's URL loader. */
+    fun absolutePublicUrl(value: String): String =
+        if (value.startsWith("http://") || value.startsWith("https://")) value
+        else URL(BASE_URL).toURI().resolve(value.removePrefix("/")).toString()
     private const val CONNECT_TIMEOUT = 20_000
     private const val READ_TIMEOUT = 40_000
 

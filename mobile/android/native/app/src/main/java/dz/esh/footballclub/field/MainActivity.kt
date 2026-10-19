@@ -519,7 +519,12 @@ private fun MatchdayApp() {
         playerStatsError = null
         val result = runCatching { withContext(Dispatchers.IO) { NativeApi.playerStats(activeToken) } }
         if (token == activeToken && section == Section.PLAYER_STATS && locale == requestLocale) {
-            result.onSuccess { playerStats = it }
+            result.onSuccess {
+                playerStats = it
+                // A successful response must clear a previous transient error;
+                // otherwise the stale banner remains visible over fresh data.
+                playerStatsError = null
+            }
                 .onFailure { error ->
                     if (error is NativeSessionExpired) {
                         sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null
@@ -1018,8 +1023,13 @@ private fun SectionPage(
                 val players = playerStats?.players.orEmpty()
                 item { PlayerStatsOverview(playerStats, playerStatsLoading, playerStatsError, locale, onRetryPlayerStats) }
                 if (selectedStatPlayer != null) {
-                    item { PlayerStatsDetail(selectedStatPlayer!!, locale) { selectedStatPlayer = null } }
-                } else if (players.isNotEmpty()) items(players, key = { it.id }) { player -> PlayerStatsCard(player, locale) { selectedStatPlayer = player } }
+                    item { PlayerStatsDetail(selectedStatPlayer!!, locale) }
+                }
+                if (players.isNotEmpty()) items(players, key = { it.id }) { player ->
+                    PlayerStatsCard(player, locale, selected = selectedStatPlayer?.id == player.id) {
+                        selectedStatPlayer = if (selectedStatPlayer?.id == player.id) null else player
+                    }
+                }
             }
             Section.CALENDAR -> {
                 val calendarItems = data?.calendarItems.orEmpty()
@@ -1064,7 +1074,7 @@ private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, err
             if (loading) CircularProgressIndicator(Modifier.size(19.dp), color = Red, strokeWidth = 2.dp)
             else HeaderIconButton(IconlyIcons.Refresh, L(locale, "تحديث", "Actualiser"), tint = Mint, onClick = onRetry)
         }
-        if (error != null) Text(error, color = Color(0xFFFF8E96), fontSize = 11.sp, lineHeight = 17.sp)
+        if (error != null && stats == null) Text(error, color = Color(0xFFFF8E96), fontSize = 11.sp, lineHeight = 17.sp)
         else if (stats != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NativeMiniStat(L(locale, "اللاعبون", "Joueurs"), stats.players.size.toString(), IconlyIcons.People, Mint, Modifier.weight(1f))
@@ -1087,17 +1097,23 @@ private fun NativeMiniStat(label: String, value: String, icon: Int, color: Color
 }
 
 @Composable
-private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, onClick: () -> Unit) {
+private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, selected: Boolean, onClick: () -> Unit) {
     val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
     val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF202329), Color(0xFF191B20))))
-            .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(13.dp),
+            .border(1.dp, if (selected) Red.copy(alpha = .65f) else GlassBorder, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         Box(Modifier.size(47.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, Red.copy(alpha = .25f), CircleShape), contentAlignment = Alignment.Center) {
-            Text(player.number?.toString() ?: "—", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
+            else Text(player.number?.toString() ?: "—", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            player.number?.let { number ->
+                Box(Modifier.align(Alignment.BottomEnd).clip(CircleShape).background(Red).padding(horizontal = 4.dp, vertical = 1.dp)) {
+                    Text(number.toString(), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Black)
+                }
+            }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(name, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -1113,13 +1129,15 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, onC
 }
 
 @Composable
-private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String, onBack: () -> Unit) {
+private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
     val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1B1D22)).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-            HeaderIconButton(if (locale == "fr") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, L(locale, "العودة للقائمة", "Retour à la liste"), onClick = onBack)
-            Box(Modifier.size(48.dp).clip(CircleShape).background(Red.copy(alpha = .17f)), contentAlignment = Alignment.Center) { Text(player.number?.toString() ?: "—", color = Red, fontWeight = FontWeight.Black, fontSize = 18.sp) }
+            Box(Modifier.size(48.dp).clip(CircleShape).background(Red.copy(alpha = .17f)), contentAlignment = Alignment.Center) {
+                if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
+                else Text(player.number?.toString() ?: "—", color = Red, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            }
             Column(Modifier.weight(1f)) {
                 Text(name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
                 Text("${player.team} · $position", color = Muted, fontSize = 10.sp)
@@ -2108,7 +2126,7 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
 private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
     val bitmap by produceState<ImageBitmap?>(null, url) {
         value = withContext(Dispatchers.IO) {
-            runCatching { URL(url).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+            runCatching { URL(NativeApi.absolutePublicUrl(url)).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
         }
     }
     if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Inside)
@@ -2589,10 +2607,10 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
       ) {
         (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { (showPlayerStats || it != Section.PLAYER_STATS) && (showCompetitions || it != Section.COMPETITIONS) }.forEach { item ->
             val active = selected == item
-            val width by animateDpAsState(if (active) 62.dp else 48.dp, label = "nav-width")
+            val width by animateDpAsState(if (active) 72.dp else 48.dp, label = "nav-width")
             val interaction = remember { MutableInteractionSource() }
             Column(
-                Modifier.width(width).fillMaxSize().clip(CircleShape)
+                Modifier.width(width).height(54.dp).clip(RoundedCornerShape(18.dp))
                     .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
                     .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2605,7 +2623,7 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
                 }
                 if (active) {
                     Spacer(Modifier.height(2.dp))
-                    Text(item.title(locale), color = Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(item.title(locale), color = Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                 }
             }
         }

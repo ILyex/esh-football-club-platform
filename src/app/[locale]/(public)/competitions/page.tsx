@@ -9,6 +9,7 @@ import {
 } from "@/lib/competitions";
 import { db } from "@/lib/db";
 import { frenchCompetitionName, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 
 export default async function PublicCompetitionsPage({
@@ -69,7 +70,7 @@ export default async function PublicCompetitionsPage({
       id: c.id,
       name: isAr ? c.name : frenchCompetitionName(c.name),
       type: c.type,
-      logoUrl: c.logoUrl,
+      logoUrl: normalizePublicMediaUrl(c.logoUrl),
       organization: c.organization?.trim()
         ? (isAr ? c.organization.trim() : frenchPublicText(c.organization.trim(), ""))
         : null,

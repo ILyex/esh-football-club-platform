@@ -7,6 +7,7 @@ import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 import { getCompetitionDisplayData, OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -192,7 +193,7 @@ export async function GET(request: Request) {
         id: competition.id,
         name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
         type: competition.type,
-        logoUrl: competition.logoUrl,
+        logoUrl: normalizePublicMediaUrl(competition.logoUrl),
         organization: competition.organization,
         seasonLabel: competition.season.label,
         category,
