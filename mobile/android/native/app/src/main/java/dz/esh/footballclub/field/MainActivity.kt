@@ -1529,19 +1529,34 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
 
 @Composable
 private fun BackDigitalCard(cardWidth: androidx.compose.ui.unit.Dp, cardHeight: androidx.compose.ui.unit.Dp) {
+    val paper = Color(0xFFF5F2E8)
     val ink = Color(0xFF28323A)
+    val violet = Color(0xFF6659AC)
     Box(Modifier.fillMaxSize().graphicsLayer { rotationY = 180f }) {
-        Image(painterResource(R.drawable.license_back_reference), contentDescription = "ظهر البطاقة", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-        // Cover the printed QR from the reference and redraw it with the live
-        // club URL so every scan reaches the current club website.
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width; val h = size.height
+            drawRect(paper)
+            val stripe = androidx.compose.ui.graphics.Path().apply { moveTo(w * .02f, h * .76f); lineTo(w * .62f, h * .08f); lineTo(w * .78f, h * .08f); lineTo(w * .16f, h * .84f); close() }
+            drawPath(stripe, Color(0xFFD2D9D8))
+            drawRect(violet, Offset(w * .05f, h * .10f), Size(w * .19f, h * .10f))
+            drawRect(violet, Offset(w * .78f, h * .06f), Size(w * .15f, h * .08f))
+            drawRect(violet, Offset(w * .72f, h * .82f), Size(w * .25f, h * .11f))
+            drawRect(violet, Offset(w * .02f, h * .84f), Size(w * .12f, h * .10f))
+            var x = -h
+            while (x < w) { drawLine(Color(0x1A7A7568), Offset(x, 0f), Offset(x + h * .28f, h), strokeWidth = 1.dp.toPx()); x += 7.dp.toPx() }
+        }
+        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .20f, y = cardHeight * .18f).size(cardWidth * .18f), contentScale = ContentScale.Fit)
+        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .42f, y = cardHeight * .19f).width(cardWidth * .26f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
         val qrMatrix = remember { QRCodeWriter().encode("https://esh-platform-vercel-preview.vercel.app", BarcodeFormat.QR_CODE, 128, 128) }
-        Box(Modifier.offset(x = cardWidth * .105f, y = cardHeight * .39f).size(cardWidth * .19f, cardHeight * .31f).background(Color.White).padding(7.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.offset(x = cardWidth * .13f, y = cardHeight * .50f).size(cardWidth * .23f, cardHeight * .33f).background(Color.White).border(1.dp, ink).padding(7.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val cellW = size.width / qrMatrix.width
                 val cellH = size.height / qrMatrix.height
                 for (r in 0 until qrMatrix.height) for (c in 0 until qrMatrix.width) if (qrMatrix[c, r]) drawRect(ink, Offset(c * cellW, r * cellH), Size(cellW + .25f, cellH + .25f))
             }
         }
+        Text("CARTE PROFESSIONNELLE", modifier = Modifier.offset(x = cardWidth * .39f, y = cardHeight * .57f).width(cardWidth * .44f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (10.5f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Text("Carte personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.CenterEnd).offset(x = -(cardWidth * .045f)).width(cardWidth * .42f).graphicsLayer { rotationZ = -90f }, color = Color(0xFF70757A), fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
     }
 }
 
