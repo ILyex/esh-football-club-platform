@@ -3,6 +3,8 @@ package dz.esh.footballclub.field
 import android.content.Context
 import android.net.Uri
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -271,6 +273,51 @@ object NativeApi {
             if (!apkUrl.startsWith("https://")) return null
             return NativeRelease(tag, apkUrl, release.optString("sha256").takeIf { it.matches(Regex("(?i)[a-f0-9]{64}")) })
         } finally { connection.disconnect() }
+    }
+
+    /** Download and verify an APK without handing the transfer to Android DownloadManager. */
+    suspend fun downloadApk(
+        apkUrl: String,
+        destination: File,
+        expectedSha256: String?,
+        onProgress: suspend (Int) -> Unit
+    ) {
+        val connection = URL(apkUrl).openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 30_000
+            connection.setRequestProperty("Accept", "application/vnd.android.package-archive")
+            if (connection.responseCode !in 200..299) throw ApiFailure("update_download_failed")
+            val total = connection.contentLengthLong
+            destination.parentFile?.mkdirs()
+            val digest = MessageDigest.getInstance("SHA-256")
+            var downloaded = 0L
+            connection.inputStream.use { input ->
+                FileOutputStream(destination).use { output ->
+                    val buffer = ByteArray(32 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        digest.update(buffer, 0, count)
+                        downloaded += count
+                        if (total > 0L) onProgress((downloaded * 100L / total).toInt().coerceIn(0, 99))
+                    }
+                    output.fd.sync()
+                }
+            }
+            val actualSha256 = digest.digest().joinToString("") { "%02x".format(it) }
+            if (!expectedSha256.isNullOrBlank() && !actualSha256.equals(expectedSha256, ignoreCase = true)) {
+                destination.delete()
+                throw ApiFailure("update_checksum_mismatch")
+            }
+            onProgress(100)
+        } catch (error: Throwable) {
+            destination.delete()
+            throw error
+        } finally {
+            connection.disconnect()
+        }
     }
 
     fun updateScore(token: String, matchId: String, homeScore: Int, awayScore: Int, status: String? = null) {

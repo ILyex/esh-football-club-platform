@@ -136,10 +136,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.util.Base64
-import android.app.DownloadManager
 import android.content.Context
 import android.os.Environment
-import androidx.core.net.toUri
+import androidx.core.content.FileProvider
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -149,6 +148,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import java.io.File
 import java.io.ByteArrayInputStream
 import java.net.URL
 
@@ -322,7 +323,8 @@ private fun MatchdayApp() {
     var checkingUpdate by remember { mutableStateOf(false) }
     var updateDownloading by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableIntStateOf(0) }
-    var updateDownloadId by remember { mutableStateOf(-1L) }
+    var updateDownloadJob by remember { mutableStateOf<Job?>(null) }
+    var updateFile by remember { mutableStateOf<File?>(null) }
     var composerType by remember { mutableStateOf<String?>(null) }
     var createError by remember { mutableStateOf<String?>(null) }
 
@@ -394,41 +396,6 @@ private fun MatchdayApp() {
         val release = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() }.getOrNull() }
         checkingUpdate = false
         if (release != null && isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "")) updateRelease = release
-    }
-
-    LaunchedEffect(updateDownloading, updateDownloadId) {
-        if (!updateDownloading || updateDownloadId < 0L) return@LaunchedEffect
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
-        while (updateDownloading) {
-            var finished = false
-            runCatching {
-                manager.query(DownloadManager.Query().setFilterById(updateDownloadId))?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                        val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-                        val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                        if (total > 0L) updateProgress = ((downloaded * 100L) / total).toInt().coerceIn(0, 99)
-                        if (status == DownloadManager.STATUS_FAILED) {
-                            finished = true
-                            updateNotice = L(locale, "فشل تنزيل التحديث. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
-                        }
-                    }
-                }
-            }
-            val readyUri = prefs.getString(ApkDownloadReceiver.PENDING_URI, null)
-            if (readyUri != null) {
-                updateProgress = 100
-                finished = true
-                installDownloadedApk(context, Uri.parse(readyUri))
-            }
-            if (finished) {
-                updateDownloading = false
-                updateDownloadId = -1L
-                break
-            }
-            delay(250)
-        }
     }
 
     SideEffect {
@@ -731,10 +698,11 @@ private fun MatchdayApp() {
                     }
                 },
                 confirmButton = { TextButton(onClick = {
-                    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                    if (updateDownloadId >= 0L) manager.remove(updateDownloadId)
+                    updateDownloadJob?.cancel()
+                    updateDownloadJob = null
+                    updateFile?.delete()
+                    updateFile = null
                     updateDownloading = false
-                    updateDownloadId = -1L
                 }) { Text(L(locale, "إلغاء", "Annuler"), color = Muted) } }
             )
         }
@@ -754,23 +722,32 @@ private fun MatchdayApp() {
                     ClubPrimaryButton(
                         text = L(locale, "تنزيل التحديث", "Télécharger"),
                         onClick = {
-                        val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
-                        val request = DownloadManager.Request(release.apkUrl.toUri())
-                            .setTitle(L(locale, "تحديث E SIDI HOSNI", "Mise à jour E SIDI HOSNI"))
-                            .setDescription(L(locale, "سيُفتح مُثبّت Android تلقائيًا بعد التنزيل.", "L’installateur Android s’ouvrira après le téléchargement."))
-                            .setMimeType(ApkDownloadReceiver.APK_MIME)
-                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
-                            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
-                        val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
-                        context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
-                            .remove(ApkDownloadReceiver.PENDING_URI)
-                            .putLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, id)
-                            .putString(ApkDownloadReceiver.PENDING_SHA256, release.sha256)
-                            .putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false).apply()
                         updateProgress = 0
-                        updateDownloadId = id
                         updateDownloading = true
                         updateRelease = null
+                        val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
+                        val destination = File(context.cacheDir, "updates/$fileName")
+                        updateFile = destination
+                        updateDownloadJob = scope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    NativeApi.downloadApk(release.apkUrl, destination, release.sha256) { progress ->
+                                        withContext(Dispatchers.Main.immediate) { updateProgress = progress }
+                                    }
+                                }
+                            }
+                            if (result.isSuccess) {
+                                updateDownloading = false
+                                updateDownloadJob = null
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
+                                installDownloadedApk(context, uri)
+                            } else if (result.exceptionOrNull() !is kotlinx.coroutines.CancellationException) {
+                                updateDownloading = false
+                                updateDownloadJob = null
+                                updateFile = null
+                                updateNotice = L(locale, "فشل تنزيل التحديث أو التحقق من سلامته. تحقق من الاتصال وحاول مرة أخرى.", "Le téléchargement ou la vérification de la mise à jour a échoué. Vérifiez la connexion et réessayez.")
+                            }
+                        }
                     }, modifier = Modifier.width(170.dp))
                 },
                 dismissButton = { TextButton(onClick = { updateRelease = null }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
