@@ -7,6 +7,7 @@ import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-
 import { NoticeToast } from "@/components/shared/notice-toast";
 import { CalendarBoard, type CalendarBoardEvent } from "@/components/calendar/calendar-board";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
+import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 
 function validMonth(value: string | undefined, now: Date) {
   if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return value;
@@ -36,7 +37,7 @@ export default async function CalendarPage({
   gridStart.setUTCDate(1 - ((monthStart.getUTCDay() - weekStart + 7) % 7));
   const gridEnd = new Date(gridStart);
   gridEnd.setUTCDate(gridEnd.getUTCDate() + 42);
-  const [events, teams] = await Promise.all([
+  const [events, teams, opponentLogos] = await Promise.all([
     db.calendarEvent.findMany({
       where: {
         startDateTime: { gte: gridStart, lt: gridEnd },
@@ -49,15 +50,22 @@ export default async function CalendarPage({
       orderBy: { startDateTime: "asc" },
       take: 300
     }),
-    getAuthorizedTeams()
+    getAuthorizedTeams(),
+    getOpponentsMap()
   ]);
 
   const boardEvents: CalendarBoardEvent[] = events.map((event) => {
     const names = event.relatedMatch ? getMatchDisplayNames(event.relatedMatch, locale) : null;
+    const opponentName = event.relatedMatch
+      ? (event.relatedMatch.isHomeFixture ? event.relatedMatch.awayTeamName : event.relatedMatch.homeTeamName)
+      : null;
     return {
       id: event.id,
       type: event.type,
       title: names ? `${names.homeTeamName} ${isAr ? "ضد" : "vs"} ${names.awayTeamName}` : event.title,
+      opponentName,
+      opponentLogo: opponentName ? findOpponentLogo(opponentLogos, opponentName) : null,
+      isHomeFixture: event.relatedMatch?.isHomeFixture ?? null,
       startDateTime: event.startDateTime.toISOString(),
       location: event.location,
       team: event.team ? tTeams(`categories.${event.team.category}` as any) : null,

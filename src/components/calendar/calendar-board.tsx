@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
+import { BusFront, CalendarDays, ChevronLeft, ChevronRight, Clock3, Home, MapPin } from "lucide-react";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export type CalendarBoardEvent = {
   id: string;
@@ -12,6 +13,9 @@ export type CalendarBoardEvent = {
   location: string | null;
   team: string | null;
   href: string;
+  opponentName?: string | null;
+  opponentLogo?: string | null;
+  isHomeFixture?: boolean | null;
 };
 
 type ViewMode = "month" | "week" | "day";
@@ -105,12 +109,24 @@ export function CalendarBoard({
   }
 
   function eventCard(event: CalendarBoardEvent) {
-    return <a key={event.id} href={event.href} className={`group flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:border-club-primary/35 hover:bg-muted/40 ${typeColor(event.type)}`}>
-      <span className="min-w-0 flex-1">
+    const isMatch = event.type === "MATCH";
+    const VenueIcon = event.isHomeFixture === true ? Home : BusFront;
+    const venueLabel = event.isHomeFixture === true
+      ? (isAr ? "مباراة على ملعبنا" : "Match à domicile")
+      : (isAr ? "مباراة خارج ملعبنا" : "Match à l’extérieur");
+    const label = isMatch
+      ? `${event.opponentName ?? event.title} · ${venueLabel}`
+      : `${typeName(event.type, locale)}${event.team ? ` · ${event.team}` : ""}: ${event.title}`;
+    return <a key={event.id} href={event.href} aria-label={label} title={label} className={`group flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:border-club-primary/35 hover:bg-muted/40 ${typeColor(event.type)}`}>
+      {isMatch ? <span className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-rose-500/20 bg-background/70 p-1.5"><OpponentCrest src={event.opponentLogo} alt={event.opponentName ?? ""} iconClassName="h-6 w-6 text-rose-400" /></span>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-500/10 text-rose-500" title={venueLabel}><VenueIcon className="h-5 w-5" aria-hidden="true" /></span>
+        <span className="min-w-0"><span className="block text-[10px] font-bold uppercase tracking-wide opacity-80">{typeName(event.type, locale)}{event.team ? ` · ${event.team}` : ""}</span><span className="block truncate text-xs font-semibold text-foreground">{venueLabel}</span></span>
+      </span> : <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-bold opacity-80">{typeName(event.type, locale)}{event.team ? ` · ${event.team}` : ""}</span>
         <span className="mt-0.5 block truncate text-sm font-semibold text-foreground">{event.title}</span>
         {event.location && <span className="mt-1 flex items-center gap-1 truncate text-[10px] text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{event.location}</span>}
-      </span>
+      </span>}
       <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{eventTime(event.startDateTime)}</span>
     </a>;
   }
@@ -141,7 +157,7 @@ export function CalendarBoard({
         return <button type="button" key={key} onClick={() => { if (!isCurrentMonth && view === "month") navigateTo(date); else setSelectedDay(key); if (view === "month") setView("day"); }} className={`min-h-24 border-b border-e border-border p-1.5 text-start transition hover:bg-muted/30 sm:min-h-28 sm:p-2 ${index % 7 === 6 ? "border-e-0" : ""} ${isCurrentMonth || view !== "month" ? "" : "bg-muted/10 text-muted-foreground/55"} ${isSelected ? "bg-club-primary/[0.04]" : ""}`}>
           <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ${key === today ? "bg-club-primary text-white" : isSelected ? "bg-club-primary/10 text-club-primary" : "text-foreground"}`}>{date.getUTCDate()}</span>
           <span className="mt-1 hidden space-y-1 sm:block">
-            {dayEvents.slice(0, 2).map((event) => <span key={event.id} className={`block truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`}><span className="opacity-75">{eventTime(event.startDateTime)}</span> {event.title}</span>)}
+            {dayEvents.slice(0, 2).map((event) => event.type === "MATCH" ? <span key={event.id} className={`flex items-center gap-1.5 truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`} title={event.opponentName ?? event.title}><OpponentCrest src={event.opponentLogo} className="h-4 w-4 shrink-0" iconClassName="h-3 w-3 text-rose-400" /><span className="opacity-75">{eventTime(event.startDateTime)}</span><span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-rose-500/10 text-rose-500">{event.isHomeFixture === true ? <Home className="h-2.5 w-2.5" /> : <BusFront className="h-2.5 w-2.5" />}</span></span> : <span key={event.id} className={`block truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`}><span className="opacity-75">{eventTime(event.startDateTime)}</span> {event.title}</span>)}
             {dayEvents.length > 2 && <span className="block px-1 text-[9px] font-semibold text-muted-foreground">+{dayEvents.length - 2} {isAr ? "مواعيد" : "autres"}</span>}
           </span>
           {dayEvents.length > 0 && <span className="mt-1 flex justify-center gap-0.5 sm:hidden">{dayEvents.slice(0, 3).map((event) => <i key={event.id} className={`h-1.5 w-1.5 rounded-full ${event.type === "MATCH" ? "bg-rose-500" : event.type === "TRAINING" ? "bg-sky-500" : event.type === "MEETING" ? "bg-violet-500" : "bg-emerald-500"}`} />)}</span>}
