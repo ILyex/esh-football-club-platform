@@ -1352,7 +1352,7 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 drawRect(violet, Offset(0f, sideTop), Size(sideWidth, sideHeight))
                 drawRect(violet, Offset(size.width - sideWidth, sideTop), Size(sideWidth, sideHeight))
                 val accentX = size.width * .132f
-                drawLine(Color(0xFF968BBF), Offset(accentX, sideTop + 4.dp.toPx()), Offset(accentX, size.height - 12.dp.toPx()), strokeWidth = 3.dp.toPx())
+                drawLine(Color(0xFF968BBF), Offset(accentX, sideTop + 4.dp.toPx()), Offset(accentX, size.height - 12.dp.toPx()), strokeWidth = 1.8.dp.toPx())
             }
 
             LicenseSeal(
@@ -1377,7 +1377,7 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
 
             Box(
                 Modifier.offset(x = cardWidth * .132f, y = cardHeight * .282f)
-                    .width(cardWidth * .245f).height(cardHeight * .468f)
+                    .width(cardWidth * .22f).height(cardHeight * .46f)
                     .background(Color.White).border(1.dp, Color(0xFFAAA99F))
                     .padding(3.dp)
             ) {
@@ -1398,8 +1398,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Text(displayName, color = ink, fontSize = (14.5f * fontScale).sp, lineHeight = (16.5f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 LicenseDetail("Né le :", birthDate, ink, fontScale)
                 LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
-                Box(Modifier.padding(top = 3.dp).width(cardWidth * .52f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 7.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
-                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (8.6f * fontScale).sp, lineHeight = (10.4f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
+                Box(Modifier.padding(top = 3.dp).width(cardWidth * .38f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 6.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (8.1f * fontScale).sp, lineHeight = (9.8f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 }
             }
 
