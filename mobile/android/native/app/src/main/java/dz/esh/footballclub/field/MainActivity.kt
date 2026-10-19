@@ -1033,6 +1033,7 @@ private fun SectionPage(
     onDeleteAllAlerts: () -> Unit
 ) {
     var selectedStatPlayer by remember(section) { mutableStateOf<NativePlayerPerformance?>(null) }
+    var playerStatsPage by remember(section) { mutableIntStateOf(0) }
     var isMorning by remember { mutableStateOf(java.time.LocalTime.now().hour in 6 until 12) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -1098,11 +1099,21 @@ private fun SectionPage(
             }
             Section.PLAYER_STATS -> {
                 val players = playerStats?.players.orEmpty()
+                val pageSize = 8
+                val pageCount = ((players.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+                val currentPage = playerStatsPage.coerceIn(0, pageCount - 1)
+                val visiblePlayers = players.drop(currentPage * pageSize).take(pageSize)
                 item { PlayerStatsOverview(playerStats, playerStatsLoading, playerStatsError, locale, onRetryPlayerStats) }
-                if (players.isNotEmpty()) items(players, key = { it.id }) { player ->
+                if (players.isNotEmpty()) items(visiblePlayers, key = { it.id }) { player ->
                     PlayerStatsCard(player, locale, selected = selectedStatPlayer?.id == player.id) {
                         selectedStatPlayer = if (selectedStatPlayer?.id == player.id) null else player
                     }
+                }
+                if (players.isNotEmpty() && pageCount > 1) item {
+                    PlayerStatsPagination(currentPage, pageCount, locale, onPageChange = { next ->
+                        playerStatsPage = next.coerceIn(0, pageCount - 1)
+                        selectedStatPlayer = null
+                    })
                 }
             }
             Section.CALENDAR -> {
@@ -1167,6 +1178,27 @@ private fun NativeMiniStat(label: String, value: String, icon: Int, color: Color
             Text(label, color = Muted, fontSize = 9.sp, maxLines = 1)
         }
         Text(value, color = AppText, fontSize = 18.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 5.dp))
+    }
+}
+
+@Composable
+private fun PlayerStatsPagination(page: Int, pageCount: Int, locale: String, onPageChange: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(enabled = page > 0, onClick = { onPageChange(page - 1) }) {
+            Icon(if (locale == "ar") IconlyIcons.ArrowRight else IconlyIcons.ArrowLeft, contentDescription = null, tint = if (page > 0) Mint else Muted, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(L(locale, "السابق", "Précédent"), color = if (page > 0) AppText else Muted, fontSize = 10.sp)
+        }
+        Text(L(locale, "صفحة ${page + 1} من $pageCount", "Page ${page + 1} sur $pageCount"), color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        TextButton(enabled = page < pageCount - 1, onClick = { onPageChange(page + 1) }) {
+            Text(L(locale, "التالي", "Suivant"), color = if (page < pageCount - 1) AppText else Muted, fontSize = 10.sp)
+            Spacer(Modifier.width(4.dp))
+            Icon(if (locale == "ar") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = null, tint = if (page < pageCount - 1) Mint else Muted, modifier = Modifier.size(17.dp))
+        }
     }
 }
 
