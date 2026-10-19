@@ -28,13 +28,13 @@ export function AnimatedCounter({ value, locale = "fr-FR", duration = 950, class
 
     const startedAt = performance.now();
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const animationDuration = prefersReducedMotion ? 0 : Math.max(300, duration);
+    const animationDuration = prefersReducedMotion ? 0 : Math.max(700, duration);
 
     const tick = (now: number) => {
       const progress = animationDuration === 0 ? 1 : Math.min(1, (now - startedAt) / animationDuration);
       const eased = 1 - Math.pow(1 - progress, 3);
       const next = from + delta * eased;
-      setDisplayValue(next);
+      setDisplayValue(progress === 1 ? target : Math.round(next));
       if (progress < 1) frameRef.current = requestAnimationFrame(tick);
       else {
         previousValue.current = target;

@@ -20,18 +20,24 @@ function setDocumentTheme(isDark: boolean, animate: boolean, origin?: { x: numbe
     return;
   }
 
+  document.querySelectorAll<HTMLElement>(".theme-liquid-overlay").forEach((node) => node.remove());
   const overlay = document.createElement("div");
   overlay.className = "theme-liquid-overlay";
   overlay.dataset.mode = isDark ? "dark" : "light";
   overlay.style.setProperty("--theme-x", `${origin?.x ?? window.innerWidth / 2}px`);
   overlay.style.setProperty("--theme-y", `${origin?.y ?? window.innerHeight / 2}px`);
   document.body.appendChild(overlay);
-  window.requestAnimationFrame(() => overlay.classList.add("is-active"));
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => overlay.classList.add("is-active")));
   if (liquidTransitionTimer) window.clearTimeout(liquidTransitionTimer);
-  liquidTransitionTimer = window.setTimeout(() => {
+  const cleanupOverlay = () => {
     overlay.remove();
+    if (liquidTransitionTimer) window.clearTimeout(liquidTransitionTimer);
     liquidTransitionTimer = undefined;
-  }, 780);
+  };
+  overlay.addEventListener("animationend", cleanupOverlay, { once: true });
+  liquidTransitionTimer = window.setTimeout(() => {
+    cleanupOverlay();
+  }, 980);
 
   root.classList.add("theme-transition");
   window.requestAnimationFrame(() => {

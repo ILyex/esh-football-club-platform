@@ -129,10 +129,11 @@ html.theme-transition body *::after {
   --theme-y: 50vh;
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  z-index: 100;
   pointer-events: none;
   clip-path: circle(0 at var(--theme-x) var(--theme-y));
   will-change: clip-path, filter;
+  opacity: .76;
   filter: saturate(1.04) blur(0.2px);
 }
 
@@ -145,14 +146,14 @@ html.theme-transition body *::after {
 }
 
 .theme-liquid-overlay.is-active {
-  animation: theme-liquid-spread 720ms cubic-bezier(.16, 1, .3, 1) forwards;
+  animation: theme-liquid-spread 640ms cubic-bezier(.16, 1, .3, 1) forwards;
 }
 
 @keyframes theme-liquid-spread {
   0% { clip-path: circle(0 at var(--theme-x) var(--theme-y)); filter: saturate(1.04) blur(1.5px); }
-  58% { clip-path: circle(78vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.08) blur(.5px); }
-  78% { clip-path: circle(112vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.04) blur(.15px); }
-  100% { clip-path: circle(155vmax at var(--theme-x) var(--theme-y)); filter: saturate(1) blur(0); }
+  58% { clip-path: circle(78vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.08) blur(.5px); opacity: .72; }
+  78% { clip-path: circle(112vmax at var(--theme-x) var(--theme-y)); filter: saturate(1.04) blur(.15px); opacity: .58; }
+  100% { clip-path: circle(155vmax at var(--theme-x) var(--theme-y)); filter: saturate(1) blur(0); opacity: 0; }
 }
 
 .chart-view-transition {
