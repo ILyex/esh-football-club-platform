@@ -1057,7 +1057,7 @@ private fun SectionPage(
 private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, error: String?, locale: String, onRetry: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF24272D), Color(0xFF191B20), Color(0xFF202329))))
+            .background(Brush.linearGradient(if (nativeThemeIsLight) listOf(Color(0xFFFFFFFF), Color(0xFFF2F6F5), Color(0xFFFFFFFF)) else listOf(Color(0xFF24272D), Color(0xFF191B20), Color(0xFF202329))))
             .border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(17.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
@@ -1072,7 +1072,7 @@ private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, err
             if (loading) CircularProgressIndicator(Modifier.size(19.dp), color = Red, strokeWidth = 2.dp)
             else HeaderIconButton(IconlyIcons.Refresh, L(locale, "تحديث", "Actualiser"), tint = Mint, onClick = onRetry)
         }
-        if (error != null && stats == null) Text(error, color = Color(0xFFFF8E96), fontSize = 11.sp, lineHeight = 17.sp)
+        if (error != null && stats == null) Text(error, color = if (nativeThemeIsLight) Color(0xFFB4232E) else Color(0xFFFF8E96), fontSize = 11.sp, lineHeight = 17.sp)
         else if (stats != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NativeMiniStat(L(locale, "اللاعبون", "Joueurs"), stats.players.size.toString(), IconlyIcons.People, Mint, Modifier.weight(1f))
@@ -1085,7 +1085,7 @@ private fun PlayerStatsOverview(stats: NativePlayerStats?, loading: Boolean, err
 
 @Composable
 private fun NativeMiniStat(label: String, value: String, icon: Int, color: Color, modifier: Modifier = Modifier) {
-    Column(modifier.clip(RoundedCornerShape(15.dp)).background(Color.White.copy(alpha = .035f)).border(1.dp, GlassBorder.copy(alpha = .65f), RoundedCornerShape(15.dp)).padding(horizontal = 10.dp, vertical = 11.dp)) {
+    Column(modifier.clip(RoundedCornerShape(15.dp)).background(if (nativeThemeIsLight) Color(0xFFF1F4F6) else Color.White.copy(alpha = .035f)).border(1.dp, GlassBorder.copy(alpha = .65f), RoundedCornerShape(15.dp)).padding(horizontal = 10.dp, vertical = 11.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
             Text(label, color = Muted, fontSize = 9.sp, maxLines = 1)
@@ -1100,7 +1100,7 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
     val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF202329), Color(0xFF191B20))))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(if (nativeThemeIsLight) listOf(Color(0xFFFFFFFF), Color(0xFFF4F7F8)) else listOf(Color(0xFF202329), Color(0xFF191B20))))
             .border(1.dp, if (selected) Red.copy(alpha = .65f) else GlassBorder, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)
     ) {
@@ -1130,7 +1130,7 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
 private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
     val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF1B1D22)).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Glass, Panel))).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
             Box(Modifier.size(48.dp).clip(CircleShape).background(Red.copy(alpha = .17f)), contentAlignment = Alignment.Center) {
                 if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
@@ -1150,7 +1150,7 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
             NativeMiniStat(L(locale, "تمريرات حاسمة", "Passes D."), player.assists.toString(), IconlyIcons.Activity, Mint, Modifier.weight(1f))
             NativeMiniStat("xG", "${"%.2f".format(java.util.Locale.US, player.xg)}", IconlyIcons.Activity, Color(0xFFB79BFF), Modifier.weight(1f))
         }
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .035f)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (nativeThemeIsLight) Color(0xFFF1F4F6) else Color.White.copy(alpha = .035f)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Text(L(locale, "تفاصيل الأداء", "Détails de performance"), color = AppText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             NativeDetailLine(L(locale, "التسديدات", "Tirs"), "${player.shots} · ${player.shotsOnTarget} ${L(locale, "على المرمى", "cadrés")}")
             NativeDetailLine(L(locale, "تغطية xG", "Couverture xG"), "${player.xgShots} / ${player.shots}")
@@ -1161,7 +1161,7 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
         if (player.recentMatches.isNotEmpty()) {
             Text(L(locale, "آخر المشاركات", "Dernières apparitions"), color = AppText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             player.recentMatches.forEach { match ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = .025f)).padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(if (nativeThemeIsLight) Color(0xFFF6F8F9) else Color.White.copy(alpha = .025f)).padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(match.opponent, color = AppText, fontSize = 9.sp, modifier = Modifier.weight(1f), maxLines = 1)
                     Text(if (match.isStarting) L(locale, "أساسي", "Titulaire") else L(locale, "بديل", "Remplaçant"), color = if (match.isStarting) Mint else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
