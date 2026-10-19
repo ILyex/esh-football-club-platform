@@ -1448,20 +1448,24 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         BoxWithConstraints(
             Modifier.fillMaxWidth().aspectRatio(1.55f)
-                .shadow(7.dp, RoundedCornerShape(13.dp))
-                .clip(RoundedCornerShape(13.dp))
-                // The physical card is always paper-colored, regardless of
-                // the app theme. Keep the dark surface from showing through.
-                .background(paper)
-                .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
                 .clickable { flipped = !flipped }
-                .graphicsLayer { rotationY = rotation; cameraDistance = 28f * density }
         ) {
             val cardWidth = maxWidth
             val cardHeight = maxHeight
-            if (rotation > 90f) {
-                BackDigitalCard(cardWidth, cardHeight)
-            } else {
+            // Rotate one complete card surface. Keeping the paper, border,
+            // shadow, and both faces in this layer prevents the frame from
+            // appearing fixed while only the inner content flips.
+            Box(
+                Modifier.fillMaxSize()
+                    .shadow(7.dp, RoundedCornerShape(13.dp))
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(paper)
+                    .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
+                    .graphicsLayer { rotationY = rotation; cameraDistance = 28f * density }
+            ) {
+                if (rotation > 90f) {
+                    BackDigitalCard(cardWidth, cardHeight)
+                } else {
             val fontScale = (cardWidth / 360.dp).coerceIn(.82f, 1.16f)
             Canvas(Modifier.fillMaxSize()) {
                 val pitch = 4.dp.toPx()
@@ -1563,6 +1567,7 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Text(user.licenseNumber?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.40f), color = ink, fontSize = (14f * fontScale).sp, lineHeight = (17f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(user.licenseRole?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.60f), color = ink, fontSize = (10.5f * fontScale).sp, lineHeight = (12.5f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
+                }
             }
         }
     }
