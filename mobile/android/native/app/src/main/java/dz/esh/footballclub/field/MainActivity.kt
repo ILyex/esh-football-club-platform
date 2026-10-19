@@ -2593,7 +2593,6 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
             val interaction = remember { MutableInteractionSource() }
             Column(
                 Modifier.width(width).fillMaxSize().clip(CircleShape)
-                    .background(if (active) Red.copy(alpha = if (nativeThemeIsLight) .10f else .16f) else Color.Transparent)
                     .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
                     .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
