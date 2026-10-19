@@ -45,5 +45,8 @@
                 <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".ApkInstallReceiver"
+            android:exported="false" />
     </application>
 </manifest>

@@ -136,8 +136,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.util.Base64
 import android.content.Context
-import android.content.ClipData
-import androidx.core.content.FileProvider
+import android.content.pm.PackageInstaller
+import android.app.PendingIntent
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -201,19 +201,43 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun installDownloadedApk(context: Context, uri: Uri): Boolean {
-    // ACTION_VIEW is handled consistently by Samsung/Android package installers;
-    // ACTION_INSTALL_PACKAGE can terminate the hosting activity while replacing
-    // the package and surfaces a misleading "app keeps stopping" dialog.
+private fun installDownloadedApk(context: Context, apkFile: File): Boolean {
+    // Commit through the system PackageInstaller session. Opening the APK from
+    // the Activity directly can kill the Activity during package replacement and
+    // some OEMs report that normal lifecycle transition as an app crash.
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
         val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(settings); false }.getOrDefault(false)
     }
-    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-    intent.clipData = ClipData.newRawUri("update", uri)
-    return runCatching { context.startActivity(intent); true }.getOrDefault(false)
+    if (!apkFile.isFile || apkFile.length() <= 0L) return false
+    return runCatching {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            setSize(apkFile.length())
+        }
+        val sessionId = installer.createSession(params)
+        val session = installer.openSession(sessionId)
+        try {
+            apkFile.inputStream().use { input ->
+                session.openWrite("base.apk", 0L, apkFile.length()).use { output ->
+                    input.copyTo(output)
+                    session.fsync(output)
+                }
+            }
+            val resultIntent = Intent(context, ApkInstallReceiver::class.java)
+                .setAction(ApkInstallReceiver.ACTION_INSTALL_RESULT)
+                .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+            val callback = PendingIntent.getBroadcast(context, sessionId, resultIntent, flags)
+            session.commit(callback.intentSender)
+        } finally {
+            session.close()
+        }
+        true
+    }.getOrElse { false }
 }
 
 private object IconlyIcons {
@@ -733,8 +757,7 @@ private fun MatchdayApp() {
                             if (result.isSuccess) {
                                 updateDownloading = false
                                 updateDownloadJob = null
-                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
-                                if (!installDownloadedApk(context, uri)) {
+                                if (!installDownloadedApk(context, destination)) {
                                     updateFile?.delete()
                                     updateFile = null
                                     updateNotice = L(locale, "تعذر فتح مثبت Android. فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم أعد المحاولة.", "Impossible d’ouvrir l’installateur Android. Autorisez l’installation depuis cette source puis réessayez.")
