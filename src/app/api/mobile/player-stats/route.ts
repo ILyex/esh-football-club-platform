@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getNativePrincipal } from "@/lib/native-session";
 import { estimateShotXg } from "@/lib/matches/xg";
 import { hasPermission } from "@/lib/permissions";
+import type { TeamCategory } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getNativePrincipal(request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-  if ((user.roleKey !== "coach" && user.roleKey !== "assistant_coach") || !hasPermission(user, "player.stats.view")) {
+  const privilegedRole = user.roleKey === "developer" || user.roleKey === "super_admin";
+  const canViewPlayerStats = hasPermission(user, "player.stats.view") || privilegedRole;
+  if (!canViewPlayerStats) {
     return NextResponse.json({ error: "forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
 
@@ -19,6 +22,12 @@ export async function GET(request: Request) {
   const categories = new Set(assignments.map(({ team }) => team.category));
   // Senior coaches also follow U20, matching the platform player-statistics rule.
   if (categories.has("SENIOR")) categories.add("U20");
+  // Administrative and developer accounts may inspect all active categories.
+  // They usually have no userTeam assignment, so an empty scope must not turn
+  // an authorized request into a misleading empty or failed synchronization.
+  if (privilegedRole && categories.size === 0) {
+    (["SENIOR", "U20", "U17", "U15"] as TeamCategory[]).forEach((category) => categories.add(category));
+  }
   const teams = await db.team.findMany({ where: { active: true, category: { in: [...categories] } }, select: { id: true, name: true, category: true } });
   const teamIds = teams.map(({ id }) => id);
   if (!teamIds.length) return NextResponse.json({ season: null, players: [] }, { headers: { "Cache-Control": "no-store" } });
