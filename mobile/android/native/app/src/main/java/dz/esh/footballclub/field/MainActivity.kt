@@ -136,6 +136,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.util.Base64
 import android.content.Context
+import android.content.ClipData
 import androidx.core.content.FileProvider
 import android.app.Activity
 import android.app.DatePickerDialog
@@ -201,8 +202,17 @@ class MainActivity : ComponentActivity() {
 }
 
 private fun installDownloadedApk(context: Context, uri: Uri): Boolean {
-    val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
+    // ACTION_VIEW is handled consistently by Samsung/Android package installers;
+    // ACTION_INSTALL_PACKAGE can terminate the hosting activity while replacing
+    // the package and surfaces a misleading "app keeps stopping" dialog.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+        val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(settings); false }.getOrDefault(false)
+    }
+    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    intent.clipData = ClipData.newRawUri("update", uri)
     return runCatching { context.startActivity(intent); true }.getOrDefault(false)
 }
 
