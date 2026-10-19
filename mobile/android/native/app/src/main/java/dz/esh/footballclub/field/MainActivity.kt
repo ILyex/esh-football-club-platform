@@ -286,6 +286,8 @@ private fun installDownloadedApkUri(context: Context, apkUri: Uri): Boolean {
 }
 
 private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): Long {
+    return runCatching {
+    require(release.apkUrl.startsWith("https://")) { "invalid_update_url" }
     val fileName = "esh-update-${release.tag.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
     val request = DownloadManager.Request(Uri.parse(release.apkUrl))
         .setTitle("تحديث تطبيق ESH")
@@ -295,7 +297,7 @@ private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): L
         .setAllowedOverMetered(true)
         .setAllowedOverRoaming(false)
         .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
-    val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+    val id = (context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager)?.enqueue(request) ?: error("download_manager_unavailable")
     context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
         .putLong(ApkDownloadReceiver.PENDING_DOWNLOAD_ID, id)
         .putString(ApkDownloadReceiver.PENDING_SHA256, release.sha256)
@@ -303,7 +305,8 @@ private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): L
         .putString(ApkDownloadReceiver.SUPPRESS_TAG, release.tag)
         .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, true)
         .apply()
-    return id
+    id
+    }.getOrElse { -1L }
 }
 
 private object IconlyIcons {
@@ -826,7 +829,10 @@ private fun MatchdayApp() {
                         updateDownloading = true
                         updateRelease = null
                         val downloadId = enqueueBackgroundUpdate(context, release)
-                        updateDownloadJob = scope.launch {
+                        if (downloadId < 0L) {
+                            updateDownloading = false
+                            updateNotice = L(locale, "تعذر بدء تنزيل التحديث. تحقق من الاتصال ومساحة التخزين ثم حاول مرة أخرى.", "Impossible de démarrer le téléchargement. Vérifiez la connexion et l’espace de stockage puis réessayez.")
+                        } else updateDownloadJob = scope.launch {
                             val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                             while (true) {
                                 val state = withContext(Dispatchers.IO) {
