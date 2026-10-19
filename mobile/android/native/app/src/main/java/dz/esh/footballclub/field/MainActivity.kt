@@ -269,12 +269,12 @@ private object IconlyIcons {
 
 private enum class Section(val icon: Int, val selectedIcon: Int) {
     HOME(IconlyIcons.Home, R.drawable.iconly_home_filled),
-    MATCHES(IconlyIcons.Trophy, R.drawable.iconly_ticket_star_filled),
-    CALENDAR(IconlyIcons.Calendar, R.drawable.iconly_calendar_filled),
+    MATCHES(IconlyIcons.Match, IconlyIcons.Match),
+    CALENDAR(IconlyIcons.Calendar, IconlyIcons.Calendar),
     MEETINGS(IconlyIcons.Meeting, IconlyIcons.MeetingFilled),
     COMPETITIONS(IconlyIcons.Star, IconlyIcons.Star),
     PLAYER_STATS(IconlyIcons.Activity, IconlyIcons.Activity),
-    ALERTS(IconlyIcons.Notification, R.drawable.iconly_notification_filled)
+    ALERTS(IconlyIcons.Notification, IconlyIcons.Notification)
 }
 private fun Section.title(locale: String) = when (this) { Section.HOME -> L(locale, "الرئيسية", "Accueil"); Section.MATCHES -> L(locale, "المباريات", "Matchs"); Section.CALENDAR -> L(locale, "الرزنامة", "Calendrier"); Section.MEETINGS -> L(locale, "الاجتماعات", "Réunions"); Section.COMPETITIONS -> L(locale, "المسابقات", "Compétitions"); Section.PLAYER_STATS -> L(locale, "إحصائيات اللاعبين", "Stats joueurs"); Section.ALERTS -> L(locale, "الإشعارات", "Notifications") }
 private fun Section.subtitle(locale: String) = when (this) { Section.HOME -> L(locale, "ابدأ العمل", "Commencez votre travail"); Section.MATCHES -> L(locale, "إدارة المباراة لحظة بلحظة", "Gestion des matchs en direct"); Section.CALENDAR -> L(locale, "كل ما هو قادم للنادي في مكان واحد", "Tous les rendez-vous à venir du club"); Section.MEETINGS -> L(locale, "مواعيد وقرارات النادي", "Calendrier et décisions du club"); Section.COMPETITIONS -> L(locale, "الترتيب الرسمي المتزامن مع المنصة", "Classements officiels synchronisés"); Section.PLAYER_STATS -> L(locale, "أداء لاعبي فئتك متزامن مع المنصة", "Performances synchronisées avec la plateforme"); Section.ALERTS -> L(locale, "إشعارات الإدارة على الهاتف", "Alertes administratives sur le téléphone") }
@@ -2599,10 +2599,10 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                AnimatedContent(targetState = active, label = "nav-icon-${item.name}") { isSelected ->
-                val customFilledIcon = isSelected && (item == Section.MATCHES || item == Section.MEETINGS)
-                    Icon(item.icon, contentDescription = item.title(locale), tint = if (customFilledIcon) Color.Unspecified else if (isSelected) Red else Muted,
-                        modifier = Modifier.size(22.dp), selectedIconRes = item.selectedIcon, selected = isSelected)
+                AnimatedContent(targetState = active, label = "nav-icon-${item.name}") {
+                    // Keep one outline asset for every state. Selection changes only
+                    // the tint, avoiding malformed filled resources on matches/meetings.
+                    Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(22.dp))
                 }
                 if (active) {
                     Spacer(Modifier.height(2.dp))
