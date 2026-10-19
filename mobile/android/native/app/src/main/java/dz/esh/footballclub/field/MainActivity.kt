@@ -1378,7 +1378,7 @@ private fun CompactMetric(icon: Int, value: String, label: String) {
 @Composable
 private fun DigitalAdminCard(user: NativeUser, locale: String) {
     var flipped by remember(user.id) { mutableStateOf(false) }
-    val rotation by animateFloatAsState(if (flipped) 180f else 0f, tween(620), label = "license-card-flip")
+    val rotation by animateFloatAsState(if (flipped) 180f else 0f, tween(720), label = "license-card-flip")
     val sweep = remember(user.id) { Animatable(-1.35f) }
     LaunchedEffect(user.id) {
         sweep.snapTo(-1.35f)
@@ -1417,10 +1417,9 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
             Modifier.fillMaxWidth().aspectRatio(1.55f)
                 .shadow(7.dp, RoundedCornerShape(13.dp))
                 .clip(RoundedCornerShape(13.dp))
-                .background(paper)
                 .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
                 .clickable { flipped = !flipped }
-                .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
+                .graphicsLayer { rotationY = rotation; cameraDistance = 28f * density }
         ) {
             val cardWidth = maxWidth
             val cardHeight = maxHeight
