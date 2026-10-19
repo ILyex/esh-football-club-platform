@@ -261,6 +261,7 @@ private object IconlyIcons {
     // A football communicates goals and xG directly; the old ticket icon was
     // misleading in the match and player statistics cards.
     val GoalBall = R.drawable.ic_match_ball
+    val OpponentShield = R.drawable.iconly_shield_done
     val ArrowLeft = R.drawable.iconly_arrow_left
     val ArrowRight = R.drawable.iconly_arrow_right
     val ArrowDown = R.drawable.iconly_arrow_down
@@ -1991,7 +1992,7 @@ private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
                         if (!item.opponentLogo.isNullOrBlank()) {
                             NativeRemoteImage(item.opponentLogo, Modifier.size(34.dp).clip(CircleShape))
                         } else {
-                            Icon(IconlyIcons.Match, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
+                            Icon(IconlyIcons.OpponentShield, contentDescription = L(locale, "شعار الخصم غير متوفر", "Logo adverse indisponible"), tint = Red, modifier = Modifier.size(28.dp))
                         }
                         Icon(
                             if (item.isHomeFixture == true) IconlyIcons.Home else IconlyIcons.Travel,
