@@ -17,9 +17,12 @@ import { SettingsNavTabs } from "@/components/settings/settings-nav-tabs";
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
+import { NoticeToast } from "@/components/shared/notice-toast";
+import { redirect } from "next/navigation";
 
-export default async function UserDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function UserDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ notice?: string }> }) {
   const { locale, id } = await params;
+  const { notice } = await searchParams;
   await requirePagePermission("users.manage", locale);
   const t = await getTranslations("users");
   const tTeam = await getTranslations("teamAssignments");
@@ -55,6 +58,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
   async function update(formData: FormData) {
     "use server";
     await updateUserAction(id, formData);
+    redirect(`/${locale}/dashboard/users/${id}?notice=userSaved`);
   }
   async function removePhoto() {
     "use server";
@@ -71,6 +75,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5">
+      <NoticeToast notice={notice} />
       <SettingsNavTabs locale={locale} />
       {/* ── User Avatar Header ───────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:p-6">
@@ -139,7 +144,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
 
         <div className="grid items-start gap-x-5 gap-y-5 sm:grid-cols-2">
           <div className="min-w-0 space-y-2">
-            <label htmlFor="user-name" className="block text-sm font-medium leading-5">{t("fields.name")}</label>
+            <label htmlFor="user-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "اسم الحساب" : "Nom du compte"}</label>
             <input id="user-name" name="name" defaultValue={user.name} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">
@@ -159,7 +164,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ loc
             <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">
-            <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم" : "Prénom"}</label>
+            <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم الأول" : "Prénom"}</label>
             <input id="user-first-name" name="firstName" autoComplete="given-name" maxLength={100} defaultValue={user.firstName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           </div>
           <div className="min-w-0 space-y-2">

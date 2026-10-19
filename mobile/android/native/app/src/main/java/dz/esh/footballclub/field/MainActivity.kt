@@ -115,6 +115,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1325,19 +1326,26 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 val pitch = 4.dp.toPx()
                 val amplitude = 2.2.dp.toPx()
                 val wavelength = 48.dp.toPx()
-                var startX = -size.height
-                while (startX < size.width) {
-                    val path = androidx.compose.ui.graphics.Path()
-                    var y = 0f
-                    path.moveTo(startX, 0f)
-                    while (y <= size.height) {
-                        val wave = kotlin.math.sin((y / wavelength) * (2.0 * Math.PI)).toFloat() * amplitude
-                        path.lineTo(startX + y * .48f + wave, y)
-                        y += 2.dp.toPx()
+                fun drawPhysicalWaves() {
+                    var startX = -size.height
+                    while (startX < size.width) {
+                        val path = androidx.compose.ui.graphics.Path()
+                        var y = 0f
+                        path.moveTo(startX, 0f)
+                        while (y <= size.height) {
+                            val wave = kotlin.math.sin((y / wavelength) * (2.0 * Math.PI)).toFloat() * amplitude
+                            path.lineTo(startX + y * .48f + wave, y)
+                            y += 2.dp.toPx()
+                        }
+                        drawPath(path, Color(0x247A7568), style = androidx.compose.ui.graphics.drawscope.Stroke(width = .48.dp.toPx()))
+                        startX += pitch
                     }
-                    drawPath(path, Color(0x247A7568), style = androidx.compose.ui.graphics.drawscope.Stroke(width = .48.dp.toPx()))
-                    startX += pitch
                 }
+                // The physical card keeps the wave engraving concentrated in
+                // the header and footer bands, leaving the photo and details
+                // readable instead of covering the whole card.
+                clipRect(top = 0f, bottom = size.height * .30f) { drawPhysicalWaves() }
+                clipRect(top = size.height * .76f, bottom = size.height) { drawPhysicalWaves() }
                 val sideTop = size.height * .36f
                 val sideHeight = size.height * .42f
                 val sideWidth = size.width * .095f
@@ -1390,8 +1398,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Text(displayName, color = ink, fontSize = (14.5f * fontScale).sp, lineHeight = (16.5f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 LicenseDetail("Né le :", birthDate, ink, fontScale)
                 LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
-                Box(Modifier.padding(top = 3.dp).width(cardWidth * .48f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 8.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
-                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (9.2f * fontScale).sp, lineHeight = (11f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Box(Modifier.padding(top = 3.dp).width(cardWidth * .52f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 7.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (8.6f * fontScale).sp, lineHeight = (10.4f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 }
             }
 
@@ -2526,7 +2534,7 @@ private fun NativeLoginScreen(connectionError: String?, loading: Boolean, locale
             Column(Modifier.fillMaxWidth().widthIn(max = 520.dp).clip(RoundedCornerShape(22.dp)).background(Panel).border(1.dp, GlassBorder, RoundedCornerShape(22.dp)).padding(horizontal = 20.dp, vertical = 20.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f), horizontalAlignment = if (rtl) Alignment.End else Alignment.Start) {
-                        Text(L(locale, "أهلًا بعودتك", "Bon retour"), color = AppText, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(L(locale, "مرحبًا بك في النادي", "Bienvenue au club"), color = AppText, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                         Text(L(locale, "سجّل الدخول بحسابك للمتابعة", "Connectez-vous pour continuer"), color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
                     }
                     Box(Modifier.size(4.dp, 36.dp).clip(CircleShape).background(Red))

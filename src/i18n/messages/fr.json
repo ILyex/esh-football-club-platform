@@ -798,6 +798,7 @@
     "teamSaved": "Les données de la catégorie ont été enregistrées",
     "mappingSaved": "Mappage des champs enregistré",
     "albumSaved": "Album enregistré avec succès",
+    "userSaved": "Les données de l’utilisateur ont été enregistrées",
     "activated": "Cette version du modèle a été activée",
     "errors": {
       "activationBlocked": "Enregistré, mais l'activation est impossible tant que tous les champs détectés ne sont pas correctement mappés",
