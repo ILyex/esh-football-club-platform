@@ -128,6 +128,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -1543,17 +1545,20 @@ private fun BackDigitalCard(cardWidth: androidx.compose.ui.unit.Dp, cardHeight: 
             var x = -h
             while (x < w) { drawLine(Color(0x1A7A7568), Offset(x, 0f), Offset(x + h * .28f, h), strokeWidth = 1.dp.toPx()); x += 7.dp.toPx() }
         }
-        LicenseSeal(R.drawable.tiaret_league_logo, "Ligue Wilaya de Football", Modifier.offset(x = cardWidth * .12f, y = cardHeight * .08f).size(cardWidth * .18f))
-        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .45f, y = cardHeight * .12f).size(cardWidth * .16f), contentScale = ContentScale.Fit)
-        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .40f, y = cardHeight * .34f).width(cardWidth * .27f), color = ink, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
-        Box(Modifier.offset(x = cardWidth * .13f, y = cardHeight * .48f).size(cardWidth * .22f, cardHeight * .32f).background(Color.White).border(1.dp, ink), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize().padding(7.dp)) {
-                val n = 17; val cell = size.minDimension / n
-                for (r in 0 until n) for (c in 0 until n) if (((r * 13 + c * 7 + r * c) % 5 == 0) || (r < 4 && c < 4) || (r > 12 && c < 4) || (r < 4 && c > 12)) drawRect(ink, Offset(c * cell, r * cell), Size(cell, cell))
+        // The physical reverse has only the club crest; the federation/league
+        // seal belongs to the front and is intentionally omitted here.
+        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .20f, y = cardHeight * .18f).size(cardWidth * .18f), contentScale = ContentScale.Fit)
+        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .42f, y = cardHeight * .19f).width(cardWidth * .26f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        val qrMatrix = remember { QRCodeWriter().encode("https://esh-platform-vercel-preview.vercel.app", BarcodeFormat.QR_CODE, 128, 128) }
+        Box(Modifier.offset(x = cardWidth * .13f, y = cardHeight * .50f).size(cardWidth * .23f, cardHeight * .33f).background(Color.White).border(1.dp, ink).padding(7.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val cellW = size.width / qrMatrix.width
+                val cellH = size.height / qrMatrix.height
+                for (r in 0 until qrMatrix.height) for (c in 0 until qrMatrix.width) if (qrMatrix[c, r]) drawRect(ink, Offset(c * cellW, r * cellH), Size(cellW + .25f, cellH + .25f))
             }
         }
-        Text("CARTE PROFESSIONNELLE", modifier = Modifier.offset(x = cardWidth * .38f, y = cardHeight * .55f).width(cardWidth * .45f), color = ink, fontSize = (10.5f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
-        Text("Cette carte est personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = cardHeight * .065f), color = Color(0xFF70757A), fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
+        Text("CARTE PROFESSIONNELLE", modifier = Modifier.offset(x = cardWidth * .39f, y = cardHeight * .57f).width(cardWidth * .44f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (10.5f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Text("Carte personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.CenterEnd).offset(x = -(cardWidth * .045f)).width(cardWidth * .42f).graphicsLayer { rotationZ = -90f }, color = Color(0xFF70757A), fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
     }
 }
 
