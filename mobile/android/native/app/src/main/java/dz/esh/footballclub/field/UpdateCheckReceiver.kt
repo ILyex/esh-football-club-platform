@@ -20,6 +20,21 @@ class UpdateCheckReceiver : BroadcastReceiver() {
             try {
                 if (intent?.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
                     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(NOTIFIED_TAG).apply()
+                    // Android can relaunch the process before the asynchronous
+                    // PackageInstaller callback is delivered. Clear every
+                    // pending updater marker here as the authoritative signal
+                    // that this package was replaced successfully.
+                    context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+                        .remove(ApkDownloadReceiver.PENDING_DOWNLOAD_ID)
+                        .remove(ApkDownloadReceiver.PENDING_SHA256)
+                        .remove(ApkDownloadReceiver.PENDING_TAG)
+                        .remove(ApkDownloadReceiver.PENDING_URI)
+                        .remove(ApkDownloadReceiver.SUPPRESS_TAG)
+                        .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false)
+                        .putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false)
+                        .apply()
+                    context.getSharedPreferences("esh_native_cache", Context.MODE_PRIVATE).edit().clear().apply()
+                    (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(6302)
                 }
                 val release = runCatching { NativeApi.latestRelease() }.getOrNull() ?: return@thread
                 val installed = runCatching {

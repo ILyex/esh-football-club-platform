@@ -2244,10 +2244,15 @@ private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching 
             ByteArrayInputStream(bytes).use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
         }
     }
-    val connection = URL(NativeApi.absolutePublicUrl(source)).openConnection() as java.net.HttpURLConnection
+    val normalizedSource = when {
+        source.startsWith("//") -> "https:$source"
+        else -> NativeApi.absolutePublicUrl(source)
+    }
+    val connection = URL(normalizedSource).openConnection() as java.net.HttpURLConnection
     connection.connectTimeout = 10_000
     connection.readTimeout = 15_000
     connection.setRequestProperty("Accept", "image/*")
+    connection.setRequestProperty("User-Agent", "ESH-Field-Android")
     connection.setRequestProperty("Cache-Control", "no-cache")
     try {
         if (connection.responseCode !in 200..299) return@runCatching null
