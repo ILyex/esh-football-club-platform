@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { calculateClubDebtSummary } from "@/lib/finance/debt-service";
 import { getDashboardFinancialTrend } from "@/lib/dashboard/financial-trend";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
 
 const getCachedDebtSummary = unstable_cache(
   calculateClubDebtSummary,
@@ -444,7 +445,7 @@ export default async function DashboardHomePage({
             </div>
             <div className="my-2">
               <span className="text-2xl font-black font-mono tabular-nums text-foreground group-hover:text-club-primary transition-colors">
-                {activePlayers}
+                <AnimatedCounter value={activePlayers} locale={locale} />
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -468,7 +469,7 @@ export default async function DashboardHomePage({
             </div>
             <div className="my-2">
               <span className="text-2xl font-black font-mono tabular-nums text-foreground group-hover:text-club-primary transition-colors">
-                {activeStaff}
+                <AnimatedCounter value={activeStaff} locale={locale} />
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
@@ -492,7 +493,7 @@ export default async function DashboardHomePage({
             </div>
             <div className="my-2">
               <span className="text-2xl font-black font-mono tabular-nums text-foreground group-hover:text-club-primary transition-colors">
-                {upcomingMatches.length}
+                <AnimatedCounter value={upcomingMatches.length} locale={locale} />
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -516,7 +517,7 @@ export default async function DashboardHomePage({
             </div>
             <div className="my-2">
               <span className="text-2xl font-black font-mono tabular-nums text-foreground group-hover:text-club-primary transition-colors">
-                {recentMeetings.length}
+                <AnimatedCounter value={recentMeetings.length} locale={locale} />
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] font-semibold text-purple-600 dark:text-purple-400">
