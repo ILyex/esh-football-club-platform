@@ -90,9 +90,16 @@ object NativeApi {
     private const val BASE_URL = "https://esh-platform-vercel-preview.vercel.app"
 
     /** Resolve storage paths returned by the platform to an absolute URL for Android's URL loader. */
-    fun absolutePublicUrl(value: String): String =
-        if (value.startsWith("http://") || value.startsWith("https://")) value
-        else URL(BASE_URL).toURI().resolve(value.removePrefix("/")).toString()
+    fun absolutePublicUrl(value: String): String {
+        val source = value.trim()
+        if (source.startsWith("data:image/", ignoreCase = true)) return source
+        if (source.startsWith("public/", ignoreCase = true)) {
+            return "$BASE_URL/api/storage/public-file?key=${java.net.URLEncoder.encode(source, "UTF-8").replace("+", "%20")}"
+        }
+        if (source.startsWith("//")) return "https:$source"
+        if (source.startsWith("http://") || source.startsWith("https://")) return source
+        return URL(BASE_URL).toURI().resolve(source.removePrefix("/")).toString()
+    }
     private const val CONNECT_TIMEOUT = 20_000
     private const val READ_TIMEOUT = 40_000
 

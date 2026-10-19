@@ -66,6 +66,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.asImageBitmap
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
@@ -2233,11 +2235,17 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
 
 @Composable
 private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
-    val bitmap by produceState<ImageBitmap?>(null, url) {
-        value = withContext(Dispatchers.IO) { decodeNativeRemoteImage(url) }
-    }
-    if (bitmap != null) Image(bitmap = bitmap!!, contentDescription = null, modifier = modifier, contentScale = ContentScale.Inside)
-    else Box(modifier.background(Glass))
+    val context = LocalContext.current
+    val source = remember(url) { NativeApi.absolutePublicUrl(url) }
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(source)
+            .crossfade(false)
+            .build(),
+        contentDescription = null,
+        modifier = modifier.background(Glass),
+        contentScale = ContentScale.Inside
+    )
 }
 
 private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching {
