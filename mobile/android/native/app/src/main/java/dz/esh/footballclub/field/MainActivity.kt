@@ -1430,6 +1430,9 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
             Modifier.fillMaxWidth().aspectRatio(1.55f)
                 .shadow(7.dp, RoundedCornerShape(13.dp))
                 .clip(RoundedCornerShape(13.dp))
+                // The physical card is always paper-colored, regardless of
+                // the app theme. Keep the dark surface from showing through.
+                .background(paper)
                 .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
                 .clickable { flipped = !flipped }
                 .graphicsLayer { rotationY = rotation; cameraDistance = 28f * density }
@@ -1554,27 +1557,31 @@ private fun BackDigitalCard(cardWidth: androidx.compose.ui.unit.Dp, cardHeight: 
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height
             drawRect(paper)
-            val stripe = androidx.compose.ui.graphics.Path().apply { moveTo(w * .02f, h * .76f); lineTo(w * .62f, h * .08f); lineTo(w * .78f, h * .08f); lineTo(w * .16f, h * .84f); close() }
+            // Back layout follows the physical card in its natural landscape
+            // orientation: QR and data block on the left, crest/name on the
+            // right, and the disclaimer in the bottom purple band.
+            val stripe = androidx.compose.ui.graphics.Path().apply { moveTo(0f, h * .76f); lineTo(w * .53f, 0f); lineTo(w * .68f, 0f); lineTo(w * .14f, h * .84f); close() }
             drawPath(stripe, Color(0xFFD2D9D8))
-            drawRect(violet, Offset(w * .05f, h * .10f), Size(w * .19f, h * .10f))
-            drawRect(violet, Offset(w * .78f, h * .06f), Size(w * .15f, h * .08f))
-            drawRect(violet, Offset(w * .72f, h * .82f), Size(w * .25f, h * .11f))
+            drawRect(violet, Offset(w * .18f, 0f), Size(w * .17f, h * .10f))
+            drawRect(violet, Offset(w * .40f, h * .62f), Size(w * .13f, h * .11f))
             drawRect(violet, Offset(w * .02f, h * .84f), Size(w * .12f, h * .10f))
+            drawRect(violet, Offset(w * .83f, h * .84f), Size(w * .15f, h * .11f))
+            drawRect(violet, Offset(w * .02f, h * .88f), Size(w * .96f, h * .10f))
             var x = -h
             while (x < w) { drawLine(Color(0x1A7A7568), Offset(x, 0f), Offset(x + h * .28f, h), strokeWidth = 1.dp.toPx()); x += 7.dp.toPx() }
         }
-        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .20f, y = cardHeight * .18f).size(cardWidth * .18f), contentScale = ContentScale.Fit)
-        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .42f, y = cardHeight * .19f).width(cardWidth * .26f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .63f, y = cardHeight * .16f).size(cardWidth * .18f), contentScale = ContentScale.Fit)
+        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .57f, y = cardHeight * .43f).width(cardWidth * .31f), color = ink, fontFamily = CairoFamily, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
         val qrMatrix = remember { QRCodeWriter().encode("https://esh-platform-vercel-preview.vercel.app", BarcodeFormat.QR_CODE, 128, 128) }
-        Box(Modifier.offset(x = cardWidth * .13f, y = cardHeight * .50f).size(cardWidth * .23f, cardHeight * .33f).background(Color.White).border(1.dp, ink).padding(7.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.offset(x = cardWidth * .10f, y = cardHeight * .26f).size(cardWidth * .22f, cardHeight * .36f).background(Color.White).border(1.dp, ink).padding(7.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val cellW = size.width / qrMatrix.width
                 val cellH = size.height / qrMatrix.height
                 for (r in 0 until qrMatrix.height) for (c in 0 until qrMatrix.width) if (qrMatrix[c, r]) drawRect(ink, Offset(c * cellW, r * cellH), Size(cellW + .25f, cellH + .25f))
             }
         }
-        Text("CARTE PROFESSIONNELLE", modifier = Modifier.offset(x = cardWidth * .39f, y = cardHeight * .57f).width(cardWidth * .44f).graphicsLayer { rotationZ = -90f }, color = ink, fontSize = (10.5f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
-        Text("Carte personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.CenterEnd).offset(x = -(cardWidth * .045f)).width(cardWidth * .42f).graphicsLayer { rotationZ = -90f }, color = Color(0xFF70757A), fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
+        Text("SPORT DATA", modifier = Modifier.offset(x = cardWidth * .07f, y = cardHeight * .64f).width(cardWidth * .29f), color = ink, fontFamily = CairoFamily, fontSize = (11f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Text("Carte personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.BottomCenter).offset(y = -(cardHeight * .012f)).width(cardWidth * .86f), color = Color.White, fontFamily = CairoFamily, fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
     }
 }
 
