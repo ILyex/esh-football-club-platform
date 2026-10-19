@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Shield } from "lucide-react";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 interface OpponentCrestProps {
   src?: string | null;
@@ -19,7 +20,11 @@ export function OpponentCrest({
 }: OpponentCrestProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const showImage = Boolean(src && failedSrc !== src && loadedSrc === src);
+  // Opponent logos can be stored as a public-storage key, a legacy absolute
+  // URL, or a normal remote URL. Resolve all forms before rendering so an old
+  // record does not produce a broken image on the public site.
+  const normalizedSrc = normalizePublicMediaUrl(src);
+  const showImage = Boolean(normalizedSrc && failedSrc !== normalizedSrc && loadedSrc === normalizedSrc);
 
   return (
     <span
@@ -28,18 +33,20 @@ export function OpponentCrest({
       aria-label={alt || undefined}
     >
       <Shield className={`${iconClassName} ${showImage ? "invisible" : ""}`} aria-hidden="true" />
-      {src && failedSrc !== src && (
+      {normalizedSrc && failedSrc !== normalizedSrc && (
         // Keep the fallback visible until the image has fully loaded. Empty alt
         // prevents browsers from rendering the opponent name as broken-image text.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={src}
+          src={normalizedSrc}
           alt=""
           aria-hidden="true"
           className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${showImage ? "opacity-100" : "opacity-0"}`}
           referrerPolicy="no-referrer"
-          onLoad={() => setLoadedSrc(src)}
-          onError={() => setFailedSrc(src)}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoadedSrc(normalizedSrc)}
+          onError={() => setFailedSrc(normalizedSrc)}
         />
       )}
     </span>
