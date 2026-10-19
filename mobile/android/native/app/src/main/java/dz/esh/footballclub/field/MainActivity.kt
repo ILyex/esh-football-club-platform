@@ -1254,7 +1254,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     val sweep = remember(user.id) { Animatable(-1.35f) }
     LaunchedEffect(user.id) {
         sweep.snapTo(-1.35f)
-        sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 1250))
+        // A slow, single pass keeps the physical-card details readable.
+        sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 2800))
     }
     val image by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
@@ -1285,9 +1286,9 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     val violet = Color(0xFF6659AC)
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         BoxWithConstraints(
-            Modifier.fillMaxWidth().aspectRatio(1.646f)
-                .shadow(5.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
+            Modifier.fillMaxWidth().aspectRatio(1.55f)
+                .shadow(7.dp, RoundedCornerShape(13.dp))
+                .clip(RoundedCornerShape(13.dp))
                 .background(paper)
                 .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
         ) {
@@ -1331,13 +1332,13 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Modifier.align(Alignment.TopEnd).offset(x = -(cardWidth * .025f), y = cardHeight * .035f).size(36.dp * fontScale)
             )
             Column(
-                Modifier.offset(x = cardWidth * .16f, y = cardHeight * .025f)
-                    .width(cardWidth * .68f).height(cardHeight * .22f),
+                Modifier.offset(x = cardWidth * .155f, y = cardHeight * .025f)
+                    .width(cardWidth * .69f).height(cardHeight * .22f),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("Fédération Algérienne de Football", color = federationGreen, fontSize = (12.5f * fontScale).sp, lineHeight = (15f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-                Text("Ligue Wilaya de Football – Tiaret", color = leagueRed, fontSize = (12f * fontScale).sp, lineHeight = (14f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text("Fédération Algérienne de Football", color = federationGreen, fontSize = (11.5f * fontScale).sp, lineHeight = (14f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text("Ligue Wilaya de Football – Tiaret", color = leagueRed, fontSize = (11f * fontScale).sp, lineHeight = (13f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             }
 
             Box(
@@ -1357,14 +1358,14 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
 
             Column(
                 Modifier.offset(x = cardWidth * .425f, y = cardHeight * .30f)
-                    .width(cardWidth * .535f).height(cardHeight * .49f),
+                    .width(cardWidth * .545f).height(cardHeight * .49f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(displayName, color = ink, fontSize = (16f * fontScale).sp, lineHeight = (18f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(displayName, color = ink, fontSize = (14.5f * fontScale).sp, lineHeight = (16.5f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 LicenseDetail("Né le :", birthDate, ink, fontScale)
                 LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
-                Box(Modifier.padding(top = 2.dp).width(cardWidth * .58f).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 8.dp, vertical = 3.dp), contentAlignment = Alignment.Center) {
-                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (10.5f * fontScale).sp, lineHeight = (13f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
+                Box(Modifier.padding(top = 3.dp).width(cardWidth * .48f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 8.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                    Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (9.2f * fontScale).sp, lineHeight = (11f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 }
             }
 
@@ -1374,7 +1375,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     .width(cardWidth * .24f)
                     .fillMaxHeight()
                     .graphicsLayer { rotationZ = 12f }
-                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .34f), Color.Transparent)))
+                    .graphicsLayer { alpha = .78f }
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .25f), Color.Transparent)))
             )
 
             Row(
