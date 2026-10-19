@@ -13,6 +13,12 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getNativePrincipal(request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  const mediaUrl = (value: string | null | undefined): string | null => {
+    const normalized = normalizePublicMediaUrl(value);
+    if (!normalized) return null;
+    if (normalized.startsWith("/")) return new URL(normalized, request.url).toString();
+    return normalized;
+  };
   const privilegedRole = user.roleKey === "developer" || user.roleKey === "super_admin";
   const canViewPlayerStats = hasPermission(user, "player.stats.view") || privilegedRole;
   if (!canViewPlayerStats) {
@@ -92,7 +98,7 @@ export async function GET(request: Request) {
   const matchesById = new Map(matches.map((match) => [match.id, match]));
   const result = players.map((player) => ({
     id: player.id, firstName: player.firstName, lastName: player.lastName, firstNameFr: player.firstNameFr, lastNameFr: player.lastNameFr,
-    number: player.shirtNumber, position: player.position, photoUrl: normalizePublicMediaUrl(player.photoUrl), team: player.team,
+    number: player.shirtNumber, position: player.position, photoUrl: mediaUrl(player.photoUrl), team: player.team,
     ...(stats.get(player.id) ?? {}),
     recentMatches: lineups.filter((lineup) => lineup.playerId === player.id).sort((a, b) => (matchesById.get(b.matchId)?.matchDate.getTime() ?? 0) - (matchesById.get(a.matchId)?.matchDate.getTime() ?? 0)).slice(0, 5).map(({ matchId, isStarting }) => {
       const match = matchesById.get(matchId)!;

@@ -15,6 +15,15 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getNativePrincipal(request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  // Native clients cannot resolve deployment-relative media reliably when a
+  // request crosses an origin or redirect. Return one canonical absolute URL
+  // for every public image so the app and web platform read the same asset.
+  const mediaUrl = (value: string | null | undefined): string | null => {
+    const normalized = normalizePublicMediaUrl(value);
+    if (!normalized) return null;
+    if (normalized.startsWith("/")) return new URL(normalized, request.url).toString();
+    return normalized;
+  };
   const locale = new URL(request.url).searchParams.get("locale") === "fr" ? "fr" : "ar";
   const summary = new URL(request.url).searchParams.get("summary") === "1";
   const scope = await resolveTeamScope(db, user);
@@ -105,7 +114,7 @@ export async function GET(request: Request) {
     : {};
 
   return NextResponse.json({
-    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
+    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({
@@ -182,7 +191,7 @@ export async function GET(request: Request) {
         location: event.location,
         team: event.team?.name ?? null,
         isHomeFixture: event.relatedMatch?.isHomeFixture ?? null,
-        opponentLogo: opponentName ? findOpponentLogo(opponentLogos, opponentName) : null
+        opponentLogo: opponentName ? mediaUrl(findOpponentLogo(opponentLogos, opponentName)) : null
       };
     }),
     notifications,
@@ -193,7 +202,7 @@ export async function GET(request: Request) {
         id: competition.id,
         name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
         type: competition.type,
-        logoUrl: normalizePublicMediaUrl(competition.logoUrl),
+        logoUrl: mediaUrl(competition.logoUrl),
         organization: competition.organization,
         seasonLabel: competition.season.label,
         category,
