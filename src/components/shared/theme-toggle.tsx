@@ -37,7 +37,7 @@ function setDocumentTheme(isDark: boolean, animate: boolean, origin?: { x: numbe
   overlay.addEventListener("animationend", cleanupOverlay, { once: true });
   liquidTransitionTimer = window.setTimeout(() => {
     cleanupOverlay();
-  }, 980);
+  }, 560);
 
   root.classList.add("theme-transition");
   window.requestAnimationFrame(() => {
@@ -46,7 +46,7 @@ function setDocumentTheme(isDark: boolean, animate: boolean, origin?: { x: numbe
     themeTransitionTimer = window.setTimeout(() => {
       root.classList.remove("theme-transition");
       themeTransitionTimer = undefined;
-    }, 280);
+    }, 180);
   });
 }
 
