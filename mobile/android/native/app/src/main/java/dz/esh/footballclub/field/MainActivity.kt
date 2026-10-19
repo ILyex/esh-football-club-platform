@@ -1384,6 +1384,8 @@ private fun CompactMetric(icon: Int, value: String, label: String) {
 
 @Composable
 private fun DigitalAdminCard(user: NativeUser, locale: String) {
+    var flipped by remember(user.id) { mutableStateOf(false) }
+    val rotation by animateFloatAsState(if (flipped) 180f else 0f, tween(620), label = "license-card-flip")
     val sweep = remember(user.id) { Animatable(-1.35f) }
     LaunchedEffect(user.id) {
         sweep.snapTo(-1.35f)
@@ -1424,9 +1426,14 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 .clip(RoundedCornerShape(13.dp))
                 .background(paper)
                 .border(1.dp, Color(0xFFD1C8B2), RoundedCornerShape(12.dp))
+                .clickable { flipped = !flipped }
+                .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
         ) {
             val cardWidth = maxWidth
             val cardHeight = maxHeight
+            if (rotation > 90f) {
+                BackDigitalCard(cardWidth, cardHeight)
+            } else {
             val fontScale = (cardWidth / 360.dp).coerceIn(.82f, 1.16f)
             Canvas(Modifier.fillMaxSize()) {
                 val pitch = 4.dp.toPx()
@@ -1528,7 +1535,40 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 Text(user.licenseNumber?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.40f), color = ink, fontSize = (14f * fontScale).sp, lineHeight = (17f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(user.licenseRole?.takeIf { it.isNotBlank() } ?: "—", modifier = Modifier.weight(.60f), color = ink, fontSize = (10.5f * fontScale).sp, lineHeight = (12.5f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
+            }
         }
+    }
+}
+
+@Composable
+private fun BackDigitalCard(cardWidth: androidx.compose.ui.unit.Dp, cardHeight: androidx.compose.ui.unit.Dp) {
+    val paper = Color(0xFFF5F2E8)
+    val ink = Color(0xFF28323A)
+    val violet = Color(0xFF6659AC)
+    Box(Modifier.fillMaxSize().graphicsLayer { rotationY = 180f }) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width; val h = size.height
+            drawRect(paper)
+            val stripe = androidx.compose.ui.graphics.Path().apply { moveTo(w * .02f, h * .76f); lineTo(w * .62f, h * .08f); lineTo(w * .78f, h * .08f); lineTo(w * .16f, h * .84f); close() }
+            drawPath(stripe, Color(0xFFD2D9D8))
+            drawRect(violet, Offset(w * .05f, h * .10f), Size(w * .19f, h * .10f))
+            drawRect(violet, Offset(w * .78f, h * .06f), Size(w * .15f, h * .08f))
+            drawRect(violet, Offset(w * .72f, h * .82f), Size(w * .25f, h * .11f))
+            drawRect(violet, Offset(w * .02f, h * .84f), Size(w * .12f, h * .10f))
+            var x = -h
+            while (x < w) { drawLine(Color(0x1A7A7568), Offset(x, 0f), Offset(x + h * .28f, h), strokeWidth = 1.dp.toPx()); x += 7.dp.toPx() }
+        }
+        LicenseSeal(R.drawable.tiaret_league_logo, "Ligue Wilaya de Football", Modifier.offset(x = cardWidth * .12f, y = cardHeight * .08f).size(cardWidth * .18f))
+        Image(painterResource(R.drawable.esh_logo), contentDescription = "E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .45f, y = cardHeight * .12f).size(cardWidth * .16f), contentScale = ContentScale.Fit)
+        Text("E Sidi Hosni", modifier = Modifier.offset(x = cardWidth * .40f, y = cardHeight * .34f).width(cardWidth * .27f), color = ink, fontSize = (13f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Box(Modifier.offset(x = cardWidth * .13f, y = cardHeight * .48f).size(cardWidth * .22f, cardHeight * .32f).background(Color.White).border(1.dp, ink), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize().padding(7.dp)) {
+                val n = 17; val cell = size.minDimension / n
+                for (r in 0 until n) for (c in 0 until n) if (((r * 13 + c * 7 + r * c) % 5 == 0) || (r < 4 && c < 4) || (r > 12 && c < 4) || (r < 4 && c > 12)) drawRect(ink, Offset(c * cell, r * cell), Size(cell, cell))
+            }
+        }
+        Text("CARTE PROFESSIONNELLE", modifier = Modifier.offset(x = cardWidth * .38f, y = cardHeight * .55f).width(cardWidth * .45f), color = ink, fontSize = (10.5f * (cardWidth / 360.dp)).sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Text("Cette carte est personnelle et obligatoire à chaque rencontre", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = cardHeight * .065f), color = Color(0xFF70757A), fontSize = (7f * (cardWidth / 360.dp)).sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
     }
 }
 
