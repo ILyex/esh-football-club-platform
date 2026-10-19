@@ -117,6 +117,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -129,6 +130,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalDensity
@@ -1206,15 +1208,7 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-        Box(Modifier.size(47.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, Red.copy(alpha = .25f), CircleShape), contentAlignment = Alignment.Center) {
-            if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
-            else Text(player.number?.toString() ?: "—", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Black)
-            player.number?.let { number ->
-                Box(Modifier.align(Alignment.BottomEnd).clip(CircleShape).background(Red).padding(horizontal = 4.dp, vertical = 1.dp)) {
-                    Text(number.toString(), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Black)
-                }
-            }
-        }
+        PlayerAvatar(player.photoUrl, player.number, 47.dp, Red)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(name, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             Text("$category · ${player.team} · $position", color = Muted, fontSize = 9.sp, maxLines = 1)
@@ -1238,10 +1232,7 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Glass, Panel))).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-            Box(Modifier.size(48.dp).clip(CircleShape).background(Red.copy(alpha = .17f)), contentAlignment = Alignment.Center) {
-                if (!player.photoUrl.isNullOrBlank()) NativeRemoteImage(player.photoUrl!!, Modifier.fillMaxSize().clip(CircleShape))
-                else Text(player.number?.toString() ?: "—", color = Red, fontWeight = FontWeight.Black, fontSize = 18.sp)
-            }
+            PlayerAvatar(player.photoUrl, player.number, 48.dp, Red)
             Column(Modifier.weight(1f)) {
                 Text(name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
                 Text("${player.team} · $position", color = Muted, fontSize = 10.sp)
@@ -1274,6 +1265,24 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
             }
         }
         Text(L(locale, "الإحصائيات متزامنة مباشرة مع بيانات المنصة.", "Statistiques synchronisées avec la plateforme."), color = Muted, fontSize = 9.sp)
+    }
+}
+
+/** Avatar used by the player list and expanded stats. The shirt number is a
+ * separate badge outside the photo circle, while the image keeps its full
+ * portrait visible and is aligned toward the face instead of cropping it. */
+@Composable
+private fun PlayerAvatar(photoUrl: String?, number: Int?, size: Dp, accent: Color) {
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(Modifier.matchParentSize().clip(CircleShape).background(Brush.linearGradient(listOf(accent.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, accent.copy(alpha = .3f), CircleShape), contentAlignment = Alignment.Center) {
+            if (!photoUrl.isNullOrBlank()) NativeRemoteImage(photoUrl, Modifier.fillMaxSize().clip(CircleShape))
+            else Text(number?.toString() ?: "—", color = AppText, fontSize = (size.value * .34f).sp, fontWeight = FontWeight.Black)
+        }
+        number?.let {
+            Box(Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 5.dp).zIndex(2f).clip(RoundedCornerShape(7.dp)).background(accent).border(1.dp, Color.White.copy(alpha = .75f), RoundedCornerShape(7.dp)).padding(horizontal = 5.dp, vertical = 2.dp)) {
+                Text(it.toString(), color = Color.White, fontSize = 8.sp, lineHeight = 9.sp, fontWeight = FontWeight.Black)
+            }
+        }
     }
 }
 
