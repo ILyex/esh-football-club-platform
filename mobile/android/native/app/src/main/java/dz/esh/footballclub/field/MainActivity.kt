@@ -267,9 +267,15 @@ private fun installDownloadedApk(context: Context, apkFile: File): Boolean {
 
 private fun installDownloadedApkUri(context: Context, apkUri: Uri): Boolean {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+        // Keep the verified file while the user grants Android's install
+        // permission. Returning to the app can then continue without another
+        // download or a misleading "download failed" message.
+        context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+            .putString(ApkDownloadReceiver.PENDING_URI, apkUri.toString())
+            .apply()
         val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching { context.startActivity(settings); false }.getOrDefault(false)
+        return runCatching { context.startActivity(settings); true }.getOrDefault(false)
     }
     // Let Android's trusted package installer own the replacement flow. A
     // PackageInstaller session committed from the current Activity can tear
@@ -507,6 +513,16 @@ private fun MatchdayApp() {
                 if (updaterPrefs.getBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false)) {
                     updaterPrefs.edit().putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false).apply()
                     updateNotice = L(locale, "فشل تنزيل التحديث أو تعذر التحقق من سلامته. تحقق من الاتصال ثم أعد المحاولة.", "Échec du téléchargement ou de la vérification du fichier. Vérifiez la connexion et réessayez.")
+                }
+                val pendingUri = updaterPrefs.getString(ApkDownloadReceiver.PENDING_URI, null)
+                if (pendingUri != null &&
+                    (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls())) {
+                    // Resume the one-shot install after the user grants the
+                    // permission, without restarting the download.
+                    updaterPrefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
+                    if (!installDownloadedApkUri(context, Uri.parse(pendingUri))) {
+                        updateNotice = L(locale, "تعذر فتح شاشة تثبيت التحديث. حاول مرة أخرى.", "Impossible d’ouvrir l’installation. Réessayez.")
+                    }
                 }
                 if (!firstResumeHandled) {
                     firstResumeHandled = true
@@ -842,10 +858,14 @@ private fun MatchdayApp() {
                                 updateDownloadJob = null
                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
                                 if (!installDownloadedApkUri(context, uri)) error("installer_unavailable")
-                            }.onFailure {
+                            }.onFailure { error ->
                                 updateDownloading = false
                                 updateDownloadJob = null
-                                updateNotice = L(locale, "تعذر تنزيل التحديث. تحقق من الاتصال ثم حاول مرة أخرى.", "Impossible de télécharger la mise à jour. Vérifiez la connexion puis réessayez.")
+                                updateNotice = if (error.message == "installer_unavailable") {
+                                    L(locale, "تعذر فتح شاشة تثبيت التحديث. افتح صلاحية تثبيت التطبيقات من إعدادات الهاتف ثم أعد المحاولة.", "Impossible d’ouvrir l’installation. Autorisez l’installation d’applications dans les réglages puis réessayez.")
+                                } else {
+                                    L(locale, "تعذر تنزيل التحديث. تحقق من الاتصال ثم حاول مرة أخرى.", "Impossible de télécharger la mise à jour. Vérifiez la connexion puis réessayez.")
+                                }
                             }
                         }
                     }, modifier = Modifier.width(170.dp))

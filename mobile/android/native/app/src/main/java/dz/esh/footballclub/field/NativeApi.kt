@@ -299,16 +299,25 @@ object NativeApi {
             destination.parentFile?.mkdirs()
             val digest = MessageDigest.getInstance("SHA-256")
             var downloaded = 0L
+            var lastProgress = -1
             connection.inputStream.use { input ->
                 FileOutputStream(destination).use { output ->
-                    val buffer = ByteArray(32 * 1024)
+                    val buffer = ByteArray(128 * 1024)
                     while (true) {
                         val count = input.read(buffer)
                         if (count < 0) break
                         output.write(buffer, 0, count)
                         digest.update(buffer, 0, count)
                         downloaded += count
-                        if (total > 0L) onProgress((downloaded * 100L / total).toInt().coerceIn(0, 99))
+                        if (total > 0L) {
+                            val progress = (downloaded * 100L / total).toInt().coerceIn(0, 99)
+                            // Avoid dispatching to Compose for every small
+                            // chunk; update the progress bar once per percent.
+                            if (progress != lastProgress) {
+                                lastProgress = progress
+                                onProgress(progress)
+                            }
+                        }
                     }
                     output.fd.sync()
                 }
