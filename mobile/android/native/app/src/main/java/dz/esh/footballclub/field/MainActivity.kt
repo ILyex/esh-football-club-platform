@@ -285,6 +285,10 @@ private fun installDownloadedApkUri(context: Context, apkUri: Uri): Boolean {
                 .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
             session.commit(PendingIntent.getBroadcast(context, sessionId, resultIntent, flags).intentSender)
+            // A self-replacement legitimately terminates this process. Finish
+            // the current task first so Android does not report the expected
+            // package replacement as an application crash.
+            (context as? Activity)?.finishAndRemoveTask()
         } finally { session.close() }
         true
     }.getOrElse { false }
