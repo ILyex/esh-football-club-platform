@@ -158,7 +158,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import java.io.File
-import androidx.core.content.FileProvider
 import java.io.ByteArrayInputStream
 import java.net.URL
 
@@ -846,23 +845,65 @@ private fun MatchdayApp() {
                         updateDownloading = true
                         updateRelease = null
                         updateDownloadJob = scope.launch {
-                            val destination = File(context.cacheDir, "updates/esh-update-${release.tag}.apk")
                             runCatching {
-                                withContext(Dispatchers.IO) {
-                                    NativeApi.downloadApk(release.apkUrl, destination, release.sha256) { progress ->
-                                        withContext(Dispatchers.Main) { updateProgress = progress }
+                                // DownloadManager owns the transfer, so it
+                                // continues if the Activity is paused, the
+                                // user switches apps, or Android reclaims the
+                                // process. The receiver verifies the checksum
+                                // and stores the resulting content URI.
+                                val downloadId = withContext(Dispatchers.IO) { enqueueBackgroundUpdate(context, release) }
+                                if (downloadId < 0L) error("download_manager_unavailable")
+                                val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                while (true) {
+                                    val state = withContext(Dispatchers.IO) {
+                                        manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { cursor ->
+                                            if (!cursor.moveToFirst()) null else {
+                                                val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                                                val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                                                val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                                                val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 99) else 0
+                                                status to progress
+                                            }
+                                        }
+                                    } ?: error("download_manager_missing")
+                                    if (state.second > updateProgress) updateProgress = state.second
+                                    when (state.first) {
+                                        DownloadManager.STATUS_SUCCESSFUL -> {
+                                            updateProgress = 100
+                                            // ApkDownloadReceiver performs the
+                                            // SHA-256 check before publishing
+                                            // PENDING_URI. Give it a moment to
+                                            // finish before opening installer.
+                                            var pendingUri: String? = null
+                                            for (attempt in 0 until 20) {
+                                                pendingUri = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                                                    .getString(ApkDownloadReceiver.PENDING_URI, null)
+                                                if (pendingUri != null) break
+                                                delay(150)
+                                            }
+                                            updateDownloading = false
+                                            updateDownloadJob = null
+                                            pendingUri?.let { uriString ->
+                                                val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                                                prefs.edit().remove(ApkDownloadReceiver.PENDING_URI).apply()
+                                                if (!installDownloadedApkUri(context, Uri.parse(uriString))) error("installer_unavailable")
+                                            }
+                                            break
+                                        }
+                                        DownloadManager.STATUS_FAILED -> error("update_download_failed")
+                                        DownloadManager.STATUS_PAUSED,
+                                        DownloadManager.STATUS_PENDING,
+                                        DownloadManager.STATUS_RUNNING -> delay(250)
+                                        else -> error("update_download_unknown")
                                     }
                                 }
-                                updateProgress = 100
-                                updateDownloading = false
-                                updateDownloadJob = null
-                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destination)
-                                if (!installDownloadedApkUri(context, uri)) error("installer_unavailable")
                             }.onFailure { error ->
                                 updateDownloading = false
                                 updateDownloadJob = null
                                 updateNotice = if (error.message == "installer_unavailable") {
                                     L(locale, "تعذر فتح شاشة تثبيت التحديث. افتح صلاحية تثبيت التطبيقات من إعدادات الهاتف ثم أعد المحاولة.", "Impossible d’ouvrir l’installation. Autorisez l’installation d’applications dans les réglages puis réessayez.")
+                                } else if (error.message == "download_manager_unavailable") {
+                                    L(locale, "تعذر بدء التنزيل في الخلفية. تحقق من إعدادات التنزيل ثم حاول مرة أخرى.", "Impossible de démarrer le téléchargement en arrière-plan. Vérifiez les réglages des téléchargements puis réessayez.")
                                 } else {
                                     L(locale, "تعذر تنزيل التحديث. تحقق من الاتصال ثم حاول مرة أخرى.", "Impossible de télécharger la mise à jour. Vérifiez la connexion puis réessayez.")
                                 }
