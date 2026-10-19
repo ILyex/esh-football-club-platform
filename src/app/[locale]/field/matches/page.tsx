@@ -25,7 +25,6 @@ const fieldControl = "h-9 w-full appearance-none rounded-lg border border-border
 
 export const metadata: Metadata = {
   title: "إدارة المباريات الميدانية",
-  manifest: "/field/manifest.webmanifest",
   robots: { index: false, follow: false, noarchive: true }
 };
 

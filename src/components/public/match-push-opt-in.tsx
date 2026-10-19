@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { Bell, Download, LoaderCircle, Smartphone, X } from "lucide-react";
+import { Bell, LoaderCircle, Smartphone, X } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = { locale: string };
@@ -53,8 +53,6 @@ function isStandalone(): boolean {
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
-
 export function MatchPushOptIn({ locale }: Props) {
   const isAr = locale === "ar";
   const pathname = usePathname();
@@ -66,10 +64,6 @@ export function MatchPushOptIn({ locale }: Props) {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [installMessage, setInstallMessage] = useState<string | null>(null);
-  const [installDismissed, setInstallDismissed] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
@@ -91,13 +85,6 @@ export function MatchPushOptIn({ locale }: Props) {
     setPermissionGranted("Notification" in window && Notification.permission === "granted");
     setPermissionDenied("Notification" in window && Notification.permission === "denied");
     let cancelled = false;
-    setInstalled(isStandalone());
-    setInstallDismissed(window.localStorage.getItem("esh-install-prompt-dismissed") === "1");
-    const onInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as InstallPromptEvent);
-    };
-    const onInstalled = () => { setInstalled(true); setInstallPrompt(null); };
     const onExternalNavigation = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -117,8 +104,6 @@ export function MatchPushOptIn({ locale }: Props) {
       setPermissionGranted(permission === "granted");
       setPermissionDenied(permission === "denied");
     };
-    window.addEventListener("beforeinstallprompt", onInstallPrompt);
-    window.addEventListener("appinstalled", onInstalled);
     document.addEventListener("click", onExternalNavigation, true);
     window.addEventListener("pageshow", refreshPermissionState);
     window.addEventListener("focus", refreshPermissionState);
@@ -157,8 +142,6 @@ export function MatchPushOptIn({ locale }: Props) {
     });
     return () => {
       cancelled = true;
-      window.removeEventListener("beforeinstallprompt", onInstallPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
       document.removeEventListener("click", onExternalNavigation, true);
       window.removeEventListener("pageshow", refreshPermissionState);
       window.removeEventListener("focus", refreshPermissionState);
@@ -167,20 +150,6 @@ export function MatchPushOptIn({ locale }: Props) {
 
   const showPushPrompt = isNotificationPromptPage(pathname) && !dismissed && !permissionDenied && !permissionGranted && !enabled && subscriptionChecked;
   const isIOS = isAppleMobile();
-  const showInstallPrompt = !installed && !installDismissed && (Boolean(installPrompt) || isIOS);
-
-  async function installApp() {
-    if (!installPrompt) {
-      setInstallMessage(isAr
-        ? "اضغط زر المشاركة في المتصفح، ثم اختر «إضافة إلى الشاشة الرئيسية»."
-        : "Touchez Partager dans le navigateur, puis « Sur l’écran d’accueil ». ");
-      return;
-    }
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === "accepted") setInstalled(true);
-    setInstallPrompt(null);
-  }
 
   async function enableNotifications() {
     setMessage(null);
@@ -245,26 +214,13 @@ export function MatchPushOptIn({ locale }: Props) {
   }
 
   const unavailable = config !== null && !config.enabled;
-  if (!portalReady || (!showInstallPrompt && !showPushPrompt)) return null;
+  if (!portalReady || !showPushPrompt) return null;
 
   return createPortal(
     <div
       className="pointer-events-none fixed inset-x-0 top-[calc(4.5rem+env(safe-area-inset-top))] z-[1000] flex w-full flex-col items-center gap-2 px-3 sm:top-20 sm:px-6"
       style={{ position: "fixed", insetInline: 0 }}
     >
-    {showInstallPrompt && <section className="pointer-events-auto mx-auto flex w-full max-w-7xl flex-col gap-3 rounded-xl border border-border bg-card/95 px-3 py-3 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-4" aria-label={isAr ? "تثبيت الموقع كتطبيق" : "Installer le site"}>
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary"><Smartphone className="h-4 w-4" /></span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-foreground">{isAr ? "ثبّت موقع النادي على هاتفك" : "Installez le site du club sur votre téléphone"}</h2>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{installMessage ?? (isAr ? "افتح الموقع كتطبيق من الشاشة الرئيسية." : "Ouvrez le site comme une application depuis l’écran d’accueil.")}</p>
-        </div>
-      </div>
-      <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
-        <button type="button" onClick={() => void installApp()} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-club-primary px-4 text-xs font-bold text-white shadow-xs transition-colors hover:bg-club-primary/90 sm:flex-none"><Download className="h-4 w-4" />{isAr ? "تثبيت الموقع" : "Installer"}</button>
-        <button type="button" onClick={() => { setInstallDismissed(true); window.localStorage.setItem("esh-install-prompt-dismissed", "1"); }} aria-label={isAr ? "إخفاء" : "Masquer"} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
-      </div>
-    </section>}
     {showPushPrompt && <section className="pointer-events-auto mx-auto w-full max-w-7xl" aria-label={isAr ? "إشعارات المباريات" : "Notifications des matchs"}>
       <div className="flex flex-col gap-3 rounded-xl border border-club-primary/25 bg-card/95 px-3 py-3 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="flex min-w-0 items-start gap-3">

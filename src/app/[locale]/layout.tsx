@@ -41,8 +41,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
   return {
     title: name,
-    manifest: "/manifest.webmanifest",
-    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "ESH" },
     icons: {
       icon: [
         { url: "/branding/esh-logo-32.png", sizes: "32x32", type: "image/png" },
