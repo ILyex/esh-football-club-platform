@@ -177,6 +177,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NativeApi.initializeCache(applicationContext)
+        UpdateCheckReceiver.schedule(applicationContext)
         window.statusBarColor = android.graphics.Color.rgb(9, 11, 14)
         window.navigationBarColor = android.graphics.Color.rgb(9, 11, 14)
         val baseTypography = Typography()
