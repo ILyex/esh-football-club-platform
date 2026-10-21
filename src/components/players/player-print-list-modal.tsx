@@ -156,17 +156,23 @@ export function PlayerPrintListModal({
                   {/* Clean Institutional Table */}
                   <div className="mt-5 w-full" style={{ width: "100%", maxWidth: "none" }}>
                       <table className="w-full border-collapse border border-zinc-300 text-[18px] leading-relaxed" style={{ width: "100%", maxWidth: "none", tableLayout: "fixed" }}>
-                      {pageIndex === 0 && (
+                      <colgroup>
+                        <col style={{ width: "12%" }} />
+                        <col style={{ width: "40%" }} />
+                        <col style={{ width: "24%" }} />
+                        <col style={{ width: "24%" }} />
+                      </colgroup>
+                      {(
                         <thead>
                           <tr className="bg-zinc-100 text-zinc-900 font-bold">
-                            <th className="py-2.5 px-3 border border-zinc-300 text-center w-12">#</th>
+                            <th className="py-2.5 px-3 border border-zinc-300 text-center">#</th>
                             <th className="py-2.5 px-4 border border-zinc-300 text-start">
                               {isAr ? "اسم ولقب اللاعب" : "Nom et prénom du joueur"}
                             </th>
-                            <th className="py-2.5 px-4 border border-zinc-300 text-center w-40">
+                            <th className="py-2.5 px-4 border border-zinc-300 text-center">
                               {isAr ? "تاريخ الميلاد" : "Date de naissance"}
                             </th>
-                            <th className="py-2.5 px-4 border border-zinc-300 text-center w-44">
+                            <th className="py-2.5 px-4 border border-zinc-300 text-center">
                               {isAr ? "رقم الرخصة" : "N° de licence"}
                             </th>
                           </tr>
