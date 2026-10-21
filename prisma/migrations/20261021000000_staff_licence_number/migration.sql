@@ -1,0 +1,1 @@
+ALTER TABLE "Staff" ADD COLUMN IF NOT EXISTS "licenceNumber" TEXT;

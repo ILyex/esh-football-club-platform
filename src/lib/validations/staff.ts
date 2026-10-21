@@ -5,6 +5,7 @@ export const staffSchema = z.object({
   lastName: z.string().min(1).max(80),
   firstNameFr: z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : String(v).trim()), z.string().max(80).optional()),
   lastNameFr: z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : String(v).trim()), z.string().max(80).optional()),
+  licenceNumber: z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : String(v).trim()), z.string().max(80).optional()),
   role: z.enum([
     "HEAD_COACH",
     "ASSISTANT_COACH",

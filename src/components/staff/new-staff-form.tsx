@@ -122,6 +122,11 @@ export function NewStaffForm({
             name="lastNameFr"
             placeholder="ex: Mansouri"
           />
+          <Field
+            label={isAr ? "رقم الرخصة" : "N° de licence"}
+            name="licenceNumber"
+            placeholder="26W14E..."
+          />
         </div>
       </div>
 

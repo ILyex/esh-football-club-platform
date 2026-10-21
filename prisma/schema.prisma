@@ -431,6 +431,7 @@ model Staff {
   matchEvents      MatchEvent[]
   firstNameFr      String?
   lastNameFr       String?
+  licenceNumber    String? // Official staff licence number
   // Single-team FK — RETAINED for P1 (approved staged migration, Group 2).
   // Existing consumers (Contract.resolveSubjectTeamId, TrainingSession.coachId
   // displays, this model's own list/detail pages) keep reading this column

@@ -28,6 +28,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:import-roster-2026": "tsx scripts/import-roster-2026.ts",
     "db:reset:handover": "tsx scripts/reset-for-handover.ts",
     "migration:export": "node scripts/migration/export-postgres.mjs",
     "migration:verify": "node scripts/migration/verify-export.mjs",
