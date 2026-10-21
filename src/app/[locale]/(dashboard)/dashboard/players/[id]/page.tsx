@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { NoticeToast } from "@/components/shared/notice-toast";
 import { birthYearMismatch } from "@/lib/utils";
+import { PlayerPageFreshness } from "@/components/players/player-page-freshness";
 
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { PlayerPerformanceCard, type ProtocolPerformanceGroup } from "@/components/testing/player-performance-card";
@@ -231,6 +232,7 @@ export default async function PlayerDetailPage({
 
   return (
     <div className="w-full space-y-6">
+      <PlayerPageFreshness />
       <NoticeToast notice={notice} />
       {/* ── Top Player Identity Header Card ── */}
       <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs">

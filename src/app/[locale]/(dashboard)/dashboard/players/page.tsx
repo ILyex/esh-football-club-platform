@@ -13,6 +13,7 @@ import { PlayerPrintListModal } from "@/components/players/player-print-list-mod
 import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
 import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 import { AlertTriangle, Plus } from "lucide-react";
+import { PlayerPageFreshness } from "@/components/players/player-page-freshness";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   ACTIVE: "success",
@@ -124,6 +125,7 @@ export default async function PlayersListPage({
 
   return (
     <div>
+      <PlayerPageFreshness />
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <div className="flex items-center gap-2">
