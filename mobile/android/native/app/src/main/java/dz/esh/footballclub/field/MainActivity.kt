@@ -315,6 +315,21 @@ private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): L
     }.getOrElse { -1L }
 }
 
+/**
+ * Some OEM builds disable or misconfigure the system DownloadManager. Keep an
+ * in-app fallback so an update can still be downloaded and verified instead
+ * of showing the misleading "background download" error.
+ */
+private suspend fun downloadUpdateDirect(
+    context: Context,
+    release: NativeRelease,
+    onProgress: suspend (Int) -> Unit
+): File {
+    val destination = File(context.cacheDir, "updates/esh-update-${release.tag}.apk")
+    NativeApi.downloadApk(release.apkUrl, destination, release.sha256, onProgress)
+    return destination
+}
+
 private object IconlyIcons {
     val Home = R.drawable.iconly_home
     val Travel = R.drawable.iconly_bus
@@ -851,9 +866,20 @@ private fun MatchdayApp() {
                                 // user switches apps, or Android reclaims the
                                 // process. The receiver verifies the checksum
                                 // and stores the resulting content URI.
-                                val downloadId = withContext(Dispatchers.IO) { enqueueBackgroundUpdate(context, release) }
-                                if (downloadId < 0L) error("download_manager_unavailable")
-                                val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                                val downloadId = manager?.let { withContext(Dispatchers.IO) { enqueueBackgroundUpdate(context, release) } } ?: -1L
+                                if (downloadId < 0L || manager == null) {
+                                    // Fallback for devices where DownloadManager
+                                    // is disabled, restricted, or unavailable.
+                                    val apkFile = downloadUpdateDirect(context, release) { progress ->
+                                        withContext(Dispatchers.Main) { if (progress > updateProgress) updateProgress = progress }
+                                    }
+                                    updateProgress = 100
+                                    updateDownloading = false
+                                    updateDownloadJob = null
+                                    if (!installDownloadedApk(context, apkFile)) error("installer_unavailable")
+                                    return@launch
+                                }
                                 while (true) {
                                     val state = withContext(Dispatchers.IO) {
                                         manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { cursor ->
