@@ -61,7 +61,7 @@ export default async function PlayersListPage({
       : {})
   };
 
-  const [players, total, teams] = await Promise.all([
+  const [players, total, teams, printPlayers] = await Promise.all([
     db.player.findMany({
       where,
       include: {
@@ -99,7 +99,26 @@ export default async function PlayersListPage({
       take: pageSize
     }),
     db.player.count({ where }),
-    getAuthorizedTeams()
+    getAuthorizedTeams(),
+    // Printing is intentionally independent from the visible page. Keep the
+    // active filters (including a selected category/team) but load every
+    // matching player so the preview and printout contain the full list.
+    db.player.findMany({
+      where,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        firstNameFr: true,
+        lastNameFr: true,
+        dateOfBirth: true,
+        licenceNumber: true,
+        shirtNumber: true,
+        position: true,
+        team: { select: { category: true } }
+      },
+      orderBy: { shirtNumber: "asc" }
+    })
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -109,7 +128,7 @@ export default async function PlayersListPage({
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <div className="flex items-center gap-2">
           <PlayerPrintListModal
-            players={players.map((p) => ({
+            players={printPlayers.map((p) => ({
               id: p.id,
               firstName: p.firstName,
               lastName: p.lastName,
