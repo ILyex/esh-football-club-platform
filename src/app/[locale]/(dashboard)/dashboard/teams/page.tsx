@@ -11,6 +11,7 @@ import { Shield, Users, Trophy, FileCheck, ArrowRight, UserCog, Edit3, CalendarD
 import { uploadTeamInsuranceAction } from "./insurance-actions";
 import { DateInput } from "@/components/ui/date-input";
 import { TeamInsuranceFileInput } from "@/components/teams/team-insurance-file-input";
+import { TeamInsuranceQueueKick } from "@/components/teams/team-insurance-queue-kick";
 
 const CATEGORY_ORDER = ["SENIOR", "U20", "U17", "U15"] as const;
 
@@ -44,9 +45,11 @@ export default async function TeamsListPage({ params, searchParams }: { params: 
   const sorted = [...teams].sort(
     (a, b) => CATEGORY_ORDER.indexOf(a.category as any) - CATEGORY_ORDER.indexOf(b.category as any)
   );
+  const hasQueuedInsurance = teams.some((team) => team.insurancePolicies.some((policy) => policy.checkStatus === "QUEUED"));
 
   return (
     <div className="space-y-6">
+      <TeamInsuranceQueueKick enabled={hasQueuedInsurance} />
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
