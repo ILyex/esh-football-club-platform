@@ -1275,16 +1275,24 @@ private fun PlayerStatsPagination(page: Int, pageCount: Int, locale: String, onP
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TextButton(enabled = page > 0, onClick = { onPageChange(page - 1) }) {
-            Icon(if (locale == "ar") IconlyIcons.ArrowRight else IconlyIcons.ArrowLeft, contentDescription = null, tint = if (page > 0) Mint else Muted, modifier = Modifier.size(17.dp))
+        TextButton(
+            enabled = page > 0,
+            onClick = { onPageChange(page - 1) },
+            modifier = Modifier.heightIn(min = 44.dp).widthIn(min = 52.dp)
+        ) {
+            Icon(if (locale == "ar") IconlyIcons.ArrowRight else IconlyIcons.ArrowLeft, contentDescription = L(locale, "الصفحة السابقة", "Page précédente"), tint = if (page > 0) Mint else Muted, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(4.dp))
-            Text(L(locale, "السابق", "Précédent"), color = if (page > 0) AppText else Muted, fontSize = 10.sp)
+            Text(L(locale, "السابق", "Précédent"), color = if (page > 0) AppText else Muted, fontSize = 11.sp)
         }
         Text(L(locale, "صفحة ${page + 1} من $pageCount", "Page ${page + 1} sur $pageCount"), color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        TextButton(enabled = page < pageCount - 1, onClick = { onPageChange(page + 1) }) {
-            Text(L(locale, "التالي", "Suivant"), color = if (page < pageCount - 1) AppText else Muted, fontSize = 10.sp)
+        TextButton(
+            enabled = page < pageCount - 1,
+            onClick = { onPageChange(page + 1) },
+            modifier = Modifier.heightIn(min = 44.dp).widthIn(min = 52.dp)
+        ) {
+            Text(L(locale, "التالي", "Suivant"), color = if (page < pageCount - 1) AppText else Muted, fontSize = 11.sp)
             Spacer(Modifier.width(4.dp))
-            Icon(if (locale == "ar") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = null, tint = if (page < pageCount - 1) Mint else Muted, modifier = Modifier.size(17.dp))
+            Icon(if (locale == "ar") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = L(locale, "الصفحة التالية", "Page suivante"), tint = if (page < pageCount - 1) Mint else Muted, modifier = Modifier.size(24.dp))
         }
     }
 }
