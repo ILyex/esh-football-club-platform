@@ -157,7 +157,7 @@ export default async function PlayersListPage({
         </Button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <div className="player-list-scroll overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full min-w-[650px] text-start text-sm">
           <thead className="border-b border-border bg-muted/50 text-start">
             <tr>
