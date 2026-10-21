@@ -81,14 +81,19 @@ async function main() {
   if (missing.length) throw new Error(`Missing team categories: ${missing.join(", ")}`);
   for (const row of players) {
     const existing = await db.player.findFirst({ where: { licenceNumber: row.licence }, select: { id: true, slug: true, photoUrl: true } });
+    // Slugs are used in URLs and response headers; always derive them from
+    // the Latin registration name so Arabic display names cannot create an
+    // invalid ByteString header during a server-action redirect.
+    const safeSlug = await uniqueSlug(row.firstFr, row.lastFr, row.licence);
     const data = {
+      slug: safeSlug,
       firstName: row.first, lastName: row.last, firstNameFr: row.firstFr, lastNameFr: row.lastFr,
       dateOfBirth: dateOnly(row.dob), position: "MIDFIELDER" as const, nationality: "الجزائر",
       shirtNumber: row.number > 0 ? row.number : null, licenceNumber: row.licence,
       teamId: teams[row.team], status: "ACTIVE" as const, photoUrl: existing?.photoUrl || row.photo
     };
     if (existing) await db.player.update({ where: { id: existing.id }, data });
-    else await db.player.create({ data: { ...data, slug: await uniqueSlug(row.first, row.last, row.licence) } });
+    else await db.player.create({ data });
   }
   for (const row of staff) {
     const existing = await db.staff.findFirst({ where: { licenceNumber: row.licence }, select: { id: true } });
