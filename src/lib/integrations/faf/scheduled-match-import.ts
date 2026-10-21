@@ -110,7 +110,7 @@ function opponentName(club: unknown): string {
   return names.ar || names.fr || (isFafClubNamePlaceholder(fallback) ? "" : fallback);
 }
 
-function opponentLogoUrl(portalUrl: string, ...clubRecords: unknown[]): string | null {
+function opponentLogoUrls(portalUrl: string, ...clubRecords: unknown[]): string[] {
   // FAF EMS has returned club crests under different schemas over time
   // (flat logoUrl, nested image.url, French blason, etc.). Search only the
   // opponent club records, prioritizing crest-related properties, instead of
@@ -143,13 +143,14 @@ function opponentLogoUrl(portalUrl: string, ...clubRecords: unknown[]): string |
     }
   };
   for (const record of clubRecords) collect(record, 0);
+  const urls: string[] = [];
   for (const raw of values) {
     try {
       const url = new URL(raw, portalUrl);
-      if (isSafeExternalUrl(url.href)) return url.href;
+      if (isSafeExternalUrl(url.href) && !urls.includes(url.href)) urls.push(url.href);
     } catch { /* Ignore malformed or unsupported EMS logo values. */ }
   }
-  return null;
+  return urls;
 }
 
 async function readBoundedImage(response: Response, maxBytes: number): Promise<Buffer> {
@@ -358,9 +359,12 @@ export async function importUpcomingFafMatches(options: {
     const score = isHistorical ? officialScore(fixture, remote) : null;
     const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
     const remoteOpponentClub = homeFixtureIsUs ? remote.clubVis : remote.clubLoc;
-    const logoUrl = opponentLogoUrl(config.portalUrl, opponentClub, remoteOpponentClub);
-    if (logoUrl) {
-      try {
+    const logoUrls = opponentLogoUrls(config.portalUrl, opponentClub, remoteOpponentClub);
+    if (logoUrls.length) {
+      let logoImported = false;
+      let lastLogoError: unknown = null;
+      for (const logoUrl of logoUrls) {
+        try {
         const { uploadPublicFile, generatePublicStorageKey, validateUploadedImage } = await import("@/lib/storage");
         const response = await getFafEmsClient().opponentLogo(logoUrl);
         if (!response.ok) throw new Error(`Opponent logo fetch returned HTTP ${response.status}`);
@@ -372,9 +376,16 @@ export async function importUpcomingFafMatches(options: {
           mimeType: image.mime
         });
         await saveOpponentClub(opponent, storedLogoUrl, fafStadium || undefined);
+        logoImported = true;
+        break;
+        } catch (error) {
+          // Some EMS payloads include a stale thumbnail URL alongside the
+          // working crest URL. Try every safe candidate before giving up.
+          lastLogoError = error;
+        }
       }
-      catch (error) {
-        console.warn(`[FAF EMS] Opponent logo import failed for match ${externalId}`, error);
+      if (!logoImported) {
+        console.warn(`[FAF EMS] Opponent logo import failed for match ${externalId}`, lastLogoError);
         if (result.warnings.length < 5) result.warnings.push(`تعذر تنزيل شعار المنافس أو تخزينه للمباراة ${externalId}؛ لم أحفظ رابطًا خارجيًا قد لا يعمل في الموقع.`);
       }
     }
