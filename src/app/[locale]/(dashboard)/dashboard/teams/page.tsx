@@ -77,9 +77,10 @@ export default async function TeamsListPage({ params, searchParams }: { params: 
           const latestInsurance = team.insurancePolicies[0];
           const insurance = verifiedInsurance || latestInsurance;
           const insuranceActive = !!verifiedInsurance;
-          const insurancePending = !insuranceActive && latestInsurance?.checkStatus === "QUEUED";
+          const insuranceStale = !insuranceActive && latestInsurance?.checkStatus === "QUEUED" && Date.now() - latestInsurance.createdAt.getTime() > 10 * 60 * 1000;
+          const insurancePending = !insuranceActive && latestInsurance?.checkStatus === "QUEUED" && !insuranceStale;
           const scheduledInsurance = !insuranceActive && latestInsurance?.checkStatus === "CHECKED" && latestInsurance.startDate > today;
-          const insuranceLabel = insuranceActive ? (isAr ? "الفئة مؤمّنة" : "Catégorie assurée") : insurancePending ? (isAr ? "قيد فحص الذكاء الاصطناعي" : "Vérification IA en cours") : scheduledInsurance ? (isAr ? "تبدأ التغطية لاحقاً" : "Couverture à venir") : latestInsurance?.checkStatus === "NEEDS_REVIEW" ? (isAr ? "تعذر التحقق — مراجعة مطلوبة" : "À vérifier manuellement") : insurance && insurance.endDate < today ? (isAr ? "انتهى التأمين" : "Assurance expirée") : latestInsurance?.checkStatus === "UNAVAILABLE" ? (isAr ? "الفحص غير متاح — مراجعة مطلوبة" : "Contrôle indisponible — vérifier") : (isAr ? "لا توجد وثيقة تأمين" : "Aucune assurance");
+          const insuranceLabel = insuranceActive ? (isAr ? "الفئة مؤمّنة" : "Catégorie assurée") : insurancePending ? (isAr ? "قيد فحص الذكاء الاصطناعي" : "Vérification IA en cours") : insuranceStale ? (isAr ? "تأخر الفحص — أعد رفع الوثيقة" : "Vérification bloquée — téléverser à nouveau") : scheduledInsurance ? (isAr ? "تبدأ التغطية لاحقاً" : "Couverture à venir") : latestInsurance?.checkStatus === "NEEDS_REVIEW" ? (isAr ? "تعذر التحقق — مراجعة مطلوبة" : "À vérifier manuellement") : insurance && insurance.endDate < today ? (isAr ? "انتهى التأمين" : "Assurance expirée") : latestInsurance?.checkStatus === "UNAVAILABLE" ? (isAr ? "الفحص غير متاح — مراجعة مطلوبة" : "Contrôle indisponible — vérifier") : (isAr ? "لا توجد وثيقة تأمين" : "Aucune assurance");
           const insuranceDate = (date: Date) => new Intl.DateTimeFormat(isAr ? "ar-DZ" : "fr-FR", { dateStyle: "medium", timeZone: "UTC" }).format(date);
 
           return (

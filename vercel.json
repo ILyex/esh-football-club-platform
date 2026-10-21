@@ -3,6 +3,10 @@
   "buildCommand": "npm run db:mysql:generate && node scripts/vercel-production-migrations.mjs && npm run db:import-roster-2026 && npm run build",
   "crons": [
     {
+      "path": "/api/cron/process-jobs",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/import-faf-matches",
       "schedule": "0 7 * * *"
     }
