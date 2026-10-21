@@ -110,16 +110,46 @@ function opponentName(club: unknown): string {
   return names.ar || names.fr || (isFafClubNamePlaceholder(fallback) ? "" : fallback);
 }
 
-function opponentLogoUrl(club: RemoteMatch, portalUrl: string): string | null {
-  const values = [club.logoUrl, club.logo, club.blason, club.urlLogo, club.urlBlason, club.image, club.crest, club.embleme];
-  const raw = values.map((value) => typeof value === "string" ? value : value && typeof value === "object"
-    ? (value.url || value.href || value.path || value.src || value.urlLogo || value.logoUrl)
-    : null).find((value) => typeof value === "string" && value.trim());
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  try {
-    const url = new URL(String(raw).trim(), portalUrl);
-    return isSafeExternalUrl(url.href) ? url.href : null;
-  } catch { return null; }
+function opponentLogoUrl(portalUrl: string, ...clubRecords: unknown[]): string | null {
+  // FAF EMS has returned club crests under different schemas over time
+  // (flat logoUrl, nested image.url, French blason, etc.). Search only the
+  // opponent club records, prioritizing crest-related properties, instead of
+  // assuming one field name or accidentally selecting a match/document image.
+  const values: string[] = [];
+  const visited = new Set<object>();
+  const urlProperties = new Set(["url", "href", "path", "src", "urlimage", "imageurl", "urlfichier", "fileurl", "chemin"]);
+  const collect = (value: unknown, depth: number, imageContext = false) => {
+    if (depth > 6 || value == null) return;
+    if (typeof value === "string") {
+      const candidate = value.trim().replace(/&amp;/gi, "&");
+      if (candidate && (imageContext || /^(?:https?:)?\/\//i.test(candidate) || candidate.startsWith("/"))) values.push(candidate);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value.slice(0, 20)) collect(item, depth + 1, imageContext);
+      return;
+    }
+    if (typeof value !== "object" || visited.has(value)) return;
+    visited.add(value);
+    const record = value as Record<string, unknown>;
+    const entries = Object.entries(record);
+    const crestEntries = entries.filter(([key]) => /logo|blason|crest|embleme|badge|ecusson|insigne|imageclub|clubimage/i.test(key.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")));
+    for (const [key, nested] of crestEntries) collect(nested, depth + 1, true);
+    for (const [key, nested] of entries) {
+      if (crestEntries.some(([crestKey]) => crestKey === key)) continue;
+      const normalizedKey = key.toLowerCase().replace(/[^a-z]/g, "");
+      if (imageContext && urlProperties.has(normalizedKey)) collect(nested, depth + 1, true);
+      else if (nested && typeof nested === "object") collect(nested, depth + 1, imageContext);
+    }
+  };
+  for (const record of clubRecords) collect(record, 0);
+  for (const raw of values) {
+    try {
+      const url = new URL(raw, portalUrl);
+      if (isSafeExternalUrl(url.href)) return url.href;
+    } catch { /* Ignore malformed or unsupported EMS logo values. */ }
+  }
+  return null;
 }
 
 async function readBoundedImage(response: Response, maxBytes: number): Promise<Buffer> {
@@ -142,28 +172,6 @@ async function readBoundedImage(response: Response, maxBytes: number): Promise<B
     reader.releaseLock();
   }
   return Buffer.concat(chunks, size);
-}
-
-async function fetchOpponentLogo(url: string): Promise<Response> {
-  let current = new URL(url);
-  const visited = new Set<string>();
-  for (let redirects = 0; redirects <= 4; redirects++) {
-    if (!isSafeExternalUrl(current.href) || visited.has(current.href)) throw new Error("Unsafe or repeated opponent logo redirect.");
-    visited.add(current.href);
-    const response = await fetch(current, {
-      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8" },
-      signal: AbortSignal.timeout(8000),
-      redirect: "manual"
-    });
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location || redirects === 4) throw new Error("Opponent logo redirect could not be followed safely.");
-      current = new URL(location, current);
-      continue;
-    }
-    return response;
-  }
-  throw new Error("Opponent logo has too many redirects.");
 }
 
 function remoteCompetitionName(match: RemoteMatch): string {
@@ -349,11 +357,12 @@ export async function importUpcomingFafMatches(options: {
     const refereeNameFr = refereeCrew.fr.join(", ") || null;
     const score = isHistorical ? officialScore(fixture, remote) : null;
     const opponentClub = homeFixtureIsUs ? fixture.clubVis : fixture.clubLoc;
-    const logoUrl = opponentLogoUrl(opponentClub || {}, config.portalUrl);
+    const remoteOpponentClub = homeFixtureIsUs ? remote.clubVis : remote.clubLoc;
+    const logoUrl = opponentLogoUrl(config.portalUrl, opponentClub, remoteOpponentClub);
     if (logoUrl) {
       try {
         const { uploadPublicFile, generatePublicStorageKey, validateUploadedImage } = await import("@/lib/storage");
-        const response = await fetchOpponentLogo(logoUrl);
+        const response = await getFafEmsClient().opponentLogo(logoUrl);
         if (!response.ok) throw new Error(`Opponent logo fetch returned HTTP ${response.status}`);
         const bytes = await readBoundedImage(response, 8 * 1024 * 1024);
         const image = await validateUploadedImage(bytes);

@@ -3,6 +3,7 @@ import "server-only";
 import { getFAFConfig } from "./config";
 import { FAFSessionManager } from "./session-manager";
 import { RetryableError } from "@/lib/jobs/types";
+import { isSafeExternalUrl } from "./schemas";
 
 type JsonRecord = Record<string, any>;
 
@@ -127,6 +128,44 @@ export class FafEmsClient {
     const json = await this.json(response, "match details");
     if (!json.match || Number(json.match.id) !== externalId) throw new Error("FAF EMS match details do not match the requested match.");
     return json;
+  }
+
+  /** Fetch a club crest with the EMS session when it remains on the FAF origin.
+   * EMS image endpoints may require the same cookie as the match API. Redirects
+   * are followed manually so credentials are never sent to another host. */
+  async opponentLogo(rawUrl: string): Promise<Response> {
+    const config = getFAFConfig();
+    let current = new URL(rawUrl, config.portalUrl);
+    const portalOrigin = new URL(config.portalUrl).origin;
+    const visited = new Set<string>();
+    let cookie: string | null = null;
+
+    for (let redirects = 0; redirects <= 4; redirects++) {
+      if (current.protocol !== "https:" || !isSafeExternalUrl(current.href) || visited.has(current.href)) {
+        throw new Error("Unsafe or repeated FAF EMS opponent logo URL.");
+      }
+      visited.add(current.href);
+      const sameOrigin = current.origin === portalOrigin;
+      if (sameOrigin && !cookie) cookie = await this.cookie();
+      const response = await this.fetchRemote(current.href, {
+        headers: {
+          Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8",
+          "User-Agent": config.userAgent,
+          Referer: `${config.portalUrl}/`,
+          ...(sameOrigin && cookie ? { Cookie: cookie } : {})
+        },
+        signal: AbortSignal.timeout(Math.min(config.timeoutMs, 10000)),
+        redirect: "manual"
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location || redirects === 4) throw new Error("FAF EMS opponent logo redirect could not be followed safely.");
+        current = new URL(location, current);
+        continue;
+      }
+      return response;
+    }
+    throw new Error("FAF EMS opponent logo has too many redirects.");
   }
 
   async report(externalId: number, kind: "first-report-ar" | "final-report-ar"): Promise<Buffer> {
