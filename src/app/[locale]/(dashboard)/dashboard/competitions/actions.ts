@@ -302,6 +302,9 @@ export async function importOfficialRoundTwoSeniorStandingsAction(competitionId:
   const scopeContext = await getMutationScopeContext();
   assertTeamScope(scopeContext, competition.teamId, "Competition");
   const currentStandings = Array.isArray(competition.standingsData) ? competition.standingsData as Array<{ id?: unknown }> : [];
+  if (currentStandings.length && currentStandings.every((row) => typeof row.id === "string" && row.id.startsWith("official-r2-"))) {
+    return { success: true, teamCount: currentStandings.length };
+  }
   if (currentStandings.length && !currentStandings.every((row) => typeof row.id === "string" && row.id.startsWith("official-r2-"))) {
     throw new Error("يوجد ترتيب محفوظ لهذه المسابقة؛ لن يتم استبداله تلقائيًا.");
   }

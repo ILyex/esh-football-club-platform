@@ -158,7 +158,7 @@ export function LeagueStandingsTable({
             )}
           </div>
 
-          {(standings.length === 0 || standings.every((team) => team.id.startsWith("official-r2-"))) && (
+          {standings.length === 0 && (
             <button type="button" onClick={handleImportOfficialRound} disabled={isPending} className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 text-xs font-bold text-sky-700 transition hover:bg-sky-500/15 disabled:opacity-60 dark:text-sky-300">
               <Trophy className="h-3.5 w-3.5" />
               {isPending ? (isAr ? "جارٍ ربط البيانات..." : "Import en cours…") : (isAr ? "إدخال ترتيب الجولة الثانية وربطه" : "Importer le classement du 2e tour")}
