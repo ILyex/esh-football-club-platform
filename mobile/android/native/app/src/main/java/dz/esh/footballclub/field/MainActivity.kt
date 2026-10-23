@@ -2519,6 +2519,7 @@ private fun AlertCard(alert: NativeAlert, locale: String, onDelete: () -> Unit) 
 private fun NativeCompetitionCard(competition: NativeCompetition, locale: String, onSave: (NativeCompetition, List<NativeStanding>) -> Unit) {
     var editing by remember(competition.id) { mutableStateOf(false) }
     var rows by remember(competition.id, competition.standings) { mutableStateOf(competition.standings) }
+    var rowDrafts by remember(competition.id) { mutableStateOf(emptyMap<String, String>()) }
     val canManage = competition.canManage && competition.type == "LEAGUE"
     GlassCard {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -2531,7 +2532,18 @@ private fun NativeCompetitionCard(competition: NativeCompetition, locale: String
                 Text(competition.name, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${competition.categoryLabel} · ${competition.seasonLabel}", color = Muted, fontSize = 10.sp)
             }
-            if (canManage) TextButton(onClick = { editing = !editing }) { Text(if (editing) L(locale, "إلغاء", "Annuler") else L(locale, "تعديل", "Modifier"), color = Red, fontSize = 11.sp) }
+            if (canManage) TextButton(onClick = {
+                if (editing) {
+                    rowDrafts = emptyMap()
+                    editing = false
+                } else {
+                    rowDrafts = rows.flatMap { row ->
+                        listOf(row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst)
+                            .mapIndexed { field, value -> "${row.id}:$field" to value.toString() }
+                    }.toMap()
+                    editing = true
+                }
+            }) { Text(if (editing) L(locale, "إلغاء", "Annuler") else L(locale, "تعديل", "Modifier"), color = Red, fontSize = 11.sp) }
         }
         Spacer(Modifier.height(12.dp))
         if (competition.type != "LEAGUE") {
@@ -2545,20 +2557,20 @@ private fun NativeCompetitionCard(competition: NativeCompetition, locale: String
                         Text((index + 1).toString(), color = if (row.isOurClub) Red else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(18.dp), textAlign = TextAlign.Center)
                         Text(row.teamName, color = if (row.isOurClub) Mint else AppText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         listOf(row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst).forEachIndexed { field, value ->
-                            OutlinedTextField(value = value.toString(), onValueChange = { raw ->
-                                val next = raw.toIntOrNull()?.coerceAtLeast(0) ?: 0
-                                rows = rows.mapIndexed { i, current ->
-                                    if (i != index) current else when (field) {
-                                        0 -> current.copy(won = next)
-                                        1 -> current.copy(drawn = next)
-                                        2 -> current.copy(lost = next)
-                                        3 -> current.copy(goalsFor = next)
-                                        else -> current.copy(goalsAgainst = next)
-                                    }.let { updated -> updated.copy(played = updated.won + updated.drawn + updated.lost, points = updated.won * 3 + updated.drawn, goalDifference = updated.goalsFor - updated.goalsAgainst) }
-                                }
-                            }, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = AppText, textAlign = TextAlign.Center), modifier = Modifier.width(31.dp).height(46.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Red, unfocusedBorderColor = GlassBorder, cursorColor = Red))
+                            val editKey = "${row.id}:$field"
+                            OutlinedTextField(
+                                value = rowDrafts[editKey] ?: value.toString(),
+                                onValueChange = { raw -> rowDrafts = rowDrafts + (editKey to raw.filter { it in '0'..'9' }) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = AppText, textAlign = TextAlign.Center),
+                                modifier = Modifier.width(31.dp).height(46.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Red, unfocusedBorderColor = GlassBorder, cursorColor = Red)
+                            )
                         }
-                        Text((row.won * 3 + row.drawn).toString(), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(25.dp), textAlign = TextAlign.Center)
+                        val editedWon = rowDrafts["${row.id}:0"]?.let { it.toIntOrNull() ?: 0 } ?: row.won
+                        val editedDrawn = rowDrafts["${row.id}:1"]?.let { it.toIntOrNull() ?: 0 } ?: row.drawn
+                        Text((editedWon * 3 + editedDrawn).toString(), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(25.dp), textAlign = TextAlign.Center)
                     }
                 } else {
                     NativeStandingRow(row, locale)
@@ -2566,7 +2578,30 @@ private fun NativeCompetitionCard(competition: NativeCompetition, locale: String
             }
             if (editing) {
                 Spacer(Modifier.height(10.dp))
-                ClubPrimaryButton(text = L(locale, "حفظ الترتيب", "Enregistrer le classement"), onClick = { onSave(competition, rows); editing = false }, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp))
+                ClubPrimaryButton(text = L(locale, "حفظ الترتيب", "Enregistrer le classement"), onClick = {
+                    val updatedRows = rows.map { row ->
+                        fun edited(field: Int, original: Int) = rowDrafts["${row.id}:$field"]?.let { it.toIntOrNull() ?: 0 } ?: original
+                        val won = edited(0, row.won)
+                        val drawn = edited(1, row.drawn)
+                        val lost = edited(2, row.lost)
+                        val goalsFor = edited(3, row.goalsFor)
+                        val goalsAgainst = edited(4, row.goalsAgainst)
+                        row.copy(
+                            played = won + drawn + lost,
+                            won = won,
+                            drawn = drawn,
+                            lost = lost,
+                            goalsFor = goalsFor,
+                            goalsAgainst = goalsAgainst,
+                            goalDifference = goalsFor - goalsAgainst,
+                            points = won * 3 + drawn
+                        )
+                    }
+                    rows = updatedRows
+                    rowDrafts = emptyMap()
+                    onSave(competition, updatedRows)
+                    editing = false
+                }, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp))
             }
         }
     }
