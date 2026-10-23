@@ -43,7 +43,6 @@ export interface SerializedPlayerOverview {
     name: string;
     category: string;
   } | null;
-  isInsured?: boolean;
   stats: {
     goals: number;
     assists: number;
@@ -209,17 +208,6 @@ export function PlayerOverviewModal({
                       <Badge tone={statusInfo.tone} className="text-[10px] bg-white/20 text-white border-white/30">
                         {statusInfo[isAr ? "ar" : "fr"]}
                       </Badge>
-                      {player.isInsured ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          <span>{isAr ? "مؤمَّن عليه" : "Assuré"}</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 border border-red-400/40 px-2 py-0.5 text-[10px] font-bold text-red-300">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                          <span>{isAr ? "بدون تأمين" : "Non assuré"}</span>
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-white/80 mt-0.5">
                       {posLabel} • {catLabel} • {localizedNationality(player.nationality, locale)}

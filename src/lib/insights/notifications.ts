@@ -22,9 +22,6 @@ const NOTIFIABLE_TYPES: Partial<Record<InsightType, { notificationType: string; 
   PLAYER_MISSING_DOCUMENTS: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.update" },
   PLAYER_MEDICAL_DOCUMENTS_MISSING: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "medical.records.view" },
   MEDICAL_DOCUMENT_AI_REVIEW: { notificationType: "DOCUMENT_PENDING_REVIEW", requiredPermission: "medical.records.manage" },
-  PLAYER_NOT_INSURED: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
-  PLAYER_INSURANCE_EXPIRING: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
-  PLAYER_INSURANCE_EXPIRED: { notificationType: "PLAYER_MISSING_DOCUMENTS", requiredPermission: "players.view" },
   MATCH_REPORT_MISSING: { notificationType: "MATCH_REPORT_MISSING", requiredPermission: "matches.report" },
   MATCH_MISSING_INFO: { notificationType: "MATCH_MISSING_INFO", requiredPermission: "matches.update" },
   TRAINING_ATTENDANCE_MISSING: { notificationType: "TRAINING_ATTENDANCE_MISSING", requiredPermission: "training.manage" },
@@ -58,12 +55,6 @@ function formatTitle(insight: Insight): string {
       return `Aucun document pour ${p.name}`;
     case "PLAYER_MEDICAL_DOCUMENTS_MISSING":
       return `Dossier médical incomplet — ${p.name}`;
-    case "PLAYER_NOT_INSURED":
-      return `Le joueur ${p.name} n'est pas assuré pour la saison`;
-    case "PLAYER_INSURANCE_EXPIRING":
-      return `L'assurance de ${p.name} expire dans ${p.days} jours`;
-    case "PLAYER_INSURANCE_EXPIRED":
-      return `L'assurance de ${p.name} a expiré`;
     case "MATCH_REPORT_MISSING":
       return `Rapport de match manquant — vs ${p.opponent}`;
     case "MATCH_MISSING_INFO":

@@ -18,12 +18,11 @@ import { DocumentUploadField } from "@/components/dashboard/document-upload-fiel
 import { PlayerPhotoEditor } from "@/components/dashboard/player-photo-editor";
 import { PlayerField as Field } from "@/components/players/player-field";
 import { PlayerAttendanceCard } from "@/components/training/player-attendance-card";
-import { evaluatePlayerInsurance, parseInsuranceMetadata, formatInsuranceDate } from "@/lib/documents/insurance-helper";
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
 import { BloodGroupField } from "@/components/players/blood-group-field";
-import { Save, Trash2, Archive, RotateCcw, ShieldCheck, ShieldAlert, Clock, XCircle, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
+import { Save, Trash2, Archive, RotateCcw, ShieldCheck, User, Shield, Activity, FileText, UserCheck, Calendar, MapPin, Hash, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 
@@ -197,7 +196,6 @@ export default async function PlayerDetailPage({
       d.name.toLowerCase().includes("birth") ||
       d.name.toLowerCase().includes("naissance")
   );
-  const insuranceEval = evaluatePlayerInsurance(player.documents);
   const canViewMedical = hasPermission(user, "medical.records.view");
   const isAr = locale === "ar";
 
@@ -321,43 +319,6 @@ export default async function PlayerDetailPage({
               triggerVariant="button"
             />
 
-            {/* Insurance Status Badge */}
-            {canViewMedical && insuranceEval.status === "INSURED" && (
-              <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-xs">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <div className="flex flex-col">
-                  <span>{isAr ? "مؤمّن رسمياً (سارٍ)" : "Assuré (Valide)"}</span>
-                  {insuranceEval.endDate && (
-                    <span className="text-[10px] font-mono font-normal opacity-80">
-                      {isAr ? "ينتهي:" : "Exp:"} {formatInsuranceDate(insuranceEval.endDate)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-            {canViewMedical && insuranceEval.status === "EXPIRING_SOON" && (
-              <div className="inline-flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 shadow-xs">
-                <Clock className="h-4 w-4" />
-                <div className="flex flex-col">
-                  <span>{isAr ? "تأمين ينتهي قريباً" : "Assurance expire bientôt"}</span>
-                  <span className="text-[10px] font-mono font-normal opacity-80">
-                    ({insuranceEval.daysRemaining} {isAr ? "يوم متبقي" : "jours"})
-                  </span>
-                </div>
-              </div>
-            )}
-            {canViewMedical && insuranceEval.status === "EXPIRED" && (
-              <div className="inline-flex items-center gap-2 rounded-xl bg-red-600/10 border border-red-600/20 px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 shadow-xs">
-                <XCircle className="h-4 w-4" />
-                <span>{isAr ? "تأمين منتهي الصلاحية" : "Assurance expirée"}</span>
-              </div>
-            )}
-            {canViewMedical && insuranceEval.status === "NOT_INSURED" && (
-              <div className="inline-flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 shadow-xs">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                <span>{isAr ? "غير مؤمّن" : "Non assuré"}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>

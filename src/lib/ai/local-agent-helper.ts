@@ -2,7 +2,6 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { isAIConfigured, runAICompletion } from "./provider";
-import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
 
 /**
  * LOCAL BACKGROUND AI AGENT
@@ -14,8 +13,6 @@ import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
  */
 
 export interface AgentHealthAudit {
-  uninsuredPlayersCount: number;
-  expiringInsuranceCount: number;
   missingLicencesCount: number;
   unassignedPlayersCount: number;
   timestamp: string;
@@ -34,49 +31,17 @@ export async function getLocalAgentAudit(forceRefresh = false): Promise<AgentHea
     return cachedAudit.data;
   }
 
-  const [players, documents] = await Promise.all([
-    db.player.findMany({
+  const players = await db.player.findMany({
       where: { status: "ACTIVE" },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
         licenceNumber: true,
         teamId: true
       }
-    }),
-    db.document.findMany({
-      where: {
-        relatedPlayerId: { not: null },
-        OR: [
-          { name: { contains: "تأمين" } },
-          { name: { contains: "assurance", mode: "insensitive" } },
-          { name: { contains: "insurance", mode: "insensitive" } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        relatedPlayerId: true
-      }
-    })
-  ]);
+    });
 
-  const docsByPlayer = new Map<string, typeof documents>();
-  for (const doc of documents) {
-    if (!doc.relatedPlayerId) continue;
-    const list = docsByPlayer.get(doc.relatedPlayerId) || [];
-    list.push(doc);
-    docsByPlayer.set(doc.relatedPlayerId, list);
-  }
-
-  let uninsuredCount = 0;
-  let expiringCount = 0;
   let missingLicences = 0;
   let unassignedCount = 0;
 
-  const currentDate = new Date();
   for (const p of players) {
     if (!p.licenceNumber || p.licenceNumber.trim().length === 0) {
       missingLicences++;
@@ -85,18 +50,9 @@ export async function getLocalAgentAudit(forceRefresh = false): Promise<AgentHea
       unassignedCount++;
     }
 
-    const pDocs = docsByPlayer.get(p.id) || [];
-    const evalRes = evaluatePlayerInsurance(pDocs as any, currentDate);
-    if (evalRes.status === "NOT_INSURED" || evalRes.status === "EXPIRED") {
-      uninsuredCount++;
-    } else if (evalRes.status === "EXPIRING_SOON") {
-      expiringCount++;
-    }
   }
 
   const result: AgentHealthAudit = {
-    uninsuredPlayersCount: uninsuredCount,
-    expiringInsuranceCount: expiringCount,
     missingLicencesCount: missingLicences,
     unassignedPlayersCount: unassignedCount,
     timestamp: new Date().toISOString()

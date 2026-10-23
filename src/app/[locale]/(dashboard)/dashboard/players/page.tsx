@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { PlayerOverviewModal } from "@/components/players/player-overview-modal";
 import { OfficialPlayerAttestationModal } from "@/components/players/official-player-attestation-modal";
 import { PlayerPrintListModal } from "@/components/players/player-print-list-modal";
-import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
 import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { PlayerPageFreshness } from "@/components/players/player-page-freshness";
@@ -96,9 +95,6 @@ export default async function PlayersListPage({
             }
           }
         },
-        documents: {
-          select: { id: true, name: true, description: true, documentDate: true }
-        }
       },
       orderBy: playerOrder,
       skip: (page - 1) * pageSize,
@@ -193,7 +189,6 @@ export default async function PlayersListPage({
               <th className="px-4 py-2 text-start">{t("fields.team")}</th>
               <th className="px-4 py-2 text-start">{t("fields.position")}</th>
               <th className="px-4 py-2 text-start">{t("fields.nationality")}</th>
-              <th className="px-4 py-2 text-start">{locale === "ar" ? "التأمين" : "Assurance"}</th>
               <th className="px-4 py-2 text-start">{tCommon("status")}</th>
               <th className="px-4 py-2 text-start">{tCommon("actions")}</th>
             </tr>
@@ -232,7 +227,6 @@ export default async function PlayersListPage({
                 photoUrl: p.photoUrl,
                 joiningDate: p.joiningDate ? p.joiningDate.toISOString() : null,
                 team: p.team ? { id: p.team.id, name: p.team.name, category: p.team.category } : null,
-                isInsured: evaluatePlayerInsurance(p.documents).isInsured,
                 stats: {
                   goals,
                   assists,
@@ -307,41 +301,6 @@ export default async function PlayersListPage({
                     </span>
                   </td>
               <td className="px-4 py-2">{locale === "ar" ? arabicNationality(p.nationality) : frenchNationality(p.nationality)}</td>
-                  <td className="px-4 py-2">
-                    {(() => {
-                      const evalRes = evaluatePlayerInsurance(p.documents);
-                      if (evalRes.status === "INSURED") {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            <span>{locale === "ar" ? "مؤمّن" : "Assuré"}</span>
-                          </span>
-                        );
-                      }
-                      if (evalRes.status === "EXPIRING_SOON") {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400" title={locale === "ar" ? `ينتهي خلال ${evalRes.daysRemaining} يوم` : `Expire dans ${evalRes.daysRemaining} jours`}>
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            <span>{locale === "ar" ? `ينتهي قريباً (${evalRes.daysRemaining}ي)` : `Expire bientôt`}</span>
-                          </span>
-                        );
-                      }
-                      if (evalRes.status === "EXPIRED") {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-600/15 border border-red-600/30 px-2.5 py-0.5 text-[11px] font-bold text-red-600 dark:text-red-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
-                            <span>{locale === "ar" ? "منتهي الصلاحية" : "Expiré"}</span>
-                          </span>
-                        );
-                      }
-                      return (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-[11px] font-bold text-red-600 dark:text-red-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                          <span>{locale === "ar" ? "غير مؤمّن" : "Non assuré"}</span>
-                        </span>
-                      );
-                    })()}
-                  </td>
                   <td className="px-4 py-2">
                     <Badge tone={STATUS_TONE[p.status]}>{t(`statuses.${p.status}` as any)}</Badge>
                   </td>

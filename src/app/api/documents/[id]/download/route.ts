@@ -29,8 +29,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const medicalRecord = await db.playerMedicalRecord.findUnique({ where: { documentId: document.id }, select: { id: true } });
-    const teamInsurancePolicy = await db.teamInsurancePolicy.findUnique({ where: { documentId: document.id }, select: { id: true } });
-    const requiredPermission = medicalRecord ? "medical.records.view" : teamInsurancePolicy ? "teams.view" : requiredPermissionForDocument(document.classification);
+    const isLegacyTeamInsuranceDocument = document.description?.startsWith("Team group insurance policy (") ?? false;
+    const requiredPermission = medicalRecord ? "medical.records.view" : isLegacyTeamInsuranceDocument ? "teams.view" : requiredPermissionForDocument(document.classification);
     if (!hasPermission(user, requiredPermission)) {
       await writeAuditLog({
         userId: user.id,

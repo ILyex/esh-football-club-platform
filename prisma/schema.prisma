@@ -98,7 +98,6 @@ model User {
   uploadedDocuments            Document[]                @relation("DocumentUploadedBy")
   ownedDocuments               Document[]                @relation("DocumentOwner")
   medicalRecordsCreated        PlayerMedicalRecord[]
-  teamInsurancePoliciesCreated TeamInsurancePolicy[]
   authoredNews                 News[]
   createdAnnouncements         Announcement[]
   createdAlbums                Album[]
@@ -255,7 +254,6 @@ model Team {
   trainingSessions  TrainingSession[]
   contracts         Contract[]
   documents         Document[]
-  insurancePolicies TeamInsurancePolicy[]
   calendarEvents    CalendarEvent[]
   announcements     Announcement[]
   albums            Album[]
@@ -535,7 +533,6 @@ model Document {
 
   contract                  Contract?
   medicalRecord             PlayerMedicalRecord?
-  teamInsurancePolicy       TeamInsurancePolicy?
   correspondenceAttachments CorrespondenceAttachment[]
   meetingAttachments        MeetingAttachment[]
   generatedFrom             GeneratedDocument?
@@ -550,33 +547,6 @@ model Document {
   @@index([relatedPlayerId])
   @@index([teamId])
   @@index([relatedMatchId, matchDocumentType])
-}
-
-enum TeamInsuranceCheckStatus {
-  QUEUED
-  CHECKED
-  NEEDS_REVIEW
-  UNAVAILABLE
-}
-
-model TeamInsurancePolicy {
-  id            String                   @id @default(cuid())
-  teamId        String
-  team          Team                     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  documentId    String                   @unique
-  document      Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  startDate     DateTime
-  endDate       DateTime
-  checkStatus   TeamInsuranceCheckStatus @default(QUEUED)
-  checkFindings Json                     @default("[]")
-  checkedAt     DateTime?
-  createdById   String
-  createdBy     User                     @relation(fields: [createdById], references: [id])
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-
-  @@index([teamId, startDate, endDate])
-  @@index([checkStatus, createdAt])
 }
 
 enum PlayerMedicalRecordType {
