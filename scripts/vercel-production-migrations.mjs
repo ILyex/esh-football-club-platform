@@ -7,12 +7,6 @@ import pg from "pg";
 const tacticalPlansMigration = "20261016110000_tactical_plans";
 const retiredStaffProfileMigration = "20261024020000_remove_staff_profile_role";
 
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "inherit", env: process.env });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
-
 function normalizeConstraint(value) {
   const normalized = value.toLowerCase().replaceAll('"', "").replace(/\s+/g, " ").trim();
   const actions = normalized.match(/on (?:delete|update) (?:set null|cascade|restrict|no action|set default)/g) ?? [];
@@ -152,10 +146,10 @@ async function getPendingMigrations(pool) {
   return localMigrationNames.filter((name) => !successfullyApplied.has(name));
 }
 
-async function runMigrationsWithLockRetry() {
+async function runWithMigrationLockRetry(command, args, taskLabel) {
   const maxAttempts = 6;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const result = spawnSync("npm", ["run", "db:migrate:deploy"], {
+    const result = spawnSync(command, args, {
       encoding: "utf8",
       env: process.env
     });
@@ -166,12 +160,19 @@ async function runMigrationsWithLockRetry() {
 
     const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
     const isAdvisoryLockTimeout = /Timed out trying to acquire a postgres advisory lock/i.test(output);
-    if (!isAdvisoryLockTimeout || attempt === maxAttempts) process.exit(result.status ?? 1);
+    if (!isAdvisoryLockTimeout || attempt === maxAttempts) {
+      console.error(`${taskLabel} failed.`);
+      process.exit(result.status ?? 1);
+    }
 
     const delayMs = attempt * 5_000;
-    console.warn(`Another deployment is applying database migrations; retrying in ${delayMs / 1_000}s (${attempt}/${maxAttempts - 1}).`);
+    console.warn(`Another deployment is applying database migrations; retrying ${taskLabel} in ${delayMs / 1_000}s (${attempt}/${maxAttempts - 1}).`);
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+}
+
+async function runMigrationsWithLockRetry() {
+  await runWithMigrationLockRetry("npm", ["run", "db:migrate:deploy"], "Prisma migrate deploy");
 }
 
 if (process.env.VERCEL_ENV !== "production") {
@@ -189,7 +190,7 @@ if (process.env.VERCEL_ENV !== "production") {
     if (!isApplied) {
       console.log(`Checking pre-existing schema before reconciling ${tacticalPlansMigration}.`);
       await verifyExistingTacticalPlanTable(pool);
-      run("npx", ["prisma", "migrate", "resolve", "--applied", tacticalPlansMigration]);
+      await runWithMigrationLockRetry("npx", ["prisma", "migrate", "resolve", "--applied", tacticalPlansMigration], `resolve ${tacticalPlansMigration}`);
       console.log(`Verified and recorded ${tacticalPlansMigration} as already applied.`);
     }
 
@@ -202,7 +203,7 @@ if (process.env.VERCEL_ENV !== "production") {
     );
     if (hasUnresolvedStaffProfileFailure) {
       console.warn(`Recovering the failed ${retiredStaffProfileMigration} attempt; its migration body failed atomically before applying changes.`);
-      run("npx", ["prisma", "migrate", "resolve", "--rolled-back", retiredStaffProfileMigration]);
+      await runWithMigrationLockRetry("npx", ["prisma", "migrate", "resolve", "--rolled-back", retiredStaffProfileMigration], `resolve ${retiredStaffProfileMigration}`);
     }
     pendingMigrations = await getPendingMigrations(pool);
   } finally {
