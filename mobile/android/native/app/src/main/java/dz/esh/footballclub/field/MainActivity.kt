@@ -68,6 +68,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.asImageBitmap
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ColorFilter
@@ -1576,19 +1579,29 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
         // A slow, single pass keeps the physical-card details readable.
         sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 2800))
     }
-    val image by produceState<ImageBitmap?>(initialValue = null, user.image) {
+    val imageContext = LocalContext.current
+    val remotePhotoRequest = remember(user.image) {
+        user.image?.takeIf { it.isNotBlank() && !it.startsWith("data:image/", ignoreCase = true) }?.let { source ->
+            ImageRequest.Builder(imageContext)
+                .data(NativeApi.absolutePublicUrl(source))
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .networkCachePolicy(CachePolicy.ENABLED)
+                .crossfade(false)
+                .build()
+        }
+    }
+    val remotePhotoPainter = remotePhotoRequest?.let { rememberAsyncImagePainter(model = it) }
+    val embeddedImage by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val source = user.image?.takeIf { it.isNotBlank() } ?: return@runCatching null
-                val bitmap = if (source.startsWith("data:image/")) {
+                if (source.startsWith("data:image/", ignoreCase = true)) {
                     val encoded = source.substringAfter(',', "")
                     if (encoded.isBlank()) null else Base64.decode(encoded, Base64.DEFAULT).let { bytes ->
-                        ByteArrayInputStream(bytes).use { BitmapFactory.decodeStream(it) }
+                        ByteArrayInputStream(bytes).use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
                     }
-                } else if (source.startsWith("https://")) {
-                    URL(source).openStream().use { BitmapFactory.decodeStream(it) }
                 } else null
-                bitmap?.asImageBitmap()
             }.getOrNull()
         }
     }
@@ -1684,8 +1697,10 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     .background(Color.White).border(1.dp, Color(0xFFAAA99F))
                     .padding(3.dp)
             ) {
-                if (image != null) {
-                    Image(image!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (remotePhotoPainter?.state is AsyncImagePainter.State.Success) {
+                    Image(painter = remotePhotoPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else if (embeddedImage != null) {
+                    Image(bitmap = embeddedImage!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
                     Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) {
                         Text((givenName.ifBlank { surname }).take(1).ifBlank { "?" }.uppercase(), color = ink, fontSize = (26f * fontScale).sp, fontWeight = FontWeight.Black)
@@ -2565,7 +2580,10 @@ private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
     AsyncImage(
         model = ImageRequest.Builder(context)
             .data(source)
-            .crossfade(false)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .networkCachePolicy(CachePolicy.ENABLED)
+            .crossfade(true)
             .build(),
         contentDescription = null,
         modifier = modifier.background(Glass),
