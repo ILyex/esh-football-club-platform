@@ -13,6 +13,11 @@ import { normalizePublicMediaUrl } from "@/lib/media-utils";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
 
+// Standings and opponent crests are edited in the dashboard. Read them at
+// request time so uploads and table changes appear on the public site without
+// waiting for a new deployment to rebuild this page.
+export const dynamic = "force-dynamic";
+
 export default async function PublicCompetitionsPage({
   params
 }: {
