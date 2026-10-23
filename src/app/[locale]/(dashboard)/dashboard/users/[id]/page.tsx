@@ -28,6 +28,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
   const canResetPasswords = isProgrammer(actor);
   const t = await getTranslations("users");
   const tTeam = await getTranslations("teamAssignments");
+  const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
   const prefix = userIdPrefixFromRoute(id);
@@ -265,7 +266,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
                   <li key={a.teamId} className="group flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 transition-colors hover:border-club-primary/40 hover:bg-club-primary/[0.03]">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
-                      <span className="truncate text-sm font-semibold text-foreground">{tTeam(`categories.${a.team.category}` as any)}</span>
+                      <span className="truncate text-sm font-semibold text-foreground">{tTeams(`categories.${a.team.category}` as any)}</span>
                     </div>
                       <form action={remove}>
                         {!isStaffLinked && <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
@@ -292,7 +293,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
                     name="teamId"
                     locale={locale}
                     ariaLabel={tTeam("addTeam")}
-                    options={unassignedTeams.map((team) => ({ value: team.id, label: tTeam(`categories.${team.category}` as any) }))}
+                    options={unassignedTeams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))}
                   />
                 </div>
                 <Button type="submit" className="h-10 shrink-0 gap-2 px-4">
