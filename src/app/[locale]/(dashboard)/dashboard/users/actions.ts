@@ -182,7 +182,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
         isActive: parsed.isActive,
         image: before.staff ? before.staff.photoUrl : nextImage,
         licenseNumber: before.staff ? before.staff.licenceNumber : (parsed.licenseNumber || null),
-        licenseRole: before.staff ? `${({ HEAD_COACH: "Entraîneur principal", ASSISTANT_COACH: "Entraîneur adjoint", GOALKEEPING_COACH: "Entraîneur des gardiens", FITNESS_COACH: "Préparateur physique", MEDICAL_STAFF: "Personnel médical", ADMINISTRATIVE_STAFF: "Personnel administratif", OTHER: "Staff" } as Record<string, string>)[before.staff.role]}${before.staff.team ? ` — ${{ SENIOR: "Seniors", U20: "U20", U17: "U17", U15: "U15" }[before.staff.team.category]}` : ""}` : (parsed.licenseRole || null),
+        licenseRole: before.staff ? `${({ HEAD_COACH: "Entraîneur", ASSISTANT_COACH: "Entraîneur adjoint", GOALKEEPING_COACH: "Entraîneur des gardiens", FITNESS_COACH: "Préparateur physique", MEDICAL_STAFF: "Personnel médical", ADMINISTRATIVE_STAFF: "Personnel administratif", OTHER: "Staff" } as Record<string, string>)[before.staff.role]}${before.staff.team ? ` — ${{ SENIOR: "Seniors", U20: "U20", U17: "U17", U15: "U15" }[before.staff.team.category]}` : ""}` : (parsed.licenseRole || null),
         firstName: before.staff ? before.staff.firstName : (parsed.firstName || null),
         lastName: before.staff ? before.staff.lastName : (parsed.lastName || null),
         dateOfBirth: before.staff ? before.staff.dateOfBirth : (parsed.dateOfBirth ? new Date(`${parsed.dateOfBirth}T00:00:00.000Z`) : null),
