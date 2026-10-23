@@ -19,6 +19,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -3190,18 +3191,20 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
       ) {
         (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { (showPlayerStats || it != Section.PLAYER_STATS) && (showCompetitions || it != Section.COMPETITIONS) }.forEach { item ->
             val active = selected == item
+            val width by animateDpAsState(if (active) 72.dp else 48.dp, label = "nav-width")
             val interaction = remember { MutableInteractionSource() }
             Column(
-                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp))
-                    .background(if (active) Red.copy(alpha = .08f) else Color.Transparent)
+                Modifier.width(width).height(54.dp).clip(RoundedCornerShape(18.dp))
                     .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
                     .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Keep the icon and item width stable; animating the whole nav row
-                // made every item remeasure on each tap and caused visible jank.
-                Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(22.dp))
+                AnimatedContent(targetState = active, label = "nav-icon-${item.name}") {
+                    // Keep the outline asset; selection animates its presentation
+                    // and the active item expands as in the earlier navigation.
+                    Icon(item.icon, contentDescription = item.title(locale), tint = if (it) Red else Muted, modifier = Modifier.size(22.dp))
+                }
                 if (active) {
                     Spacer(Modifier.height(2.dp))
                     Text(item.title(locale), color = Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
