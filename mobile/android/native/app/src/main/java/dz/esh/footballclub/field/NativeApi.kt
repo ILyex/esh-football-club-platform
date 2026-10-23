@@ -160,10 +160,24 @@ object NativeApi {
         return parseData(JSONObject(raw))
     }
 
-    fun playerStats(token: String): NativePlayerStats {
-        val raw = get("/api/mobile/player-stats", token)
-        cachePreferences?.edit()?.putString(playerStatsCacheKey(token), raw)?.apply()
-        return parsePlayerStats(JSONObject(raw))
+    suspend fun playerStats(token: String): NativePlayerStats {
+        var lastFailure: Exception? = null
+        repeat(2) { attempt ->
+            try {
+                val raw = get("/api/mobile/player-stats", token)
+                val result = parsePlayerStats(JSONObject(raw))
+                cachePreferences?.edit()?.putString(playerStatsCacheKey(token), raw)?.apply()
+                return result
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                lastFailure = error
+                val retryable = error !is ApiFailure || error.statusCode == 429 || (error.statusCode ?: 0) >= 500
+                if (!retryable || attempt == 1) throw error
+                delay(500)
+            }
+        }
+        throw lastFailure ?: ApiFailure("player_stats_request_failed")
     }
 
     fun cachedPlayerStats(token: String): NativePlayerStats? {
@@ -558,7 +572,7 @@ object NativeApi {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (status == HttpURLConnection.HTTP_UNAUTHORIZED && token != null) throw NativeSessionExpired()
-            if (status !in 200..299) throw ApiFailure(runCatching { JSONObject(text).optString("error") }.getOrDefault("request_failed"))
+            if (status !in 200..299) throw ApiFailure(runCatching { JSONObject(text).optString("error") }.getOrDefault("request_failed"), status)
             return text
         } finally { connection.disconnect() }
     }
@@ -574,5 +588,5 @@ object NativeApi {
         user.optNullableString("season"), user.optNullableString("licenseRole"), user.optNullableString("roleKey"),
         user.optNullableString("firstNameFr"), user.optNullableString("lastNameFr")
     )
-    private class ApiFailure(val code: String) : Exception(code)
+    private class ApiFailure(val code: String, val statusCode: Int? = null) : Exception(code)
 }

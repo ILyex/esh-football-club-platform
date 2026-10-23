@@ -638,8 +638,18 @@ private fun MatchdayApp() {
         val activeToken = token ?: return@LaunchedEffect
         if (section != Section.PLAYER_STATS) return@LaunchedEffect
         val requestLocale = locale
-        playerStatsLoading = playerStats == null
         playerStatsError = null
+        // Load the local snapshot before hitting the network so the list is
+        // immediately useful, and a slow first sync cannot flash a false error.
+        val cachedStats = if (playerStats == null) {
+            withContext(Dispatchers.IO) { NativeApi.cachedPlayerStats(activeToken) }
+        } else null
+        if (token != activeToken || section != Section.PLAYER_STATS || locale != requestLocale) return@LaunchedEffect
+        if (playerStats == null && cachedStats != null) {
+            playerStats = cachedStats
+            playerStatsError = null
+        }
+        playerStatsLoading = playerStats == null
         val result = runCatching { withContext(Dispatchers.IO) { NativeApi.playerStats(activeToken) } }
         if (token == activeToken && section == Section.PLAYER_STATS && locale == requestLocale) {
             result.onSuccess {
@@ -651,7 +661,12 @@ private fun MatchdayApp() {
                 .onFailure { error ->
                     if (error is NativeSessionExpired) {
                         sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null
-                    } else playerStatsError = L(requestLocale, "تعذر مزامنة إحصائيات اللاعبين. اسحب للتحديث أو تحقق من الاتصال.", "Impossible de synchroniser les statistiques. Actualisez ou vérifiez la connexion.")
+                    } else if (playerStats == null) {
+                        playerStatsError = L(requestLocale, "تعذرت مزامنة الإحصائيات. اسحب للتحديث أو تحقق من الاتصال.", "Impossible de synchroniser les statistiques. Actualisez ou vérifiez la connexion.")
+                    } else {
+                        // Keep cached results visible without a misleading error banner.
+                        playerStatsError = null
+                    }
                 }
         }
         playerStatsLoading = false
@@ -2366,18 +2381,21 @@ private fun categoryLabel(category: String, locale: String): String = when (cate
  * The card prints the category separately, so remove that suffix to avoid
  * showing labels such as “الأكابر · ESH — Seniors” twice. */
 private fun teamNameWithoutCategory(teamName: String, category: String): String {
-    val suffix = when (category) {
-        "SENIOR" -> "seniors?|الأكابر|اكابر|فئة الأكابر"
-        "U20" -> "u\\s*-?\\s*20|moins\\s+de\\s+20|أقل\\s+من\\s+20"
-        "U17" -> "u\\s*-?\\s*17|moins\\s+de\\s+17|أقل\\s+من\\s+17"
-        "U15" -> "u\\s*-?\\s*15|moins\\s+de\\s+15|أقل\\s+من\\s+15"
+    val labels = when (category) {
+        "SENIOR" -> listOf("فئة الأكابر", "الأكابر", "اكابر", "أكابر", "Seniors", "Senior")
+        "U20" -> listOf("أقل من 20", "اقل من 20", "U20", "U-20", "moins de 20")
+        "U17" -> listOf("أقل من 17", "اقل من 17", "U17", "U-17", "moins de 17")
+        "U15" -> listOf("أقل من 15", "اقل من 15", "U15", "U-15", "moins de 15")
         else -> return teamName.trim()
     }
-    val cleaned = teamName.trim().replace(
-        Regex("(?i)(?:\\s*[-–—|·/]\\s*|\\s+)(?:$suffix)\\s*$"),
-        ""
-    ).trim()
-    return cleaned.ifBlank { teamName.trim() }
+    val name = teamName.trim()
+    val alternatives = labels.joinToString("|") { Regex.escape(it) }
+    val cleaned = name
+        .replace(Regex("(?iu)(?<![\\p{L}\\p{N}])(?:$alternatives)(?![\\p{L}\\p{N}])"), " ")
+        .replace(Regex("[()\\[\\]{}·•|/–—-]+"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    return cleaned
 }
 
 /** Keep native team pickers aligned with the platform's category order. */
