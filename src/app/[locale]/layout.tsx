@@ -88,12 +88,15 @@ export default async function LocaleLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){
               var key='esh:client-recovery';
+              function isAssetLoadError(text){
+                return /ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed/i.test(text)||text.indexOf('_next/static/chunks/')!==-1||text.indexOf('_next/static/css/')!==-1;
+              }
               function maybeRecover(event){
                 var target=event&&event.target;
                 var url=target instanceof HTMLScriptElement?target.src:target instanceof HTMLLinkElement?target.href:'';
                 var error=event&&event.error;
                 var text=[error&&error.name,error&&error.message,event&&event.message,url].filter(Boolean).join(' ');
-                if(!(/ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed|_next\/static\/(?:chunks|css)/i.test(text)||/Minified React error #(?:418|423|425)\b/.test(text)))return;
+                if(!(isAssetLoadError(text)||/Minified React error #(?:418|423|425)\b/.test(text)))return;
                 try{
                   var now=Date.now();
                   var saved=JSON.parse(sessionStorage.getItem(key)||'null');
@@ -108,7 +111,7 @@ export default async function LocaleLayout({
               window.addEventListener('unhandledrejection',function(event){
                 var reason=event&&event.reason;
                 var text=reason&&reason.message?reason.name+' '+reason.message:String(reason||'');
-                if(/ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed|_next\/static\/(?:chunks|css)/i.test(text))maybeRecover({message:text,error:reason});
+                if(isAssetLoadError(text)||/Minified React error #(?:418|423|425)\b/.test(text))maybeRecover({message:text,error:reason});
               });
               window.addEventListener('load',function(){window.setTimeout(function(){try{sessionStorage.removeItem(key)}catch(e){}},20000)},{once:true});
             })()`

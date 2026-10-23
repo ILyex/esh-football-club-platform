@@ -341,7 +341,7 @@ export default async function HomePage({
                         alt={tCategories(sec.category)}
                         className="transition-transform duration-300 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/75 via-black/10 to-transparent p-2.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                      <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/90 via-black/40 to-black/15 p-2.5 opacity-100 transition-opacity motion-reduce:transition-none sm:opacity-0 sm:group-hover:opacity-100">
                         <div className="flex items-center justify-between w-full text-white text-xs font-bold">
                           <span className="sm:hidden">{sec.category}</span>
                           <span className="hidden sm:inline">{tCategories(sec.category)}</span>
