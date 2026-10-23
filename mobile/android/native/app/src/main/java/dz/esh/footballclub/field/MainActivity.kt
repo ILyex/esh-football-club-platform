@@ -621,6 +621,23 @@ private fun MatchdayApp() {
         loading = false
     }
 
+    // Refresh the standings when the user opens Competitions so team crests
+    // uploaded or changed since the last app sync are reflected immediately.
+    LaunchedEffect(token, locale, section) {
+        if (section != Section.COMPETITIONS) return@LaunchedEffect
+        val activeToken = token ?: return@LaunchedEffect
+        val requestLocale = locale
+        val result = runCatching {
+            withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale, summary = true) }
+        }
+        if (token == activeToken && locale == requestLocale && section == Section.COMPETITIONS) {
+            result.onSuccess { payload ->
+                data = visiblePayload(payload)
+                user = payload.user.takeIf { it.id.isNotBlank() } ?: user
+            }
+        }
+    }
+
     LaunchedEffect(token, locale, section, matchDetailsLoaded) {
         val activeToken = token ?: return@LaunchedEffect
         if (section != Section.MATCHES || matchDetailsLoaded) return@LaunchedEffect
