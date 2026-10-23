@@ -229,9 +229,20 @@ export function MultiImageUploader({
           <UploadCloud className="h-6 w-6" />
         </div>
         <p className="text-sm font-semibold text-foreground text-center">
-          {isAr
-            ? (allowVideo ? "انقر لاختيار عدة صور أو فيديوهات، أو اسحبها إلى هنا" : "انقر لاختيار عدة صور دفعة واحدة أو اسحبها إلى هنا")
-            : (allowVideo ? "Cliquez pour sélectionner des photos/vidéos ou glissez-déposez-les ici" : "Cliquez pour sélectionner des photos ou glissez-déposez-les ici")}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              inputRef.current?.click();
+            }}
+            className="text-club-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
+          >
+            {isAr
+              ? (allowVideo ? "انقر لاختيار عدة صور أو فيديوهات" : "انقر لاختيار عدة صور دفعة واحدة")
+              : (allowVideo ? "Cliquez pour sélectionner des photos/vidéos" : "Cliquez pour sélectionner des photos")}
+          </button>
+          {isAr ? "، أو اسحبها إلى هنا" : " ou glissez-déposez-les ici"}
         </p>
         <p className="text-xs text-muted-foreground mt-1 text-center">
           {isAr

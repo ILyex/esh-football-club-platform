@@ -187,9 +187,17 @@ export function FileUploadDropzone({
             </div>
             <div>
               <p className="text-xs font-semibold text-foreground">
-                <span className="text-club-primary underline underline-offset-2">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    inputRef.current?.click();
+                  }}
+                  className="text-club-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40"
+                >
                   {isAr ? "انقر لاختيار ملف" : "Cliquez pour parcourir"}
-                </span>{" "}
+                </button>{" "}
                 <span className="text-muted-foreground font-normal">
                   {isAr ? "أو اسحبه وأفلته هنا" : "ou glissez-déposez ici"}
                 </span>
