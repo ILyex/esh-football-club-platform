@@ -129,10 +129,10 @@ export default async function StaffDetailPage({ params, searchParams }: { params
           <h2 className="text-base font-bold">{locale === "ar" ? "البيانات الشخصية" : "Informations personnelles"}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "حدّث الاسم والهوية المهنية لعضو الطاقم." : "Mettez à jour l’identité professionnelle du membre."}</p>
         </div>
-        <Field label={locale === "ar" ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" defaultValue={staff.firstName} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "اللقب (بالعربية)" : "Nom (AR)"} name="lastName" defaultValue={staff.lastName} disabled={!canUpdate} />
-        <Field label={locale === "ar" ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={staff.firstNameFr ?? ""} disabled={!canUpdate} />
+        <Field label={locale === "ar" ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" defaultValue={staff.firstName} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "اللقب (بالفرنسية)" : "Nom (FR)"} name="lastNameFr" defaultValue={staff.lastNameFr ?? ""} disabled={!canUpdate} />
+        <Field label={locale === "ar" ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={staff.firstNameFr ?? ""} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "رقم الرخصة" : "N° de licence"} name="licenceNumber" defaultValue={staff.licenceNumber ?? ""} disabled={!canUpdate} />
         <div className="min-w-0">
           <label className="mb-1.5 block text-sm font-semibold" htmlFor="staff-date-of-birth">{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</label>

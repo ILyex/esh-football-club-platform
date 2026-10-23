@@ -355,10 +355,10 @@ export default async function PlayerDetailPage({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" defaultValue={player.firstName} disabled={!canUpdate} />
                 <Field label={isAr ? "اللقب (بالعربية)" : "Nom (AR)"} name="lastName" defaultValue={player.lastName} disabled={!canUpdate} />
-                <Field label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={player.firstNameFr ?? ""} disabled={!canUpdate} />
+                <Field label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" defaultValue={player.firstName} disabled={!canUpdate} />
                 <Field label={isAr ? "اللقب (بالفرنسية)" : "Nom (FR)"} name="lastNameFr" defaultValue={player.lastNameFr ?? ""} disabled={!canUpdate} />
+                <Field label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={player.firstNameFr ?? ""} disabled={!canUpdate} />
 
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">

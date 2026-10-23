@@ -111,26 +111,26 @@ export function NewStaffForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Field
-            label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"}
-            name="firstName"
-            required
-            placeholder={isAr ? "مثال: عبد القادر" : "ex: Abdelkader"}
-          />
-          <Field
             label={isAr ? "اللقب (بالعربية)" : "Nom (AR)"}
             name="lastName"
             required
             placeholder={isAr ? "مثال: منصوري" : "ex: Mansouri"}
           />
           <Field
-            label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"}
-            name="firstNameFr"
-            placeholder="ex: Abdelkader"
+            label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"}
+            name="firstName"
+            required
+            placeholder={isAr ? "مثال: عبد القادر" : "ex: Abdelkader"}
           />
           <Field
             label={isAr ? "اللقب (بالفرنسية)" : "Nom (FR)"}
             name="lastNameFr"
             placeholder="ex: Mansouri"
+          />
+          <Field
+            label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"}
+            name="firstNameFr"
+            placeholder="ex: Abdelkader"
           />
           <Field
             label={isAr ? "رقم الرخصة" : "N° de licence"}

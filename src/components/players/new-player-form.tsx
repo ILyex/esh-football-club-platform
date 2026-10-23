@@ -133,10 +133,10 @@ export function NewPlayerForm({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Field label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" required placeholder={isAr ? "مثال: كريم" : "ex: Karim"} />
           <Field label={isAr ? "اللقب (بالعربية)" : "Nom (AR)"} name="lastName" required placeholder={isAr ? "مثال: بن علي" : "ex: Benali"} />
-          <Field label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" placeholder="ex: Karim" />
+          <Field label={isAr ? "الاسم (بالعربية)" : "Prénom (AR)"} name="firstName" required placeholder={isAr ? "مثال: كريم" : "ex: Karim"} />
           <Field label={isAr ? "اللقب (بالفرنسية)" : "Nom (FR)"} name="lastNameFr" placeholder="ex: Benali" />
+          <Field label={isAr ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" placeholder="ex: Karim" />
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
