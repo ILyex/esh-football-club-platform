@@ -67,7 +67,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.asImageBitmap
-import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
@@ -1283,7 +1282,7 @@ private fun SectionPage(
             Section.CALENDAR -> {
                 val calendarItems = data?.calendarItems.orEmpty()
                 if (calendarItems.isEmpty()) item { EmptyNativeSection(IconlyIcons.Calendar, L(locale, "الرزنامة", "Calendrier"), L(locale, "لا توجد أحداث قادمة. ستظهر هنا المباريات والتدريبات والاجتماعات والمواعيد الإدارية.", "Aucun événement à venir. Les matchs, entraînements, réunions et rendez-vous administratifs apparaîtront ici."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(calendarItems) { calendarItem -> CalendarItemCard(calendarItem, locale) }
+                else items(calendarItems) { calendarItem -> CalendarItemCard(calendarItem, data?.clubLogoUrl, locale) }
             }
             Section.ALERTS -> {
                 if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Notification, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
@@ -1582,8 +1581,12 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     val imageContext = LocalContext.current
     val remotePhotoRequest = remember(user.image) {
         user.image?.takeIf { it.isNotBlank() && !it.startsWith("data:image/", ignoreCase = true) }?.let { source ->
+            val remoteSource = NativeApi.absolutePublicUrl(source)
+            val cacheKey = nativeImageCacheKey(remoteSource)
             ImageRequest.Builder(imageContext)
-                .data(NativeApi.absolutePublicUrl(source))
+                .data(remoteSource)
+                .memoryCacheKey(cacheKey)
+                .diskCacheKey(cacheKey)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .networkCachePolicy(CachePolicy.ENABLED)
@@ -2361,7 +2364,7 @@ private fun MeetingCard(meeting: NativeMeeting, locale: String) {
 }
 
 @Composable
-private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
+private fun CalendarItemCard(item: NativeCalendarItem, clubLogoUrl: String?, locale: String) {
     val accent = when (item.type) {
         "MATCH" -> Red
         "TRAINING" -> Color(0xFF4DA3FF)
@@ -2381,11 +2384,16 @@ private fun CalendarItemCard(item: NativeCalendarItem, locale: String) {
                 Text(kind, color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 if (item.type == "MATCH") {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!item.opponentLogo.isNullOrBlank()) {
-                            NativeRemoteImage(item.opponentLogo, Modifier.size(34.dp).clip(CircleShape))
-                        } else {
-                            Icon(IconlyIcons.OpponentShield, contentDescription = L(locale, "شعار الخصم غير متوفر", "Logo adverse indisponible"), tint = Red, modifier = Modifier.size(28.dp))
-                        }
+                        NativeRemoteImage(
+                            clubLogoUrl?.takeIf { it.isNotBlank() } ?: "/branding/esh-logo-128.png",
+                            Modifier.size(34.dp).clip(CircleShape),
+                            fallback = { Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit) }
+                        )
+                        if (!item.opponentLogo.isNullOrBlank()) NativeRemoteImage(
+                            item.opponentLogo,
+                            Modifier.size(34.dp).clip(CircleShape),
+                            fallback = { Icon(IconlyIcons.OpponentShield, contentDescription = L(locale, "شعار الخصم غير متوفر", "Logo adverse indisponible"), tint = Red, modifier = Modifier.size(28.dp)) }
+                        ) else Icon(IconlyIcons.OpponentShield, contentDescription = L(locale, "شعار الخصم غير متوفر", "Logo adverse indisponible"), tint = Red, modifier = Modifier.size(28.dp))
                         Icon(
                             if (item.isHomeFixture == true) IconlyIcons.Home else IconlyIcons.Travel,
                             contentDescription = if (item.isHomeFixture == true) L(locale, "مضيف", "À domicile") else L(locale, "سفر", "Déplacement"),
@@ -2574,21 +2582,49 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier) {
+private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier, fallback: @Composable () -> Unit = {}) {
     val context = LocalContext.current
     val source = remember(url) { NativeApi.absolutePublicUrl(url) }
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val cacheKey = remember(source) { nativeImageCacheKey(source) }
+    val request = remember(source, cacheKey) {
+        ImageRequest.Builder(context)
             .data(source)
+            .memoryCacheKey(cacheKey)
+            .diskCacheKey(cacheKey)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .networkCachePolicy(CachePolicy.ENABLED)
-            .crossfade(true)
-            .build(),
-        contentDescription = null,
-        modifier = modifier.background(Glass),
-        contentScale = ContentScale.Inside
+            .crossfade(false)
+            .build()
+    }
+    val painter = rememberAsyncImagePainter(model = request)
+    Box(modifier.background(Glass), contentAlignment = Alignment.Center) {
+        if (painter.state is AsyncImagePainter.State.Success) {
+            Image(painter = painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Inside)
+        } else {
+            fallback()
+        }
+    }
+}
+
+/** Signed media URLs change query tokens on refresh; cache by the stable asset
+ * path and non-auth query so a section switch can reuse an already loaded photo. */
+private fun nativeImageCacheKey(source: String): String {
+    if (source.startsWith("data:image/", ignoreCase = true)) return source
+    val uri = Uri.parse(source)
+    val transientParameters = setOf(
+        "signature", "token", "expires", "sig", "se", "sp", "sv", "sr",
+        "x-amz-algorithm", "x-amz-credential", "x-amz-date", "x-amz-expires",
+        "x-amz-signedheaders", "x-amz-signature", "x-amz-security-token",
+        "x-goog-algorithm", "x-goog-credential", "x-goog-date", "x-goog-expires",
+        "x-goog-signedheaders", "x-goog-signature", "x-goog-security-token",
+        "policy", "key-pair-id"
     )
+    val stableUri = uri.buildUpon().clearQuery()
+    uri.queryParameterNames.sorted().filterNot { it.lowercase() in transientParameters }.forEach { name ->
+        uri.getQueryParameters(name).forEach { value -> stableUri.appendQueryParameter(name, value) }
+    }
+    return stableUri.build().toString()
 }
 
 private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching {
