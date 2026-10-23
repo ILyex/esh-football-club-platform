@@ -1199,10 +1199,17 @@ button:active,
   -webkit-tap-highlight-color: transparent !important;
 }
 
-:where(a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"]:not([aria-disabled="true"])):focus-visible {
+:where(a[href], button:not(:disabled), [role="button"]:not([aria-disabled="true"])):focus-visible {
   outline: 2px solid var(--club-primary) !important;
   outline-offset: 3px !important;
   scroll-margin-block: 1rem;
+}
+
+/* Dashboard fields already have a focus border. Remove the extra outline and
+   ring that several older utility classes add on top of it. */
+[data-dashboard-main] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea, [role="combobox"]):focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 
