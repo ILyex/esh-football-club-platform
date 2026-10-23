@@ -79,8 +79,18 @@ async function main() {
   const teams = Object.fromEntries(await Promise.all(["SENIOR", "U20", "U17", "U15"].map(async (c) => [c, await teamId(c)])));
   const missing = Object.entries(teams).filter(([, id]) => !id).map(([c]) => c);
   if (missing.length) throw new Error(`Missing team categories: ${missing.join(", ")}`);
+  let createdPlayers = 0;
+  let skippedPlayers = 0;
+  let createdStaff = 0;
+  let skippedStaff = 0;
   for (const row of players) {
-    const existing = await db.player.findFirst({ where: { licenceNumber: row.licence }, select: { id: true, slug: true, photoUrl: true } });
+    const existing = await db.player.findFirst({ where: { licenceNumber: row.licence }, select: { id: true } });
+    // This roster is only a bootstrap source. Existing player records are
+    // owned by the platform and must only be changed by an administrator.
+    if (existing) {
+      skippedPlayers++;
+      continue;
+    }
     // Slugs are used in URLs and response headers; always derive them from
     // the Latin registration name so Arabic display names cannot create an
     // invalid ByteString header during a server-action redirect.
@@ -90,18 +100,22 @@ async function main() {
       firstName: row.first, lastName: row.last, firstNameFr: row.firstFr, lastNameFr: row.lastFr,
       dateOfBirth: dateOnly(row.dob), position: "MIDFIELDER" as const, nationality: "الجزائر",
       shirtNumber: row.number > 0 ? row.number : null, licenceNumber: row.licence,
-      teamId: teams[row.team], status: "ACTIVE" as const, photoUrl: existing?.photoUrl || row.photo
+      teamId: teams[row.team], status: "ACTIVE" as const, photoUrl: row.photo
     };
-    if (existing) await db.player.update({ where: { id: existing.id }, data });
-    else await db.player.create({ data });
+    await db.player.create({ data });
+    createdPlayers++;
   }
   for (const row of staff) {
     const existing = await db.staff.findFirst({ where: { licenceNumber: row.licence }, select: { id: true } });
+    if (existing) {
+      skippedStaff++;
+      continue;
+    }
     const data = { firstName: row.first, lastName: row.last, firstNameFr: row.firstFr, lastNameFr: row.lastFr, role: row.role, status: "ACTIVE" as const, licenceNumber: row.licence, teamId: row.team ? teams[row.team] : null };
-    if (existing) await db.staff.update({ where: { id: existing.id }, data });
-    else await db.staff.create({ data });
+    await db.staff.create({ data });
+    createdStaff++;
   }
-  console.log(`Roster imported: ${players.length} players and ${staff.length} staff.`);
+  console.log(`Roster bootstrap complete: created ${createdPlayers} players and ${createdStaff} staff; skipped ${skippedPlayers} existing players and ${skippedStaff} existing staff.`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => db.$disconnect());

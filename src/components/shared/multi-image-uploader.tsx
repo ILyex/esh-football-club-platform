@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, ChangeEvent, DragEvent } from "react";
 import { UploadCloud, Image as ImageIcon, Video as VideoIcon, Play, Trash2, ArrowLeft, ArrowRight, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isVideoUrl } from "@/lib/media-utils";
+import { IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 
 export interface ExistingImage {
   id?: string;
@@ -218,13 +219,13 @@ export function MultiImageUploader({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`relative flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
+        className={`${IMAGE_UPLOAD_FRAME} min-h-40 w-full cursor-pointer flex-col justify-center p-6 transition-all duration-200 ${
           isDragging
-            ? "border-primary bg-primary/10 scale-[1.01]"
-            : "border-border hover:border-primary/50 hover:bg-muted/30 bg-card"
+            ? "border-club-primary bg-club-primary/10 scale-[1.01]"
+            : ""
         }`}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
+        <div className={`${IMAGE_UPLOAD_ICON} mb-3 h-12 w-12 rounded-full`}>
           <UploadCloud className="h-6 w-6" />
         </div>
         <p className="text-sm font-semibold text-foreground text-center">

@@ -5,11 +5,14 @@ import android.net.Uri
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 data class NativeMatch(
     val id: String,
@@ -29,7 +32,8 @@ data class NativeMatch(
     val xgFor: Double,
     val xgAgainst: Double,
     val yellowCardsFor: Int,
-    val redCardsFor: Int
+    val redCardsFor: Int,
+    val opponentLogo: String? = null
 )
 
 data class NativePlayer(val id: String, val name: String, val nameFr: String, val number: Int?)
@@ -53,7 +57,7 @@ data class NativePlayerPerformance(
 data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
 data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
 data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val competitions: Boolean, val manageCompetitions: Boolean, val teamScopeRestricted: Boolean)
-data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser)
+data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser, val clubLogoUrl: String? = null)
 data class NativeUser(
     val id: String,
     val name: String,
@@ -118,7 +122,7 @@ object NativeApi {
         } catch (error: ApiFailure) {
             NativeLoginResult(null, null, when (error.code) {
                 "invalid_credentials" -> if (locale == "fr") "Adresse e-mail ou mot de passe incorrect." else "البريد الإلكتروني أو كلمة المرور غير صحيحة."
-                "admin_access_required" -> if (locale == "fr") "Cette application est réservée aux comptes administratifs autorisés." else "هذا التطبيق مخصص لحسابات الإدارة المصرّح لها."
+                "admin_access_required" -> if (locale == "fr") "Ce compte n’est pas autorisé à accéder à l’application." else "هذا الحساب غير مخوّل بالدخول إلى التطبيق."
                 "rate_limited" -> if (locale == "fr") "Trop de tentatives. Réessayez dans quelques instants." else "محاولات كثيرة. انتظر قليلًا ثم أعد المحاولة."
                 "captcha_required", "captcha_unavailable" -> if (locale == "fr") "La vérification de sécurité a échoué. Réessayez." else "تعذر إكمال التحقق الأمني. حاول مرة أخرى."
                 else -> if (locale == "fr") "Connexion à la plateforme impossible. Vérifiez votre réseau." else "تعذر الاتصال بالمنصة. تحقق من الإنترنت وحاول مجددًا."
@@ -155,7 +159,17 @@ object NativeApi {
     }
 
     fun playerStats(token: String): NativePlayerStats {
-        val json = JSONObject(get("/api/mobile/player-stats", token))
+        val raw = get("/api/mobile/player-stats", token)
+        cachePreferences?.edit()?.putString(playerStatsCacheKey(token), raw)?.apply()
+        return parsePlayerStats(JSONObject(raw))
+    }
+
+    fun cachedPlayerStats(token: String): NativePlayerStats? {
+        val raw = cachePreferences?.getString(playerStatsCacheKey(token), null) ?: return null
+        return runCatching { parsePlayerStats(JSONObject(raw)) }.getOrNull()
+    }
+
+    private fun parsePlayerStats(json: JSONObject): NativePlayerStats {
         val players = json.optJSONArray("players")?.objects()?.map { player ->
             val team = player.optJSONObject("team") ?: JSONObject()
             val recentMatches = player.optJSONArray("recentMatches")?.objects()?.map { match ->
@@ -172,6 +186,12 @@ object NativeApi {
         return NativePlayerStats(json.optNullableString("season"), players)
     }
 
+    private fun playerStatsCacheKey(token: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8))
+        val accountKey = digest.take(8).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        return "player_stats_$accountKey"
+    }
+
     @Volatile private var cachePreferences: android.content.SharedPreferences? = null
 
     fun initializeCache(context: Context) {
@@ -183,7 +203,7 @@ object NativeApi {
             val players = item.getJSONArray("players").objects().map { player -> NativePlayer(player.getString("id"), player.optString("name"), player.optString("nameFr"), player.nullableInt("number")) }
             val events = item.getJSONArray("events").objects().map { event -> NativeEvent(event.getString("id"), event.optString("type"), event.optInt("minute"), event.optString("side"), event.optNullableString("playerName"), event.optNullableDouble("xG"), event.optString("source", "MANUAL")) }
             val stats = item.optJSONObject("stats") ?: JSONObject()
-            NativeMatch(item.getString("id"), item.optString("opponent"), item.optString("date"), item.optString("status"), item.nullableInt("clubScore"), item.nullableInt("opponentScore"), item.optString("competition"), item.optBoolean("isHomeFixture"), item.optBoolean("canUpdate"), item.optBoolean("canReport"), players, events, stats.optInt("shotsFor"), stats.optInt("shotsAgainst"), stats.optDouble("xgFor"), stats.optDouble("xgAgainst"), stats.optInt("yellowCardsFor"), stats.optInt("redCardsFor"))
+            NativeMatch(item.getString("id"), item.optString("opponent"), item.optString("date"), item.optString("status"), item.nullableInt("clubScore"), item.nullableInt("opponentScore"), item.optString("competition"), item.optBoolean("isHomeFixture"), item.optBoolean("canUpdate"), item.optBoolean("canReport"), players, events, stats.optInt("shotsFor"), stats.optInt("shotsAgainst"), stats.optDouble("xgFor"), stats.optDouble("xgAgainst"), stats.optInt("yellowCardsFor"), stats.optInt("redCardsFor"), item.optNullableString("opponentLogo"))
         }
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
@@ -201,7 +221,7 @@ object NativeApi {
         }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user)
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user, json.optNullableString("clubLogoUrl"))
     }
 
     fun createContent(token: String, payload: JSONObject) {
@@ -262,24 +282,49 @@ object NativeApi {
     }
 
     fun latestRelease(): NativeRelease? {
-        val connection = URL("$BASE_URL/native-android-release.json?t=${System.currentTimeMillis()}").openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 7_000
-            connection.readTimeout = 9_000
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Cache-Control", "no-cache")
-            when (connection.responseCode) {
-                404 -> throw NoPublicNativeRelease()
-                in 200..299 -> Unit
-                else -> throw ApiFailure("release_check_failed")
+        var lastFailure: Exception? = null
+        repeat(3) { attempt ->
+            val connection = URL("$BASE_URL/native-android-release.json?t=${System.currentTimeMillis()}").openConnection() as HttpURLConnection
+            try {
+                // Mobile connections and Vercel's cold starts can exceed the
+                // old 7/9 second limits. Retry transient network and server
+                // errors so they do not look like a permanent connection loss.
+                connection.connectTimeout = 20_000
+                connection.readTimeout = 30_000
+                connection.instanceFollowRedirects = true
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Cache-Control", "no-cache")
+                connection.setRequestProperty("User-Agent", "ESH-Android-Updater")
+                val status = connection.responseCode
+                when {
+                    status == 404 -> throw NoPublicNativeRelease()
+                    status in 200..299 -> Unit
+                    status == 429 || status >= 500 -> throw ApiFailure("release_check_retryable_$status")
+                    else -> throw ApiFailure("release_check_failed_$status")
+                }
+                val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                val tag = release.optString("version").takeIf { it.isNotBlank() } ?: return null
+                val apkPath = release.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
+                val apkUrl = if (apkPath.startsWith("https://")) apkPath else URL(URL(BASE_URL), apkPath.removePrefix("/")).toString()
+                if (!apkUrl.startsWith("https://")) return null
+                return NativeRelease(tag, apkUrl, release.optString("sha256").takeIf { it.matches(Regex("(?i)[a-f0-9]{64}")) })
+            } catch (error: NoPublicNativeRelease) {
+                throw error
+            } catch (error: Exception) {
+                lastFailure = error
+                if (attempt == 2 || (error is ApiFailure && !error.code.startsWith("release_check_retryable_"))) throw error
+                try {
+                    Thread.sleep(750L * (attempt + 1))
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw interrupted
+                }
+            } finally {
+                connection.disconnect()
             }
-            val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            val tag = release.optString("version").takeIf { it.isNotBlank() } ?: return null
-            val apkPath = release.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
-            val apkUrl = if (apkPath.startsWith("https://")) apkPath else URL(URL(BASE_URL), apkPath.removePrefix("/")).toString()
-            if (!apkUrl.startsWith("https://")) return null
-            return NativeRelease(tag, apkUrl, release.optString("sha256").takeIf { it.matches(Regex("(?i)[a-f0-9]{64}")) })
-        } finally { connection.disconnect() }
+        }
+        throw lastFailure ?: ApiFailure("release_check_failed")
     }
 
     /** Download and verify an APK without handing the transfer to Android DownloadManager. */
@@ -289,51 +334,102 @@ object NativeApi {
         expectedSha256: String?,
         onProgress: suspend (Int) -> Unit
     ) {
-        val connection = URL(apkUrl).openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.setRequestProperty("Accept", "application/vnd.android.package-archive")
-            if (connection.responseCode !in 200..299) throw ApiFailure("update_download_failed")
-            val total = connection.contentLengthLong
-            destination.parentFile?.mkdirs()
-            val digest = MessageDigest.getInstance("SHA-256")
-            var downloaded = 0L
-            var lastProgress = -1
-            connection.inputStream.use { input ->
-                FileOutputStream(destination).use { output ->
-                    val buffer = ByteArray(128 * 1024)
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        output.write(buffer, 0, count)
-                        digest.update(buffer, 0, count)
-                        downloaded += count
-                        if (total > 0L) {
-                            val progress = (downloaded * 100L / total).toInt().coerceIn(0, 99)
-                            // Avoid dispatching to Compose for every small
-                            // chunk; update the progress bar once per percent.
-                            if (progress != lastProgress) {
-                                lastProgress = progress
-                                onProgress(progress)
-                            }
+        var lastFailure: Throwable? = null
+        repeat(5) { attempt ->
+            val connection = URL(apkUrl).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 30_000
+                connection.readTimeout = 120_000
+                connection.instanceFollowRedirects = true
+                connection.useCaches = false
+                connection.setRequestProperty("Accept", "application/vnd.android.package-archive")
+                connection.setRequestProperty("User-Agent", "ESH-Android-Updater")
+                destination.parentFile?.mkdirs()
+                var offset = destination.takeIf { it.isFile }?.length() ?: 0L
+                if (offset > 0L) connection.setRequestProperty("Range", "bytes=$offset-")
+                val status = connection.responseCode
+                if (status == 416 && offset > 0L) {
+                    destination.delete()
+                    lastFailure = ApiFailure("update_download_range_reset")
+                    delay(250L)
+                    return@repeat
+                }
+                if (status !in 200..299) {
+                    throw ApiFailure("update_download_http_$status")
+                }
+                // Resume only when the server confirms the requested byte range.
+                // If a CDN ignores Range and returns 200, restart safely instead
+                // of appending a second copy of the APK to the partial file.
+                val append = status == HttpURLConnection.HTTP_PARTIAL && offset > 0L
+                if (!append) offset = 0L
+                val contentRangeTotal = connection.getHeaderField("Content-Range")
+                    ?.substringAfterLast('/')?.toLongOrNull()
+                val responseLength = connection.contentLengthLong
+                val total = contentRangeTotal ?: if (responseLength > 0L) responseLength + offset else -1L
+                val digest = MessageDigest.getInstance("SHA-256")
+                var downloaded = offset
+                var lastProgress = -1
+                if (append) {
+                    // Hash the already persisted bytes before appending so the
+                    // final digest still covers the complete APK.
+                    destination.inputStream().use { input ->
+                        val buffer = ByteArray(128 * 1024)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            digest.update(buffer, 0, count)
                         }
                     }
-                    output.fd.sync()
                 }
+                connection.inputStream.use { input ->
+                    FileOutputStream(destination, append).use { output ->
+                        val buffer = ByteArray(128 * 1024)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                            digest.update(buffer, 0, count)
+                            downloaded += count
+                            if (total > 0L) {
+                                val progress = (downloaded * 100L / total).toInt().coerceIn(0, 99)
+                                // Avoid dispatching to Compose for every small
+                                // chunk; update the progress bar once per percent.
+                                if (progress != lastProgress) {
+                                    lastProgress = progress
+                                    onProgress(progress)
+                                }
+                            }
+                        }
+                        output.fd.sync()
+                    }
+                }
+                val actualSha256 = digest.digest().joinToString("") { "%02x".format(it) }
+                if (!expectedSha256.isNullOrBlank() && !actualSha256.equals(expectedSha256, ignoreCase = true)) {
+                    throw ApiFailure("update_checksum_mismatch")
+                }
+                onProgress(100)
+                return
+            } catch (error: CancellationException) {
+                // Keep a valid partial file so a later retry can resume it.
+                throw error
+            } catch (error: Throwable) {
+                if (error is ApiFailure && error.code == "update_checksum_mismatch") {
+                    destination.delete()
+                    throw error
+                }
+                if (error is ApiFailure && error.code.startsWith("update_download_http_") &&
+                    error.code !in setOf("update_download_http_408", "update_download_http_429", "update_download_http_500", "update_download_http_502", "update_download_http_503", "update_download_http_504")) {
+                    destination.delete()
+                    throw error
+                }
+                lastFailure = error
+                if (attempt == 4) throw error
+                delay(1_000L * (attempt + 1))
+            } finally {
+                connection.disconnect()
             }
-            val actualSha256 = digest.digest().joinToString("") { "%02x".format(it) }
-            if (!expectedSha256.isNullOrBlank() && !actualSha256.equals(expectedSha256, ignoreCase = true)) {
-                destination.delete()
-                throw ApiFailure("update_checksum_mismatch")
-            }
-            onProgress(100)
-        } catch (error: Throwable) {
-            destination.delete()
-            throw error
-        } finally {
-            connection.disconnect()
         }
+        throw lastFailure ?: IOException("update_download_failed")
     }
 
     fun updateScore(token: String, matchId: String, homeScore: Int, awayScore: Int, status: String? = null) {

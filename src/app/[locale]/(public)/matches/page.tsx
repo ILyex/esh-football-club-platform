@@ -8,6 +8,7 @@ import { MatchCard } from "@/components/public/match-card";
 import { frenchPublicCategory } from "@/lib/public/locale-text";
 import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { getPublicClubSettings } from "@/lib/public/club";
 
 export default async function PublicMatchesPage({
   params,
@@ -26,14 +27,15 @@ export default async function PublicMatchesPage({
     ? (category.toUpperCase() as TeamCategory)
     : undefined;
 
-  const [tPublic, matches, teams] = await Promise.all([
+  const [tPublic, matches, teams, club] = await Promise.all([
     getTranslations({ locale, namespace: "publicSite" }),
     getPublicMatches({
       mode: activeTab,
       teamCategory: validCategory,
       limit: 50
     }),
-    getPublicTeams()
+    getPublicTeams(),
+    getPublicClubSettings()
   ]);
 
   const matchCardLabels = {
@@ -138,6 +140,7 @@ export default async function PublicMatchesPage({
                 key={match.id}
                 match={match}
                 locale={locale}
+                clubLogoUrl={club.logoUrl}
                 labels={matchCardLabels}
               />
             ))}

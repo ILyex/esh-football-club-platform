@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/permissions";
 import { playerSchema } from "@/lib/validations/player";
+import { normalizeLicenceNumber } from "@/lib/integrations/faf/normalizer";
 import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { slugify } from "@/lib/utils";
@@ -191,6 +192,14 @@ export async function createPlayerAction(formData: FormData) {
   const parsed = playerSchema.parse(raw);
   assertTeamScope(scopeContext, parsed.teamId, "Player");
 
+  const normalizedLicence = normalizeLicenceNumber(parsed.licenceNumber ?? "");
+  if (normalizedLicence) {
+    const existingPlayers = await db.player.findMany({ where: { licenceNumber: { not: null } }, select: { id: true, licenceNumber: true } });
+    if (existingPlayers.some((candidate) => normalizeLicenceNumber(candidate.licenceNumber ?? "") === normalizedLicence)) {
+      throw new Error(`رقم الرخصة ${normalizedLicence} مسجل للاعب آخر بالفعل.`);
+    }
+  }
+
   if (parsed.teamId) {
     const assignedTeam = await db.team.findUnique({ where: { id: parsed.teamId } });
     if (assignedTeam && assignedTeam.birthYearFrom != null) {
@@ -230,7 +239,7 @@ export async function createPlayerAction(formData: FormData) {
       placeOfBirth: parsed.placeOfBirth,
       bloodGroup: parsed.bloodGroup,
       birthCertificateNumber: parsed.birthCertificateNumber,
-      licenceNumber: parsed.licenceNumber,
+      licenceNumber: normalizedLicence || null,
       preferredFoot: parsed.preferredFoot,
       joiningDate: parsed.joiningDate,
       status: parsed.status,
@@ -300,10 +309,22 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
   }
   const scopeContext = await getMutationScopeContext();
   const before = await db.player.findUniqueOrThrow({ where: { id: playerId } });
+  const submittedVersion = formData.get("recordUpdatedAt");
+  if (typeof submittedVersion !== "string" || Date.parse(submittedVersion) !== before.updatedAt.getTime()) {
+    throw new Error("تم تعديل بيانات اللاعب في جلسة أخرى. أعد تحميل الصفحة قبل الحفظ لتجنب فقدان التغييرات.");
+  }
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = playerSchema.parse(raw);
   assertDualTeamScope(scopeContext, before.teamId, parsed.teamId, "Player");
+
+  const normalizedLicence = normalizeLicenceNumber(parsed.licenceNumber ?? "");
+  if (normalizedLicence) {
+    const existingPlayers = await db.player.findMany({ where: { licenceNumber: { not: null }, id: { not: playerId } }, select: { id: true, licenceNumber: true } });
+    if (existingPlayers.some((candidate) => normalizeLicenceNumber(candidate.licenceNumber ?? "") === normalizedLicence)) {
+      throw new Error(`رقم الرخصة ${normalizedLicence} مسجل للاعب آخر بالفعل.`);
+    }
+  }
 
   if (parsed.teamId) {
     const assignedTeam = await db.team.findUnique({ where: { id: parsed.teamId } });
@@ -322,7 +343,9 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
 
   const player = await db.$transaction(async (tx) => {
     const updated = await tx.player.update({
-      where: { id: playerId },
+      // Compare-and-swap prevents a stale form (or a concurrent admin edit)
+      // from silently replacing newer player data.
+      where: { id: playerId, updatedAt: before.updatedAt },
       data: {
         firstName: parsed.firstName,
         lastName: parsed.lastName,
@@ -339,7 +362,7 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
         placeOfBirth: parsed.placeOfBirth,
         bloodGroup: parsed.bloodGroup,
         birthCertificateNumber: parsed.birthCertificateNumber,
-        licenceNumber: parsed.licenceNumber,
+        licenceNumber: normalizedLicence || null,
         preferredFoot: parsed.preferredFoot,
         joiningDate: parsed.joiningDate,
         status: parsed.status,

@@ -8,46 +8,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { rankStandings } from "@/lib/competitions/standings";
+import { setCompetitionManualPoints } from "@/lib/competitions/live-standings";
 import { Prisma } from "@prisma/client";
 
-const standingEntrySchema = z.object({
-  id: z.string().min(1).max(120),
-  rank: z.number().int().positive(),
-  teamName: z.string().trim().min(2).max(120),
-  teamLogo: z.string().max(2048).nullable().optional(),
-  isOurClub: z.boolean(),
-  played: z.number().int().nonnegative(),
-  won: z.number().int().nonnegative(),
-  drawn: z.number().int().nonnegative(),
-  lost: z.number().int().nonnegative(),
-  goalsFor: z.number().int().nonnegative(),
-  goalsAgainst: z.number().int().nonnegative(),
-  goalDifference: z.number().int(),
-  points: z.number().int(),
-  pointsAdjustment: z.number().int().max(0).optional(),
-  baselineAt: z.string().datetime().optional(),
-  form: z.array(z.enum(["W", "D", "L"])).max(5).optional()
-}).superRefine((team, ctx) => {
-  if (team.played !== team.won + team.drawn + team.lost) ctx.addIssue({ code: "custom", message: "played must equal wins + draws + losses" });
-  if (team.points !== team.won * 3 + team.drawn + (team.pointsAdjustment ?? 0)) ctx.addIssue({ code: "custom", message: "points must use the 3-1-0 system with listed deductions" });
-  if (team.goalDifference !== team.goalsFor - team.goalsAgainst) ctx.addIssue({ code: "custom", message: "goal difference must match goals for and against" });
-});
-
-const standingsSchema = z.array(standingEntrySchema).max(100).superRefine((teams, ctx) => {
-  const names = new Set<string>();
-  const ids = new Set<string>();
-  let ourClubCount = 0;
-  teams.forEach((team, index) => {
-    const key = team.teamName.toLocaleLowerCase();
-    if (names.has(key)) ctx.addIssue({ code: "custom", path: [index, "teamName"], message: "Duplicate team name" });
-    names.add(key);
-    if (ids.has(team.id)) ctx.addIssue({ code: "custom", path: [index, "id"], message: "Duplicate row id" });
-    ids.add(team.id);
-    if (team.isOurClub) ourClubCount += 1;
-  });
-  if (ourClubCount > 1) ctx.addIssue({ code: "custom", message: "Only one row may represent the club" });
-});
+const manualPointsSchema = z.array(z.object({ id: z.string().min(1).max(120), points: z.number().int().min(-1000).max(1000) })).max(100);
 
 const bracketMatchSchema = z.object({
   id: z.string().min(1).max(120),
@@ -254,77 +218,26 @@ export async function uploadCompetitionLogoAction(competitionId: string, formDat
   return { logoUrl };
 }
 
-export async function saveCompetitionStandingsAction(
-  competitionId: string,
-  standings: import("@/lib/competitions").StandingTeamEntry[]
-) {
+export async function saveCompetitionManualPointsAction(competitionId: string, changes: Array<{ id: string; points: number }>) {
   const user = await requirePermission("competitions.manage");
   const comp = await db.competition.findUniqueOrThrow({ where: { id: competitionId } });
   const scopeContext = await getMutationScopeContext();
   assertTeamScope(scopeContext, comp.teamId, "Competition");
   if (comp.type !== "LEAGUE") throw new Error("Standings can only be saved for league competitions.");
-  const baselineAt = new Date().toISOString();
-  const parsedStandings = rankStandings(standingsSchema.parse(standings).map((entry) => ({ ...entry, baselineAt })));
-
-  // Persist every league opponent for reuse in future match forms. Keep any
-  // existing crest; new entries start with the shared shield placeholder.
-  const { getAllOpponentsList, saveOpponentClub } = await import("@/lib/opponents");
-  const savedOpponents = await getAllOpponentsList();
-  for (const team of parsedStandings) {
-    if (!team.isOurClub && team.teamName && !savedOpponents.some((opponent) => opponent.name.normalize("NFKC").trim().toLocaleLowerCase() === team.teamName.normalize("NFKC").trim().toLocaleLowerCase())) {
-      await saveOpponentClub(team.teamName, team.teamLogo || "/branding/opponent-crest-default.svg").catch(() => {});
-    }
-  }
-
-  await db.competition.update({
-    where: { id: competitionId },
-    data: { standingsData: parsedStandings as any }
-  });
+  const parsedChanges = manualPointsSchema.parse(changes);
+  const standings = await setCompetitionManualPoints(competitionId, parsedChanges);
 
   await writeAuditLog({
     userId: user.id,
-    action: "competition.updateStandings",
+    action: "competition.adjustManualPoints",
     entityType: "Competition",
     entityId: competitionId,
-    changes: { teamCount: parsedStandings.length }
+    changes: { teamCount: parsedChanges.length, points: parsedChanges }
   });
 
   revalidatePath("/[locale]/dashboard/competitions", "page");
   revalidatePath("/[locale]/competitions", "page");
-  return { success: true };
-}
-
-export async function importOfficialRoundTwoSeniorStandingsAction(competitionId: string) {
-  const user = await requirePermission("competitions.manage");
-  const competition = await db.competition.findUnique({ where: { id: competitionId }, include: { team: { select: { category: true } } } });
-  if (!competition) throw new Error("المسابقة غير موجودة.");
-  if (competition.type !== "LEAGUE" || competition.team?.category !== "SENIOR") throw new Error("اختر مسابقة الدوري لفئة الأكابر.");
-  const scopeContext = await getMutationScopeContext();
-  assertTeamScope(scopeContext, competition.teamId, "Competition");
-  const currentStandings = Array.isArray(competition.standingsData) ? competition.standingsData as Array<{ id?: unknown }> : [];
-  if (currentStandings.length && currentStandings.every((row) => typeof row.id === "string" && row.id.startsWith("official-r2-"))) {
-    return { success: true, teamCount: currentStandings.length };
-  }
-  if (currentStandings.length && !currentStandings.every((row) => typeof row.id === "string" && row.id.startsWith("official-r2-"))) {
-    throw new Error("يوجد ترتيب محفوظ لهذه المسابقة؛ لن يتم استبداله تلقائيًا.");
-  }
-
-  const baselineAt = new Date().toISOString();
-  const { getOfficialRoundTwoSeniorStandings } = await import("@/lib/competitions/round-two-seniors");
-  const standings = getOfficialRoundTwoSeniorStandings(baselineAt).map((row, index) => ({ ...row, rank: index + 1 }));
-  const { getAllOpponentsList, saveOpponentClub } = await import("@/lib/opponents");
-  const savedOpponents = await getAllOpponentsList();
-  for (const entry of standings.filter((row) => !row.isOurClub)) {
-    if (!savedOpponents.some((opponent) => opponent.name.normalize("NFKC").trim().toLocaleLowerCase() === entry.teamName.normalize("NFKC").trim().toLocaleLowerCase())) {
-      await saveOpponentClub(entry.teamName, "/branding/opponent-crest-default.svg");
-    }
-  }
-
-  await db.competition.update({ where: { id: competitionId }, data: { standingsData: standings as any } });
-  await writeAuditLog({ userId: user.id, action: "competition.importOfficialRoundTwoStandings", entityType: "Competition", entityId: competitionId, changes: { teamCount: standings.length, source: "official_round_two_seniors", baselineAt } });
-  revalidatePath("/[locale]/dashboard/competitions", "page");
-  revalidatePath("/[locale]/competitions", "page");
-  return { success: true, teamCount: standings.length };
+  return { success: true, standings };
 }
 
 export async function saveCompetitionBracketAction(

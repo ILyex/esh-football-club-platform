@@ -12,7 +12,7 @@ import { OfficialPlayerAttestationModal } from "@/components/players/official-pl
 import { PlayerPrintListModal } from "@/components/players/player-print-list-modal";
 import { evaluatePlayerInsurance } from "@/lib/documents/insurance-helper";
 import { arabicNationality, frenchNationality } from "@/lib/public/locale-text";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { PlayerPageFreshness } from "@/components/players/player-page-freshness";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -39,7 +39,12 @@ export default async function PlayersListPage({
   const tCommon = await getTranslations("common");
 
   const pageSize = 20;
-  const page = Math.max(1, Number(sp.page ?? "1"));
+  const parsedPage = Number(sp.page ?? "1");
+  const page = Number.isFinite(parsedPage) ? Math.max(1, Math.floor(parsedPage)) : 1;
+  // Shirt numbers are not unique (and may be empty), so they cannot define
+  // page boundaries on their own. Use the immutable player id as a tie-breaker
+  // to keep records in a stable, non-overlapping order across page requests.
+  const playerOrder = [{ shirtNumber: "asc" as const }, { id: "asc" as const }];
 
   // The URL's own ?team= wins when present (so a direct link to one
   // category always shows that category); otherwise fall back to the
@@ -95,7 +100,7 @@ export default async function PlayersListPage({
           select: { id: true, name: true, description: true, documentDate: true }
         }
       },
-      orderBy: { shirtNumber: "asc" },
+      orderBy: playerOrder,
       skip: (page - 1) * pageSize,
       take: pageSize
     }),
@@ -118,7 +123,7 @@ export default async function PlayersListPage({
         position: true,
         team: { select: { category: true } }
       },
-      orderBy: { shirtNumber: "asc" }
+      orderBy: playerOrder
     })
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -388,18 +393,18 @@ export default async function PlayersListPage({
         <p>
           {total} • {tCommon("view")} {page}/{totalPages}
         </p>
-        <div className="flex gap-2">
+        <nav aria-label={locale === "ar" ? "صفحات اللاعبين" : "Pages des joueurs"} className="flex items-center gap-2">
           {page > 1 && (
-            <Link href={`/${locale}/dashboard/players?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="text-club-primary underline">
-              ‹
+            <Link aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"} href={`/${locale}/dashboard/players?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
             </Link>
           )}
           {page < totalPages && (
-            <Link href={`/${locale}/dashboard/players?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="text-club-primary underline">
-              ›
+            <Link aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"} href={`/${locale}/dashboard/players?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
             </Link>
           )}
-        </div>
+        </nav>
       </div>
     </div>
   );

@@ -277,7 +277,7 @@ export function CompetitionsHub({
           {activeType === "LEAGUE" ? (
             currentComp.standings.length > 0 || !isPublic ? (
               <LeagueStandingsTable
-                key={`${currentComp.id}-${currentComp.standings[0]?.baselineAt ?? currentComp.standings.length}`}
+                  key={`${currentComp.id}-${currentComp.standings.map((row) => `${row.played}.${row.won}.${row.drawn}.${row.lost}.${row.goalsFor}.${row.goalsAgainst}.${row.points}`).join("|")}`}
                 competitionId={currentComp.id}
                 standings={currentComp.standings || []}
                 locale={locale}

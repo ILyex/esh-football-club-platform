@@ -381,6 +381,7 @@ export default async function PlayerDetailPage({
         {/* LEFT COLUMN: Player Profile */}
         <div className="min-w-0 space-y-6">
           <form id="player-update-form" action={update} className="space-y-6">
+            <input type="hidden" name="recordUpdatedAt" value={player.updatedAt.toISOString()} />
             {/* Section 1: Personal & Sporting Attributes */}
             <div className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex items-center gap-2.5 border-b border-border/60 pb-3">

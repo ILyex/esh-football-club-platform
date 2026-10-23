@@ -4,19 +4,13 @@ import { db } from "@/lib/db";
 import { getNativePrincipal } from "@/lib/native-session";
 import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope } from "@/lib/authz/policy";
-import { rankStandings } from "@/lib/competitions/standings";
+import { setCompetitionManualPoints } from "@/lib/competitions/live-standings";
 import { writeAuditLog } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const entrySchema = z.object({
-  id: z.string().min(1).max(120), rank: z.number().int().positive(), teamName: z.string().trim().min(2).max(120),
-  teamLogo: z.string().max(2048).nullable().optional(), isOurClub: z.boolean(),
-  played: z.number().int().nonnegative(), won: z.number().int().nonnegative(), drawn: z.number().int().nonnegative(), lost: z.number().int().nonnegative(),
-  goalsFor: z.number().int().nonnegative(), goalsAgainst: z.number().int().nonnegative(), goalDifference: z.number().int(), points: z.number().int(), pointsAdjustment: z.number().int().max(0).optional(), baselineAt: z.string().datetime().optional(),
-  form: z.array(z.enum(["W", "D", "L"])).max(5).optional()
-});
+const entrySchema = z.object({ id: z.string().min(1).max(120), points: z.number().int().min(-100).max(1000) });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getNativePrincipal(request);
@@ -29,11 +23,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const scope = await resolveTeamScope(db, user);
   if (scope.restricted && competition.teamId && !scope.teamIds.includes(competition.teamId)) return NextResponse.json({ error: "team_scope_forbidden" }, { status: 403 });
   const body = await request.json().catch(() => null);
-  const parsed = z.object({ standings: z.array(entrySchema).max(100) }).safeParse(body);
+  // Accept the full legacy entry payload from older app builds, but persist only points.
+  const parsed = z.object({ standings: z.array(entrySchema.passthrough()).max(100) }).safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "invalid_standings" }, { status: 400 });
-  const baselineAt = new Date().toISOString();
-  const standings = rankStandings(parsed.data.standings.map((entry) => ({ ...entry, baselineAt })));
-  await db.competition.update({ where: { id }, data: { standingsData: standings as any } });
+  const standings = await setCompetitionManualPoints(id, parsed.data.standings.map(({ id, points }) => ({ id, points })));
   await writeAuditLog({ userId: user.id, action: "competition.mobileUpdateStandings", entityType: "Competition", entityId: id, changes: { teamCount: standings.length } });
   return NextResponse.json({ success: true, standings }, { headers: { "Cache-Control": "no-store" } });
 }

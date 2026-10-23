@@ -2,12 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
-  Trophy,
-  Shield,
-  Plus,
-  Trash2,
   Save,
   RotateCcw,
   Sparkles,
@@ -15,9 +10,10 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
+import { OpponentCrest } from "@/components/public/opponent-crest";
 import type { StandingTeamEntry } from "@/lib/competitions/types";
 import { rankStandings } from "@/lib/competitions/standings";
-import { importOfficialRoundTwoSeniorStandingsAction, saveCompetitionStandingsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
+import { saveCompetitionManualPointsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
 
 interface LeagueStandingsTableProps {
   competitionId: string;
@@ -48,89 +44,29 @@ export function LeagueStandingsTable({
     setStandings(rankStandings(standings));
   };
 
-  const handleStatChange = (
-    id: string,
-    field: keyof Pick<StandingTeamEntry, "won" | "drawn" | "lost" | "goalsFor" | "goalsAgainst">,
-    val: number
-  ) => {
-    setStandings((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const updated = { ...item, [field]: Math.max(0, Number.isFinite(val) ? Math.trunc(val) : 0) };
-        updated.played = updated.won + updated.drawn + updated.lost;
-        updated.points = updated.won * 3 + updated.drawn + (updated.pointsAdjustment ?? 0);
-        if (field === "goalsFor" || field === "goalsAgainst") {
-          updated.goalDifference = updated.goalsFor - updated.goalsAgainst;
-        }
-        return updated;
-      })
-    );
-  };
-
-  const handleNameChange = (id: string, name: string) => {
-    setStandings((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, teamName: name } : item))
-    );
-  };
-
-  const handleAddTeam = () => {
-    const newTeam: StandingTeamEntry = {
-      id: crypto.randomUUID(),
-      rank: standings.length + 1,
-      teamName: isAr ? "فريق جديد" : "Nouvelle Équipe",
-      isOurClub: false,
-      played: 0,
-      won: 0,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      goalDifference: 0,
-      points: 0
-    };
-    setStandings((prev) => [...prev, newTeam]);
-  };
-
-  const handleRemoveTeam = (id: string) => {
-    setStandings((prev) => prev.filter((item) => item.id !== id));
+  const handleManualPointsChange = (id: string, points: number) => {
+    setStandings((prev) => prev.map((item) => item.id === id ? { ...item, points } : item));
   };
 
   const handleSave = () => {
-    const canonicalStandings = rankStandings(standings.map((team) => ({
-      ...team,
-      played: team.won + team.drawn + team.lost,
-      points: team.won * 3 + team.drawn + (team.pointsAdjustment ?? 0),
-      goalDifference: team.goalsFor - team.goalsAgainst
-    })));
+    const pointChanges = standings.map(({ id, points }) => ({ id, points }));
     startTransition(async () => {
       try {
         setFeedback(null);
-        await saveCompetitionStandingsAction(competitionId, canonicalStandings);
-        setStandings(canonicalStandings);
+        const result = await saveCompetitionManualPointsAction(competitionId, pointChanges);
+        setStandings(result.standings);
         setIsEditing(false);
         setFeedback({
           type: "success",
-          message: isAr ? "تم حفظ وتحديث جدول الترتيب بنجاح" : "Classement mis à jour avec succès"
+          message: isAr ? "تم حفظ النقاط اليدوية مع استمرار احتساب نتائج المباريات" : "Points manuels enregistrés, les résultats restent automatiques"
         });
+        router.refresh();
         setTimeout(() => setFeedback(null), 4000);
       } catch (err: any) {
         setFeedback({
           type: "error",
           message: err?.message || (isAr ? "فشل في حفظ الترتيب" : "Erreur de mise à jour")
         });
-      }
-    });
-  };
-
-  const handleImportOfficialRound = () => {
-    startTransition(async () => {
-      try {
-        setFeedback(null);
-        await importOfficialRoundTwoSeniorStandingsAction(competitionId);
-        setFeedback({ type: "success", message: isAr ? "تم ربط ترتيب الجولة الثانية بالمسابقة والفرق" : "Le classement du 2e tour est lié à la compétition" });
-        router.refresh();
-      } catch (error: any) {
-        setFeedback({ type: "error", message: error?.message || (isAr ? "تعذر استيراد الترتيب" : "Import impossible") });
       }
     });
   };
@@ -158,13 +94,6 @@ export function LeagueStandingsTable({
             )}
           </div>
 
-          {standings.length === 0 && (
-            <button type="button" onClick={handleImportOfficialRound} disabled={isPending} className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 text-xs font-bold text-sky-700 transition hover:bg-sky-500/15 disabled:opacity-60 dark:text-sky-300">
-              <Trophy className="h-3.5 w-3.5" />
-              {isPending ? (isAr ? "جارٍ ربط البيانات..." : "Import en cours…") : (isAr ? "إدخال ترتيب الجولة الثانية وربطه" : "Importer le classement du 2e tour")}
-            </button>
-          )}
-
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
@@ -176,15 +105,6 @@ export function LeagueStandingsTable({
                 >
                   <RotateCcw className="h-3.5 w-3.5 text-club-primary" />
                   <span>{isAr ? "ترتيب تلقائي" : "Trier"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleAddTeam}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-                >
-                  <Plus className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>{isAr ? "إضافة فريق" : "Ajouter équipe"}</span>
                 </button>
 
                 <button
@@ -238,13 +158,12 @@ export function LeagueStandingsTable({
                 <th className="py-3 px-2.5 text-center hidden md:table-cell">{isAr ? "عليه" : "BC"}</th>
                 <th className="hidden px-2.5 py-3 text-center font-semibold sm:table-cell">{isAr ? "الفارق" : "Diff"}</th>
                 <th className="bg-muted/40 px-1.5 py-2 text-center font-black text-foreground sm:px-4 sm:py-3">{isAr ? "النقاط" : "Pts"}</th>
-                {isEditing && <th className="py-3 px-2 text-center w-12">{isAr ? "إجراء" : "Action"}</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {standings.length === 0 ? (
                 <tr>
-                  <td colSpan={isEditing ? 11 : 10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {isAr ? "لا توجد بيانات ترتيب موثقة لهذا الدوري بعد." : "Aucun classement vérifié n’est encore disponible pour ce championnat."}
                     {!isPublic && canManage && !isEditing && <span className="block mt-1">{isAr ? "ابدأ بإضافة الفرق وإدخال نتائجها الفعلية." : "Ajoutez les équipes et saisissez leurs résultats réels."}</span>}
                   </td>
@@ -294,40 +213,25 @@ export function LeagueStandingsTable({
                               : "border-border/80 bg-muted/40"
                           }`}
                         >
-                          {team.teamLogo ? (
-                            <img
-                              src={team.teamLogo}
-                              alt={team.teamName}
-                              className="h-full w-full object-contain p-0.5"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <Shield className={`h-4 w-4 ${isOur ? "text-club-primary" : "text-muted-foreground"}`} />
-                          )}
+                          <OpponentCrest
+                            src={team.teamLogo}
+                            alt={team.teamName}
+                            className="h-full w-full object-contain p-0.5"
+                            iconClassName={`h-4 w-4 ${isOur ? "text-club-primary" : "text-muted-foreground"}`}
+                          />
                         </div>
 
                         {/* Name Input or Label */}
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={team.teamName}
-                              onChange={(e) => handleNameChange(team.id, e.target.value)}
-                              className="w-full max-w-[200px] rounded border border-border bg-background px-2 py-1 text-xs font-semibold focus:border-club-primary focus:outline-hidden"
-                            />
-                          ) : (
-                            <span
-                              className={`truncate font-bold ${
-                              isOur
-                                  ? "text-club-primary dark:text-red-400 text-[11px] tracking-wide sm:text-sm"
-                                  : "text-foreground"
-                              }`}
-                            >
-                              {team.teamName}
-                            </span>
-                          )}
+                          <span
+                            className={`truncate font-bold ${
+                            isOur
+                                ? "text-club-primary dark:text-red-400 text-[11px] tracking-wide sm:text-sm"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {team.teamName}
+                          </span>
 
                           {/* Distinctive Our Club Tag */}
                           {isOur && (
@@ -341,101 +245,20 @@ export function LeagueStandingsTable({
                     </td>
 
                     {/* Stats */}
-                    {isEditing ? (
-                      <>
-                        <td className="py-3 px-2.5 text-center font-mono">{team.played}</td>
-                        <td className="py-2 px-1 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={team.won}
-                            onChange={(e) => handleStatChange(team.id, "won", parseInt(e.target.value) || 0)}
-                            className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
-                          />
-                        </td>
-                        <td className="py-2 px-1 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={team.drawn}
-                            onChange={(e) => handleStatChange(team.id, "drawn", parseInt(e.target.value) || 0)}
-                            className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
-                          />
-                        </td>
-                        <td className="py-2 px-1 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={team.lost}
-                            onChange={(e) => handleStatChange(team.id, "lost", parseInt(e.target.value) || 0)}
-                            className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
-                          />
-                        </td>
-                        <td className="py-2 px-1 text-center hidden md:table-cell">
-                          <input
-                            type="number"
-                            min="0"
-                            value={team.goalsFor}
-                            onChange={(e) => handleStatChange(team.id, "goalsFor", parseInt(e.target.value) || 0)}
-                            className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
-                          />
-                        </td>
-                        <td className="py-2 px-1 text-center hidden md:table-cell">
-                          <input
-                            type="number"
-                            min="0"
-                            value={team.goalsAgainst}
-                            onChange={(e) => handleStatChange(team.id, "goalsAgainst", parseInt(e.target.value) || 0)}
-                            className="w-12 text-center rounded border border-border bg-background p-1 text-xs"
-                          />
-                        </td>
-                        <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
-                          {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
-                        </td>
-                        <td className="py-3 px-4 text-center bg-muted/40 font-mono font-black text-club-primary">{team.points}</td>
-                        <td className="py-2 px-1 text-center">
-                          {!isOur && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTeam(team.id)}
-                              className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                              title={isAr ? "حذف الفريق" : "Supprimer"}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="py-3 px-2.5 text-center font-mono">{team.played}</td>
-                        <td className="py-3 px-2.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{team.won}</td>
-                        <td className="py-3 px-2.5 text-center font-mono text-amber-600 dark:text-amber-400">{team.drawn}</td>
-                        <td className="py-3 px-2.5 text-center font-mono text-red-600 dark:text-red-400">{team.lost}</td>
-                        <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsFor}</td>
-                        <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsAgainst}</td>
-                        <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
-                          <span
-                            className={
-                              team.goalDifference > 0
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : team.goalDifference < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-muted-foreground"
-                            }
-                          >
-                            {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
-                          </span>
-                        </td>
-                        <td className={`py-3 px-4 text-center font-mono font-black text-base tabular-nums ${
-                          isOur
-                            ? "bg-club-primary/10 text-club-primary dark:text-red-400 font-extrabold"
-                            : "text-foreground bg-muted/40"
-                        }`}>
-                          {team.points}
-                        </td>
-                      </>
-                    )}
+                    <td className="py-3 px-2.5 text-center font-mono">{team.played}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{team.won}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-amber-600 dark:text-amber-400">{team.drawn}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-red-600 dark:text-red-400">{team.lost}</td>
+                    <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsFor}</td>
+                    <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsAgainst}</td>
+                    <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
+                      <span className={team.goalDifference > 0 ? "text-emerald-600 dark:text-emerald-400" : team.goalDifference < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+                        {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
+                      </span>
+                    </td>
+                    <td className={`py-3 px-2 text-center font-mono font-black text-base tabular-nums ${isOur ? "bg-club-primary/10 text-club-primary dark:text-red-400 font-extrabold" : "text-foreground bg-muted/40"}`}>
+                      {isEditing ? <input type="number" step="1" value={team.points} onChange={(event) => handleManualPointsChange(team.id, Number.parseInt(event.target.value, 10) || 0)} aria-label={isAr ? `نقاط ${team.teamName}` : `Points ${team.teamName}`} className="w-14 rounded-md border border-club-primary/30 bg-background px-1 py-1 text-center text-sm font-bold focus:border-club-primary focus:outline-none" /> : team.points}
+                    </td>
                   </tr>
                 );
               })}

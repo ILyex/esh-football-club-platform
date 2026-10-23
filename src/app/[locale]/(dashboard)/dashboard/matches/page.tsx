@@ -7,7 +7,7 @@ import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getEffectiveTeamId, getAuthorizedTeams } from "@/lib/team-context";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings2, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Settings2, Trash2 } from "lucide-react";
 import { MatchDocumentPreviewButton } from "@/components/matches/match-document-preview-button";
 import { FafScheduledMatchImportButton } from "@/components/matches/faf-scheduled-match-import-button";
 import { MatchOperationalStatus } from "@/components/matches/match-operational-status";
@@ -253,15 +253,15 @@ export default async function MatchesListPage({
         <p className="rounded-full bg-muted/60 px-3 py-1.5 font-semibold">
           {locale === "ar" ? `${total} مباراة · الصفحة ${page} من ${totalPages}` : `${total} matchs · page ${page} sur ${totalPages}`}
         </p>
-        <nav aria-label={locale === "ar" ? "صفحات المباريات" : "Pages des matchs"} className="flex gap-1.5">
+        <nav aria-label={locale === "ar" ? "صفحات المباريات" : "Pages des matchs"} className="flex items-center gap-2">
           {page > 1 && (
-            <Link aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:bg-club-primary/10">
-              ‹
+            <Link aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
             </Link>
           )}
           {page < totalPages && (
-            <Link aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-club-primary transition-colors hover:bg-club-primary/10">
-              ›
+            <Link aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"} href={`/${locale}/dashboard/matches?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
             </Link>
           )}
         </nav>

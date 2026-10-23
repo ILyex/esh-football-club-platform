@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -179,18 +179,18 @@ export default async function CorrespondenceListPage({
         <p>
           {total} • {tCommon("view")} {page}/{totalPages}
         </p>
-        <div className="flex gap-2">
+        <nav aria-label={locale === "ar" ? "صفحات المراسلات" : "Pages du courrier"} className="flex items-center gap-2">
           {page > 1 && (
-            <Link href={`/${locale}/dashboard/correspondence?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="text-club-primary underline">
-              ‹
+            <Link aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"} href={`/${locale}/dashboard/correspondence?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
             </Link>
           )}
           {page < totalPages && (
-            <Link href={`/${locale}/dashboard/correspondence?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="text-club-primary underline">
-              ›
+            <Link aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"} href={`/${locale}/dashboard/correspondence?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`} className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2">
+              {locale === "ar" ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
             </Link>
           )}
-        </div>
+        </nav>
       </div>
     </div>
   );

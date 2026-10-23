@@ -112,11 +112,13 @@ function formatTrainingRemaining(milliseconds: number) {
 interface UpcomingMatchesCarouselProps {
   matches: PublicMatchItemData[];
   locale?: string;
+  clubLogoUrl?: string | null;
 }
 
 export function UpcomingMatchesCarousel({
   matches,
-  locale = "ar"
+  locale = "ar",
+  clubLogoUrl = "/branding/esh-logo-128.png"
 }: UpcomingMatchesCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [autoplayReset, setAutoplayReset] = useState(0);
@@ -375,7 +377,7 @@ export function UpcomingMatchesCarousel({
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-club-primary/20 bg-background p-2">
                         {m.isHomeFixture ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain" />
+                          <img src={clubLogoUrl || "/branding/esh-logo-128.png"} alt="" className="h-full w-full object-contain" />
                         ) : m.opponentLogo ? (
                           <OpponentCrest src={m.opponentLogo} className="h-full w-full object-contain" />
                         ) : <Shield className="h-6 w-6 text-muted-foreground" aria-hidden="true" />}
@@ -406,7 +408,7 @@ export function UpcomingMatchesCarousel({
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background p-2">
                         {!m.isHomeFixture ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain" />
+                          <img src={clubLogoUrl || "/branding/esh-logo-128.png"} alt="" className="h-full w-full object-contain" />
                         ) : m.opponentLogo ? (
                           <OpponentCrest src={m.opponentLogo} className="h-full w-full object-contain" />
                         ) : <Shield className="h-6 w-6 text-muted-foreground" aria-hidden="true" />}
@@ -443,7 +445,7 @@ export function UpcomingMatchesCarousel({
                       {m.isHomeFixture ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src="/branding/esh-logo-128.png"
+                          src={clubLogoUrl || "/branding/esh-logo-128.png"}
                           alt={m.homeTeamName}
                           className="h-full w-full object-contain"
                         />
@@ -529,7 +531,7 @@ export function UpcomingMatchesCarousel({
                       {!m.isHomeFixture ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src="/branding/esh-logo-128.png"
+                          src={clubLogoUrl || "/branding/esh-logo-128.png"}
                           alt={m.awayTeamName}
                           className="h-full w-full object-contain"
                         />
@@ -877,15 +879,17 @@ export function UpcomingTrainingsCarousel({
 export function UpcomingEventsCarousel({
   nextMatch,
   upcomingTraining,
-  locale = "ar"
+  locale = "ar",
+  clubLogoUrl = "/branding/esh-logo-128.png"
 }: {
   nextMatch: PublicMatchItemData | null;
   upcomingTraining: PublicTrainingItemData | null;
   locale?: string;
+  clubLogoUrl?: string | null;
 }) {
   return (
     <div className="space-y-8">
-      {nextMatch && <UpcomingMatchesCarousel matches={[nextMatch]} locale={locale} />}
+      {nextMatch && <UpcomingMatchesCarousel matches={[nextMatch]} locale={locale} clubLogoUrl={clubLogoUrl} />}
       {upcomingTraining && (
         <UpcomingTrainingsCarousel trainings={[upcomingTraining]} locale={locale} />
       )}

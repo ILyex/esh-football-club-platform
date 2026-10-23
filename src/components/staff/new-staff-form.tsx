@@ -6,6 +6,7 @@ import { DocumentUploadField } from "@/components/dashboard/document-upload-fiel
 import { toast } from "sonner";
 import { User, Shield, Briefcase, FileText, AlertCircle, Loader2, UploadCloud, Image as ImageIcon } from "lucide-react";
 import { FormSelect } from "@/components/ui/form-select";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 
 const ROLES = [
   "HEAD_COACH",
@@ -21,6 +22,9 @@ interface NewStaffFormProps {
   locale: string;
   createAction: (formData: FormData) => Promise<{ id: string; positiveDrugTestDetected?: boolean }>;
   roleTranslations: Record<string, string>;
+  accountRoles: Array<{ id: string; key: string; name: string; teamScoped: boolean }>;
+  teams: Array<{ id: string; label: string }>;
+  canAssignUserAccess: boolean;
   commonSave: string;
 }
 
@@ -28,6 +32,9 @@ export function NewStaffForm({
   locale,
   createAction,
   roleTranslations,
+  accountRoles,
+  teams,
+  canAssignUserAccess,
   commonSave
 }: NewStaffFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +70,9 @@ export function NewStaffForm({
       setFormEpoch((epoch) => epoch + 1);
     } catch (err: any) {
       let rawMsg = err?.message || "";
+      if (rawMsg.includes("categoryAlreadyHasHeadCoach")) {
+        rawMsg = isAr ? "هذه الفئة لديها مدرب رئيسي بالفعل. اختر فئة أخرى أو عدّل ملف المدرب الحالي." : "Cette catégorie a déjà un entraîneur principal. Choisissez une autre catégorie ou modifiez sa fiche.";
+      }
       if (rawMsg.includes("VERIFY_REJECT")) {
         const parts = rawMsg.split("|");
         rawMsg = parts[2] || parts[0];
@@ -127,6 +137,19 @@ export function NewStaffForm({
             name="licenceNumber"
             placeholder="26W14E..."
           />
+          <Field label={isAr ? "تاريخ الميلاد" : "Date de naissance"} name="dateOfBirth" type="date" locale={locale} />
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {isAr ? "زمرة الدم" : "Groupe sanguin"}
+            </label>
+            <FormSelect
+              name="bloodGroup"
+              locale={locale}
+              ariaLabel={isAr ? "زمرة الدم" : "Groupe sanguin"}
+              options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((value) => ({ value, label: value }))}
+              placeholder={isAr ? "اختر زمرة الدم" : "Choisir le groupe"}
+            />
+          </div>
         </div>
       </div>
 
@@ -138,18 +161,18 @@ export function NewStaffForm({
           </div>
           <div>
             <h2 className="text-sm font-bold text-foreground">
-              {isAr ? "الدور والوظيفة الإدارية / الفنية" : "Fonction opérationnelle & Contact"}
+              {isAr ? "المسمى المهني" : "Fonction professionnelle"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {isAr ? "تحديد المهمة داخل الطاقم وبيانات التواصل المهني" : "Rôle au sein du staff et coordonnées de contact"}
+              {isAr ? "اختر الصفة والفئة لتكوين مسمى واحد واضح، مثل مدرب الأكابر." : "Choisissez la fonction et la catégorie pour former un intitulé unique."}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.12fr)] md:items-end">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
           <div className="min-w-0">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {isAr ? "الصفة / المنصب" : "Rôle"} <span className="text-red-500">*</span>
+              {isAr ? "الصفة المهنية" : "Fonction"} <span className="text-red-500">*</span>
             </label>
             <FormSelect
               name="role"
@@ -159,6 +182,18 @@ export function NewStaffForm({
               defaultValue="HEAD_COACH"
               options={ROLES.map((role) => ({ value: role, label: roleTranslations[role] || role }))}
             />
+          </div>
+
+          <div className="min-w-0">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{isAr ? "الفئة المهنية" : "Catégorie"}</label>
+            <FormSelect
+              name="teamId"
+              locale={locale}
+              ariaLabel={isAr ? "الفئة المهنية" : "Catégorie"}
+              options={teams.map((team) => ({ value: team.id, label: team.label }))}
+              placeholder={isAr ? "اختر فئة واحدة" : "Choisir une catégorie"}
+            />
+            <p className="mt-1.5 text-[11px] text-muted-foreground">{isAr ? "فئة واحدة لكل عضو، ومدرب رئيسي واحد لكل فئة." : "Une seule catégorie par membre et un entraîneur principal par catégorie."}</p>
           </div>
 
           <div className="min-w-0">
@@ -173,8 +208,8 @@ export function NewStaffForm({
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {isAr ? "الصورة الشخصية" : "Photo"}
             </label>
-            <label className="group flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border border-dashed border-club-primary/40 bg-club-primary/[0.04] px-3 py-2 transition hover:border-club-primary hover:bg-club-primary/[0.08]">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background text-club-primary">
+            <label className={`${IMAGE_UPLOAD_FRAME} min-h-11 cursor-pointer gap-2.5 px-3 py-2`}>
+              <span className={`${IMAGE_UPLOAD_ICON} h-9 w-9 overflow-hidden rounded-full`}>
                 {photoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoPreview} alt="" className="h-full w-full object-cover" />
@@ -189,6 +224,7 @@ export function NewStaffForm({
                   {photoPreview ? (isAr ? "تم اختيار الصورة" : "Photo sélectionnée") : (isAr ? "JPG أو PNG أو WebP — الحد الأقصى 5 ميغابايت" : "JPG, PNG ou WebP — 5 Mo maximum")}
                 </span>
               </span>
+              <span className={`${IMAGE_UPLOAD_ACTION} h-8 px-2.5 text-[11px]`}>{isAr ? "اختيار" : "Choisir"}</span>
               <input
                 key={formEpoch}
                 name="photo"
@@ -267,6 +303,34 @@ export function NewStaffForm({
         </div>
       </div>
 
+      <div className="rounded-xl border border-border/80 bg-card p-5 shadow-xs sm:p-6">
+        <div className="mb-4 flex items-center gap-2.5 border-b border-border/60 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Shield className="h-4 w-4" /></div>
+          <div>
+            <h2 className="text-sm font-bold text-foreground">{isAr ? "صلاحية حساب المنصة" : "Autorisation du compte"}</h2>
+            <p className="text-xs text-muted-foreground">{isAr ? "هذه الصلاحية تحدد ما يستطيع الحساب فعله، وهي منفصلة عن المسمى المهني." : "Cette autorisation définit les accès du compte et reste distincte de la fonction professionnelle."}</p>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {canAssignUserAccess && accountRoles.length > 0 ? (
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{isAr ? "صلاحية حساب المنصة" : "Autorisation du compte"}</label>
+              <FormSelect
+                name="accountRoleId"
+                locale={locale}
+                ariaLabel={isAr ? "صلاحية حساب المنصة" : "Autorisation du compte"}
+                defaultValue={accountRoles.find((role) => role.key === "viewer")?.id ?? accountRoles[0]?.id ?? ""}
+                options={accountRoles.map((role) => ({ value: role.id, label: role.name }))}
+              />
+            </div>
+          ) : (
+            <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
+              {isAr ? "سيُنشأ الحساب بدور قراءة محدود، ويمكن لمدير المستخدمين تحديد الصلاحيات لاحقًا." : "Le compte sera créé avec le rôle de lecture seule. Un gestionnaire pourra ensuite ajuster ses autorisations."}
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Submit Button */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <Button type="submit" disabled={isSubmitting} className="min-w-36 h-10 font-semibold">
@@ -290,7 +354,8 @@ function Field({
   type = "text",
   required,
   placeholder,
-  defaultValue
+  defaultValue,
+  locale
 }: {
   label: string;
   name: string;
@@ -298,6 +363,7 @@ function Field({
   required?: boolean;
   placeholder?: string;
   defaultValue?: string;
+  locale?: string;
 }) {
   return (
     <div>
@@ -307,6 +373,8 @@ function Field({
       <input
         name={name}
         type={type}
+        lang={type === "date" ? (locale === "ar" ? "ar-DZ" : "fr-DZ") : undefined}
+        dir={type === "date" ? "ltr" : undefined}
         required={required}
         placeholder={placeholder}
         defaultValue={defaultValue}

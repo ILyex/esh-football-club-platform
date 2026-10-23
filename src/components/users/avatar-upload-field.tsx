@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type ChangeEvent } from "react";
 import { ImagePlus, UploadCloud } from "lucide-react";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 
 /** Compresses avatars before the server action so the online DB stores only a small image. */
 export function AvatarUploadField({ locale }: { locale: string }) {
@@ -51,8 +52,8 @@ export function AvatarUploadField({ locale }: { locale: string }) {
         disabled={busy}
         className="peer sr-only"
       />
-      <div className="group flex min-h-[68px] items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-2.5 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 sm:px-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/10 text-club-primary transition-colors group-hover:bg-club-primary/15">
+      <div className={`${IMAGE_UPLOAD_FRAME} min-h-[68px] px-3 py-2.5 sm:px-4`}>
+        <span className={`${IMAGE_UPLOAD_ICON} h-10 w-10`}>
           {selectedName ? <ImagePlus className="h-5 w-5" aria-hidden="true" /> : <UploadCloud className="h-5 w-5" aria-hidden="true" />}
         </span>
         <label htmlFor={inputId} className="min-w-0 flex-1 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40">
@@ -69,7 +70,7 @@ export function AvatarUploadField({ locale }: { locale: string }) {
           type="button"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors hover:border-club-primary/30 hover:text-club-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/40 disabled:cursor-wait disabled:opacity-60"
+          className={IMAGE_UPLOAD_ACTION}
         >
           <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
           {isAr ? "استعراض" : "Parcourir"}

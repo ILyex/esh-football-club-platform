@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { notFound, redirect } from "next/navigation";
-import { updateAnnouncementAction, setAnnouncementStatusAction, deleteAnnouncementAction } from "../actions";
+import { setAnnouncementStatusAction, deleteAnnouncementAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -13,6 +13,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, Eye, EyeOff, ImagePlus, Languages, Megaphone, Save, Settings2, Trash2 } from "lucide-react";
 import { AnnouncementCreatedNotice } from "@/components/announcements/announcement-created-notice";
+import { AnnouncementEditForm } from "@/components/announcements/announcement-edit-form";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -51,10 +52,6 @@ export default async function AnnouncementEditPage({ params, searchParams }: { p
       : t(`statuses.${value}` as any)
   }));
 
-  async function update(formData: FormData) {
-    "use server";
-    await updateAnnouncementAction(id, formData);
-  }
   async function publish() {
     "use server";
     await setAnnouncementStatusAction(id, "PUBLISHED");
@@ -128,7 +125,7 @@ export default async function AnnouncementEditPage({ params, searchParams }: { p
         </div>
       </header>
 
-      <form action={update} encType="multipart/form-data" className="space-y-5">
+      <AnnouncementEditForm announcementId={id} locale={locale}>
         <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 flex items-center gap-3 border-b border-border/70 pb-4">
             <span className={sectionHeadingClass}><Languages className="h-5 w-5" aria-hidden="true" /></span>
@@ -249,7 +246,7 @@ export default async function AnnouncementEditPage({ params, searchParams }: { p
             </ConfirmDialog>
           )}
         </div>
-      </form>
+      </AnnouncementEditForm>
     </div>
   );
 }

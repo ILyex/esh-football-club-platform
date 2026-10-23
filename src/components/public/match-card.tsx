@@ -10,6 +10,7 @@ import { matchStadium } from "@/lib/matches/stadium";
 interface MatchCardProps {
   match: PublicMatchItem;
   locale: string;
+  clubLogoUrl?: string | null;
   labels: {
     scheduled: string;
     live: string;
@@ -22,7 +23,7 @@ interface MatchCardProps {
   };
 }
 
-export function MatchCard({ match, locale, labels }: MatchCardProps) {
+export function MatchCard({ match, locale, labels, clubLogoUrl = "/branding/esh-logo-128.png" }: MatchCardProps) {
   const isFinished = match.status === "FINISHED";
   const isLive = match.status === "LIVE";
   const winnerName = match.winnerSide === "HOME"
@@ -81,7 +82,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-club-primary/20 bg-club-primary/10 shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
             {match.isHomeFixture ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
+              <img src={clubLogoUrl || "/branding/esh-logo-128.png"} alt="" className="h-full w-full object-contain p-1.5" />
             ) : match.opponentLogo ? (
               <OpponentCrest src={match.opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />
             ) : <Shield className="h-6 w-6 text-club-primary sm:h-7 sm:w-7" />}
@@ -123,7 +124,7 @@ export function MatchCard({ match, locale, labels }: MatchCardProps) {
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card shadow-xs transition-transform group-hover:scale-105 sm:mb-3 sm:h-14 sm:w-14">
             {!match.isHomeFixture ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/branding/esh-logo-128.png" alt="" className="h-full w-full object-contain p-1.5" />
+              <img src={clubLogoUrl || "/branding/esh-logo-128.png"} alt="" className="h-full w-full object-contain p-1.5" />
             ) : match.opponentLogo ? (
               <OpponentCrest src={match.opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />
             ) : <Shield className="h-6 w-6 text-muted-foreground sm:h-7 sm:w-7" />}

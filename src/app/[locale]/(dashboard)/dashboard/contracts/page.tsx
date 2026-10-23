@@ -9,6 +9,8 @@ import { DocumentsNavTabs } from "@/components/documents/documents-nav-tabs";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import {
   FileCheck,
+  ChevronLeft,
+  ChevronRight,
   Plus,
   AlertTriangle,
   User,
@@ -407,17 +409,21 @@ export default async function ContractsListPage({
             {page > 1 && (
               <Link
                 href={`/${locale}/dashboard/contracts?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`}
-                className="rounded-lg border border-border bg-card px-3 py-1 font-bold text-foreground hover:bg-muted transition-colors"
+                aria-label={isAr ? "الصفحة السابقة" : "Page précédente"}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2"
               >
-                ‹ {isAr ? "السابق" : "Précédent"}
+                {isAr ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
+                <span>{isAr ? "السابق" : "Précédent"}</span>
               </Link>
             )}
             {page < totalPages && (
               <Link
                 href={`/${locale}/dashboard/contracts?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`}
-                className="rounded-lg border border-border bg-card px-3 py-1 font-bold text-foreground hover:bg-muted transition-colors"
+                aria-label={isAr ? "الصفحة التالية" : "Page suivante"}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2"
               >
-                {isAr ? "التالي" : "Suivant"} ›
+                <span>{isAr ? "التالي" : "Suivant"}</span>
+                {isAr ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
               </Link>
             )}
           </div>

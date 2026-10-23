@@ -47,6 +47,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
               accept="image/png,image/jpeg,image/webp,image/avif"
               hint={locale === "ar" ? "PNG أو JPG أو WebP — حتى 5 ميغابايت" : "PNG, JPG ou WebP — 5 Mo maximum"}
               theme="primary"
+              imageOnly
             />
           </div>
           <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
@@ -75,7 +76,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
           </label>
           <label className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</span>
-            <input name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
+            <input name="dateOfBirth" type="date" lang={locale === "ar" ? "ar-DZ" : "fr-DZ"} dir="ltr" max={new Date().toISOString().slice(0, 10)} className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal outline-none transition-colors focus-visible:border-club-primary focus-visible:ring-2 focus-visible:ring-club-primary/20" />
           </label>
           <div className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
             <span>{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</span>
@@ -89,15 +90,15 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
             </span>
           </label>
           <div className="flex min-w-0 flex-col gap-2.5 text-xs leading-5 font-semibold text-foreground">
-            <span className="block">{t("fields.role")}</span>
+            <span className="block">{locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}</span>
             <FormSelect
               name="roleId"
               required
               locale={locale}
-              ariaLabel={t("fields.role")}
+              ariaLabel={locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}
               defaultValue={roles[0]?.id ?? ""}
               options={roles.map((role) => ({ value: role.id, label: role.name }))}
-              placeholder={locale === "ar" ? "اختر الدور" : "Sélectionner un rôle"}
+              placeholder={locale === "ar" ? "اختر الصلاحية" : "Sélectionner l’autorisation"}
             />
           </div>
         </div>

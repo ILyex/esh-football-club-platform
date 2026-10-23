@@ -110,11 +110,16 @@ export async function GET(request: Request) {
     }) : Promise.resolve([])
   ]);
 
-  const opponentLogos = calendarItems.some((event) => event.type === "MATCH" && event.relatedMatch)
+  // Resolve match crests from the same shared opponent registry used by the
+  // calendar. The home screen consumes `matches`, so its payload must carry
+  // the crest too instead of leaving the client to guess from the team name.
+  const opponentLogos = (matches.length > 0 || calendarItems.some((event) => event.type === "MATCH" && event.relatedMatch))
     ? await getOpponentsMap()
     : {};
+  const clubSettings = await db.clubSettings.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } });
 
   return NextResponse.json({
+    clubLogoUrl: mediaUrl(clubSettings?.logoUrl) || mediaUrl("/branding/esh-logo-128.png"),
     user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
@@ -132,6 +137,7 @@ export async function GET(request: Request) {
         date: match.matchDate,
         status: match.status,
         opponent: match.isHomeFixture ? names.awayTeamName : names.homeTeamName,
+        opponentLogo: mediaUrl(findOpponentLogo(opponentLogos, match.isHomeFixture ? match.awayTeamName : match.homeTeamName)),
         homeTeamName: names.homeTeamName,
         awayTeamName: names.awayTeamName,
         homeScore: match.homeScore,

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
-import { UploadCloud, FileText, CheckCircle2, X } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, X, ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 
 interface FileUploadDropzoneProps {
   name: string;
@@ -12,6 +13,7 @@ interface FileUploadDropzoneProps {
   theme?: "emerald" | "amber" | "primary";
   locale?: string;
   className?: string;
+  imageOnly?: boolean;
 }
 
 export function FileUploadDropzone({
@@ -21,7 +23,8 @@ export function FileUploadDropzone({
   accept = ".pdf,.png,.jpg,.jpeg,.webp",
   theme = "emerald",
   locale = "ar",
-  className
+  className,
+  imageOnly = false
 }: FileUploadDropzoneProps) {
   const isAr = locale === "ar";
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -124,10 +127,12 @@ export function FileUploadDropzone({
         tabIndex={selectedFile ? undefined : 0}
         aria-label={label}
         className={cn(
-          "relative flex flex-col items-center justify-center rounded-xl border border-dashed p-4 text-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/30",
-          themeClasses.border,
-          themeClasses.bg,
-          isDragging && themeClasses.borderDrag
+          imageOnly
+            ? `${IMAGE_UPLOAD_FRAME} min-h-36 w-full cursor-pointer flex-col justify-center p-4`
+            : "relative flex flex-col items-center justify-center rounded-xl border border-dashed p-4 text-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/30",
+          !imageOnly && themeClasses.border,
+          !imageOnly && themeClasses.bg,
+          isDragging && (imageOnly ? "border-club-primary bg-club-primary/10" : themeClasses.borderDrag)
         )}
       >
         <input
@@ -145,12 +150,12 @@ export function FileUploadDropzone({
             onClick={(e) => e.stopPropagation()}
             className={cn(
               "flex w-full items-center justify-between gap-3 rounded-lg border p-2.5 text-xs shadow-2xs",
-              themeClasses.badge
+              imageOnly ? "border-club-primary/20 bg-club-primary/5" : themeClasses.badge
             )}
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background shadow-xs">
-                <FileText className="h-4 w-4" />
+                {imageOnly ? <ImagePlus className="h-4 w-4 text-club-primary" /> : <FileText className="h-4 w-4" />}
               </div>
               <div className="text-start min-w-0">
                 <p className="font-bold truncate max-w-[220px] sm:max-w-sm text-foreground">
@@ -177,7 +182,7 @@ export function FileUploadDropzone({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2">
-            <div className={cn("flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105", themeClasses.iconBg)}>
+            <div className={cn(imageOnly ? `${IMAGE_UPLOAD_ICON} h-10 w-10 rounded-full` : "flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105", !imageOnly && themeClasses.iconBg)}>
               <UploadCloud className="h-5 w-5" />
             </div>
             <div>

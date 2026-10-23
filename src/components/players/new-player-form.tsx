@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { User, Shield, Activity, FileText, Image as ImageIcon, AlertCircle, Loader2, Save, UploadCloud, ImagePlus } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 import { BloodGroupField } from "@/components/players/blood-group-field";
 
 interface TeamItem {
@@ -280,9 +281,9 @@ export function NewPlayerForm({
             />
             <label
               htmlFor="new-player-photo"
-              className="group flex min-h-[76px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-background/70 px-3 py-3 transition-colors hover:border-club-primary/60 hover:bg-club-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-club-primary/30 sm:px-4"
+              className={`${IMAGE_UPLOAD_FRAME} min-h-[76px] w-full cursor-pointer px-3 py-3 peer-focus-visible:ring-2 peer-focus-visible:ring-club-primary/30 sm:px-4`}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-club-primary/15 bg-club-primary/10 text-club-primary transition-colors group-hover:bg-club-primary/15">
+              <span className={`${IMAGE_UPLOAD_ICON} h-10 w-10`}>
                 {selectedPhoto ? <ImagePlus className="h-5 w-5" aria-hidden="true" /> : <UploadCloud className="h-5 w-5" aria-hidden="true" />}
               </span>
               <span className="min-w-0 flex-1">
@@ -295,7 +296,7 @@ export function NewPlayerForm({
                     : (isAr ? "PNG أو JPG أو WebP" : "PNG, JPG ou WebP")}
                 </span>
               </span>
-              <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-xs transition-colors group-hover:border-club-primary/30 group-hover:text-club-primary">
+              <span className={IMAGE_UPLOAD_ACTION}>
                 <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
                 {isAr ? "استعراض" : "Parcourir"}
               </span>

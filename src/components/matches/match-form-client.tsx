@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
 import { FormSelect } from "@/components/ui/form-select";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
 import { NewMatchLineup } from "@/components/matches/new-match-lineup";
 import { MatchPeriodOptions } from "@/components/matches/match-period-options";
 import { RefereeNamesInput } from "@/components/matches/referee-names-input";
@@ -50,6 +51,7 @@ interface SavedOpponent {
   name: string;
   logoUrl: string;
   stadium?: string;
+  aliases?: string[];
 }
 
 interface MatchFormClientProps {
@@ -141,10 +143,10 @@ export function MatchFormClient({
   // When opponent name is typed or chosen, auto-fill existing logo & stadium if saved
   const handleOpponentChange = (value: string) => {
     setOpponent(value);
-    const matched = savedOpponents.find(
-      (o) => o.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase() ===
-        value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase()
-    );
+    const normalizedValue = value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+    const matched = savedOpponents.find((o) => [o.name, ...(o.aliases ?? [])].some((name) =>
+      name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase() === normalizedValue
+    ));
     if (matched?.logoUrl) {
       clearLogoFile();
       setLogoPreview(matched.logoUrl);
@@ -397,10 +399,10 @@ export function MatchFormClient({
           </div>
 
           {/* Opponent Logo Upload & Auto-save (Redesigned) */}
-          <div className="md:col-span-2 rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 p-5 transition-all hover:border-primary/50">
+          <div className={`${IMAGE_UPLOAD_FRAME} md:col-span-2 justify-between gap-4 p-4 sm:p-5`}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-border bg-card shadow-xs overflow-hidden">
+                <div className={`${IMAGE_UPLOAD_PREVIEW} relative h-14 w-14 rounded-2xl shadow-xs`}>
                   {previewLogo ? (
                     <OpponentCrest src={previewLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-7 w-7 text-muted-foreground/40" />
                   ) : (
@@ -422,7 +424,7 @@ export function MatchFormClient({
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-primary/90 transition-all">
+                <label className={`${IMAGE_UPLOAD_ACTION} cursor-pointer`}>
                   <Upload className="h-4 w-4" />
                   <span>{previewLogo ? (isRtl ? "تغيير الشعار" : "Changer le logo") : (isRtl ? "رفع الشعار (PNG/JPG)" : "Téléverser le logo")}</span>
                   <input

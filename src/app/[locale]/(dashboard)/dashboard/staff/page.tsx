@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { DashboardTeamCategorySelect } from "@/components/shared/dashboard-team-category-select";
 import { MasterFilterSelect } from "@/components/shared/master-filter-select";
 import Link from "next/link";
@@ -50,8 +50,8 @@ export default async function StaffListPage({
     ...(sp.role ? { role: sp.role as any } : {}),
     ...(sp.status ? { status: sp.status as any } : { status: { not: "ARCHIVED" as const } }),
     ...((effectiveTeamId || sp.q) ? {
-      AND: [
-        ...(effectiveTeamId ? [{ OR: [{ teamId: effectiveTeamId }, { teamAssignments: { some: { teamId: effectiveTeamId } } }] }] : []),
+        AND: [
+        ...(effectiveTeamId ? [{ teamId: effectiveTeamId }] : []),
         ...(sp.q ? [{ OR: [
             { firstName: { contains: sp.q, mode: "insensitive" as const } },
             { lastName: { contains: sp.q, mode: "insensitive" as const } },
@@ -65,7 +65,7 @@ export default async function StaffListPage({
   const [staff, total, teams, allActiveStaff] = await Promise.all([
     db.staff.findMany({
       where,
-      include: { team: true, teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } } },
+      include: { team: true },
       orderBy: [{ role: "asc" }, { lastName: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -83,17 +83,7 @@ export default async function StaffListPage({
         lastName: true,
         role: true,
         status: true,
-        team: {
-          select: {
-            id: true,
-            category: true,
-            name: true
-          }
-        },
-        teamAssignments: {
-          include: { team: { select: { id: true, category: true, name: true } } },
-          orderBy: { createdAt: "asc" }
-        }
+        team: { select: { id: true, category: true, name: true } }
       }
     })
   ]);
@@ -151,7 +141,6 @@ export default async function StaffListPage({
               <th className="px-4 py-2 text-start w-14">{t("fields.photo")}</th>
               <th className="px-4 py-2 text-start">{t("fields.firstName")}</th>
               <th className="px-4 py-2 text-start">{t("fields.role")}</th>
-              <th className="px-4 py-2 text-start">{tTeams("title")}</th>
               <th className="px-4 py-2 text-start">{tCommon("status")}</th>
               <th className="px-4 py-2 text-start">{tCommon("actions")}</th>
             </tr>
@@ -180,15 +169,11 @@ export default async function StaffListPage({
                 </td>
                 <td className="px-4 py-2">
                   <span className="inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
-                    {t(`roles.${s.role}` as any)}
+                    {[
+                      t(`roles.${s.role}` as any),
+                      s.team?.category ? tTeams(`categories.${s.team.category}` as any) : null
+                    ].filter(Boolean).join(locale === "ar" ? " " : " — ")}
                   </span>
-                </td>
-                <td className="px-4 py-2">
-                  {s.teamAssignments?.length
-                    ? s.teamAssignments.map((assignment) => tTeams(`categories.${assignment.team.category}` as any)).join("، ")
-                    : s.team
-                      ? tTeams(`categories.${s.team.category}` as any)
-                      : "—"}
                 </td>
                 <td className="px-4 py-2">
                   <Badge tone={STATUS_TONE[s.status]}>{t(`statuses.${s.status}` as any)}</Badge>
@@ -202,7 +187,7 @@ export default async function StaffListPage({
             ))}
             {staff.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                   {tCommon("noResults")}
                 </td>
               </tr>
@@ -215,24 +200,26 @@ export default async function StaffListPage({
         <p>
           {total} • {tCommon("view")} {page}/{totalPages}
         </p>
-        <div className="flex gap-2">
+        <nav aria-label={locale === "ar" ? "صفحات الطاقم" : "Pages du personnel"} className="flex items-center gap-2">
           {page > 1 && (
             <Link
+              aria-label={locale === "ar" ? "الصفحة السابقة" : "Page précédente"}
               href={`/${locale}/dashboard/staff?${new URLSearchParams({ ...sp, page: String(page - 1) } as any)}`}
-              className="text-club-primary underline"
+              className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2"
             >
-              ‹
+              {locale === "ar" ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
             </Link>
           )}
           {page < totalPages && (
             <Link
+              aria-label={locale === "ar" ? "الصفحة التالية" : "Page suivante"}
               href={`/${locale}/dashboard/staff?${new URLSearchParams({ ...sp, page: String(page + 1) } as any)}`}
-              className="text-club-primary underline"
+              className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-club-primary hover:bg-club-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2"
             >
-              ›
+              {locale === "ar" ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
             </Link>
           )}
-        </div>
+        </nav>
       </div>
     </div>
   );

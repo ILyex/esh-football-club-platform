@@ -1,4 +1,4 @@
-import { Save, Trash2, Archive, RotateCcw, UsersRound, Plus, X, BriefcaseBusiness } from "lucide-react";
+import { Save, Trash2, Archive, RotateCcw } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
@@ -7,15 +7,15 @@ import {
   updateStaffAction,
   archiveStaffAction,
   restoreStaffAction,
-  hardDeleteStaffAction,
-  addStaffTeamAction,
-  removeStaffTeamAction
+  hardDeleteStaffAction
 } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
+import { StaffPhotoUploadField } from "@/components/staff/staff-photo-upload-field";
 import { getPlayerDisplayName } from "@/lib/utils";
+import Link from "next/link";
 
 const ROLES = [
   "HEAD_COACH",
@@ -27,31 +27,33 @@ const ROLES = [
   "OTHER"
 ] as const;
 
-export default async function StaffDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function StaffDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ staffSave?: string }> }) {
   const { locale, id } = await params;
+  const { staffSave } = await searchParams;
   const user = await requirePagePermission("staff.view", locale);
   const t = await getTranslations("staff");
-  const tTeam = await getTranslations("teamAssignments");
+  const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
   const canUpdate = hasPermission(user, "staff.update");
   const canDelete = hasPermission(user, "staff.delete");
+  const canAssignUserAccess = hasPermission(user, "users.manage");
 
-  const [staff, allTeams] = await Promise.all([
+  const [staff, allTeams, allRoles] = await Promise.all([
     db.staff.findUnique({
       where: { id },
       include: {
         contracts: true,
         documents: true,
-        teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } }
+        user: { select: { id: true, roleId: true, email: true, isActive: true } },
+        team: { select: { category: true } }
       }
     }),
-    db.team.findMany({ where: { active: true }, orderBy: { name: "asc" } })
+    db.team.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.role.findMany({ orderBy: { name: "asc" }, select: { id: true, key: true, name: true } })
   ]);
   if (!staff) notFound();
-
-  const assignedTeamIds = new Set(staff.teamAssignments.map((a) => a.teamId));
-  const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
+  const accountRoles = allRoles.filter((role) => !["super_admin", "treasurer", "staff_profile"].includes(role.key));
 
   const cniDoc = staff.documents.find(
     (d) =>
@@ -75,7 +77,14 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
 
   async function update(formData: FormData) {
     "use server";
-    await updateStaffAction(id, formData);
+    try {
+      await updateStaffAction(id, formData);
+    } catch (error) {
+      console.error("Staff profile update failed", { staffId: id, error });
+      const reason = error instanceof Error && error.message.includes("categoryAlreadyHasHeadCoach") ? "coachAssigned" : "error";
+      redirect(`/${locale}/dashboard/staff/${id}?staffSave=${reason}`);
+    }
+    redirect(`/${locale}/dashboard/staff/${id}?staffSave=success`);
   }
   async function archive() {
     "use server";
@@ -90,11 +99,6 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
     await hardDeleteStaffAction(id);
     redirect(`/${locale}/dashboard/staff`);
   }
-  async function addTeam(formData: FormData) {
-    "use server";
-    await addStaffTeamAction(id, formData);
-  }
-
   return (
     <div className="mx-auto w-full max-w-4xl space-y-7">
       <header className="border-b border-border/70 pb-5 text-center">
@@ -102,10 +106,24 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
           {locale === "ar" ? "تعديل معلومات الطاقم" : "Modifier les informations du staff"}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">{getPlayerDisplayName(staff, locale)}</p>
+        <p className="mt-1 text-xs font-semibold text-club-primary">
+          {[t(`roles.${staff.role}` as any), staff.team ? tTeams(`categories.${staff.team.category}` as any) : null].filter(Boolean).join(locale === "ar" ? " " : " — ")}
+        </p>
       </header>
+
+      {staffSave && (
+        <div role="status" className={`rounded-xl border px-4 py-3 text-sm ${staffSave === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"}`}>
+          {staffSave === "success"
+            ? (locale === "ar" ? "تم حفظ بيانات عضو الطاقم بنجاح." : "Les informations du membre du staff ont été enregistrées.")
+            : staffSave === "coachAssigned"
+              ? (locale === "ar" ? "هذه الفئة لديها مدرب رئيسي بالفعل. اختر فئة أخرى أو عدّل ملف المدرب الحالي." : "Cette catégorie a déjà un entraîneur principal. Choisissez une autre catégorie ou modifiez sa fiche.")
+              : (locale === "ar" ? "تعذر حفظ كل التغييرات. أعد تحميل الصفحة وراجع البيانات أو الملفات ثم حاول مجددًا." : "Certaines modifications n’ont pas pu être enregistrées. Rechargez la page, vérifiez les données ou les fichiers, puis réessayez.")}
+        </div>
+      )}
 
       {/* ── Profile ─────────────────────────────────────────────────────── */}
       <form id="staff-update-form" action={update} className="mx-auto grid w-full grid-cols-1 gap-x-6 gap-y-5 rounded-2xl border border-border bg-card p-5 text-center shadow-sm sm:p-7 md:grid-cols-2">
+        <input type="hidden" name="recordUpdatedAt" value={staff.updatedAt.toISOString()} />
         <div className="col-span-1 border-b border-border/70 pb-3 text-start md:col-span-2">
           <h2 className="text-base font-bold">{locale === "ar" ? "البيانات الشخصية" : "Informations personnelles"}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "حدّث الاسم والهوية المهنية لعضو الطاقم." : "Mettez à jour l’identité professionnelle du membre."}</p>
@@ -115,6 +133,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
         <Field label={locale === "ar" ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={staff.firstNameFr ?? ""} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "اللقب (بالفرنسية)" : "Nom (FR)"} name="lastNameFr" defaultValue={staff.lastNameFr ?? ""} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "رقم الرخصة" : "N° de licence"} name="licenceNumber" defaultValue={staff.licenceNumber ?? ""} disabled={!canUpdate} />
+        <Field label={locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"} name="dateOfBirth" type="date" locale={locale} defaultValue={staff.dateOfBirth?.toISOString().slice(0, 10) ?? ""} disabled={!canUpdate} />
+        <div className="min-w-0">
+          <label className="mb-1.5 block text-sm font-semibold">{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</label>
+          <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} defaultValue={staff.bloodGroup ?? ""} disabled={!canUpdate} options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((value) => ({ value, label: value }))} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
+        </div>
 
         <div className="col-span-1 mt-2 border-b border-border/70 pb-3 text-start md:col-span-2">
           <h2 className="text-base font-bold">{locale === "ar" ? "الدور والبيانات المهنية" : "Fonction et informations professionnelles"}</h2>
@@ -134,6 +157,32 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
                 options={ROLES.map((r) => ({ value: r, label: t(`roles.${r}` as any) }))}
               />
             </div>
+          </div>
+
+          <div className="col-span-1 min-w-0 md:col-span-2">
+            <label className="mb-1.5 block text-sm font-semibold">{locale === "ar" ? "الفئة المهنية" : "Catégorie professionnelle"}</label>
+            <FormSelect
+              name="teamId"
+              defaultValue={staff.teamId ?? ""}
+              disabled={!canUpdate || (Boolean(staff.user) && !canAssignUserAccess)}
+              locale={locale}
+              ariaLabel={locale === "ar" ? "الفئة المهنية" : "Catégorie professionnelle"}
+              options={allTeams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))}
+              placeholder={locale === "ar" ? "اختر فئة واحدة" : "Choisir une catégorie"}
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">{locale === "ar" ? "هذه الفئة مع الصفة المهنية تحدد مهمة العضو. يمكن ربطه بفئة واحدة فقط، ولكل فئة مدرب رئيسي واحد." : "La catégorie et la fonction définissent ensemble le poste. Un seul entraîneur principal est autorisé par catégorie."}</p>
+          </div>
+
+          <div className="min-w-0">
+            <label className="mb-1.5 block text-sm font-semibold">{locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}</label>
+            <FormSelect
+              name="accountRoleId"
+              defaultValue={staff.accountRoleId ?? staff.user?.roleId ?? accountRoles.find((role) => role.key === "viewer")?.id ?? ""}
+              disabled={!canUpdate || !canAssignUserAccess}
+              locale={locale}
+              ariaLabel={locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}
+              options={accountRoles.map((role) => ({ value: role.id, label: role.name }))}
+            />
           </div>
 
           <div className="min-w-0">
@@ -161,19 +210,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
 
           <div className="min-w-0">
             <label className="mb-1.5 block text-sm font-semibold">{t("fields.photo")}</label>
-            <label className="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-club-primary/40 bg-club-primary/[0.04] px-3 py-2 transition hover:border-club-primary hover:bg-club-primary/[0.08] has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
-              {staff.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={staff.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full border border-border object-cover" />
-              ) : (
-                <span className="h-10 w-10 shrink-0 rounded-full border border-border bg-background" aria-hidden="true" />
-              )}
-              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                {locale === "ar" ? "اختر صورة جديدة" : "Choisir une nouvelle photo"}
-              </span>
-              <span className="shrink-0 rounded-lg bg-club-primary px-3 py-1.5 text-xs font-semibold text-white">{locale === "ar" ? "اختيار" : "Choisir"}</span>
-              <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" disabled={!canUpdate} className="sr-only" />
-            </label>
+            <StaffPhotoUploadField currentPhotoUrl={staff.photoUrl} locale={locale} disabled={!canUpdate} />
           </div>
         </div>
 
@@ -188,130 +225,20 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
           />
         </div>
 
-        {(canUpdate || canDelete) && (
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex flex-wrap items-center justify-start gap-2.5 border-t border-border/70 pt-5 md:justify-end" dir={locale === "ar" ? "rtl" : "ltr"}>
-              {canUpdate && <Button type="submit" className="inline-flex h-10 min-w-36 items-center justify-center gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"><Save className="h-4 w-4 shrink-0" /><span>{tCommon("save")}</span></Button>}
-              {canUpdate && (
-                staff.status === "ARCHIVED" ? (
-                  <ConfirmDialog
-                    title={locale === "ar" ? "إرجاع عضو الطاقم إلى القائمة النشطة؟" : "Restaurer ce membre du staff ?"}
-                    body={locale === "ar" ? "سيعود عضو الطاقم إلى الحالة النشطة وسيظهر مجددًا ضمن الطاقم الحالي." : "Ce membre repassera au statut actif et réapparaîtra dans le staff courant."}
-                    onConfirm={restore}
-                  >
-                    <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
-                      <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {locale === "ar" ? "إرجاع عضو الطاقم" : "Restaurer le membre"}
-                    </Button>
-                  </ConfirmDialog>
-                ) : (
-                  <ConfirmDialog
-                    title={locale === "ar" ? "أرشفة عضو الطاقم؟" : "Archiver ce membre ?"}
-                    body={locale === "ar" ? "سيختفي عضو الطاقم من القوائم النشطة مع الاحتفاظ بملفه وسجلاته، ويمكن إرجاعه لاحقًا." : "Ce membre sera retiré des listes actives, tout en conservant son dossier et son historique."}
-                    onConfirm={archive}
-                  >
-                    <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
-                      <Archive className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {locale === "ar" ? "أرشفة عضو الطاقم" : "Archiver le membre"}
-                    </Button>
-                  </ConfirmDialog>
-                )
-              )}
-              {canDelete && (
-                <ConfirmDialog
-                  title={locale === "ar" ? "حذف عضو الطاقم نهائيًا؟" : "Supprimer définitivement ce membre du staff ?"}
-                  body={locale === "ar" ? "سيتم حذف سجل عضو الطاقم نهائيًا ولا يمكن التراجع عن هذا الإجراء." : "La fiche de ce membre du staff sera supprimée définitivement. Cette action est irréversible."}
-                  onConfirm={hardDelete}
-                >
-                  <Button type="button" size="icon" variant="destructive" className="h-10 w-10 shrink-0 bg-red-600 text-white hover:bg-red-700" aria-label={locale === "ar" ? "حذف عضو الطاقم نهائيًا" : "Supprimer définitivement ce membre"} title={locale === "ar" ? "حذف نهائي" : "Suppression définitive"}>
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </ConfirmDialog>
-              )}
-            </div>
-          </div>
-        )}
       </form>
 
-      {/* ── Team Assignments — Operational (P2) ─────────────────────────── */}
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex items-start justify-between gap-4 border-b border-border/80 bg-gradient-to-l from-club-primary/[0.08] via-card to-card px-5 py-4 sm:px-6">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary ring-1 ring-club-primary/15">
-                <UsersRound className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-foreground">{tTeam("staffTitle")}</h2>
-                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{tTeam("staffHint")}</p>
-              </div>
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
-              <BriefcaseBusiness className="h-3.5 w-3.5 text-club-primary" aria-hidden="true" />
-              {staff.teamAssignments.length}
-            </span>
-          </div>
+      {staff.user && (
+        <aside className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-club-primary/20 bg-club-primary/[0.04] px-4 py-3 text-sm">
+          <span className="text-muted-foreground">
+            {locale === "ar" ? `حساب المستخدم المرتبط: ${staff.user.email}${staff.user.isActive ? " · مفعّل" : " · معطّل حتى تعيين البريد وكلمة المرور"}` : `Compte associé : ${staff.user.email}${staff.user.isActive ? " · actif" : " · inactif jusqu’à la définition des identifiants"}`}
+          </span>
+          <Link href={`/${locale}/dashboard/users/${staff.user.id}`} className="font-semibold text-club-primary hover:underline">
+            {locale === "ar" ? "إدارة البريد وكلمة المرور" : "Gérer l’e-mail et le mot de passe"}
+          </Link>
+        </aside>
+      )}
 
-          <div className="space-y-5 p-5 sm:p-6">
-            {staff.teamAssignments.length === 0 ? (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
-                <UsersRound className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
-                <span>{tTeam("noAssignments")}</span>
-              </div>
-            ) : (
-              <ul className="grid gap-2.5 sm:grid-cols-2">
-                {staff.teamAssignments.map((a) => {
-                  async function remove() {
-                    "use server";
-                    await removeStaffTeamAction(id, a.teamId);
-                  }
-                  return (
-                    <li key={a.teamId} className="group flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 transition-colors hover:border-club-primary/40 hover:bg-club-primary/[0.03]">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
-                        <span className="truncate text-sm font-semibold text-foreground">{tTeam(`categories.${a.team.category}` as any)}</span>
-                      </div>
-                      {canUpdate && (
-                        <form action={remove}>
-                          <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
-                            <X className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </form>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {canUpdate && unassignedTeams.length > 0 && (
-              <form action={addTeam} className="rounded-xl border border-dashed border-club-primary/35 bg-club-primary/[0.035] p-4">
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold text-foreground">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  <span>{tTeam("addTeam")}</span>
-                </div>
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
-                  <div className="min-w-0 flex-1">
-                    <FormSelect
-                      name="teamId"
-                      locale={locale}
-                      ariaLabel={tTeam("addTeam")}
-                      defaultValue={unassignedTeams[0]?.id ?? ""}
-                      options={unassignedTeams.map((team) => ({ value: team.id, label: tTeam(`categories.${team.category}` as any) }))}
-                    />
-                  </div>
-                  <Button type="submit" className="h-10 shrink-0 gap-2 px-4">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    {tTeam("assign")}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </section>
-
-      {/* Documents remain part of the profile form via formId, below team assignments for quicker access. */}
+      {/* Documents remain part of the profile form via formId. */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
         {/* Official Staff Documents Section */}
         <div className="col-span-1 md:col-span-2 pt-4 border-t border-border/80">
@@ -373,6 +300,50 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ lo
         </div>
 
       </div>
+
+      {(canUpdate || canDelete) && (
+        <div className="sticky bottom-3 z-20 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md sm:p-4">
+          <div className="flex flex-wrap items-center justify-start gap-2.5" dir={locale === "ar" ? "rtl" : "ltr"}>
+            {canUpdate && <Button type="submit" form="staff-update-form" className="inline-flex h-10 min-w-36 items-center justify-center gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"><Save className="h-4 w-4 shrink-0" /><span>{tCommon("save")}</span></Button>}
+            {canUpdate && (
+              staff.status === "ARCHIVED" ? (
+                <ConfirmDialog
+                  title={locale === "ar" ? "إرجاع عضو الطاقم إلى القائمة النشطة؟" : "Restaurer ce membre du staff ?"}
+                  body={locale === "ar" ? "سيعود عضو الطاقم إلى الحالة النشطة وسيظهر مجددًا ضمن الطاقم الحالي." : "Ce membre repassera au statut actif et réapparaîtra dans le staff courant."}
+                  onConfirm={restore}
+                >
+                  <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                    <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {locale === "ar" ? "إرجاع عضو الطاقم" : "Restaurer le membre"}
+                  </Button>
+                </ConfirmDialog>
+              ) : (
+                <ConfirmDialog
+                  title={locale === "ar" ? "أرشفة عضو الطاقم؟" : "Archiver ce membre ?"}
+                  body={locale === "ar" ? "سيختفي عضو الطاقم من القوائم النشطة مع الاحتفاظ بملفه وسجلاته، ويمكن إرجاعه لاحقًا." : "Ce membre sera retiré des listes actives, tout en conservant son dossier et son historique."}
+                  onConfirm={archive}
+                >
+                  <Button type="button" className="inline-flex h-10 min-w-40 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                    <Archive className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {locale === "ar" ? "أرشفة عضو الطاقم" : "Archiver le membre"}
+                  </Button>
+                </ConfirmDialog>
+              )
+            )}
+            {canDelete && (
+              <ConfirmDialog
+                title={locale === "ar" ? "حذف عضو الطاقم نهائيًا؟" : "Supprimer définitivement ce membre du staff ?"}
+                body={locale === "ar" ? "سيتم حذف سجل عضو الطاقم نهائيًا ولا يمكن التراجع عن هذا الإجراء." : "La fiche de ce membre du staff sera supprimée définitivement. Cette action est irréversible."}
+                onConfirm={hardDelete}
+              >
+                <Button type="button" size="icon" variant="destructive" className="h-10 w-10 shrink-0 bg-red-600 text-white hover:bg-red-700" aria-label={locale === "ar" ? "حذف عضو الطاقم نهائيًا" : "Supprimer définitivement ce membre"} title={locale === "ar" ? "حذف نهائي" : "Suppression définitive"}>
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </ConfirmDialog>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -381,12 +352,14 @@ function Field({
   label,
   name,
   type = "text",
+  locale,
   defaultValue,
   disabled
 }: {
   label: string;
   name: string;
   type?: string;
+  locale?: string;
   defaultValue?: string;
   disabled?: boolean;
 }) {
@@ -396,6 +369,8 @@ function Field({
       <input
         name={name}
         type={type}
+        lang={type === "date" ? (locale === "ar" ? "ar-DZ" : "fr-DZ") : undefined}
+        dir={type === "date" ? "ltr" : undefined}
         defaultValue={defaultValue}
         disabled={disabled}
         className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/20 disabled:opacity-60"

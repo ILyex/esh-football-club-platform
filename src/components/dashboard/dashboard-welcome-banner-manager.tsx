@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
 import { FileCheck2, ImagePlus, LoaderCircle, Save, UploadCloud } from "lucide-react";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 import { Button } from "@/components/ui/button";
 import { updateDashboardWelcomeBannerAction } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
 
@@ -110,9 +111,9 @@ export function DashboardWelcomeBannerManager({ locale, currentImageUrl }: Dashb
           <label
             htmlFor={inputId}
             aria-disabled={isSaving}
-            className={`flex min-h-12 items-center gap-3 rounded-xl border border-dashed border-border bg-background px-3 py-2.5 text-start transition-colors ${isSaving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary/50 hover:bg-primary/[0.03] focus-within:border-primary"} focus-within:ring-2 focus-within:ring-primary/20`}
+            className={`${IMAGE_UPLOAD_FRAME} min-h-12 w-full gap-3 px-3 py-2.5 text-start ${isSaving ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className={`${IMAGE_UPLOAD_ICON} h-8 w-8 rounded-lg`}>
               {file ? <FileCheck2 className="h-4 w-4" /> : <UploadCloud className="h-4 w-4" />}
             </span>
             <span className="min-w-0 flex-1">
@@ -123,7 +124,7 @@ export function DashboardWelcomeBannerManager({ locale, currentImageUrl }: Dashb
                 {isAr ? "JPG أو PNG أو WebP أو GIF · حتى 2 ميغابايت" : "JPG, PNG, WebP ou GIF · jusqu’à 2 Mo"}
               </span>
             </span>
-            <span className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted">
+            <span className={`${IMAGE_UPLOAD_ACTION} h-8 px-2.5 text-[11px]`}>
               {isAr ? (file ? "تغيير الملف" : "اختيار ملف") : (file ? "Changer" : "Parcourir")}
             </span>
           </label>

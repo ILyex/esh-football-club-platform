@@ -21,6 +21,7 @@ import { createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from 
 import { estimateShotXg } from "@/lib/matches/xg";
 import { matchStadium } from "@/lib/matches/stadium";
 import { deletePrivateFile } from "@/lib/storage";
+import { ensureCompetitionStandingsBaseline } from "@/lib/competitions/live-standings";
 
 function revalidatePath(...args: Parameters<typeof nextRevalidatePath>) {
   try {
@@ -129,7 +130,7 @@ export async function createMatchAction(formData: FormData) {
     opponentLogoUrl = await uploadPublicFile({ key, buffer, mimeType: validated.mime });
     if (parsed.opponent) {
       const { saveOpponentClub } = await import("@/lib/opponents");
-      await saveOpponentClub(parsed.opponent, opponentLogoUrl, parsed.stadium);
+      await saveOpponentClub(parsed.opponent, opponentLogoUrl, parsed.stadium, parsed.opponentNameFr ? [parsed.opponentNameFr] : []);
     }
   } else if (parsed.opponent) {
     const { getOpponentLogo } = await import("@/lib/opponents");
@@ -222,6 +223,15 @@ export async function createMatchAction(formData: FormData) {
     return createdMatch;
   });
 
+  if (parsed.competitionId) {
+    try {
+      await ensureCompetitionStandingsBaseline(parsed.competitionId);
+    } catch (error) {
+      // The match is already saved; baseline setup must not turn it into a reported failure.
+      console.error("Could not initialize league standings after saving the match:", error instanceof Error ? error.message : "unknown error");
+    }
+  }
+
   try {
     revalidatePath("/[locale]/dashboard/matches", "page");
     revalidatePath(`/[locale]/dashboard/matches/${match.id}`, "page");
@@ -282,7 +292,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
     opponentLogoUrl = await uploadPublicFile({ key, buffer, mimeType: validated.mime });
     if (parsed.opponent) {
       const { saveOpponentClub } = await import("@/lib/opponents");
-      await saveOpponentClub(parsed.opponent, opponentLogoUrl, parsed.stadium);
+      await saveOpponentClub(parsed.opponent, opponentLogoUrl, parsed.stadium, parsed.opponentNameFr ? [parsed.opponentNameFr] : []);
     }
   } else if (parsed.opponent) {
     const { getOpponentLogo } = await import("@/lib/opponents");

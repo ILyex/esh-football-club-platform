@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { ImagePlus, LoaderCircle, Save } from "lucide-react";
+import { IMAGE_UPLOAD_FRAME } from "@/components/ui/image-upload-frame";
 import { Button } from "@/components/ui/button";
 import { updateWebsiteImageSlotAction, type WebsiteImageSlot } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
 import { isVideoUrl } from "@/lib/media-utils";
@@ -91,7 +92,7 @@ export function WebsiteImageSlotsManager({ images, onVercel = false }: { images:
               <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0"><h3 className="text-sm font-bold">{slot.title}</h3><p className="mt-0.5 text-[11px] text-muted-foreground">صور JPG وPNG وWebP أو فيديو MP4 وWebM وMOV — حتى {onVercel ? "4" : "8 للصورة و35 للفيديو"} ميغابايت.</p></div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <label className="cursor-pointer rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
+                  <label className={`${IMAGE_UPLOAD_FRAME} min-h-9 cursor-pointer gap-2 px-3 py-2 text-xs font-semibold`}>
                     {selected[slot.id] ? "تغيير الملف" : "اختيار صورة أو فيديو"}
                     <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov" className="sr-only" onChange={(event) => pick(slot, event)} disabled={isSaving} />
                   </label>

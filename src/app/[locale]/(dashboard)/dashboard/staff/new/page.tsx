@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { requirePagePermission } from "@/lib/permissions";
 import { createStaffAction } from "../actions";
 import { NewStaffForm } from "@/components/staff/new-staff-form";
+import { db } from "@/lib/db";
+import { hasPermission } from "@/lib/permissions";
 
 const ROLES = [
   "HEAD_COACH",
@@ -15,9 +17,17 @@ const ROLES = [
 
 export default async function NewStaffPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  await requirePagePermission("staff.create", locale);
+  const actor = await requirePagePermission("staff.create", locale);
   const t = await getTranslations("staff");
+  const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
+  const [teams, allRoles] = await Promise.all([
+    db.team.findMany({ where: { active: true }, orderBy: { category: "asc" }, select: { id: true, category: true } }),
+    db.role.findMany({ orderBy: { name: "asc" }, select: { id: true, key: true, name: true, teamScoped: true } })
+  ]);
+  const canAssignUserAccess = hasPermission(actor, "users.manage");
+  const accountRoles = allRoles.filter((role) => !["super_admin", "treasurer"].includes(role.key));
+  const teamOptions = teams.map((team) => ({ id: team.id, label: tTeams(`categories.${team.category}` as any) }));
 
   const roleTranslations: Record<string, string> = {};
   for (const r of ROLES) {
@@ -41,6 +51,9 @@ export default async function NewStaffPage({ params }: { params: Promise<{ local
         locale={locale}
         createAction={createStaffAction}
         roleTranslations={roleTranslations}
+        accountRoles={canAssignUserAccess ? accountRoles : []}
+        teams={teamOptions}
+        canAssignUserAccess={canAssignUserAccess}
         commonSave={tCommon("save")}
       />
     </div>

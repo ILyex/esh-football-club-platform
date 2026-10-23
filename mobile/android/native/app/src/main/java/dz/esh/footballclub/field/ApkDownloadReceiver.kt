@@ -25,14 +25,21 @@ class ApkDownloadReceiver : BroadcastReceiver() {
         manager.query(query)?.use { cursor ->
             if (!cursor.moveToFirst()) return
             val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            if (status != DownloadManager.STATUS_SUCCESSFUL) {
-                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
+            // Ignore forged or early broadcasts while DownloadManager is still
+            // working. Only a terminal failure may clear the persisted job.
+            if (status != DownloadManager.STATUS_SUCCESSFUL && status != DownloadManager.STATUS_FAILED) return
+            if (status == DownloadManager.STATUS_FAILED) {
+                prefs.edit()
+                    .remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).remove(PENDING_TAG).remove(SUPPRESS_TAG)
+                    .putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
                 return
             }
         }
 
         val apkUri = manager.getUriForDownloadedFile(downloadId) ?: run {
-            prefs.edit().remove(PENDING_DOWNLOAD_ID).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
+            prefs.edit()
+                .remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).remove(PENDING_TAG).remove(SUPPRESS_TAG)
+                .putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
             return
         }
         val expectedSha256 = prefs.getString(PENDING_SHA256, null)
@@ -51,7 +58,9 @@ class ApkDownloadReceiver : BroadcastReceiver() {
             }.getOrNull()
             if (!expectedSha256.equals(actualSha256, ignoreCase = true)) {
                 manager.remove(downloadId)
-                prefs.edit().remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
+                prefs.edit()
+                    .remove(PENDING_DOWNLOAD_ID).remove(PENDING_SHA256).remove(PENDING_TAG).remove(SUPPRESS_TAG)
+                    .putBoolean(DOWNLOAD_ACTIVE, false).putBoolean(DOWNLOAD_FAILED, true).apply()
                 return
             }
         }

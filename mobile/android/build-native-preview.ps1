@@ -37,14 +37,21 @@ try {
   $platformRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
   $downloadRoot = Join-Path $platformRoot "public\downloads"
   New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+  $versionedFileName = "esh-field-v$releaseVersion-$releaseVersionCode.apk"
+  $versionedApk = Join-Path $downloadRoot $versionedFileName
+  Copy-Item -LiteralPath $output -Destination $versionedApk -Force
   $publicApk = Join-Path $downloadRoot "esh-field-latest.apk"
   Copy-Item -LiteralPath $output -Destination $publicApk -Force
   $sha256 = (Get-FileHash -LiteralPath $publicApk -Algorithm SHA256).Hash.ToLowerInvariant()
-  $manifest = [ordered]@{ version = $releaseVersion; versionCode = $releaseVersionCode; apkUrl = "/downloads/esh-field-latest.apk"; sha256 = $sha256 }
+  # The stable alias can remain cached at a CDN edge after replacing the APK.
+  # Point clients to a unique immutable URL for each release so its hash and
+  # downloaded bytes can never come from different app versions.
+  $manifest = [ordered]@{ version = $releaseVersion; versionCode = $releaseVersionCode; apkUrl = "/downloads/$versionedFileName"; sha256 = $sha256 }
   $manifestPath = Join-Path $platformRoot "public\native-android-release.json"
   [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
   Write-Output "Native APK: $delivery"
   Write-Output "Public update APK: $publicApk"
+  Write-Output "Versioned update APK: $versionedApk"
   Write-Output "Public update manifest: $manifestPath"
 } finally {
   Remove-Item Env:ESH_SIGNING_PROPERTIES -ErrorAction SilentlyContinue

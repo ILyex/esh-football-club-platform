@@ -375,7 +375,7 @@ export async function importUpcomingFafMatches(options: {
           buffer: bytes,
           mimeType: image.mime
         });
-        await saveOpponentClub(opponent, storedLogoUrl, fafStadium || undefined);
+        await saveOpponentClub(opponent, storedLogoUrl, fafStadium || undefined, [opponentNames.ar, opponentNames.fr, opponentDisplayName].filter(Boolean));
         logoImported = true;
         break;
         } catch (error) {

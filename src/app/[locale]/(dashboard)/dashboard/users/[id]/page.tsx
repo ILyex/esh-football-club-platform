@@ -1,7 +1,7 @@
 import { formatAlgeriaDateTimeLocalized } from "@/lib/dates/algeria";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePagePermission } from "@/lib/permissions";
+import { isProgrammer, requirePagePermission } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import {
   updateUserAction,
@@ -19,11 +19,13 @@ import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
 import { NoticeToast } from "@/components/shared/notice-toast";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function UserDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ notice?: string }> }) {
   const { locale, id } = await params;
   const { notice } = await searchParams;
-  await requirePagePermission("users.manage", locale);
+  const actor = await requirePagePermission("users.manage", locale);
+  const canResetPasswords = isProgrammer(actor);
   const t = await getTranslations("users");
   const tTeam = await getTranslations("teamAssignments");
   const tCommon = await getTranslations("common");
@@ -40,6 +42,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
       },
       include: {
         role: true,
+        staff: { select: { id: true, role: true, status: true } },
         teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } }
       }
     }),
@@ -52,6 +55,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
   const assignedTeamIds = new Set(user.teamAssignments.map((a) => a.teamId));
   const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
   const isSingleTeamCoach = user.role.key === "coach" || user.role.key === "assistant_coach";
+  const isStaffLinked = Boolean(user.staff);
 
   // Inline server wrappers required by Next.js for form actions that close
   // over `id` from params — they cannot be directly bound in JSX.
@@ -77,6 +81,12 @@ export default async function UserDetailPage({ params, searchParams }: { params:
     <div className="mx-auto w-full max-w-5xl space-y-5">
       <NoticeToast notice={notice} />
       <SettingsNavTabs locale={locale} />
+      {user.staff && (
+        <aside className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-club-primary/20 bg-club-primary/[0.04] px-4 py-3 text-sm">
+          <span className="text-muted-foreground">{locale === "ar" ? "هذا الحساب مرتبط بعضو طاقم؛ بياناته المهنية وفئاته تُدار من ملف الطاقم، أما دور وصلاحيات الحساب فتُحدّث من هذه الصفحة وتُزامن مع ملفه." : "Ce compte est lié à un membre du staff. Son profil et ses équipes se gèrent depuis sa fiche ; le rôle et les autorisations du compte se modifient ici et sont synchronisés."}</span>
+          <Link href={`/${locale}/dashboard/staff/${user.staff.id}`} className="font-semibold text-club-primary hover:underline">{locale === "ar" ? "فتح ملف الطاقم" : "Ouvrir la fiche staff"}</Link>
+        </aside>
+      )}
       {/* ── User Avatar Header ───────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:p-6">
         <div className="relative group flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl overflow-hidden bg-club-primary/10 border border-club-primary/20 text-club-primary font-bold text-2xl">
@@ -99,7 +109,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
               {user.isActive ? (locale === "ar" ? "الحساب مفعّل" : "Compte activé") : (locale === "ar" ? "الحساب معطّل" : "Compte désactivé")}
             </Badge>
             <Badge tone="neutral" className="text-[11px]">
-              {user.role.name}
+              {locale === "ar" ? `صلاحية: ${user.role.name}` : `Accès : ${user.role.name}`}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -111,7 +121,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
           )}
 
           {/* Delete Photo Button if photo exists */}
-          {user.image && (
+          {user.image && !isStaffLinked && (
             <div className="pt-1 flex justify-center sm:justify-start">
               <form action={removePhoto}>
                 <Button
@@ -133,19 +143,19 @@ export default async function UserDetailPage({ params, searchParams }: { params:
       <form action={update} encType="multipart/form-data" className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
         <div className="border-b border-border pb-3">
           <h2 className="text-base font-bold text-foreground">{locale === "ar" ? "البيانات الشخصية والصلاحيات" : "Profil et autorisations"}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "حدّث معلومات الحساب والدور المرتبط به." : "Mettez à jour les informations et le rôle du compte."}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "حدّث معلومات الحساب وصلاحيات دخوله. المسمى المهني يُدار من ملف الطاقم." : "Mettez à jour le compte et ses autorisations. La fonction professionnelle se gère depuis la fiche staff."}</p>
         </div>
         <div className="space-y-2">
           <label className="block text-sm font-medium">
             {locale === "ar" ? "تعديل / تحديث الصورة الشخصية" : "Mettre à jour la photo"}
           </label>
-          <AvatarUploadField locale={locale} />
+          {isStaffLinked ? <p className="text-xs text-muted-foreground">{locale === "ar" ? "الصورة تُحدّث من ملف الطاقم." : "La photo se met à jour depuis la fiche staff."}</p> : <AvatarUploadField locale={locale} />}
         </div>
 
         <div className="grid items-start gap-x-5 gap-y-5 sm:grid-cols-2">
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "اسم الحساب" : "Nom du compte"}</label>
-            <input id="user-name" name="name" defaultValue={user.name} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-name" name="name" defaultValue={user.name} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-email" className="block text-sm font-medium leading-5">{t("fields.email")}</label>
@@ -153,36 +163,38 @@ export default async function UserDetailPage({ params, searchParams }: { params:
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-license-number" className="block text-sm font-medium leading-5">{locale === "ar" ? "رقم الرخصة الإدارية (اختياري)" : "N° de licence administrative (facultatif)"}</label>
-            <input id="user-license-number" name="licenseNumber" maxLength={80} defaultValue={user.licenseNumber ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-license-number" name="licenseNumber" maxLength={80} defaultValue={user.licenseNumber ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-license-role" className="block text-sm font-medium leading-5">{locale === "ar" ? "الرتبة أو الصفة في الرخصة" : "Fonction sur la licence"}</label>
-            <input id="user-license-role" name="licenseRole" maxLength={120} defaultValue={user.licenseRole ?? ""} placeholder={locale === "ar" ? "مثال: مدرب مساعد — أكابر" : "Ex. : Entraîneur adjoint — Seniors"} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-license-role" name="licenseRole" maxLength={120} defaultValue={user.licenseRole ?? ""} placeholder={locale === "ar" ? "مثال: مدرب مساعد — أكابر" : "Ex. : Entraîneur adjoint — Seniors"} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-last-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "اللقب (يظهر أولًا على البطاقة)" : "Nom de famille (affiché en premier)"}</label>
-            <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم الأول" : "Prénom"}</label>
-            <input id="user-first-name" name="firstName" autoComplete="given-name" maxLength={100} defaultValue={user.firstName ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-first-name" name="firstName" autoComplete="given-name" maxLength={100} defaultValue={user.firstName ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label htmlFor="user-date-of-birth" className="block text-sm font-medium leading-5">{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</label>
-            <input id="user-date-of-birth" name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} defaultValue={user.dateOfBirth?.toISOString().slice(0, 10) ?? ""} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+            <input id="user-date-of-birth" name="dateOfBirth" type="date" lang={locale === "ar" ? "ar-DZ" : "fr-DZ"} dir="ltr" max={new Date().toISOString().slice(0, 10)} defaultValue={user.dateOfBirth?.toISOString().slice(0, 10) ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
             <label className="block text-sm font-medium leading-5">{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</label>
-            <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} defaultValue={user.bloodGroup ?? ""} options={[{ value: "A+", label: "A+" }, { value: "A-", label: "A−" }, { value: "B+", label: "B+" }, { value: "B-", label: "B−" }, { value: "AB+", label: "AB+" }, { value: "AB-", label: "AB−" }, { value: "O+", label: "O+" }, { value: "O-", label: "O−" }]} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
+            <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} defaultValue={user.bloodGroup ?? ""} disabled={isStaffLinked} options={[{ value: "A+", label: "A+" }, { value: "A-", label: "A−" }, { value: "B+", label: "B+" }, { value: "B-", label: "B−" }, { value: "AB+", label: "AB+" }, { value: "AB-", label: "AB−" }, { value: "O+", label: "O+" }, { value: "O-", label: "O−" }]} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
           </div>
           <div className="min-w-0 space-y-2">
-            <label className="block text-sm font-medium leading-5">{t("fields.role")}</label>
+            <label className="block text-sm font-medium leading-5">{locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}</label>
             <FormSelect
               name="roleId"
               locale={locale}
-              ariaLabel={t("fields.role")}
+              ariaLabel={locale === "ar" ? "صلاحية حساب المنصة" : "Autorisation du compte"}
               defaultValue={user.roleId}
-              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              options={roles
+                .filter((role) => !isStaffLinked || !["super_admin", "treasurer"].includes(role.key))
+                .map((role) => ({ value: role.id, label: role.name }))}
             />
           </div>
           <div className="min-w-0 space-y-2">
@@ -203,7 +215,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
       </form>
 
       {/* ── Password reset ───────────────────────────────────────────────── */}
-      <form action={resetPassword} className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
+      {canResetPasswords && <form action={resetPassword} className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400"><KeyRound className="h-4 w-4" /></div>
           <div>
@@ -215,7 +227,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
           <input name="password" type="password" minLength={8} maxLength={72} required autoComplete="new-password" placeholder={t("fields.password")} className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
           <Button type="submit" variant="outline" className="h-10">{t("resetPassword")}</Button>
         </div>
-      </form>
+      </form>}
 
       {/* ── Team Assignments — P2 ────────────────────────────────────────── */}
       <section className="overflow-visible rounded-2xl border border-border bg-card shadow-sm">
@@ -236,6 +248,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">
+          {isStaffLinked && <p className="text-xs text-muted-foreground">{locale === "ar" ? "فئات هذا الحساب تُدار من ملف الطاقم." : "Les équipes de ce compte se gèrent depuis la fiche staff."}</p>}
           {user.teamAssignments.length === 0 ? (
             <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
               <UsersRound className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
@@ -254,10 +267,10 @@ export default async function UserDetailPage({ params, searchParams }: { params:
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
                       <span className="truncate text-sm font-semibold text-foreground">{tTeam(`categories.${a.team.category}` as any)}</span>
                     </div>
-                    <form action={remove}>
-                      <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
+                      <form action={remove}>
+                        {!isStaffLinked && <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
                         <X className="h-4 w-4" aria-hidden="true" />
-                      </Button>
+                        </Button>}
                     </form>
                   </li>
                 );
@@ -265,7 +278,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
             </ul>
           )}
 
-          {unassignedTeams.length > 0 && !(isSingleTeamCoach && user.teamAssignments.length > 0) && (
+          {!isStaffLinked && unassignedTeams.length > 0 && !(isSingleTeamCoach && user.teamAssignments.length > 0) && (
             <form action={addTeam} className="rounded-xl border border-dashed border-club-primary/35 bg-club-primary/[0.035] p-4">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-foreground">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary">

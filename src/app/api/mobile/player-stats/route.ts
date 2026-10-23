@@ -25,7 +25,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
 
-  const assignments = await db.userTeam.findMany({ where: { userId: user.id }, select: { team: { select: { category: true } } } });
+  const [assignments, currentSeason] = await Promise.all([
+    db.userTeam.findMany({ where: { userId: user.id }, select: { team: { select: { category: true } } } }),
+    db.season.findFirst({ where: { isCurrent: true }, select: { id: true } }),
+  ]);
   const categories = new Set(assignments.map(({ team }) => team.category));
   // Senior coaches also follow U20, matching the platform player-statistics rule.
   if (categories.has("SENIOR")) categories.add("U20");
@@ -43,7 +46,6 @@ export async function GET(request: Request) {
     where: { competitions: { some: { matches: { some: { teamId: { in: teamIds }, status: { in: ["LIVE", "FINISHED"] } } } } } },
     select: { id: true, label: true, startDate: true }, orderBy: { startDate: "desc" }
   });
-  const currentSeason = await db.season.findFirst({ where: { isCurrent: true }, select: { id: true } });
   const seasonId = seasons.some((season) => season.id === currentSeason?.id) ? currentSeason!.id : seasons[0]?.id;
   const players = await db.player.findMany({
     where: { teamId: { in: teamIds }, status: "ACTIVE" },
@@ -96,14 +98,30 @@ export async function GET(request: Request) {
     }
   }
   const matchesById = new Map(matches.map((match) => [match.id, match]));
+  // Build the five most recent appearances in one pass. Filtering and sorting
+  // the full lineup array once per player made this endpoint do O(players ×
+  // lineups log lineups) work on every app refresh.
+  const recentMatchesByPlayer = new Map<string, { date: string; opponent: string; isStarting: boolean }[]>();
+  const recentLineups = [...lineups].sort((a, b) =>
+    (matchesById.get(b.matchId)?.matchDate.getTime() ?? 0) - (matchesById.get(a.matchId)?.matchDate.getTime() ?? 0)
+  );
+  for (const lineup of recentLineups) {
+    const match = matchesById.get(lineup.matchId);
+    if (!match) continue;
+    const recent = recentMatchesByPlayer.get(lineup.playerId) ?? [];
+    if (recent.length >= 5) continue;
+    recent.push({
+      date: match.matchDate.toISOString(),
+      opponent: `${match.homeTeamName} – ${match.awayTeamName}`,
+      isStarting: lineup.isStarting,
+    });
+    recentMatchesByPlayer.set(lineup.playerId, recent);
+  }
   const result = players.map((player) => ({
     id: player.id, firstName: player.firstName, lastName: player.lastName, firstNameFr: player.firstNameFr, lastNameFr: player.lastNameFr,
     number: player.shirtNumber, position: player.position, photoUrl: mediaUrl(player.photoUrl), team: player.team,
     ...(stats.get(player.id) ?? {}),
-    recentMatches: lineups.filter((lineup) => lineup.playerId === player.id).sort((a, b) => (matchesById.get(b.matchId)?.matchDate.getTime() ?? 0) - (matchesById.get(a.matchId)?.matchDate.getTime() ?? 0)).slice(0, 5).map(({ matchId, isStarting }) => {
-      const match = matchesById.get(matchId)!;
-      return { date: match.matchDate.toISOString(), opponent: `${match.homeTeamName} – ${match.awayTeamName}`, isStarting };
-    })
+    recentMatches: recentMatchesByPlayer.get(player.id) ?? []
   }));
   return NextResponse.json({ season: seasons.find((season) => season.id === seasonId)?.label ?? null, players: result }, { headers: { "Cache-Control": "no-store" } });
 }

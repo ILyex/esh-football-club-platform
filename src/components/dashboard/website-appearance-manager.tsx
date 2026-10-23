@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
 import { ImagePlus, LoaderCircle, Save, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_ICON } from "@/components/ui/image-upload-frame";
 import { updateHomepageHeroImageAction } from "@/app/[locale]/(dashboard)/dashboard/website/actions";
 import { isVideoUrl } from "@/lib/media-utils";
 
@@ -97,14 +98,19 @@ export function WebsiteAppearanceManager({ locale, currentImageUrl }: WebsiteApp
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-semibold text-foreground">
-          <span>{isAr ? "اختر صورة أو فيديو جديداً" : "Choisir une nouvelle image ou vidéo"}</span>
+        <label className={`${IMAGE_UPLOAD_FRAME} min-w-0 flex-1 cursor-pointer gap-3 px-3 py-2.5 text-xs font-semibold text-foreground`}>
+          <span className={`${IMAGE_UPLOAD_ICON} h-9 w-9`}><ImagePlus className="h-4 w-4" aria-hidden="true" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block">{isAr ? "اختر صورة أو فيديو جديداً" : "Choisir une nouvelle image ou vidéo"}</span>
+            <span className="mt-0.5 block truncate text-[10px] font-normal text-muted-foreground">{file?.name ?? (isAr ? "JPG أو PNG أو WebP أو MP4" : "JPG, PNG, WebP ou MP4")}</span>
+          </span>
+          <span className={`${IMAGE_UPLOAD_ACTION} h-8 px-2.5 text-[11px]`}>{isAr ? "اختيار" : "Choisir"}</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,video/mp4,.mp4"
             onChange={handleFileChange}
             disabled={isSaving}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs file:me-3 file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-foreground"
+            className="sr-only"
           />
         </label>
         <Button type="submit" disabled={!file || isSaving} className="shrink-0 gap-2 sm:self-end">

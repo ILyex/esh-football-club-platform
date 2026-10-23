@@ -239,7 +239,7 @@ export default async function HomePage({
 
         {/* 3. UPCOMING MATCHES & UPCOMING TRAININGS */}
         <section className="space-y-8">
-          <UpcomingMatchesCarousel matches={matchesForCarousel} locale={locale} />
+          <UpcomingMatchesCarousel matches={matchesForCarousel} locale={locale} clubLogoUrl={homeData.club.logoUrl} />
           <UpcomingTrainingsCarousel trainings={trainingsForCarousel} locale={locale} />
         </section>
 

@@ -180,6 +180,7 @@ export async function syncFAFPlayers(
               dateOfBirth: new Date(rawPlayer.dateOfBirth),
               status: mapFafPlayerStatusToPrisma(rawPlayer.status),
               teamId: targetTeam.id,
+              licenceNumber: normLicence || null,
               internalNotes: `Affiliation FAF automatique. N° Licence: ${normLicence}`
             }
           });

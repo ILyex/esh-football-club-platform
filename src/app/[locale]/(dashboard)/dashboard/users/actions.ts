@@ -2,7 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { ForbiddenError, getSessionOrThrow, isProgrammer, requirePermission } from "@/lib/permissions";
 import { createUserSchema, updateUserSchema, resetPasswordSchema } from "@/lib/validations/user";
 import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
@@ -97,19 +97,31 @@ export async function createUserAction(formData: FormData) {
 export async function updateUserAction(userId: string, formData: FormData) {
   const actor = await requirePermission("users.manage");
   const targetUserId = await resolveUserId(userId);
-  const before = await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null } });
+  const before = await db.user.findFirstOrThrow({
+    where: { id: targetUserId, deletedAt: null },
+    include: { staff: { select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, dateOfBirth: true, bloodGroup: true, licenceNumber: true, role: true, photoUrl: true, accountRoleId: true, team: { select: { category: true } } } } }
+  });
 
   const raw = Object.fromEntries(formData.entries());
   const { photo, removePhoto, ...schemaInput } = raw;
   const parsed = updateUserSchema.parse(schemaInput);
 
-  const selectedRole = await db.role.findUniqueOrThrow({ where: { id: parsed.roleId }, select: { key: true } });
+  const effectiveRoleId = parsed.roleId;
+  const selectedRole = await db.role.findUniqueOrThrow({ where: { id: effectiveRoleId }, select: { key: true, teamScoped: true } });
+  if (before.staff && ["super_admin", "treasurer"].includes(selectedRole.key)) {
+    throw new Error("staffAccountRoleNotAllowed");
+  }
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
   }
-  if (TEAM_SCOPED_COACH_ROLE_KEYS.has(selectedRole.key)) {
-    const existingTeamAssignments = await db.userTeam.count({ where: { userId: targetUserId } });
-    if (existingTeamAssignments > 1) throw new Error("coachMustHaveOneTeam");
+  if (selectedRole.teamScoped) {
+    if (before.staff) {
+      const staffTeamAssignments = await db.staffTeam.count({ where: { staffId: before.staff.id } });
+      if (staffTeamAssignments !== 1) throw new Error("teamScopedStaffNeedsOneTeam");
+    } else {
+      const existingTeamAssignments = await db.userTeam.count({ where: { userId: targetUserId } });
+      if (existingTeamAssignments > 1) throw new Error("coachMustHaveOneTeam");
+    }
   }
 
   if (parsed.email.toLowerCase() !== before.email) {
@@ -122,14 +134,17 @@ export async function updateUserAction(userId: string, formData: FormData) {
   // time (see lib/auth.ts), so without bumping tokenVersion a role change
   // or a deactivation would silently NOT take effect until the token
   // naturally expired (up to 8h later).
-  const roleOrActiveChanged = parsed.roleId !== before.roleId || parsed.isActive !== before.isActive;
+  const roleOrActiveChanged = effectiveRoleId !== before.roleId || parsed.isActive !== before.isActive;
+  if (before.staff && parsed.isActive && parsed.email.toLowerCase().endsWith("@staff.esh.invalid")) {
+    throw new Error("staffAccountNeedsRealEmail");
+  }
 
   // Safety guard: never allow the last active super_admin to be demoted or
   // deactivated through this form — that would lock every administrator
   // out of the platform with no way back in through the UI.
   if (roleOrActiveChanged) {
     const beforeRole = await db.role.findUnique({ where: { id: before.roleId } });
-    const losingSuperAdmin = beforeRole?.key === "super_admin" && (parsed.roleId !== before.roleId || !parsed.isActive);
+    const losingSuperAdmin = beforeRole?.key === "super_admin" && (effectiveRoleId !== before.roleId || !parsed.isActive);
     if (losingSuperAdmin) {
       const otherActiveSuperAdmins = await db.user.count({
         where: { id: { not: targetUserId }, isActive: true, role: { key: "super_admin" } }
@@ -138,8 +153,8 @@ export async function updateUserAction(userId: string, formData: FormData) {
     }
   }
 
-  const shouldRemovePhoto = formData.get("removePhoto") === "1" || formData.get("removePhoto") === "true";
-  const newPhotoUrl = await extractUserPhoto(formData);
+  const shouldRemovePhoto = !before.staff && (formData.get("removePhoto") === "1" || formData.get("removePhoto") === "true");
+  const newPhotoUrl = before.staff ? undefined : await extractUserPhoto(formData);
 
   let nextImage = before.image;
   if (shouldRemovePhoto) {
@@ -154,33 +169,51 @@ export async function updateUserAction(userId: string, formData: FormData) {
     nextImage = newPhotoUrl;
   }
 
-  const user = await db.user.update({
-    where: { id: targetUserId },
-    data: {
-      name: parsed.name,
-      email: parsed.email.toLowerCase(),
-      roleId: parsed.roleId,
-      isActive: parsed.isActive,
-      image: nextImage,
-      licenseNumber: parsed.licenseNumber || null,
-      licenseRole: parsed.licenseRole || null,
-      firstName: parsed.firstName || null,
-      lastName: parsed.lastName || null,
-      dateOfBirth: parsed.dateOfBirth ? new Date(`${parsed.dateOfBirth}T00:00:00.000Z`) : null,
-      bloodGroup: parsed.bloodGroup || null,
-      ...(roleOrActiveChanged ? { tokenVersion: { increment: 1 }, lastSeenAt: null } : {})
+  const profileName = before.staff
+    ? [before.staff.firstNameFr, before.staff.lastNameFr].filter(Boolean).join(" ") || `${before.staff.firstName} ${before.staff.lastName}`
+    : parsed.name;
+  const user = await db.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: { id: targetUserId },
+      data: {
+        name: profileName,
+        email: parsed.email.toLowerCase(),
+        roleId: effectiveRoleId,
+        isActive: parsed.isActive,
+        image: before.staff ? before.staff.photoUrl : nextImage,
+        licenseNumber: before.staff ? before.staff.licenceNumber : (parsed.licenseNumber || null),
+        licenseRole: before.staff ? `${({ HEAD_COACH: "Entraîneur principal", ASSISTANT_COACH: "Entraîneur adjoint", GOALKEEPING_COACH: "Entraîneur des gardiens", FITNESS_COACH: "Préparateur physique", MEDICAL_STAFF: "Personnel médical", ADMINISTRATIVE_STAFF: "Personnel administratif", OTHER: "Staff" } as Record<string, string>)[before.staff.role]}${before.staff.team ? ` — ${{ SENIOR: "Seniors", U20: "U20", U17: "U17", U15: "U15" }[before.staff.team.category]}` : ""}` : (parsed.licenseRole || null),
+        firstName: before.staff ? before.staff.firstName : (parsed.firstName || null),
+        lastName: before.staff ? before.staff.lastName : (parsed.lastName || null),
+        dateOfBirth: before.staff ? before.staff.dateOfBirth : (parsed.dateOfBirth ? new Date(`${parsed.dateOfBirth}T00:00:00.000Z`) : null),
+        bloodGroup: before.staff ? before.staff.bloodGroup : (parsed.bloodGroup || null),
+        ...(roleOrActiveChanged ? { tokenVersion: { increment: 1 }, lastSeenAt: null } : {})
+      }
+    });
+    if (before.staff) {
+      await tx.staff.update({ where: { id: before.staff.id }, data: { accountRoleId: effectiveRoleId } });
+      if (selectedRole.teamScoped) {
+        const assignment = await tx.staffTeam.findFirst({ where: { staffId: before.staff.id }, select: { teamId: true } });
+        if (!assignment) throw new Error("teamScopedStaffNeedsOneTeam");
+        await tx.userTeam.deleteMany({ where: { userId: targetUserId, teamId: { not: assignment.teamId } } });
+        await tx.userTeam.upsert({
+          where: { userId_teamId: { userId: targetUserId, teamId: assignment.teamId } },
+          create: { userId: targetUserId, teamId: assignment.teamId },
+          update: {}
+        });
+      }
     }
-  });
-
-  await writeAuditLog({
-    userId: actor.id,
-    action: "user.update",
-    entityType: "User",
-    entityId: user.id,
-    changes: {
-      before: { name: before.name, email: before.email, roleId: before.roleId, isActive: before.isActive, hasImage: Boolean(before.image) },
-      after: { name: parsed.name, email: parsed.email, roleId: parsed.roleId, isActive: parsed.isActive, hasImage: Boolean(nextImage), hasDigitalCardDetails: Boolean(parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup || parsed.licenseRole) }
-    }
+    await writeAuditLog({
+      userId: actor.id,
+      action: "user.update",
+      entityType: "User",
+      entityId: updatedUser.id,
+      changes: {
+        before: { name: before.name, email: before.email, roleId: before.roleId, isActive: before.isActive, hasImage: Boolean(before.image) },
+        after: { name: profileName, email: parsed.email, roleId: effectiveRoleId, isActive: parsed.isActive, hasImage: Boolean(before.staff ? before.staff.photoUrl : nextImage), hasDigitalCardDetails: Boolean(before.staff || parsed.firstName || parsed.lastName || parsed.dateOfBirth || parsed.bloodGroup || parsed.licenseRole) }
+      }
+    }, tx);
+    return updatedUser;
   });
   revalidatePath("/[locale]/dashboard/users", "page");
   revalidatePath(`/[locale]/dashboard/users/${userId}`, "page");
@@ -197,6 +230,9 @@ export async function updateUserAction(userId: string, formData: FormData) {
 export async function deleteUserAction(userId: string) {
   const actor = await requirePermission("users.manage");
   const targetUserId = await resolveUserId(userId);
+  if (await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } })) {
+    throw new Error("staffAccountsMustBeManagedFromStaffProfile");
+  }
   if (actor.id === targetUserId) throw new Error("cannotDeleteOwnAccount");
 
   const deletedAt = new Date();
@@ -247,7 +283,8 @@ export async function deleteUserAction(userId: string) {
 export async function deleteUserPhotoAction(userId: string) {
   const actor = await requirePermission("users.manage");
   const targetUserId = await resolveUserId(userId);
-  const user = await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null } });
+  const user = await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, include: { staff: { select: { id: true } } } });
+  if (user.staff) throw new Error("staffPhotoMustBeManagedFromStaffProfile");
   if (user.image) {
     await deletePublicFile(user.image).catch(() => {});
     await db.user.update({ where: { id: targetUserId }, data: { image: null } });
@@ -263,7 +300,8 @@ export async function deleteUserPhotoAction(userId: string) {
 }
 
 export async function resetUserPasswordAction(userId: string, formData: FormData) {
-  const actor = await requirePermission("users.manage");
+  const actor = await getSessionOrThrow();
+  if (!isProgrammer(actor)) throw new ForbiddenError("users.password.reset");
   const targetUserId = await resolveUserId(userId);
   const raw = Object.fromEntries(formData.entries());
   const parsed = resetPasswordSchema.parse(raw);
@@ -306,6 +344,7 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
     where: { id: targetUserId, deletedAt: null },
     select: { id: true, role: { select: { key: true } } }
   });
+  if (await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } })) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
 
   await db.$transaction(async (tx) => {
     if (TEAM_SCOPED_COACH_ROLE_KEYS.has(targetUser.role.key)) {
@@ -340,6 +379,7 @@ export async function removeUserTeamAction(userId: string, teamId: string) {
   const targetUserId = await resolveUserId(userId);
 
   await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
+  if (await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } })) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
 
   await db.$transaction(async (tx) => {
     await tx.userTeam.deleteMany({ where: { userId: targetUserId, teamId } });

@@ -29,6 +29,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:import-roster-2026": "tsx scripts/import-roster-2026.ts",
+    "db:backfill-staff-users": "tsx scripts/backfill-staff-users.ts",
+    "db:sync-staff-users": "npm run db:migrate:deploy && npm run db:backfill-staff-users",
     "db:reset:handover": "tsx scripts/reset-for-handover.ts",
     "migration:export": "node scripts/migration/export-postgres.mjs",
     "migration:verify": "node scripts/migration/verify-export.mjs",

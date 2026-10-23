@@ -23,7 +23,9 @@ export function OpponentCrest({
   // Opponent logos can be stored as a public-storage key, a legacy absolute
   // URL, or a normal remote URL. Resolve all forms before rendering so an old
   // record does not produce a broken image on the public site.
-  const normalizedSrc = normalizePublicMediaUrl(src);
+  // Local upload previews use blob: URLs. Keep those untouched: the persisted
+  // media normalizer intentionally accepts only URLs that can be stored/shared.
+  const normalizedSrc = src?.startsWith("blob:") ? src : normalizePublicMediaUrl(src);
   const showImage = Boolean(normalizedSrc && failedSrc !== normalizedSrc && loadedSrc === normalizedSrc);
 
   return (

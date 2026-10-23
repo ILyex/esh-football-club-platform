@@ -26,6 +26,8 @@ export default async function UsersListPage({
   const currentUser = await requirePagePermission("users.view", locale);
   const canTerminateSessions = hasPermission(currentUser, "users.manage") && isProgrammer(currentUser);
   const t = await getTranslations("users");
+  const tStaff = await getTranslations("staff");
+  const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
   const pageUsers = await db.user.findMany({
@@ -37,7 +39,8 @@ export default async function UsersListPage({
       image: true,
       isActive: true,
       lastSeenAt: true,
-      role: { select: { name: true } }
+      role: { select: { name: true } },
+      staff: { select: { role: true, team: { select: { category: true } } } }
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     skip: (page - 1) * USERS_PER_PAGE,
@@ -73,7 +76,9 @@ export default async function UsersListPage({
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {users.map((u) => {
+              const isOnline = u.isActive && u.lastSeenAt !== null && now - u.lastSeenAt.getTime() < 180_000;
+              return (
               <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -90,16 +95,17 @@ export default async function UsersListPage({
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3 text-center">
-                  <Badge tone="neutral" className="text-xs">{u.role.name}</Badge>
+                  <Badge tone="neutral" className="text-xs">
+                    {u.staff
+                      ? [tStaff(`roles.${u.staff.role}` as any), u.staff.team ? tTeams(`categories.${u.staff.team.category}` as any) : null].filter(Boolean).join(locale === "ar" ? " " : " — ")
+                      : u.role.name}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3 text-center">
-                  {(() => {
-                    const isOnline = u.isActive && u.lastSeenAt !== null && now - u.lastSeenAt.getTime() < 180_000;
-                    return <Badge tone={isOnline ? "success" : "neutral"} className="gap-1.5">
+                  <Badge tone={isOnline ? "success" : "neutral"} className="gap-1.5">
                     <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
                     {isOnline ? t("fields.online") : t("fields.offline")}
                   </Badge>
-                  })()}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <UserListActions
@@ -109,14 +115,15 @@ export default async function UsersListPage({
                     deleteLabel={t("deleteUser")}
                     editLabel={tCommon("edit")}
                     confirmMessage={t("confirmDeleteUser")}
-                    canTerminateSession={canTerminateSessions && currentUser.id !== u.id && u.isActive}
+                    canTerminateSession={canTerminateSessions && currentUser.id !== u.id && isOnline}
                     terminateSessionLabel={t("terminateSession")}
                     confirmTerminateSession={t("confirmTerminateSession")}
                     cancelLabel={tCommon("cancel")}
                   />
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {users.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">

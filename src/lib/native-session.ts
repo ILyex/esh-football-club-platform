@@ -7,7 +7,6 @@ import type { SessionUser } from "@/lib/permissions";
 const TOKEN_ISSUER = "esh-matchday-native";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
-const ADMIN_ROLE_KEYS = new Set(["super_admin", "president", "developer", "director", "sporting_director", "team_manager", "coach", "assistant_coach"]);
 
 export type NativePrincipal = SessionUser & { tokenVersion: number; image: string | null; licenseNumber: string | null; licenseRole: string | null; firstName: string | null; lastName: string | null; dateOfBirth: Date | null; bloodGroup: string | null };
 
@@ -18,9 +17,14 @@ function sessionKey(): string {
 }
 
 export function canUseNativeMatchday(user: Pick<NativePrincipal, "roleKey" | "permissions">): boolean {
-  if (!ADMIN_ROLE_KEYS.has(user.roleKey)) return false;
+  // Coaches need to be able to enter the app even if a production role's
+  // permission grants have drifted from the seeded defaults. This only grants
+  // access to the app shell; data and mutations remain permission-gated by the
+  // mobile API. Keep the recognized coaching roles narrow so a viewer account
+  // cannot gain access through this fallback.
+  const coachingRole = ["coach", "assistant_coach", "goalkeeping_coach", "fitness_coach"].includes(user.roleKey);
   const superAdminWildcard = user.roleKey === "super_admin" && user.permissions.includes("*");
-  return (user.permissions.includes("matches.view") && (user.permissions.includes("matches.update") || user.permissions.includes("matches.report") || superAdminWildcard)) ||
+  return coachingRole || user.permissions.includes("matches.view") || user.permissions.includes("player.stats.view") ||
     user.permissions.includes("meetings.view") || user.permissions.includes("calendar.manage") || user.permissions.includes("training.manage") ||
     user.permissions.includes("news.create") || user.permissions.includes("announcements.manage") || user.permissions.includes("meetings.schedule") || superAdminWildcard;
 }

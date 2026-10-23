@@ -51,12 +51,37 @@ export async function resolveExistingPlayer(
 
   const conflicts: FAFConflict[] = [];
 
-  // 1. Try slug match
-  let existingPlayer = await db.player.findUnique({
-    where: { slug: expectedSlug }
-  });
+  // 1. A licence number is the authoritative identity. Name-based matching
+  // alone misses records when FAF switches between Latin and Arabic spellings.
+  const normalizedLicence = normalizeLicenceNumber(fafPlayer.licenceNumber);
+  let existingPlayer = normalizedLicence
+    ? await db.player.findFirst({ where: { licenceNumber: normalizedLicence } })
+    : null;
 
-  // 2. If not found by slug, search by dateOfBirth and lastName
+  // If legacy data already contains the same licence more than once, never
+  // create yet another record. Stop for manual review instead.
+  if (normalizedLicence) {
+    const licenceMatches = await db.player.findMany({ where: { licenceNumber: normalizedLicence }, select: { id: true } });
+    if (licenceMatches.length > 1) {
+      conflicts.push({
+        entityType: "Player",
+        identifier: normalizedLicence,
+        field: "licenceNumber",
+        eshValue: `${licenceMatches.length} players share this licence number`,
+        fafValue: `${fafPlayer.firstName} ${fafPlayer.lastName}`,
+        resolution: "MANUAL_REVIEW_REQUIRED",
+        reason: "Duplicate licence records already exist; synchronization skipped to avoid creating another player"
+      });
+      return { matchFound: false, player: null, conflicts };
+    }
+  }
+
+  // 2. Fall back to stable identity clues for legacy players without a licence.
+  if (!existingPlayer) {
+    existingPlayer = await db.player.findUnique({ where: { slug: expectedSlug } });
+  }
+
+  // 3. If not found by slug, search by dateOfBirth and lastName
   if (!existingPlayer) {
     const dob = new Date(fafPlayer.dateOfBirth);
     const candidates = await db.player.findMany({

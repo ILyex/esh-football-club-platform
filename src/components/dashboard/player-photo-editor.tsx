@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, useRef } from "react";
 import { Camera, Trash2, Upload, User, Loader2, Check, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removePlayerPhotoAction } from "@/app/[locale]/(dashboard)/dashboard/players/actions";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
 
 interface PlayerPhotoEditorProps {
   playerId: string;
@@ -67,7 +68,7 @@ export function PlayerPhotoEditor({
   const activeDisplayUrl = previewUrl || (removeMarked ? null : photoUrl);
 
   return (
-    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+    <div className={`${IMAGE_UPLOAD_FRAME} flex-col items-stretch space-y-3 p-4`}>
       <div className="flex items-center justify-between">
         <label className="block text-sm font-bold text-foreground">
           {isAr ? "صورة اللاعب الرسمية" : "Photo Officielle du Joueur"}
@@ -83,7 +84,7 @@ export function PlayerPhotoEditor({
       <div className="flex flex-col sm:flex-row items-center gap-4">
         {/* Photo Avatar / Preview */}
         <div className="relative group shrink-0">
-          <div className="h-24 w-24 rounded-2xl border-2 border-border overflow-hidden bg-muted/80 shadow-inner flex items-center justify-center">
+          <div className={`${IMAGE_UPLOAD_PREVIEW} h-24 w-24 rounded-2xl bg-muted/80 shadow-inner`}>
             {activeDisplayUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -126,7 +127,7 @@ export function PlayerPhotoEditor({
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-xs font-semibold"
+                className={IMAGE_UPLOAD_ACTION}
               >
                 <Upload className="h-3.5 w-3.5 me-1.5 text-muted-foreground" />
                 <span>{activeDisplayUrl ? (isAr ? "تعديل / تغيير الصورة" : "Changer la photo") : (isAr ? "رفع صورة جديدة" : "Uploader une photo")}</span>

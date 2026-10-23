@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BusFront, CalendarDays, ChevronLeft, ChevronRight, Clock3, Home, MapPin } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Home, MapPin, Plane } from "lucide-react";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 
 export type CalendarBoardEvent = {
@@ -110,7 +110,7 @@ export function CalendarBoard({
 
   function eventCard(event: CalendarBoardEvent) {
     const isMatch = event.type === "MATCH";
-    const VenueIcon = event.isHomeFixture === true ? Home : BusFront;
+    const VenueIcon = event.isHomeFixture === true ? Home : Plane;
     const venueLabel = event.isHomeFixture === true
       ? (isAr ? "مباراة على ملعبنا" : "Match à domicile")
       : (isAr ? "مباراة خارج ملعبنا" : "Match à l’extérieur");
@@ -157,10 +157,10 @@ export function CalendarBoard({
         return <button type="button" key={key} onClick={() => { if (!isCurrentMonth && view === "month") navigateTo(date); else setSelectedDay(key); if (view === "month") setView("day"); }} className={`min-h-24 border-b border-e border-border p-1.5 text-start transition hover:bg-muted/30 sm:min-h-28 sm:p-2 ${index % 7 === 6 ? "border-e-0" : ""} ${isCurrentMonth || view !== "month" ? "" : "bg-muted/10 text-muted-foreground/55"} ${isSelected ? "bg-club-primary/[0.04]" : ""}`}>
           <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ${key === today ? "bg-club-primary text-white" : isSelected ? "bg-club-primary/10 text-club-primary" : "text-foreground"}`}>{date.getUTCDate()}</span>
           <span className="mt-1 hidden space-y-1 sm:block">
-            {dayEvents.slice(0, 2).map((event) => event.type === "MATCH" ? <span key={event.id} className={`flex items-center gap-1.5 truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`} title={event.opponentName ?? event.title}><OpponentCrest src={event.opponentLogo} className="h-4 w-4 shrink-0" iconClassName="h-3 w-3 text-rose-400" /><span className="opacity-75">{eventTime(event.startDateTime)}</span><span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-rose-500/10 text-rose-500">{event.isHomeFixture === true ? <Home className="h-2.5 w-2.5" /> : <BusFront className="h-2.5 w-2.5" />}</span></span> : <span key={event.id} className={`block truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`}><span className="opacity-75">{eventTime(event.startDateTime)}</span> {event.title}</span>)}
+            {dayEvents.slice(0, 2).map((event) => event.type === "MATCH" ? <span key={event.id} className={`flex min-w-0 items-center gap-1 truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`} title={`${event.opponentName ?? event.title} · ${event.isHomeFixture === true ? (isAr ? "على ملعبنا" : "À domicile") : (isAr ? "خارج الديار" : "À l’extérieur")}`}><span className="flex shrink-0 items-center gap-1"><OpponentCrest src={event.opponentLogo} alt={event.opponentName ?? ""} className="h-5 w-5" iconClassName="h-4 w-4 text-rose-400" /><span className="grid h-5 w-5 place-items-center rounded bg-rose-500/10 text-rose-500">{event.isHomeFixture === true ? <Home className="h-3.5 w-3.5" aria-hidden="true" /> : <Plane className="h-3.5 w-3.5" aria-hidden="true" />}</span></span><span className="truncate opacity-75">{eventTime(event.startDateTime)}</span></span> : <span key={event.id} className={`block truncate rounded-md border px-1.5 py-1 text-[10px] font-semibold ${typeColor(event.type)}`}><span className="opacity-75">{eventTime(event.startDateTime)}</span> {event.title}</span>)}
             {dayEvents.length > 2 && <span className="block px-1 text-[9px] font-semibold text-muted-foreground">+{dayEvents.length - 2} {isAr ? "مواعيد" : "autres"}</span>}
           </span>
-          {dayEvents.length > 0 && <span className="mt-1 flex justify-center gap-0.5 sm:hidden">{dayEvents.slice(0, 3).map((event) => <i key={event.id} className={`h-1.5 w-1.5 rounded-full ${event.type === "MATCH" ? "bg-rose-500" : event.type === "TRAINING" ? "bg-sky-500" : event.type === "MEETING" ? "bg-violet-500" : "bg-emerald-500"}`} />)}</span>}
+          {dayEvents.length > 0 && <span className="mt-1 flex flex-wrap justify-center gap-1 sm:hidden">{dayEvents.slice(0, 3).map((event) => event.type === "MATCH" ? <span key={event.id} className="inline-flex h-5 min-w-9 items-center justify-center gap-0.5 rounded border border-rose-500/30 bg-rose-500/10 px-0.5" title={`${event.opponentName ?? event.title} · ${event.isHomeFixture === true ? (isAr ? "على ملعبنا" : "À domicile") : (isAr ? "خارج الديار" : "À l’extérieur")}`}><OpponentCrest src={event.opponentLogo} alt={event.opponentName ?? ""} className="h-4 w-4 shrink-0" iconClassName="h-3 w-3 text-rose-400" />{event.isHomeFixture === true ? <Home className="h-3 w-3 shrink-0 text-rose-500" aria-hidden="true" /> : <Plane className="h-3 w-3 shrink-0 text-rose-500" aria-hidden="true" />}</span> : <i key={event.id} className={`h-1.5 w-1.5 rounded-full ${event.type === "TRAINING" ? "bg-sky-500" : event.type === "MEETING" ? "bg-violet-500" : "bg-emerald-500"}`} title={typeName(event.type, locale)} />)}</span>}
         </button>;
       })}
     </div>

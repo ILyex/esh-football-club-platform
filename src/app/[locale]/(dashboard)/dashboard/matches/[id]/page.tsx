@@ -18,6 +18,7 @@ import {
   syncPreviousMatchRedCardSuspensionsAction
 } from "../actions";
 import { Button } from "@/components/ui/button";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
@@ -354,10 +355,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             arabicClassName="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
             frenchClassName="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
           />
-          <div className="rounded-xl border border-dashed border-border/80 bg-background/40 p-4 transition-colors hover:border-primary/50">
+          <div className={`${IMAGE_UPLOAD_FRAME} p-4`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3.5">
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-card shadow-xs">
+                <div className={`${IMAGE_UPLOAD_PREVIEW} relative h-14 w-14 rounded-2xl shadow-xs`}>
                   {opponentLogo ? (
                     <OpponentCrest src={opponentLogo} className="h-full w-full object-contain p-1.5" iconClassName="h-7 w-7 text-muted-foreground" />
                   ) : (
@@ -374,7 +375,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                 </div>
               </div>
               {canUpdate && (
-                <label className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-colors hover:bg-primary/90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                <label className={`${IMAGE_UPLOAD_ACTION} shrink-0 cursor-pointer`}>
                   <Upload className="h-4 w-4" aria-hidden="true" />
                   <span>{locale === "ar" ? (opponentLogo ? "تغيير الشعار (PNG/JPG)" : "رفع الشعار (PNG/JPG)") : (opponentLogo ? "Changer le logo" : "Téléverser le logo")}</span>
                   <input type="file" name="opponentLogoFile" accept="image/png,image/jpeg,image/webp" className="sr-only" />

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bell, ExternalLink, Globe } from "lucide-react";
+import { Bell, ExternalLink, Globe, KeyRound } from "lucide-react";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { db } from "@/lib/db";
@@ -25,6 +25,7 @@ import { SafeImage } from "@/components/shared/safe-image";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { DashboardMailNotifier } from "@/components/shared/dashboard-mail-notifier";
 import { DhikrReminder } from "@/components/shared/dhikr-reminder";
+import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +130,7 @@ export default async function DashboardLayout({
             groups={visibleGroups}
             locale={locale}
             clubName={locale === "ar" ? (clubSettings?.name || "الجمعية الرياضية أمل سيدي حسني لكرة القدم") : "Association Sportive Espoir Sidi Hosni de Football"}
-            clubLogoUrl="/branding/esh-logo-64.png"
+            clubLogoUrl={normalizePublicMediaUrl(clubSettings?.logoUrl) || "/branding/esh-logo-64.png"}
           />
         </div>
 
@@ -226,7 +227,7 @@ export default async function DashboardLayout({
             />
 
             {/* User Profile Chip (Avatar + Name + Role Badge) */}
-            <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-1.5 shadow-2xs hover:border-border/80 transition-colors">
+            <Link href={`/${locale}/dashboard/account`} aria-label={locale === "ar" ? "حسابي وتغيير كلمة المرور" : "Mon compte et mon mot de passe"} title={locale === "ar" ? "حسابي وتغيير كلمة المرور" : "Mon compte et mon mot de passe"} className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-1.5 shadow-2xs transition-colors hover:border-club-primary/50">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden bg-club-primary/10 text-club-primary font-bold text-xs ring-1 ring-club-primary/20 shrink-0">
                 {userPhoto ? (
                   <SafeImage
@@ -247,7 +248,8 @@ export default async function DashboardLayout({
                   {user.roleName}
                 </span>
               </div>
-            </div>
+              <KeyRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </Link>
           </div>
         </div>
 

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
 import { toast } from "sonner";
 
 interface ClubSettingsData {
@@ -307,9 +308,9 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
           </div>
 
           {/* Logo Upload Box */}
-          <div className="rounded-xl border-2 border-dashed border-border/80 bg-muted/20 p-4 transition-all hover:border-primary/50">
+          <div className={`${IMAGE_UPLOAD_FRAME} p-4`}>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-border bg-card shadow-xs overflow-hidden">
+              <div className={`${IMAGE_UPLOAD_PREVIEW} relative h-16 w-16 rounded-2xl shadow-xs`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logoPreview || "/branding/esh-logo-128.png"}
@@ -326,7 +327,7 @@ export function ClubSettingsForm({ locale, settings, action }: ClubSettingsFormP
                     ? selectedFileName
                     : (isAr ? "PNG, SVG, WEBP أو JPG (يفضل خلفية شفافة)" : "PNG, SVG, WEBP ou JPG (fond transparent conseillé)")}
                 </p>
-                <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-primary/90 transition-all mt-1">
+                <label className={`${IMAGE_UPLOAD_ACTION} mt-1 h-8 cursor-pointer px-2.5 text-[11px]`}>
                   <Upload className="h-3.5 w-3.5" />
                   <span>{isAr ? "رفع شعار جديد" : "Téléverser nouveau logo"}</span>
                   <input

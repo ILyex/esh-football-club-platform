@@ -73,26 +73,26 @@ model PrivateAsset {
 // ----------------------------------------------------------------------------
 
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  firstName    String?
-  lastName     String?
-  dateOfBirth  DateTime?
-  bloodGroup   String?
-  licenseRole  String?
-  email        String    @unique
-  passwordHash String
-  image        String?
+  id            String    @id @default(cuid())
+  name          String
+  firstName     String?
+  lastName      String?
+  dateOfBirth   DateTime?
+  bloodGroup    String?
+  licenseRole   String?
+  email         String    @unique
+  passwordHash  String
+  image         String?
   licenseNumber String?
-  isActive     Boolean   @default(true)
-  tokenVersion Int       @default(0) // bump to invalidate all issued JWTs
-  roleId       String
-  role         Role      @relation(fields: [roleId], references: [id])
-  lastLoginAt  DateTime?
-  lastSeenAt   DateTime?
-  deletedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isActive      Boolean   @default(true)
+  tokenVersion  Int       @default(0) // bump to invalidate all issued JWTs
+  roleId        String
+  role          Role      @relation(fields: [roleId], references: [id])
+  lastLoginAt   DateTime?
+  lastSeenAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   auditLogs                    AuditLog[]
   uploadedDocuments            Document[]                @relation("DocumentUploadedBy")
@@ -119,15 +119,12 @@ model User {
   createdTreasuryTransactions  TreasuryTransaction[]
   createdInventoryItems        InventoryItem[]           @relation("InventoryCreatedBy")
   conductedTestSessions        TestSession[]             @relation("UserConductedTestSessions")
-  // P1 RBAC foundation — authorization assignment (approved Group: UserTeam).
-  // Which teams THIS USER may access, independent of any Staff record.
-  // Never derived from Staff/StaffTeam — see StaffTeam's own comment below.
+  // Which teams THIS USER may access. For linked staff accounts, explicit
+  // category assignments are mirrored from StaffTeam by staff actions.
   teamAssignments              UserTeam[]
   // P1 RBAC foundation — optional identity link only (approved Group: Staff.userId).
-  // Connects this login to a Staff record for DISPLAY/IDENTITY purposes.
-  // MUST NOT be read anywhere as a source of authorization: a user's team
-  // access always comes from `teamAssignments` (UserTeam) above, never from
-  // whatever teams the linked Staff record happens to work with.
+  // Connects this login to its canonical staff profile. StaffTeam changes are
+  // mirrored to UserTeam only through explicit linked-staff actions.
   staff                        Staff?
   tacticalPlans                TacticalPlan[]
 
@@ -143,8 +140,9 @@ model Role {
   isSystem    Boolean  @default(false) // system roles (super_admin) cannot be deleted
   createdAt   DateTime @default(now())
 
-  users       User[]
-  permissions RolePermission[]
+  users             User[]
+  staffAccountRoles Staff[]          @relation("StaffAccountRole")
+  permissions       RolePermission[]
   // P1 RBAC foundation (approved Phase 0C, Group 1): when true, every user of
   // this role is restricted to the teams recorded in their UserTeam rows.
   // Default false preserves every existing role's current (unrestricted)
@@ -152,7 +150,7 @@ model Role {
   // (a) sets it true on a role and (b) wires enforcement into resources.
   // Team scope is intentionally role-level, not per-permission — see the
   // approved architecture decision (Group 1) for the rationale.
-  teamScoped  Boolean          @default(false)
+  teamScoped        Boolean          @default(false)
 }
 
 model Permission {
@@ -282,13 +280,8 @@ model Team {
 //             Staff.teamId). Composite primary key doubles as the uniqueness
 //             constraint (no duplicate user/team membership possible at the
 //             database level — not an application-only check).
-// StaffTeam = OPERATIONAL assignment. Which teams a Staff member works with
-//             day to day (coaching, administration). Read by later phases for
-//             things like "which teams can this coach be assigned to a
-//             training session for" — never for authorization.
-// Both are additive, both fail closed by simply having no rows (a
-// `teamScoped` user with zero UserTeam rows is scoped to nothing, not to
-// everything — enforced in the policy module below, not by the schema).
+// StaffTeam = the single OPERATIONAL category for a staff profile. It is kept
+// separate from UserTeam, which remains the source for access authorization.
 // ============================================================================
 model UserTeam {
   userId    String
@@ -345,8 +338,8 @@ model Player {
   documents              Document[]
   medicalRecords         PlayerMedicalRecord[]
   matchEvents            MatchEvent[]
-  assistedShots          PlayerShot[] @relation("ShotPlayer")
-  assistedByShots        PlayerShot[] @relation("ShotAssist")
+  assistedShots          PlayerShot[]          @relation("ShotPlayer")
+  assistedByShots        PlayerShot[]          @relation("ShotAssist")
   matchLineups           MatchLineup[]
   shootoutKicks          MatchShootoutKick[]
   trainingAttendances    TrainingAttendance[]
@@ -413,7 +406,11 @@ model Staff {
   id              String      @id @default(cuid())
   firstName       String
   lastName        String
+  dateOfBirth     DateTime?
+  bloodGroup      String?
   role            StaffRole
+  accountRoleId   String?
+  accountRole     Role?       @relation("StaffAccountRole", fields: [accountRoleId], references: [id], onDelete: SetNull)
   photoUrl        String?
   biography       String?     @db.Text
   internalContact String? // phone/email — INTERNAL, never public
@@ -432,24 +429,13 @@ model Staff {
   firstNameFr      String?
   lastNameFr       String?
   licenceNumber    String? // Official staff licence number
-  // Single-team FK — RETAINED for P1 (approved staged migration, Group 2).
-  // Existing consumers (Contract.resolveSubjectTeamId, TrainingSession.coachId
-  // displays, this model's own list/detail pages) keep reading this column
-  // unchanged. It is NOT removed or redefined in P1. `teamAssignments` below
-  // is the new multi-team model that later phases migrate those consumers to;
-  // until then the two are independent and this column is the sole source of
-  // truth for "this staff member's team" wherever that is still read.
-  // P1 RBAC foundation — operational assignment (StaffTeam), approved Group 2.
-  // Which teams this staff member actually works with. NOT an authorization
-  // mechanism: adding/removing a row here must never change what any User
-  // (including one linked via `userId` below) is allowed to access. Only
-  // `User.teamAssignments` (UserTeam) grants access.
+  // Canonical professional category. The profile form and StaffTeam relation
+  // stay synchronized so role + category produce one clear title. StaffTeam
+  // remains for existing consumers, with at most one row per profile.
   teamAssignments  StaffTeam[]
-  // P1 RBAC foundation — optional identity link only (approved Group: Staff.userId).
-  // Nullable + unique: at most one Staff record per User, and a Staff record
-  // may have no linked User at all (most staff never log in). This column
-  // MUST NOT be consulted for authorization anywhere — see the matching
-  // comment on User.staff above.
+  // Nullable + unique: at most one Staff record per User. Linked staff have a
+  // single canonical identity and their explicit category assignments sync to
+  // the account's UserTeam rows; unlinked records grant no account access.
   userId           String?           @unique
   user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -798,6 +784,7 @@ model Competition {
 
   @@index([teamId])
   @@index([type])
+  @@index([seasonId])
 }
 
 enum MatchStatus {
@@ -848,6 +835,7 @@ model Match {
   @@index([matchDate])
   @@index([status])
   @@index([teamId])
+  @@index([teamId, status, competitionId])
 }
 
 /// Public opponent club crests cached for reuse across future fixtures.
@@ -859,8 +847,20 @@ model OpponentClub {
   stadium        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  aliases        OpponentClubAlias[]
 
   @@index([name])
+}
+
+/// Alternate Arabic/French/federation names resolving to one shared opponent crest.
+model OpponentClubAlias {
+  normalizedName String       @id
+  name           String
+  opponentClubId String
+  opponentClub   OpponentClub @relation(fields: [opponentClubId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([opponentClubId])
 }
 
 enum MatchEventType {
@@ -887,49 +887,50 @@ enum MatchEventSource {
 }
 
 model MatchEvent {
-  id           String           @id @default(cuid())
-  matchId      String
-  match        Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  playerId     String?
-  player       Player?          @relation(fields: [playerId], references: [id])
-  staffId      String?
-  staff        Staff?           @relation(fields: [staffId], references: [id])
-  type         MatchEventType
-  side         MatchEventSide   @default(HOME)
-  source       MatchEventSource @default(MANUAL)
-  minute       Int
-  notes        String?
-  playerName   String?
-  playerNameFr String?
+  id             String           @id @default(cuid())
+  matchId        String
+  match          Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId       String?
+  player         Player?          @relation(fields: [playerId], references: [id])
+  staffId        String?
+  staff          Staff?           @relation(fields: [staffId], references: [id])
+  type           MatchEventType
+  side           MatchEventSide   @default(HOME)
+  source         MatchEventSource @default(MANUAL)
+  minute         Int
+  notes          String?
+  playerName     String?
+  playerNameFr   String?
   fafExternalKey String?
   shot           PlayerShot?
 
   @@unique([matchId, fafExternalKey])
   @@index([staffId])
+  @@index([playerId, matchId])
 }
 
 /// One record per shot attempt. Goal attempts link back to their MatchEvent;
 /// xG is stored with a model version so historical totals remain reproducible.
 model PlayerShot {
-  id             String          @id @default(cuid())
+  id             String         @id @default(cuid())
   matchId        String
-  match          Match           @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  matchEventId   String?         @unique
-  matchEvent     MatchEvent?     @relation(fields: [matchEventId], references: [id], onDelete: Cascade)
+  match          Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchEventId   String?        @unique
+  matchEvent     MatchEvent?    @relation(fields: [matchEventId], references: [id], onDelete: Cascade)
   playerId       String?
-  player         Player?         @relation("ShotPlayer", fields: [playerId], references: [id], onDelete: SetNull)
+  player         Player?        @relation("ShotPlayer", fields: [playerId], references: [id], onDelete: SetNull)
   assistPlayerId String?
-  assistPlayer   Player?         @relation("ShotAssist", fields: [assistPlayerId], references: [id], onDelete: SetNull)
+  assistPlayer   Player?        @relation("ShotAssist", fields: [assistPlayerId], references: [id], onDelete: SetNull)
   side           MatchEventSide
   minute         Int
-  bodyPart       String          @default("UNKNOWN")
-  situation      String          @default("OPEN_PLAY")
-  outcome        String          // GOAL | SAVED | OFF_TARGET | BLOCKED | WOODWORK | PENALTY_MISSED
-  x              Float?          // 0–100 along pitch length, from the shooter’s own half
-  y              Float?          // 0–100 across pitch width
+  bodyPart       String         @default("UNKNOWN")
+  situation      String         @default("OPEN_PLAY")
+  outcome        String // GOAL | SAVED | OFF_TARGET | BLOCKED | WOODWORK | PENALTY_MISSED
+  x              Float? // 0–100 along pitch length, from the shooter’s own half
+  y              Float? // 0–100 across pitch width
   xG             Float?
-  xgModelVersion String          @default("esh-xg-v1")
-  createdAt      DateTime        @default(now())
+  xgModelVersion String         @default("esh-xg-v1")
+  createdAt      DateTime       @default(now())
 
   @@index([matchId, minute])
   @@index([playerId, matchId])
@@ -1035,6 +1036,7 @@ model MatchLineup {
   shirtNumber     Int?
 
   @@id([matchId, playerId])
+  @@index([playerId, matchId])
 }
 
 enum ShootoutKickResult {
@@ -1677,16 +1679,16 @@ model TreasuryTransaction {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  deploymentEnvironment String @default("unknown")
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-  action     String // e.g. "player.create", "document.download"
-  entityType String // e.g. "Player", "Document"
-  entityId   String?
-  changes    Json? // before/after diff where relevant
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id                    String   @id @default(cuid())
+  deploymentEnvironment String   @default("unknown")
+  userId                String?
+  user                  User?    @relation(fields: [userId], references: [id])
+  action                String // e.g. "player.create", "document.download"
+  entityType            String // e.g. "Player", "Document"
+  entityId              String?
+  changes               Json? // before/after diff where relevant
+  ipAddress             String?
+  createdAt             DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([userId])

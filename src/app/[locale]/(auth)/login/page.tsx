@@ -25,6 +25,7 @@ export default function LoginPage() {
   const routeParams = useParams();
   const locale = (routeParams?.locale as string) || "ar";
   const callbackUrl = searchParams.get("callbackUrl") ?? "";
+  const passwordChanged = searchParams.get("passwordChanged") === "1";
   const [state, formAction, pending] = useActionState(loginAction, undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -177,6 +178,14 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
+
+            {passwordChanged && (
+              <p role="status" className="relative mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                {isRtl
+                  ? "تم تغيير كلمة المرور بنجاح. سجّل الدخول الآن باستخدام كلمة المرور الجديدة."
+                  : "Mot de passe modifié. Connectez-vous avec votre nouveau mot de passe."}
+              </p>
+            )}
 
             {/* Login Form */}
             <form

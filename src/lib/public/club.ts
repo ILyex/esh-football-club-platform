@@ -81,8 +81,9 @@ async function loadPublicClubSettings(): Promise<PublicClubSettings> {
   ));
   return {
     ...settings,
-    // Keep the association crest identical across public pages, match cards and metadata.
-    logoUrl: "/branding/esh-logo-128.png",
+    // Use the saved official crest consistently across public pages. Older
+    // installs without a configured crest keep the bundled club asset.
+    logoUrl: normalizePublicMediaUrl(settings.logoUrl) || "/branding/esh-logo-128.png",
     homepageHeroImageUrl: normalizePublicMediaUrl(settings.homepageHeroImageUrl),
     websiteImages,
     socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,

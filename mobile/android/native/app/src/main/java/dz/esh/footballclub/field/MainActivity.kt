@@ -10,6 +10,7 @@ import android.app.DownloadManager
 import android.os.Environment
 import android.os.Build
 import android.os.Bundle
+import java.security.MessageDigest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -299,6 +300,9 @@ private fun enqueueBackgroundUpdate(context: Context, release: NativeRelease): L
         .setTitle("تحديث تطبيق ESH")
         .setDescription("جارٍ تنزيل التحديث في الخلفية")
         .setMimeType(ApkDownloadReceiver.APK_MIME)
+        .addRequestHeader("User-Agent", "ESH-Android-Updater")
+        .addRequestHeader("Accept", ApkDownloadReceiver.APK_MIME)
+        .addRequestHeader("Cache-Control", "no-cache")
         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
         .setAllowedOverMetered(true)
         .setAllowedOverRoaming(false)
@@ -332,7 +336,7 @@ private suspend fun downloadUpdateDirect(
 
 private object IconlyIcons {
     val Home = R.drawable.iconly_home
-    val Travel = R.drawable.iconly_bus
+    val Travel = R.drawable.iconly_airplane
     val Match = R.drawable.ic_match_ball
     val MatchFilled = R.drawable.ic_match_ball_filled
     val Meeting = R.drawable.iconly_users
@@ -400,7 +404,7 @@ private fun MatchdayApp() {
     var matchDetailsLoaded by remember(token) { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var connectionError by remember { mutableStateOf<String?>(null) }
-    var playerStats by remember { mutableStateOf<NativePlayerStats?>(null) }
+    var playerStats by remember(token) { mutableStateOf(token?.let { NativeApi.cachedPlayerStats(it) }) }
     var playerStatsLoading by remember { mutableStateOf(false) }
     var playerStatsError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
@@ -767,7 +771,7 @@ private fun MatchdayApp() {
             }
         } else {
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
-                TopHeader(user?.role ?: L(locale, "حساب إداري", "Compte administrateur"), locale = locale, lightMode = lightMode, soundEffectsEnabled = soundEffectsEnabled, unreadCount = data?.alerts.orEmpty().count { !it.read }, onToggleSoundEffects = { toggleSoundEffects() }, onToggleTheme = { toggleTheme() }, onCheckUpdate = { checkForUpdate() }, onToggleLocale = { switchLocale() }, onNotifications = { section = Section.ALERTS }, onLogout = {
+                TopHeader(user?.role ?: L(locale, "حساب إداري", "Compte administrateur"), locale = locale, lightMode = lightMode, soundEffectsEnabled = soundEffectsEnabled, unreadCount = data?.alerts.orEmpty().count { !it.read }, clubLogoUrl = data?.clubLogoUrl, onToggleSoundEffects = { toggleSoundEffects() }, onToggleTheme = { toggleTheme() }, onCheckUpdate = { checkForUpdate() }, onToggleLocale = { switchLocale() }, onNotifications = { section = Section.ALERTS }, onLogout = {
                     val activeToken = token
                     sessionStore.clear(); NativeApi.clearCachedData(context); token = null; user = null; data = null; playerStats = null; playerStatsError = null
                     connectionError = null
@@ -824,7 +828,11 @@ private fun MatchdayApp() {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(L(locale, "يتم تنزيل التحديث داخل التطبيق والتحقق من سلامته…", "Téléchargement et vérification dans l’application…"), color = AppText, fontSize = 13.sp)
-                        androidx.compose.material3.LinearProgressIndicator(progress = { updateProgress / 100f }, modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Glass)
+                        if (updateProgress == 0) {
+                            androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Glass)
+                        } else {
+                            androidx.compose.material3.LinearProgressIndicator(progress = { updateProgress / 100f }, modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Glass)
+                        }
                         Text("$updateProgress%", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                     }
                 },
@@ -871,8 +879,10 @@ private fun MatchdayApp() {
                                 if (downloadId < 0L || manager == null) {
                                     // Fallback for devices where DownloadManager
                                     // is disabled, restricted, or unavailable.
-                                    val apkFile = downloadUpdateDirect(context, release) { progress ->
-                                        withContext(Dispatchers.Main) { if (progress > updateProgress) updateProgress = progress }
+                                    val apkFile = withContext(Dispatchers.IO) {
+                                        downloadUpdateDirect(context, release) { progress ->
+                                            withContext(Dispatchers.Main) { if (progress > updateProgress) updateProgress = progress }
+                                        }
                                     }
                                     updateProgress = 100
                                     updateDownloading = false
@@ -896,16 +906,47 @@ private fun MatchdayApp() {
                                     when (state.first) {
                                         DownloadManager.STATUS_SUCCESSFUL -> {
                                             updateProgress = 100
-                                            // ApkDownloadReceiver performs the
-                                            // SHA-256 check before publishing
-                                            // PENDING_URI. Give it a moment to
-                                            // finish before opening installer.
+                                            // The receiver normally verifies the
+                                            // file and publishes PENDING_URI. If
+                                            // Android delayed that broadcast,
+                                            // verify the completed DownloadManager
+                                            // file here instead of silently
+                                            // ending the update flow.
                                             var pendingUri: String? = null
-                                            for (attempt in 0 until 20) {
+                                            for (attempt in 0 until 40) {
                                                 pendingUri = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
                                                     .getString(ApkDownloadReceiver.PENDING_URI, null)
                                                 if (pendingUri != null) break
-                                                delay(150)
+                                                delay(250)
+                                            }
+                                            if (pendingUri == null) {
+                                                val completedUri = manager.getUriForDownloadedFile(downloadId)
+                                                    ?: error("download_file_missing")
+                                                val actualSha = withContext(Dispatchers.IO) {
+                                                    context.contentResolver.openInputStream(completedUri)?.use { input ->
+                                                        val digest = MessageDigest.getInstance("SHA-256")
+                                                        val buffer = ByteArray(16 * 1024)
+                                                        while (true) {
+                                                            val count = input.read(buffer)
+                                                            if (count < 0) break
+                                                            digest.update(buffer, 0, count)
+                                                        }
+                                                        digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+                                                    } ?: error("download_file_unreadable")
+                                                }
+                                                if (!release.sha256.equals(actualSha, ignoreCase = true)) {
+                                                    manager.remove(downloadId)
+                                                    error("download_checksum_mismatch")
+                                                }
+                                                pendingUri = completedUri.toString()
+                                                context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+                                                    .remove(ApkDownloadReceiver.PENDING_DOWNLOAD_ID)
+                                                    .remove(ApkDownloadReceiver.PENDING_SHA256)
+                                                    .putString(ApkDownloadReceiver.PENDING_URI, pendingUri)
+                                                    .putString(ApkDownloadReceiver.SUPPRESS_TAG, release.tag)
+                                                    .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false)
+                                                    .putBoolean(ApkDownloadReceiver.DOWNLOAD_FAILED, false)
+                                                    .apply()
                                             }
                                             updateDownloading = false
                                             updateDownloadJob = null
@@ -916,7 +957,33 @@ private fun MatchdayApp() {
                                             }
                                             break
                                         }
-                                        DownloadManager.STATUS_FAILED -> error("update_download_failed")
+                                        DownloadManager.STATUS_FAILED -> {
+                                            // Some Android/OEM DownloadManager
+                                            // builds reject CDN redirects or
+                                            // transient TLS/network responses.
+                                            // Clear its stale state and retry
+                                            // through the app's verified HTTP
+                                            // downloader before reporting an
+                                            // actual failure to the user.
+                                            val prefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                                            prefs.edit()
+                                                .remove(ApkDownloadReceiver.PENDING_DOWNLOAD_ID)
+                                                .remove(ApkDownloadReceiver.PENDING_SHA256)
+                                                .remove(ApkDownloadReceiver.PENDING_TAG)
+                                                .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false)
+                                                .apply()
+                                            manager.remove(downloadId)
+                                            val apkFile = withContext(Dispatchers.IO) {
+                                                downloadUpdateDirect(context, release) { progress ->
+                                                    withContext(Dispatchers.Main) { if (progress > updateProgress) updateProgress = progress }
+                                                }
+                                            }
+                                            updateProgress = 100
+                                            updateDownloading = false
+                                            updateDownloadJob = null
+                                            if (!installDownloadedApk(context, apkFile)) error("installer_unavailable")
+                                            break
+                                        }
                                         DownloadManager.STATUS_PAUSED,
                                         DownloadManager.STATUS_PENDING,
                                         DownloadManager.STATUS_RUNNING -> delay(250)
@@ -926,6 +993,13 @@ private fun MatchdayApp() {
                             }.onFailure { error ->
                                 updateDownloading = false
                                 updateDownloadJob = null
+                                context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+                                    .remove(ApkDownloadReceiver.PENDING_DOWNLOAD_ID)
+                                    .remove(ApkDownloadReceiver.PENDING_SHA256)
+                                    .remove(ApkDownloadReceiver.PENDING_TAG)
+                                    .remove(ApkDownloadReceiver.SUPPRESS_TAG)
+                                    .putBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false)
+                                    .apply()
                                 updateNotice = if (error.message == "installer_unavailable") {
                                     L(locale, "تعذر فتح شاشة تثبيت التحديث. افتح صلاحية تثبيت التطبيقات من إعدادات الهاتف ثم أعد المحاولة.", "Impossible d’ouvrir l’installation. Autorisez l’installation d’applications dans les réglages puis réessayez.")
                                 } else if (error.message == "download_manager_unavailable") {
@@ -1024,7 +1098,7 @@ private fun IconlyAnimated(animationRes: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TopHeader(role: String, locale: String, lightMode: Boolean, soundEffectsEnabled: Boolean, unreadCount: Int, onToggleSoundEffects: () -> Unit, onToggleTheme: () -> Unit, onCheckUpdate: () -> Unit, onToggleLocale: () -> Unit, onNotifications: () -> Unit, onLogout: () -> Unit) {
+private fun TopHeader(role: String, locale: String, lightMode: Boolean, soundEffectsEnabled: Boolean, unreadCount: Int, clubLogoUrl: String?, onToggleSoundEffects: () -> Unit, onToggleTheme: () -> Unit, onCheckUpdate: () -> Unit, onToggleLocale: () -> Unit, onNotifications: () -> Unit, onLogout: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 7.dp)
             .shadow(14.dp, RoundedCornerShape(23.dp))
@@ -1037,7 +1111,7 @@ private fun TopHeader(role: String, locale: String, lightMode: Boolean, soundEff
     ) {
         Row(Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.esh_logo), contentDescription = "شعار النادي", modifier = Modifier.size(33.dp))
+                if (!clubLogoUrl.isNullOrBlank()) NativeRemoteImage(clubLogoUrl, Modifier.size(33.dp)) else Image(painterResource(R.drawable.esh_logo), contentDescription = "شعار النادي", modifier = Modifier.size(33.dp))
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
@@ -1301,6 +1375,7 @@ private fun PlayerStatsPagination(page: Int, pageCount: Int, locale: String, onP
 private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, selected: Boolean, onClick: () -> Unit) {
     val name = if (locale == "fr") "${player.firstNameFr ?: player.firstName} ${player.lastNameFr ?: player.lastName}" else "${player.firstName} ${player.lastName}"
     val category = when (player.category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; else -> player.category }
+    val teamName = teamNameWithoutCategory(player.team, player.category)
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(if (nativeThemeIsLight) listOf(Color(0xFFFFFFFF), Color(0xFFF4F7F8)) else listOf(Color(0xFF202329), Color(0xFF191B20))))
@@ -1310,10 +1385,10 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-        PlayerAvatar(player.photoUrl, player.number, 47.dp, Red)
+        PlayerAvatar(player.photoUrl, player.number, 42.dp, Red)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(name, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text("$category · ${player.team} · $position", color = Muted, fontSize = 9.sp, maxLines = 1)
+            Text(listOf(category, teamName, position).filter { it.isNotBlank() }.distinctBy { it.trim().lowercase() }.joinToString(" · "), color = Muted, fontSize = 9.sp, maxLines = 1)
             Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                 Text("⚽ ${player.goals}", color = Color(0xFFFFC45D), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("${L(locale, "تمريرات", "PD")} ${player.assists}", color = Mint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -1331,11 +1406,12 @@ private fun PlayerStatsCard(player: NativePlayerPerformance, locale: String, sel
 @Composable
 private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
     val position = when (player.position) { "GOALKEEPER" -> L(locale, "حارس مرمى", "Gardien"); "DEFENDER" -> L(locale, "مدافع", "Défenseur"); "MIDFIELDER" -> L(locale, "وسط ميدان", "Milieu"); "FORWARD" -> L(locale, "مهاجم", "Attaquant"); else -> player.position }
+    val teamName = teamNameWithoutCategory(player.team, player.category)
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Glass, Panel))).border(1.dp, GlassBorder, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(L(locale, "تفاصيل الإحصائيات", "Détails des statistiques"), color = AppText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                Text("${player.team} · $position", color = Muted, fontSize = 9.sp, maxLines = 1)
+                Text(listOf(teamName, position).filter { it.isNotBlank() }.distinctBy { it.trim().lowercase() }.joinToString(" · "), color = Muted, fontSize = 9.sp, maxLines = 1)
             }
             Box(Modifier.clip(RoundedCornerShape(9.dp)).background(Red.copy(alpha = .15f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
                 Text(L(locale, "مفصلة", "Détaillée"), color = Red, fontSize = 9.sp, fontWeight = FontWeight.Bold)
@@ -1378,7 +1454,10 @@ private fun PlayerStatsDetail(player: NativePlayerPerformance, locale: String) {
 private fun PlayerAvatar(photoUrl: String?, number: Int?, size: Dp, accent: Color) {
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Box(Modifier.matchParentSize().clip(CircleShape).background(Brush.linearGradient(listOf(accent.copy(alpha = .22f), Mint.copy(alpha = .13f)))).border(1.dp, accent.copy(alpha = .3f), CircleShape), contentAlignment = Alignment.Center) {
-            if (!photoUrl.isNullOrBlank()) NativeRemoteImage(photoUrl, Modifier.fillMaxSize().clip(CircleShape))
+            // Keep portrait pixels away from the avatar's circular edge. The
+            // previous full-bleed photo filled the circle and visibly clipped
+            // the sides of player portraits in the compact stats list.
+            if (!photoUrl.isNullOrBlank()) NativeRemoteImage(photoUrl, Modifier.size(size * 0.86f).clip(CircleShape))
             else Text(number?.toString() ?: "—", color = AppText, fontSize = (size.value * .34f).sp, fontWeight = FontWeight.Black)
         }
         number?.let {
@@ -1413,7 +1492,7 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(38.dp).clip(CircleShape).background(Color.White).padding(2.dp))
+                        if (!data?.clubLogoUrl.isNullOrBlank()) NativeRemoteImage(data!!.clubLogoUrl!!, Modifier.size(38.dp).clip(CircleShape).background(Color.White).padding(2.dp)) else Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(38.dp).clip(CircleShape).background(Color.White).padding(2.dp))
                         Column {
                             Text("E SIDI HOSNI", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .5.sp)
                             Text(L(locale, "المركز الميداني للنادي", "Centre opérationnel du club"), color = Muted, fontSize = 9.sp)
@@ -1430,7 +1509,7 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .08f)).border(1.dp, GlassBorder, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                                Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(32.dp))
+                                if (!data?.clubLogoUrl.isNullOrBlank()) NativeRemoteImage(data!!.clubLogoUrl!!, Modifier.size(32.dp)) else Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.size(32.dp))
                             }
                             Text(L(locale, "أمل سيدي حسني", "E Sidi Hosni"), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
@@ -1444,7 +1523,11 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
                         }
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Red.copy(alpha = .22f), Glass))).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                                Icon(IconlyIcons.GoalBall, contentDescription = null, tint = Color(0xFFFF737A), modifier = Modifier.size(24.dp))
+                                if (!featuredMatch.opponentLogo.isNullOrBlank()) {
+                                    NativeRemoteImage(featuredMatch.opponentLogo!!, Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)))
+                                } else {
+                                    Icon(IconlyIcons.GoalBall, contentDescription = null, tint = Color(0xFFFF737A), modifier = Modifier.size(24.dp))
+                                }
                             }
                             Text(featuredMatch.opponent, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
@@ -2222,6 +2305,24 @@ private fun categoryLabel(category: String, locale: String): String = when (cate
     else -> category
 }
 
+/** Team names are admin-entered and often already end with their age group.
+ * The card prints the category separately, so remove that suffix to avoid
+ * showing labels such as “الأكابر · ESH — Seniors” twice. */
+private fun teamNameWithoutCategory(teamName: String, category: String): String {
+    val suffix = when (category) {
+        "SENIOR" -> "seniors?|الأكابر|اكابر|فئة الأكابر"
+        "U20" -> "u\\s*-?\\s*20|moins\\s+de\\s+20|أقل\\s+من\\s+20"
+        "U17" -> "u\\s*-?\\s*17|moins\\s+de\\s+17|أقل\\s+من\\s+17"
+        "U15" -> "u\\s*-?\\s*15|moins\\s+de\\s+15|أقل\\s+من\\s+15"
+        else -> return teamName.trim()
+    }
+    val cleaned = teamName.trim().replace(
+        Regex("(?i)(?:\\s*[-–—|·/]\\s*|\\s+)(?:$suffix)\\s*$"),
+        ""
+    ).trim()
+    return cleaned.ifBlank { teamName.trim() }
+}
+
 /** Keep native team pickers aligned with the platform's category order. */
 private fun orderedNativeTeams(teams: List<NativeTeam>): List<NativeTeam> {
     val categoryOrder = mapOf("SENIOR" to 0, "U20" to 1, "U17" to 2, "U15" to 3)
@@ -2332,17 +2433,11 @@ private fun NativeCompetitionCard(competition: NativeCompetition, locale: String
         } else if (rows.isEmpty()) {
             Text(L(locale, "لم يتم إدخال ترتيب هذه المسابقة بعد.", "Le classement de cette compétition n’est pas encore renseigné."), color = Muted, fontSize = 11.sp)
         } else {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("#", color = Muted, fontSize = 9.sp, modifier = Modifier.width(18.dp))
-                Text(L(locale, "الفريق", "Équipe"), color = Muted, fontSize = 9.sp, modifier = Modifier.weight(1f))
-                listOf("لعب", "ن", "ت", "خ", "له", "عليه", "نقاط").forEach { Text(it, color = Muted, fontSize = 8.sp, textAlign = TextAlign.Center, modifier = Modifier.width(25.dp)) }
-            }
             rows.forEachIndexed { index, row ->
-                val rowColor = if (row.isOurClub) Mint else AppText
                 if (editing) {
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text((index + 1).toString(), color = if (row.isOurClub) Red else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(18.dp), textAlign = TextAlign.Center)
-                        Text(row.teamName, color = rowColor, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(row.teamName, color = if (row.isOurClub) Mint else AppText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         listOf(row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst).forEachIndexed { field, value ->
                             OutlinedTextField(value = value.toString(), onValueChange = { raw ->
                                 val next = raw.toIntOrNull()?.coerceAtLeast(0) ?: 0
@@ -2360,16 +2455,82 @@ private fun NativeCompetitionCard(competition: NativeCompetition, locale: String
                         Text((row.won * 3 + row.drawn).toString(), color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(25.dp), textAlign = TextAlign.Center)
                     }
                 } else {
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(row.rank.toString(), color = if (row.isOurClub) Red else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(18.dp), textAlign = TextAlign.Center)
-                        Text(row.teamName, color = rowColor, fontSize = 10.sp, fontWeight = if (row.isOurClub) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        listOf(row.played, row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst, row.points).forEach { value -> Text(value.toString(), color = if (row.isOurClub) AppText else Muted, fontSize = 9.sp, textAlign = TextAlign.Center, modifier = Modifier.width(25.dp)) }
-                    }
+                    NativeStandingRow(row, locale)
                 }
             }
             if (editing) {
                 Spacer(Modifier.height(10.dp))
                 ClubPrimaryButton(text = L(locale, "حفظ الترتيب", "Enregistrer le classement"), onClick = { onSave(competition, rows); editing = false }, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeStandingRow(row: NativeStanding, locale: String) {
+    val rankColor = when {
+        row.isOurClub -> Red
+        row.rank == 1 -> Color(0xFFD6A62E)
+        row.rank == 2 -> Color(0xFF8B95A3)
+        row.rank == 3 -> Color(0xFFB77A52)
+        else -> Muted
+    }
+    val metrics = listOf(
+        L(locale, "لعب", "MJ") to row.played,
+        L(locale, "فاز", "G") to row.won,
+        L(locale, "تعادل", "N") to row.drawn,
+        L(locale, "خسر", "P") to row.lost,
+        L(locale, "له", "BP") to row.goalsFor,
+        L(locale, "عليه", "BC") to row.goalsAgainst,
+        L(locale, "الفارق", "+/-") to row.goalDifference,
+    )
+    Column(
+        Modifier.fillMaxWidth().padding(top = 7.dp).clip(RoundedCornerShape(15.dp))
+            .background(if (row.isOurClub) Red.copy(alpha = if (nativeThemeIsLight) .07f else .12f) else Glass)
+            .border(1.dp, if (row.isOurClub) Red.copy(alpha = .28f) else GlassBorder, RoundedCornerShape(15.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                Modifier.size(25.dp).clip(CircleShape).background(rankColor.copy(alpha = if (row.rank <= 3 || row.isOurClub) .16f else .08f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(row.rank.toString(), color = rankColor, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            }
+            Box(
+                Modifier.size(29.dp).clip(CircleShape)
+                    .background(if (row.isOurClub) Red.copy(alpha = .08f) else Glass)
+                    .border(1.dp, if (row.isOurClub) Red.copy(alpha = .35f) else GlassBorder, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!row.teamLogo.isNullOrBlank()) NativeRemoteImage(row.teamLogo, Modifier.size(23.dp).clip(CircleShape))
+                else Icon(IconlyIcons.OpponentShield, contentDescription = null, tint = if (row.isOurClub) Red else Muted, modifier = Modifier.size(19.dp))
+            }
+            Text(
+                row.teamName,
+                color = if (row.isOurClub) Red else AppText,
+                fontSize = 11.sp,
+                fontWeight = if (row.isOurClub) FontWeight.ExtraBold else FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Column(
+                Modifier.widthIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (row.isOurClub) Red else if (nativeThemeIsLight) Color(0xFFE9EDF0) else Color.White.copy(alpha = .07f))
+                    .padding(horizontal = 9.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(row.points.toString(), color = if (row.isOurClub) Color.White else AppText, fontSize = 15.sp, fontWeight = FontWeight.Black, lineHeight = 17.sp)
+                Text(L(locale, "نقاط", "Pts"), color = if (row.isOurClub) Color.White.copy(alpha = .88f) else Muted, fontSize = 7.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 33.dp, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            metrics.forEach { (label, value) ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(label, color = Muted, fontSize = 7.sp, maxLines = 1, textAlign = TextAlign.Center)
+                    Text(value.toString(), color = if (label == L(locale, "الفارق", "+/-") && value > 0) Mint else AppText.copy(alpha = .82f), fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                }
             }
         }
     }

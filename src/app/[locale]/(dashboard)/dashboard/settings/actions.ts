@@ -6,6 +6,7 @@ import { clubSettingsSchema } from "@/lib/validations/settings";
 import { writeAuditLog } from "@/lib/audit";
 import { validateUploadedImage, generatePublicStorageKey, uploadPublicFile } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 export async function updateClubSettingsAction(formData: FormData, locale: string) {
   const user = await requirePermission("settings.manage");
@@ -59,6 +60,8 @@ export async function updateClubSettingsAction(formData: FormData, locale: strin
   // public page regardless of which language the visitor uses.
   revalidatePath("/ar", "layout");
   revalidatePath("/fr", "layout");
+  revalidateTag("public-club-settings");
+  revalidateTag("public-home");
   revalidatePath(`/${locale}/dashboard/settings`);
   return { id: settings.id };
 }

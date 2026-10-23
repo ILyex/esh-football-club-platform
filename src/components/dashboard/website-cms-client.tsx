@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/datetime-input";
 import { frenchCompetitionName, localizedClubName } from "@/lib/public/locale-text";
 import { OpponentCrest } from "@/components/public/opponent-crest";
+import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
 
 interface MatchOption {
   id: string;
@@ -496,8 +497,8 @@ export function WebsiteCmsClient({
                 />
 
                 {/* Opponent Logo Upload and Preview */}
-                <div className="flex items-center gap-3 p-2.5 rounded-xl border border-dashed border-border bg-muted/20">
-                  <div className="h-10 w-10 shrink-0 rounded-lg border border-border/80 bg-background flex items-center justify-center overflow-hidden">
+                <div className={`${IMAGE_UPLOAD_FRAME} gap-3 p-2.5`}>
+                  <div className={`${IMAGE_UPLOAD_PREVIEW} h-10 w-10 rounded-lg`}>
                     {previewLogo ? (
                       <OpponentCrest src={previewLogo} alt="Logo" className="h-full w-full object-contain p-1" iconClassName="h-5 w-5 text-muted-foreground/50" />
                     ) : (
@@ -505,7 +506,7 @@ export function WebsiteCmsClient({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                    <label className={`${IMAGE_UPLOAD_ACTION} h-8 cursor-pointer px-2.5 text-[11px]`}>
                       <span>{isRtl ? "رفع أو تغيير شعار الخصم" : "Téléverser le logo"}</span>
                       <input
                         type="file"

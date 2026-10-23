@@ -1,7 +1,9 @@
 import type { StandingTeamEntry } from "./types";
 
+export const OFFICIAL_ROUND_TWO_BASELINE_AT = "2026-10-23T00:00:00.000Z";
+
 /** Structured transcription of the official Seniors standings after round two. */
-export function getOfficialRoundTwoSeniorStandings(baselineAt: string): StandingTeamEntry[] {
+export function getOfficialRoundTwoSeniorStandings(baselineAt = OFFICIAL_ROUND_TWO_BASELINE_AT): StandingTeamEntry[] {
   const rows: Array<[string, string, boolean, number, number, number, number, number, number, number, number]> = [
     ["esh", "E Sidi Hosni", true, 2, 1, 1, 0, 7, 1, 4, 0],
     ["csnr-tiaret", "CSNR Tiaret", false, 2, 1, 1, 0, 4, 1, 4, 0],
