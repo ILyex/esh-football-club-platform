@@ -400,13 +400,14 @@ private fun MatchdayApp() {
     val preferences = remember { context.getSharedPreferences("esh_native_ui", android.content.Context.MODE_PRIVATE) }
     var dismissedAlertIds by remember { mutableStateOf(preferences.getStringSet("dismissed_alert_ids", emptySet()).orEmpty()) }
     fun visiblePayload(payload: NativeData): NativeData = payload.copy(alerts = payload.alerts.filterNot { it.id in dismissedAlertIds })
-    val cachedStartData = remember { NativeApi.cachedData(context, preferences.getString("locale", "ar") ?: "ar")?.let(::visiblePayload) }
-    var user by remember { mutableStateOf<NativeUser?>(cachedStartData?.user) }
-    var data by remember { mutableStateOf<NativeData?>(cachedStartData) }
+    // SharedPreferences contains serialized dashboard data. Parsing it can be
+    // expensive on older phones, so defer the disk read and JSON decoding to IO.
+    var user by remember { mutableStateOf<NativeUser?>(null) }
+    var data by remember { mutableStateOf<NativeData?>(null) }
     var matchDetailsLoaded by remember(token) { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var connectionError by remember { mutableStateOf<String?>(null) }
-    var playerStats by remember(token) { mutableStateOf(token?.let { NativeApi.cachedPlayerStats(it) }) }
+    var playerStats by remember(token) { mutableStateOf<NativePlayerStats?>(null) }
     var playerStatsLoading by remember { mutableStateOf(false) }
     var playerStatsError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
@@ -442,6 +443,24 @@ private fun MatchdayApp() {
     var updateFile by remember { mutableStateOf<File?>(null) }
     var composerType by remember { mutableStateOf<String?>(null) }
     var createError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(token, locale) {
+        val cachedLocale = locale
+        val activeToken = token
+        if (data == null) {
+            val cached = withContext(Dispatchers.IO) {
+                NativeApi.cachedData(context, cachedLocale)?.let(::visiblePayload)
+            }
+            if (token == activeToken && locale == cachedLocale && data == null && cached != null) {
+                data = cached
+                user = cached.user.takeIf { it.id.isNotBlank() } ?: user
+            }
+        }
+        if (activeToken != null && playerStats == null) {
+            val cachedStats = withContext(Dispatchers.IO) { NativeApi.cachedPlayerStats(activeToken) }
+            if (token == activeToken && playerStats == null && cachedStats != null) playerStats = cachedStats
+        }
+    }
 
     fun toggleTheme() {
         val next = !lightMode
@@ -559,8 +578,10 @@ private fun MatchdayApp() {
     LaunchedEffect(token) {
         if (token == null) return@LaunchedEffect
         while (true) {
-            delay(60_000)
-            if (token != null) refreshNonce++
+            delay(180_000)
+            // Lifecycle resume already refreshes immediately. Avoid network and
+            // JSON work while the app is backgrounded or the device is locked.
+            if (token != null && MainActivity.isForeground) refreshNonce++
         }
     }
 
