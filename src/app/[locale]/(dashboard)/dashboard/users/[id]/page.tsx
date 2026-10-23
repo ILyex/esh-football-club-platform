@@ -107,7 +107,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
               {isOnline ? t("fields.online") : t("fields.offline")}
             </Badge>
             <Badge tone={user.isActive ? "success" : "danger"}>
-              {user.isActive ? (locale === "ar" ? "الحساب مفعّل" : "Compte activé") : (locale === "ar" ? "الحساب معطّل" : "Compte désactivé")}
+              {user.isActive ? (locale === "ar" ? "الدخول مفعّل" : "Accès activé") : (locale === "ar" ? "الدخول معطّل" : "Accès désactivé")}
             </Badge>
             <Badge tone="neutral" className="text-[11px]">
               {locale === "ar" ? `صلاحية: ${user.role.name}` : `Accès : ${user.role.name}`}

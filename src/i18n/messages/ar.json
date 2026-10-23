@@ -570,8 +570,8 @@
       "isActive": "نشط",
       "lastLoginAt": "آخر تسجيل دخول",
       "sessionStatus": "حالة الجلسة",
-      "online": "نشط الآن",
-      "offline": "غير نشط"
+      "online": "متصل الآن",
+      "offline": "غير متصل"
     },
     "resetPassword": "إعادة تعيين كلمة المرور",
     "deactivate": "تعطيل",

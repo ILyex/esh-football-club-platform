@@ -570,8 +570,8 @@
       "isActive": "Actif",
       "lastLoginAt": "Dernière connexion",
       "sessionStatus": "État de session",
-      "online": "Actif maintenant",
-      "offline": "Inactif"
+      "online": "En ligne",
+      "offline": "Hors ligne"
     },
     "resetPassword": "Réinitialiser le mot de passe",
     "deactivate": "Désactiver",
