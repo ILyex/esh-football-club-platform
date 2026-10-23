@@ -7,6 +7,13 @@ import { getSessionOrThrow } from "@/lib/permissions";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { changePasswordSchema } from "@/lib/validations/auth";
+import {
+  generatePublicStorageKey,
+  isPublicStorageConfigured,
+  uploadPublicFile,
+  validateUploadedImage
+} from "@/lib/storage";
+import { revalidatePath } from "next/cache";
 
 export async function changeOwnPasswordAction(formData: FormData): Promise<never> {
   const actor = await getSessionOrThrow();
@@ -47,4 +54,40 @@ export async function changeOwnPasswordAction(formData: FormData): Promise<never
   // Revoke all sessions, including this one, so the new credential takes
   // effect everywhere. The login page confirms the change after re-auth.
   redirect(`/${locale}/login?passwordChanged=1`);
+}
+
+export async function changeOwnPhotoAction(formData: FormData): Promise<never> {
+  const actor = await getSessionOrThrow();
+  const locale = String(formData.get("locale") ?? "ar") === "fr" ? "fr" : "ar";
+  const accountPath = `/${locale}/dashboard/account`;
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) redirect(`${accountPath}?photoError=required`);
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { mime, ext } = await validateUploadedImage(buffer);
+    let image: string;
+    if (isPublicStorageConfigured()) {
+      image = await uploadPublicFile({ key: generatePublicStorageKey("users", ext), buffer, mimeType: mime });
+    } else {
+      if (buffer.byteLength > 700 * 1024) redirect(`${accountPath}?photoError=too_large`);
+      image = `data:${mime};base64,${buffer.toString("base64")}`;
+    }
+
+    await db.user.update({ where: { id: actor.id }, data: { image } });
+    await writeAuditLog({
+      userId: actor.id,
+      action: "user.photo_changed",
+      entityType: "User",
+      entityId: actor.id,
+      changes: { after: { hasImage: true } }
+    });
+    revalidatePath("/[locale]/dashboard/account", "page");
+    revalidatePath("/[locale]/dashboard", "layout");
+    redirect(`${accountPath}?photo=saved`);
+  } catch (error) {
+    // Next redirects throw internally; allow successful redirects to pass through.
+    if (error && typeof error === "object" && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT")) throw error;
+    redirect(`${accountPath}?photoError=invalid`);
+  }
 }

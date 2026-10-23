@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bell, ExternalLink, Globe, KeyRound } from "lucide-react";
+import { Bell, ExternalLink, Globe } from "lucide-react";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
 import { resolveUserTeamContext } from "@/lib/team-context";
 import { db } from "@/lib/db";
@@ -248,7 +248,6 @@ export default async function DashboardLayout({
                   {user.roleName}
                 </span>
               </div>
-              <KeyRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </Link>
           </div>
         </div>

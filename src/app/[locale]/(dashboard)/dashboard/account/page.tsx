@@ -1,7 +1,10 @@
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { Camera, KeyRound, ShieldCheck } from "lucide-react";
 import { getSessionOrThrow } from "@/lib/permissions";
+import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { changeOwnPasswordAction } from "./actions";
+import { AvatarUploadField } from "@/components/users/avatar-upload-field";
+import { SafeImage } from "@/components/shared/safe-image";
+import { changeOwnPasswordAction, changeOwnPhotoAction } from "./actions";
 
 const errorText = (locale: string, error?: string) => {
   if (!error) return null;
@@ -20,10 +23,19 @@ export default async function AccountSecurityPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; photo?: string; photoError?: string }>;
 }) {
-  const [{ locale }, { error }, user] = await Promise.all([params, searchParams, getSessionOrThrow()]);
+  const [{ locale }, { error, photo, photoError }, user] = await Promise.all([
+    params,
+    searchParams,
+    getSessionOrThrow()
+  ]);
+  const accountPhoto = await db.user.findUnique({
+    where: { id: user.id },
+    select: { image: true, staff: { select: { photoUrl: true } } }
+  });
   const isAr = locale === "ar";
+  const currentPhoto = accountPhoto?.image || accountPhoto?.staff?.photoUrl;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5">
@@ -31,6 +43,32 @@ export default async function AccountSecurityPage({
         <h1 className="text-2xl font-black tracking-tight">{isAr ? "حسابي وأمان الحساب" : "Mon compte et sa sécurité"}</h1>
         <p className="text-sm text-muted-foreground">{isAr ? "غيّر كلمة مرور حسابك بعد التحقق من كلمة المرور الحالية." : "Modifiez le mot de passe après vérification de votre mot de passe actuel."}</p>
       </header>
+
+      <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary"><Camera className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold">{isAr ? "الصورة الشخصية" : "Photo de profil"}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{isAr ? "غيّر الصورة التي تظهر بجانب اسمك في المنصة." : "Modifiez la photo affichée à côté de votre nom sur la plateforme."}</p>
+          </div>
+        </div>
+
+        {photo === "saved" && <p role="status" className="rounded-xl border border-emerald-600/25 bg-emerald-600/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{isAr ? "تم تحديث صورتك الشخصية." : "Votre photo de profil a été mise à jour."}</p>}
+        {photoError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{photoError === "too_large" ? (isAr ? "حجم الصورة كبير. اختر صورة أصغر." : "La photo est trop volumineuse. Choisissez une image plus petite.") : photoError === "required" ? (isAr ? "اختر صورة أولًا." : "Choisissez d’abord une photo.") : (isAr ? "تعذر تحديث الصورة. تحقق من نوع الملف وحاول مجددًا." : "Impossible de mettre à jour la photo. Vérifiez le fichier et réessayez.")}</p>}
+
+        <form action={changeOwnPhotoAction} className="space-y-4">
+          <input type="hidden" name="locale" value={locale} />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+              {currentPhoto ? <SafeImage src={currentPhoto} fallbackSrc="/branding/esh-logo-64.png" alt={user.name} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-xl font-black text-muted-foreground">{user.name.slice(0, 1).toUpperCase()}</span>}
+            </div>
+            <div className="min-w-0 flex-1"><AvatarUploadField locale={locale} /></div>
+          </div>
+          <div className="flex justify-end border-t border-border pt-4">
+            <Button type="submit" className="shrink-0">{isAr ? "حفظ الصورة" : "Enregistrer la photo"}</Button>
+          </div>
+        </form>
+      </section>
 
       <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6">
         <div className="flex items-start gap-3">
