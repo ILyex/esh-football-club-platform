@@ -215,7 +215,10 @@ export async function GET(request: Request) {
         seasonLabel: competition.season.label,
         category,
         categoryLabel: OFFICIAL_CATEGORY_NAMES[category as keyof typeof OFFICIAL_CATEGORY_NAMES]?.[locale === "fr" ? "fr" : "ar"] || category,
-        standings,
+        // Use the same canonical media URLs as the rest of the native payload.
+        // The platform's standings resolver remains the source of truth for
+        // opponent and club crests; this only makes those assets portable in-app.
+        standings: standings.map((row) => ({ ...row, teamLogo: mediaUrl(row.teamLogo) })),
         bracket: display.bracket,
         canManage: canManageCompetitions
       };

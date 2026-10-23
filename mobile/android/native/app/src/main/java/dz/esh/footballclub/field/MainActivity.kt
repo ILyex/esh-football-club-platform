@@ -67,8 +67,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.asImageBitmap
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import androidx.compose.ui.graphics.graphicsLayer
@@ -97,6 +96,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -1578,23 +1578,6 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
         // A slow, single pass keeps the physical-card details readable.
         sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 2800))
     }
-    val imageContext = LocalContext.current
-    val remotePhotoRequest = remember(user.image) {
-        user.image?.takeIf { it.isNotBlank() && !it.startsWith("data:image/", ignoreCase = true) }?.let { source ->
-            val remoteSource = NativeApi.absolutePublicUrl(source)
-            val cacheKey = nativeImageCacheKey(remoteSource)
-            ImageRequest.Builder(imageContext)
-                .data(remoteSource)
-                .memoryCacheKey(cacheKey)
-                .diskCacheKey(cacheKey)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .networkCachePolicy(CachePolicy.ENABLED)
-                .crossfade(false)
-                .build()
-        }
-    }
-    val remotePhotoPainter = remotePhotoRequest?.let { rememberAsyncImagePainter(model = it) }
     val embeddedImage by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
             runCatching {
@@ -1702,8 +1685,13 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     .background(Color.White).border(1.dp, Color(0xFFAAA99F))
                     .padding(3.dp)
             ) {
-                if (remotePhotoPainter?.state is AsyncImagePainter.State.Success) {
-                    Image(painter = remotePhotoPainter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (!user.image.isNullOrBlank() && !user.image.startsWith("data:image/", ignoreCase = true)) {
+                    NativeRemoteImage(user.image, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, fallback = {
+                        if (embeddedImage != null) Image(bitmap = embeddedImage!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        else Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) {
+                            Text(displayName.take(1).ifBlank { "?" }.uppercase(), color = ink, fontSize = (26f * fontScale).sp, fontWeight = FontWeight.Black)
+                        }
+                    })
                 } else if (embeddedImage != null) {
                     Image(bitmap = embeddedImage!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
@@ -2528,7 +2516,14 @@ private fun NativeStandingRow(row: NativeStanding, locale: String) {
                     .border(1.dp, if (row.isOurClub) Red.copy(alpha = .35f) else GlassBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                if (!row.teamLogo.isNullOrBlank()) NativeRemoteImage(row.teamLogo, Modifier.size(23.dp).clip(CircleShape))
+                if (!row.teamLogo.isNullOrBlank()) NativeRemoteImage(
+                    row.teamLogo,
+                    Modifier.size(23.dp).clip(CircleShape),
+                    fallback = {
+                        if (row.isOurClub) Image(painterResource(R.drawable.esh_logo), contentDescription = null, modifier = Modifier.fillMaxSize())
+                        else Icon(IconlyIcons.OpponentShield, contentDescription = null, tint = Muted, modifier = Modifier.size(19.dp))
+                    }
+                )
                 else Icon(IconlyIcons.OpponentShield, contentDescription = null, tint = if (row.isOurClub) Red else Muted, modifier = Modifier.size(19.dp))
             }
             Text(
@@ -2584,7 +2579,12 @@ private fun NativeImageThumbnail(uri: Uri, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier, fallback: @Composable () -> Unit = {}) {
+private fun NativeRemoteImage(
+    url: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Inside,
+    fallback: @Composable () -> Unit = {}
+) {
     val context = LocalContext.current
     val source = remember(url) { NativeApi.absolutePublicUrl(url) }
     val cacheKey = remember(source) { nativeImageCacheKey(source) }
@@ -2599,13 +2599,9 @@ private fun NativeRemoteImage(url: String, modifier: Modifier = Modifier, fallba
             .crossfade(false)
             .build()
     }
-    val painter = rememberAsyncImagePainter(model = request)
-    Box(modifier.background(Glass), contentAlignment = Alignment.Center) {
-        if (painter.state is AsyncImagePainter.State.Success) {
-            Image(painter = painter, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Inside)
-        } else {
-            fallback()
-        }
+    Box(modifier, contentAlignment = Alignment.Center) {
+        fallback()
+        AsyncImage(model = request, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = contentScale)
     }
 }
 
