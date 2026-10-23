@@ -1617,6 +1617,14 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
     val frenchName = listOf(frenchSurname.uppercase(), frenchGivenName).filter { it.isNotBlank() }.joinToString(" ")
     val accountNameHasLatin = user.name.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.LATIN }
     val displayName = frenchName.ifBlank { user.name.takeIf { accountNameHasLatin }.orEmpty() }.ifBlank { "—" }
+    val displayNameLines = when {
+        frenchSurname.isNotBlank() && frenchGivenName.isNotBlank() -> listOf(frenchSurname.uppercase(), frenchGivenName)
+        displayName.trim().split(Regex("\\s+")).size > 2 -> {
+            val words = displayName.trim().split(Regex("\\s+"))
+            listOf(words.first(), words.drop(1).joinToString(" "))
+        }
+        else -> listOf(displayName)
+    }
     val birthDate = user.dateOfBirth?.take(10)?.let { raw ->
         runCatching { java.time.LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", java.util.Locale.FRANCE)) }.getOrNull()
     } ?: "—"
@@ -1727,7 +1735,19 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     .width(cardWidth * .545f).height(cardHeight * .49f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(displayName, color = ink, fontSize = (14.5f * fontScale).sp, lineHeight = (16.5f * fontScale).sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                displayNameLines.forEachIndexed { index, line ->
+                    val sizeAdjustment = if (line.length > 18) .82f else if (line.length > 14) .9f else 1f
+                    Text(
+                        line,
+                        color = ink,
+                        fontSize = (14.5f * fontScale * sizeAdjustment).sp,
+                        lineHeight = (16.5f * fontScale).sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 LicenseDetail("Né le :", birthDate, ink, fontScale)
                 LicenseDetail("Groupage :", user.bloodGroup?.takeIf { it.isNotBlank() } ?: "—", ink, fontScale)
                 Box(Modifier.padding(top = 3.dp).width(cardWidth * .38f).heightIn(min = 22.dp).clip(RoundedCornerShape(50)).background(violet).padding(horizontal = 6.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
