@@ -1592,8 +1592,8 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
             }.getOrNull()
         }
     }
-    val surname = user.lastName?.trim().orEmpty()
-    val givenName = user.firstName?.trim().orEmpty()
+    val surname = user.lastNameFr?.trim()?.takeIf { it.isNotEmpty() } ?: user.lastName?.trim().orEmpty()
+    val givenName = user.firstNameFr?.trim()?.takeIf { it.isNotEmpty() } ?: user.firstName?.trim().orEmpty()
     val displayName = listOf(surname.uppercase(), givenName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { user.name.ifBlank { "—" } }
     val birthDate = user.dateOfBirth?.take(10)?.let { raw ->
         runCatching { java.time.LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", java.util.Locale.FRANCE)) }.getOrNull()

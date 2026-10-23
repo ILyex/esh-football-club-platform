@@ -120,7 +120,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     clubLogoUrl: mediaUrl(clubSettings?.logoUrl) || mediaUrl("/branding/esh-logo-128.png"),
-    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
+    user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, firstNameFr: user.firstNameFr, lastNameFr: user.lastNameFr, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({

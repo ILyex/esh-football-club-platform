@@ -47,7 +47,10 @@ export async function authenticatePlatformCredentials(raw: Record<string, unknow
 
   const user = await db.user.findUnique({
     where: { email, deletedAt: null },
-    include: { role: { include: { permissions: { include: { permission: true } } } } }
+    include: {
+      role: { include: { permissions: { include: { permission: true } } } },
+      staff: { select: { firstNameFr: true, lastNameFr: true } }
+    }
   });
   const hashToCompare = user?.passwordHash ?? "$2a$10$invalidinvalidinvalidinvalidinvalidinva";
   const passwordMatches = await bcrypt.compare(password, hashToCompare);
@@ -71,6 +74,8 @@ export async function authenticatePlatformCredentials(raw: Record<string, unknow
     licenseRole: user.licenseRole,
     firstName: user.firstName,
     lastName: user.lastName,
+    firstNameFr: user.staff?.firstNameFr ?? null,
+    lastNameFr: user.staff?.lastNameFr ?? null,
     dateOfBirth: user.dateOfBirth?.toISOString() ?? null,
     bloodGroup: user.bloodGroup,
     roleKey: user.role.key,

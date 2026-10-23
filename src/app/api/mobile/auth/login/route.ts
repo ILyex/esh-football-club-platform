@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (!canUseNativeMatchday(user)) return NextResponse.json({ error: "admin_access_required" }, { status: 403 });
     const rememberMe = body.rememberMe === true || body.rememberMe === "true";
     const session = await createNativeSessionToken(user, rememberMe);
-    return NextResponse.json({ ...session, user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, dateOfBirth: user.dateOfBirth, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, permissions: user.permissions } }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ...session, user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, firstNameFr: user.firstNameFr, lastNameFr: user.lastNameFr, dateOfBirth: user.dateOfBirth, bloodGroup: user.bloodGroup, email: user.email, image: user.image, licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, permissions: user.permissions } }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
     if (code === "rate_limited") return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "Cache-Control": "no-store" } });

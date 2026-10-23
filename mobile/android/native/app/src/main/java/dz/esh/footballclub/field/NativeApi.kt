@@ -71,7 +71,9 @@ data class NativeUser(
     val bloodGroup: String? = null,
     val season: String? = null,
     val licenseRole: String? = null,
-    val roleKey: String? = null
+    val roleKey: String? = null,
+    val firstNameFr: String? = null,
+    val lastNameFr: String? = null
 )
 data class NativeLoginResult(val token: String?, val user: NativeUser?, val error: String?)
 data class NativeRelease(val tag: String, val apkUrl: String, val sha256: String?)
@@ -569,7 +571,8 @@ object NativeApi {
         user.optString("id"), user.optString("name"), user.optString("email"), user.optString("roleName"),
         user.optNullableString("image"), user.optNullableString("licenseNumber"), user.optNullableString("firstName"),
         user.optNullableString("lastName"), user.optNullableString("dateOfBirth"), user.optNullableString("bloodGroup"),
-        user.optNullableString("season"), user.optNullableString("licenseRole"), user.optNullableString("roleKey")
+        user.optNullableString("season"), user.optNullableString("licenseRole"), user.optNullableString("roleKey"),
+        user.optNullableString("firstNameFr"), user.optNullableString("lastNameFr")
     )
     private class ApiFailure(val code: String) : Exception(code)
 }
