@@ -10,6 +10,7 @@ export async function createRoleAction(formData: FormData) {
   const actor = await requirePermission("roles.manage");
   const raw = Object.fromEntries(formData.entries());
   const parsed = createRoleSchema.parse(raw);
+  if (parsed.key === "staff_profile") throw new Error("reservedRoleKey");
 
   const existing = await db.role.findUnique({ where: { key: parsed.key } });
   if (existing) throw new Error("keyTaken");

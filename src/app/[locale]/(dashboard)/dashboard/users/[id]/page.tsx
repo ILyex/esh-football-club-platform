@@ -47,7 +47,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
         teamAssignments: { include: { team: true }, orderBy: { createdAt: "asc" } }
       }
     }),
-    db.role.findMany({ orderBy: { name: "asc" } }),
+    db.role.findMany({ where: { key: { not: "staff_profile" } }, orderBy: { name: "asc" } }),
     db.team.findMany({ where: { active: true }, orderBy: { name: "asc" } })
   ]);
   if (!user) notFound();

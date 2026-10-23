@@ -26,7 +26,7 @@ export default async function NewStaffPage({ params }: { params: Promise<{ local
     db.role.findMany({ orderBy: { name: "asc" }, select: { id: true, key: true, name: true, teamScoped: true } })
   ]);
   const canAssignUserAccess = hasPermission(actor, "users.manage");
-  const accountRoles = allRoles.filter((role) => !["super_admin", "treasurer"].includes(role.key));
+  const accountRoles = allRoles.filter((role) => !["super_admin", "treasurer", "staff_profile"].includes(role.key));
   const teamOptions = teams.map((team) => ({ id: team.id, label: tTeams(`categories.${team.category}` as any) }));
 
   const roleTranslations: Record<string, string> = {};

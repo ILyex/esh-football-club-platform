@@ -16,7 +16,7 @@ export default async function NewUserPage({ params }: { params: Promise<{ locale
   const t = await getTranslations("users");
   const tCommon = await getTranslations("common");
 
-  const roles = await db.role.findMany({ orderBy: { name: "asc" } });
+  const roles = await db.role.findMany({ where: { key: { not: "staff_profile" } }, orderBy: { name: "asc" } });
 
   async function action(formData: FormData) {
     "use server";

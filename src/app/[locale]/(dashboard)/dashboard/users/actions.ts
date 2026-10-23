@@ -57,6 +57,7 @@ export async function createUserAction(formData: FormData) {
   const parsed = createUserSchema.parse(schemaInput);
 
   const selectedRole = await db.role.findUniqueOrThrow({ where: { id: parsed.roleId }, select: { key: true } });
+  if (selectedRole.key === "staff_profile") throw new Error("staffProfileRoleUnavailable");
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
   }
@@ -108,6 +109,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
 
   const effectiveRoleId = parsed.roleId;
   const selectedRole = await db.role.findUniqueOrThrow({ where: { id: effectiveRoleId }, select: { key: true, teamScoped: true } });
+  if (selectedRole.key === "staff_profile") throw new Error("staffProfileRoleUnavailable");
   if (before.staff && ["super_admin", "treasurer"].includes(selectedRole.key)) {
     throw new Error("staffAccountRoleNotAllowed");
   }

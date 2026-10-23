@@ -14,6 +14,7 @@ export default async function RolesListPage({ params }: { params: Promise<{ loca
   const tCommon = await getTranslations("common");
 
   const roles = await db.role.findMany({
+    where: { key: { not: "staff_profile" } },
     include: { _count: { select: { users: { where: { deletedAt: null } }, permissions: true } } },
     orderBy: { name: "asc" }
   });

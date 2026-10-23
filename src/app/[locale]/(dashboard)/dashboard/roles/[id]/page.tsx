@@ -21,7 +21,7 @@ export default async function RoleDetailPage({ params }: { params: Promise<{ loc
     db.role.findUnique({ where: { id }, include: { permissions: true, users: true } }),
     db.permission.findMany({ orderBy: [{ group: "asc" }, { key: "asc" }] })
   ]);
-  if (!role) notFound();
+  if (!role || role.key === "staff_profile") notFound();
 
   const visiblePermissions = allPermissions.filter((permission) => permission.key !== "*" || role.key === "super_admin");
   const grantedPermissionIds = new Set(role.permissions.map((rp) => rp.permissionId));

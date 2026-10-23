@@ -18,7 +18,7 @@ const staffCardTitle = (role: string, category?: string | null) =>
 
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
-  const [staffMembers, staffProfileRole] = await Promise.all([
+  const [staffMembers, viewerRole] = await Promise.all([
     db.staff.findMany({
       include: {
         user: true,
@@ -27,19 +27,12 @@ async function main() {
       },
       orderBy: { createdAt: "asc" }
     }),
-    db.role.upsert({
-      where: { key: "staff_profile" },
-      update: { name: "حساب ملف الطاقم", description: "دور مؤقت بلا صلاحيات لحسابات الطاقم غير المهيأة." },
-      create: {
-        key: "staff_profile",
-        name: "حساب ملف الطاقم",
-        description: "دور مؤقت بلا صلاحيات لحسابات الطاقم غير المهيأة.",
-        isSystem: true
-      },
+    db.role.findUnique({
+      where: { key: "viewer" },
       select: { id: true }
     })
   ]);
-  await db.rolePermission.deleteMany({ where: { roleId: staffProfileRole.id } });
+  if (!viewerRole) throw new Error("Viewer role is required before staff account backfill.");
 
   let created = 0;
   let updated = 0;
@@ -91,14 +84,14 @@ async function main() {
           image: staff.photoUrl,
           email,
           passwordHash,
-          roleId: staff.accountRoleId ?? staffProfileRole.id,
+          roleId: staff.accountRoleId ?? viewerRole.id,
           isActive: false
         },
         select: { id: true }
       });
       await tx.staff.update({
         where: { id: staff.id },
-        data: { userId: user.id, accountRoleId: staff.accountRoleId ?? staffProfileRole.id }
+        data: { userId: user.id, accountRoleId: staff.accountRoleId ?? viewerRole.id }
       });
       if (teamId) {
         await tx.userTeam.create({ data: { userId: user.id, teamId } });
