@@ -3201,9 +3201,9 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
                 verticalArrangement = Arrangement.Center
             ) {
                 AnimatedContent(targetState = active, label = "nav-icon-${item.name}") {
-                    // Keep the outline asset; selection animates its presentation
-                    // and the active item expands as in the earlier navigation.
-                    Icon(item.icon, contentDescription = item.title(locale), tint = if (it) Red else Muted, modifier = Modifier.size(22.dp))
+                    // Keep one outline asset for every state. Selection changes only
+                    // its tint, while the active item width animates as before.
+                    Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(22.dp))
                 }
                 if (active) {
                     Spacer(Modifier.height(2.dp))
