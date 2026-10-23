@@ -5,7 +5,11 @@ export const staffSchema = z.object({
   lastName: z.string().min(1).max(80),
   dateOfBirth: z.preprocess((value) => {
     if (value === "" || value === null || value === undefined) return null;
-    const date = new Date(`${String(value)}T00:00:00.000Z`);
+    const raw = String(value).trim();
+    const displayDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
+    const normalized = displayDate ? `${displayDate[3]}-${displayDate[2]}-${displayDate[1]}` : raw;
+    const date = new Date(`${normalized}T00:00:00.000Z`);
+    if (displayDate && date.toISOString().slice(0, 10) !== normalized) return value;
     return Number.isNaN(date.getTime()) ? value : date;
   }, z.date().nullable().optional()),
   bloodGroup: z.preprocess((value) => value === "" || value === null || value === undefined ? null : String(value), z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).nullable().optional()),

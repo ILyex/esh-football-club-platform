@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentUploadField } from "@/components/dashboard/document-upload-field";
 import { FormSelect } from "@/components/ui/form-select";
 import { StaffPhotoUploadField } from "@/components/staff/staff-photo-upload-field";
+import { LocalizedDateField } from "@/components/ui/localized-date-field";
 import { getPlayerDisplayName } from "@/lib/utils";
 import Link from "next/link";
 
@@ -133,7 +134,10 @@ export default async function StaffDetailPage({ params, searchParams }: { params
         <Field label={locale === "ar" ? "الاسم (بالفرنسية)" : "Prénom (FR)"} name="firstNameFr" defaultValue={staff.firstNameFr ?? ""} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "اللقب (بالفرنسية)" : "Nom (FR)"} name="lastNameFr" defaultValue={staff.lastNameFr ?? ""} disabled={!canUpdate} />
         <Field label={locale === "ar" ? "رقم الرخصة" : "N° de licence"} name="licenceNumber" defaultValue={staff.licenceNumber ?? ""} disabled={!canUpdate} />
-        <Field label={locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"} name="dateOfBirth" type="date" locale={locale} defaultValue={staff.dateOfBirth?.toISOString().slice(0, 10) ?? ""} disabled={!canUpdate} />
+        <div className="min-w-0">
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="staff-date-of-birth">{locale === "ar" ? "تاريخ الميلاد" : "Date de naissance"}</label>
+          <LocalizedDateField id="staff-date-of-birth" name="dateOfBirth" locale={locale} defaultValue={staff.dateOfBirth?.toISOString().slice(0, 10) ?? ""} disabled={!canUpdate} />
+        </div>
         <div className="min-w-0">
           <label className="mb-1.5 block text-sm font-semibold">{locale === "ar" ? "زمرة الدم" : "Groupe sanguin"}</label>
           <FormSelect name="bloodGroup" locale={locale} ariaLabel={locale === "ar" ? "زمرة الدم" : "Groupe sanguin"} defaultValue={staff.bloodGroup ?? ""} disabled={!canUpdate} options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((value) => ({ value, label: value }))} placeholder={locale === "ar" ? "اختر زمرة الدم" : "Choisir le groupe"} />
