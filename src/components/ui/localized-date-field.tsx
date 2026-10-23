@@ -28,7 +28,7 @@ export function LocalizedDateField({
   const isArabic = locale === "ar";
 
   return (
-    <div className="relative">
+    <div className="relative" dir="ltr">
       <input
         id={id}
         name={name}
