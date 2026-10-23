@@ -1608,9 +1608,11 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
             }.getOrNull()
         }
     }
-    val surname = user.lastNameFr?.trim()?.takeIf { it.isNotEmpty() } ?: user.lastName?.trim().orEmpty()
-    val givenName = user.firstNameFr?.trim()?.takeIf { it.isNotEmpty() } ?: user.firstName?.trim().orEmpty()
-    val displayName = listOf(surname.uppercase(), givenName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { user.name.ifBlank { "—" } }
+    val frenchSurname = user.lastNameFr?.trim().orEmpty()
+    val frenchGivenName = user.firstNameFr?.trim().orEmpty()
+    val frenchName = listOf(frenchSurname.uppercase(), frenchGivenName).filter { it.isNotBlank() }.joinToString(" ")
+    val accountNameHasLatin = user.name.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.LATIN }
+    val displayName = frenchName.ifBlank { user.name.takeIf { accountNameHasLatin }.orEmpty() }.ifBlank { "—" }
     val birthDate = user.dateOfBirth?.take(10)?.let { raw ->
         runCatching { java.time.LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", java.util.Locale.FRANCE)) }.getOrNull()
     } ?: "—"
@@ -1706,7 +1708,7 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     Image(bitmap = embeddedImage!!, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
                     Box(Modifier.fillMaxSize().background(Color(0xFFE6E3DA)), contentAlignment = Alignment.Center) {
-                        Text((givenName.ifBlank { surname }).take(1).ifBlank { "?" }.uppercase(), color = ink, fontSize = (26f * fontScale).sp, fontWeight = FontWeight.Black)
+                        Text(displayName.take(1).ifBlank { "?" }.uppercase(), color = ink, fontSize = (26f * fontScale).sp, fontWeight = FontWeight.Black)
                     }
                 }
             }
