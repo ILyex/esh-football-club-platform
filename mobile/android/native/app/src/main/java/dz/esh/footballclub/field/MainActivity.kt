@@ -1550,7 +1550,13 @@ private fun WelcomeCard(data: NativeData?, locale: String, onNavigate: (Section)
                         CompactMetric(IconlyIcons.Meeting, data?.upcomingMeetings?.size?.toString() ?: "—", L(locale, "اجتماع", "réunions"))
                     }
                     Row(Modifier.clip(RoundedCornerShape(13.dp)).background(Red).clickable { onNavigate(Section.MATCHES) }.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(L(locale, "إدارة المباريات", "Gérer les matchs"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        val canManageMatches = data?.permissions?.updateMatches == true
+                        Text(
+                            if (canManageMatches) L(locale, "إدارة المباريات", "Gérer les matchs") else L(locale, "المباريات", "Matchs"),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         Icon(if (locale == "ar") IconlyIcons.ArrowLeft else IconlyIcons.ArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
                     }
                 }
