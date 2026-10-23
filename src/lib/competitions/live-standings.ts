@@ -23,9 +23,20 @@ function normalizeClubName(value: string): string {
 }
 
 /** Match official abbreviated table names to the full names saved from fixtures. */
-function sameClubName(left: string, right: string): boolean {
-  const a = normalizeClubName(left).split(" ").filter(Boolean);
-  const b = normalizeClubName(right).split(" ").filter(Boolean);
+function clubNameVariants(value: string): string[] {
+  const variants = new Set([value]);
+  const bilingual = value.match(/^(.*?)\s*\(([^()]*)\)\s*$/u);
+  if (bilingual) {
+    variants.add(bilingual[1] ?? "");
+    variants.add(bilingual[2] ?? "");
+  }
+  for (const part of value.split(/[\/|]/u)) variants.add(part);
+  return [...new Set([...variants].map(normalizeClubName).filter(Boolean))];
+}
+
+function sameNormalizedClubName(left: string, right: string): boolean {
+  const a = left.split(" ").filter(Boolean);
+  const b = right.split(" ").filter(Boolean);
   if (!a.length || !b.length) return false;
   const joinedA = a.join(" ");
   const joinedB = b.join(" ");
@@ -58,6 +69,13 @@ function sameClubName(left: string, right: string): boolean {
   const overlap = [...aMeaningful].filter((token) => bMeaningful.has(token)).length;
   const smallerSize = Math.min(aMeaningful.size, bMeaningful.size);
   return overlap >= 2 && smallerSize > 0 && overlap / smallerSize >= 0.75;
+}
+
+/** Compare each Arabic, French, and bilingual name independently. */
+function sameClubName(left: string, right: string): boolean {
+  const leftVariants = clubNameVariants(left);
+  const rightVariants = clubNameVariants(right);
+  return leftVariants.some((leftName) => rightVariants.some((rightName) => sameNormalizedClubName(leftName, rightName)));
 }
 
 function buildNameIndex(standings: StandingTeamEntry[]): Map<string, StandingTeamEntry> {
