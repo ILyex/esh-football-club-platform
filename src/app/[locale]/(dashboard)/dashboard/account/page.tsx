@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AvatarUploadField } from "@/components/users/avatar-upload-field";
 import { SafeImage } from "@/components/shared/safe-image";
 import { changeOwnPasswordAction, changeOwnPhotoAction } from "./actions";
+import { PasswordVisibilityInput } from "./password-visibility-input";
 
 const errorText = (locale: string, error?: string) => {
   if (!error) return null;
@@ -86,15 +87,15 @@ export default async function AccountSecurityPage({
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-medium sm:col-span-2">
               <span>{isAr ? "كلمة المرور الحالية" : "Mot de passe actuel"}</span>
-              <input name="currentPassword" type="password" autoComplete="current-password" minLength={8} maxLength={72} required className="h-11 w-full rounded-xl border border-border bg-background px-3 outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+              <PasswordVisibilityInput name="currentPassword" autoComplete="current-password" locale={locale} showLabel={isAr ? "إظهار كلمة المرور الحالية" : "Afficher le mot de passe actuel"} hideLabel={isAr ? "إخفاء كلمة المرور الحالية" : "Masquer le mot de passe actuel"} />
             </label>
             <label className="space-y-2 text-sm font-medium">
               <span>{isAr ? "كلمة المرور الجديدة" : "Nouveau mot de passe"}</span>
-              <input name="newPassword" type="password" autoComplete="new-password" minLength={8} maxLength={72} required className="h-11 w-full rounded-xl border border-border bg-background px-3 outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+              <PasswordVisibilityInput name="newPassword" autoComplete="new-password" locale={locale} showLabel={isAr ? "إظهار كلمة المرور الجديدة" : "Afficher le nouveau mot de passe"} hideLabel={isAr ? "إخفاء كلمة المرور الجديدة" : "Masquer le nouveau mot de passe"} />
             </label>
             <label className="space-y-2 text-sm font-medium">
               <span>{isAr ? "تأكيد كلمة المرور الجديدة" : "Confirmer le nouveau mot de passe"}</span>
-              <input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} maxLength={72} required className="h-11 w-full rounded-xl border border-border bg-background px-3 outline-none focus:border-club-primary focus:ring-2 focus:ring-club-primary/15" />
+              <PasswordVisibilityInput name="confirmPassword" autoComplete="new-password" locale={locale} showLabel={isAr ? "إظهار تأكيد كلمة المرور" : "Afficher la confirmation du mot de passe"} hideLabel={isAr ? "إخفاء تأكيد كلمة المرور" : "Masquer la confirmation du mot de passe"} />
             </label>
           </div>
 
