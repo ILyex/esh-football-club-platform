@@ -53,6 +53,40 @@ function opponentNameVariants(value: string): Set<string> {
   return result;
 }
 
+function foldedNameTokens(value: string): string[] {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/œ/gi, "oe")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean);
+}
+
+/** Match federation abbreviations such as "JS Frenda" to expanded club names. */
+function matchesAbbreviatedClubName(left: string, right: string): boolean {
+  const a = foldedNameTokens(left);
+  const b = foldedNameTokens(right);
+  if (a.length < 2 || b.length < 2 || a.at(-1) !== b.at(-1)) return false;
+
+  const particles = new Set(["de", "del", "da", "do", "dos", "du", "des", "d", "la", "le", "les", "el", "al", "et"]);
+  const significantA = a.filter((token) => !particles.has(token));
+  const significantB = b.filter((token) => !particles.has(token));
+  if (significantA.length < 2 || significantB.length < 2) return false;
+
+  const prefixA = significantA.slice(0, -1);
+  const prefixB = significantB.slice(0, -1);
+  const initials = (tokens: string[]) => tokens.map((token) => token[0]).join("");
+  const shortMatchesLong = (short: string[], long: string[]) => {
+    const shortForm = short.join("");
+    const longInitials = initials(long);
+    return shortForm.length <= longInitials.length && longInitials.startsWith(shortForm);
+  };
+  return shortMatchesLong(prefixA, prefixB) || shortMatchesLong(prefixB, prefixA);
+}
+
 /** Resolve opponent names consistently across Arabic, French, and bilingual fixture names. */
 export function findOpponentLogo(
   opponents: Record<string, Pick<OpponentClub, "name" | "logoUrl">>,
@@ -76,6 +110,15 @@ export function findOpponentLogo(
   for (const variant of opponentNameVariants(name)) {
     const logoUrl = index.get(variant);
     if (logoUrl) return logoUrl;
+  }
+
+  // Standings often use federation abbreviations while the shared logo
+  // library stores the full name entered with the fixture. Resolve that
+  // relation here so every consumer (website, calendar, mobile API) gets the
+  // same crest lookup instead of each page implementing its own name rules.
+  for (const opponent of Object.values(opponents)) {
+    if (isPlaceholderOpponentLogo(opponent.logoUrl)) continue;
+    if (matchesAbbreviatedClubName(name, opponent.name)) return opponent.logoUrl;
   }
   return null;
 }
