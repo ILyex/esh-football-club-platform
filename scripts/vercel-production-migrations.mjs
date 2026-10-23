@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const tacticalPlansMigration = "20261016110000_tactical_plans";
+const retiredStaffProfileMigration = "20261024020000_remove_staff_profile_role";
 
 function run(command, args) {
   const result = spawnSync(command, args, { stdio: "inherit", env: process.env });
@@ -190,6 +191,18 @@ if (process.env.VERCEL_ENV !== "production") {
       await verifyExistingTacticalPlanTable(pool);
       run("npx", ["prisma", "migrate", "resolve", "--applied", tacticalPlansMigration]);
       console.log(`Verified and recorded ${tacticalPlansMigration} as already applied.`);
+    }
+
+    const { rows: retiredStaffProfileRows } = await pool.query(
+      `SELECT finished_at, rolled_back_at FROM "_prisma_migrations" WHERE migration_name = $1`,
+      [retiredStaffProfileMigration]
+    );
+    const hasUnresolvedStaffProfileFailure = retiredStaffProfileRows.some(
+      (row) => !row.finished_at && !row.rolled_back_at
+    );
+    if (hasUnresolvedStaffProfileFailure) {
+      console.warn(`Recovering the failed ${retiredStaffProfileMigration} attempt; its migration body failed atomically before applying changes.`);
+      run("npx", ["prisma", "migrate", "resolve", "--rolled-back", retiredStaffProfileMigration]);
     }
     pendingMigrations = await getPendingMigrations(pool);
   } finally {
