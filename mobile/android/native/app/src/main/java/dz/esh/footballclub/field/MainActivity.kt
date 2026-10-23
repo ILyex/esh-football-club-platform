@@ -1986,7 +1986,15 @@ private fun MatchCard(
                             }
                         }
                     }
-                } else Text(L(locale, "لا توجد أحداث مسجلة بعد.", "Aucun événement enregistré."), color = Muted, fontSize = 11.sp)
+                } else {
+                    val emptyEventsMessage = when (match.status) {
+                        "FINISHED" -> L(locale, "لم تُسجَّل أحداث في هذه المباراة.", "Aucun événement n’a été enregistré pour ce match.")
+                        "SCHEDULED" -> L(locale, "لم تبدأ المباراة بعد.", "Le match n’a pas encore commencé.")
+                        "LIVE" -> L(locale, "لم تُسجَّل أحداث بعد.", "Aucun événement enregistré pour le moment.")
+                        else -> L(locale, "لا توجد أحداث مسجلة.", "Aucun événement enregistré.")
+                    }
+                    Text(emptyEventsMessage, color = Muted, fontSize = 11.sp)
+                }
                 if (match.canReport && (match.status == "LIVE" || match.status == "FINISHED")) {
                     NativeMatchEventComposer(match, saving, locale, onAddEvent)
                 }
