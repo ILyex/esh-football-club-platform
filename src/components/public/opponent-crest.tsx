@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Shield } from "lucide-react";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
@@ -20,12 +20,24 @@ export function OpponentCrest({
 }: OpponentCrestProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   // Opponent logos can be stored as a public-storage key, a legacy absolute
   // URL, or a normal remote URL. Resolve all forms before rendering so an old
   // record does not produce a broken image on the public site.
   // Local upload previews use blob: URLs. Keep those untouched: the persisted
   // media normalizer intentionally accepts only URLs that can be stored/shared.
   const normalizedSrc = src?.startsWith("blob:") ? src : normalizePublicMediaUrl(src);
+
+  // Cached/static images can finish before React hydrates and attaches onLoad.
+  // In that case the browser reports complete but the component never receives
+  // the event, leaving a valid crest hidden behind its fallback forever.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!normalizedSrc || !image?.complete) return;
+    if (image.naturalWidth > 0) setLoadedSrc(normalizedSrc);
+    else setFailedSrc(normalizedSrc);
+  }, [normalizedSrc]);
+
   const showImage = Boolean(normalizedSrc && failedSrc !== normalizedSrc && loadedSrc === normalizedSrc);
 
   return (
@@ -40,6 +52,7 @@ export function OpponentCrest({
         // prevents browsers from rendering the opponent name as broken-image text.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imageRef}
           src={normalizedSrc}
           alt=""
           aria-hidden="true"
