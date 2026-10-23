@@ -1,4 +1,4 @@
-import { CalendarDays, Dumbbell, Trophy, Users } from "lucide-react";
+import { Activity, Calendar, ClipboardList, Trophy } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
@@ -80,10 +80,10 @@ export default async function CalendarPage({
   const todayKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
   const day = sp.day && /^\d{4}-\d{2}-\d{2}$/.test(sp.day) ? sp.day : month === todayKey.slice(0, 7) ? todayKey : monthStart.toISOString().slice(0, 10);
   const counts = [
-    { label: isAr ? "كل المواعيد" : "Événements", count: events.length, icon: CalendarDays, tone: "text-foreground" },
+    { label: isAr ? "كل المواعيد" : "Événements", count: events.length, icon: Calendar, tone: "text-foreground" },
     { label: isAr ? "المباريات" : "Matchs", count: events.filter((event) => event.type === "MATCH").length, icon: Trophy, tone: "text-rose-500" },
-    { label: isAr ? "التدريبات" : "Entraînements", count: events.filter((event) => event.type === "TRAINING").length, icon: Dumbbell, tone: "text-sky-500" },
-    { label: isAr ? "الاجتماعات" : "Réunions", count: events.filter((event) => event.type === "MEETING").length, icon: Users, tone: "text-violet-500" }
+    { label: isAr ? "التدريبات" : "Entraînements", count: events.filter((event) => event.type === "TRAINING").length, icon: Activity, tone: "text-sky-500" },
+    { label: isAr ? "الاجتماعات" : "Réunions", count: events.filter((event) => event.type === "MEETING").length, icon: ClipboardList, tone: "text-violet-500" }
   ];
 
   return <div className="space-y-5">
