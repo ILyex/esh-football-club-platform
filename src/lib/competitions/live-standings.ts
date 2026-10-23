@@ -22,6 +22,39 @@ function normalizeClubName(value: string): string {
   return value.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 
+/** Match official abbreviated table names to the full names saved from fixtures. */
+function sameClubName(left: string, right: string): boolean {
+  const a = normalizeClubName(left).split(" ").filter(Boolean);
+  const b = normalizeClubName(right).split(" ").filter(Boolean);
+  if (!a.length || !b.length) return false;
+  const joinedA = a.join(" ");
+  const joinedB = b.join(" ");
+  if (joinedA === joinedB || joinedA.startsWith(`${joinedB} `) || joinedB.startsWith(`${joinedA} `)) return true;
+
+  // Federation tables often use initialisms ("JS Frenda") while a fixture
+  // stores the expanded French name ("Jeunesse Sportive Frenda"). Requiring
+  // the final location/name token to match prevents matching clubs in the
+  // same league that merely share a common word.
+  if (a.at(-1) !== b.at(-1) || a.length < 2 || b.length < 2) return false;
+  const aPrefix = a.slice(0, -1);
+  const bPrefix = b.slice(0, -1);
+  const initials = (tokens: string[]) => tokens.map((token) => token[0]).join("");
+  const prefixMatches = (shorter: string[], longer: string[]) => {
+    const shortText = shorter.join("");
+    const longInitials = initials(longer);
+    return shortText === longInitials || (shortText.length === 1 && longInitials.startsWith(shortText));
+  };
+  if (prefixMatches(aPrefix, bPrefix) || prefixMatches(bPrefix, aPrefix)) return true;
+
+  // Also accept minor spelling/wording changes when at least two meaningful
+  // tokens overlap and most of the shorter name is accounted for.
+  const aMeaningful = new Set(a.filter((token) => token.length > 2));
+  const bMeaningful = new Set(b.filter((token) => token.length > 2));
+  const overlap = [...aMeaningful].filter((token) => bMeaningful.has(token)).length;
+  const smallerSize = Math.min(aMeaningful.size, bMeaningful.size);
+  return overlap >= 2 && smallerSize > 0 && overlap / smallerSize >= 0.75;
+}
+
 function buildNameIndex(standings: StandingTeamEntry[]): Map<string, StandingTeamEntry> {
   const index = new Map<string, StandingTeamEntry>();
   for (const row of standings) {
@@ -71,6 +104,35 @@ async function persistOpponentTeams(standings: StandingTeamEntry[]): Promise<voi
   }
 }
 
+/** Persist official short table names as aliases after a fixture is saved. */
+async function persistCompetitionOpponentAliases(competitionId: string, standings: StandingTeamEntry[]): Promise<void> {
+  const [opponents, competition, matches] = await Promise.all([
+    getOpponentsMap(),
+    db.competition.findUnique({ where: { id: competitionId }, select: { teamId: true } }),
+    db.match.findMany({
+      where: { competitionId },
+      select: { teamId: true, isHomeFixture: true, homeTeamName: true, awayTeamName: true }
+    })
+  ]);
+  if (!competition?.teamId) return;
+
+  const fixtureNames = matches
+    .filter((match) => match.teamId === competition.teamId)
+    .map((match) => match.isHomeFixture ? match.awayTeamName : match.homeTeamName)
+    .filter(Boolean);
+
+  for (const row of standings) {
+    if (row.isOurClub || findOpponentLogo(opponents, row.teamName)) continue;
+    for (const fixtureName of fixtureNames) {
+      if (!sameClubName(row.teamName, fixtureName)) continue;
+      const logo = findOpponentLogo(opponents, fixtureName);
+      if (!logo || isDefaultOpponentCrest(logo)) continue;
+      await saveOpponentClub(row.teamName, logo, undefined, [fixtureName]);
+      break;
+    }
+  }
+}
+
 async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEntry[]): Promise<StandingTeamEntry[]> {
   const [opponents, matches, competition, clubSettings] = await Promise.all([
     getOpponentsMap(),
@@ -87,6 +149,8 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
       ? (match.isHomeFixture ? match.awayTeamName : match.homeTeamName)
       : ""
   ).filter(Boolean);
+  const savedClubNames = Object.values(opponents).map((club) => club.name);
+  const knownNames = [...new Set([...savedClubNames, ...opponentNames])];
 
   return Promise.all(rows.map(async (row) => {
     if (row.isOurClub || row.id === "official-r2-esh") return { ...row, teamLogo: clubLogo };
@@ -96,14 +160,15 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
     const snapshotLogo = row.teamLogo && !isDefaultOpponentCrest(row.teamLogo) ? row.teamLogo : null;
     if (usableSavedLogo || snapshotLogo) return { ...row, teamLogo: usableSavedLogo || snapshotLogo };
 
-    // Match forms retain both the entered Arabic name and its optional French
-    // label. Resolve that combined name back to a French-only standings row.
-    const normalizedTeam = normalizeClubName(row.teamName);
-    for (const matchOpponentName of opponentNames) {
-      const normalizedMatchName = normalizeClubName(matchOpponentName);
-      if (!normalizedMatchName.includes(normalizedTeam) && !normalizedTeam.includes(normalizedMatchName)) continue;
-      const aliasLogo = findOpponentLogo(opponents, matchOpponentName);
-      if (aliasLogo && !isDefaultOpponentCrest(aliasLogo)) return { ...row, teamLogo: aliasLogo };
+    // Resolve short league-table names against both the shared logo library
+    // and the bilingual names kept on scheduled/played matches. The matching
+    // alias is persisted by the match-save path, while this read path also
+    // covers existing fixtures before that alias has been backfilled.
+    for (const knownName of knownNames) {
+      if (!sameClubName(row.teamName, knownName)) continue;
+      const aliasLogo = findOpponentLogo(opponents, knownName);
+      if (!aliasLogo || isDefaultOpponentCrest(aliasLogo)) continue;
+      return { ...row, teamLogo: aliasLogo };
     }
     // Let OpponentCrest render the same shield fallback used elsewhere in the
     // platform; passing the old decorative SVG made placeholders look like logos.
@@ -133,6 +198,7 @@ export async function ensureCompetitionStandingsBaseline(competitionId: string):
   }
 
   await persistOpponentTeams(baseline);
+  await persistCompetitionOpponentAliases(competitionId, baseline);
   return baseline;
 }
 

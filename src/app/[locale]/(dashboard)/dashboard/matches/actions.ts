@@ -369,6 +369,16 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
     await enqueueAutomaticFafMatchSync(match.id, user.id);
   }
 
+  if (parsed.competitionId) {
+    try {
+      await ensureCompetitionStandingsBaseline(parsed.competitionId);
+    } catch (error) {
+      // The match is already saved; logo alias synchronization must not turn it
+      // into a reported save failure.
+      console.error("Could not synchronize league team logos after updating the match:", error instanceof Error ? error.message : "unknown error");
+    }
+  }
+
   revalidatePath("/[locale]/dashboard/matches", "page");
   revalidatePath("/[locale]/dashboard/calendar", "page");
   revalidatePath("/[locale]/dashboard/competitions", "page");
