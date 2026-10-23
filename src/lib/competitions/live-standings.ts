@@ -36,8 +36,13 @@ function sameClubName(left: string, right: string): boolean {
   // the final location/name token to match prevents matching clubs in the
   // same league that merely share a common word.
   if (a.at(-1) !== b.at(-1) || a.length < 2 || b.length < 2) return false;
-  const aPrefix = a.slice(0, -1);
-  const bPrefix = b.slice(0, -1);
+  const particles = new Set(["de", "del", "da", "do", "dos", "du", "des", "d", "la", "le", "les", "el", "al", "et"]);
+  const significant = (tokens: string[]) => tokens.filter((token) => !particles.has(token));
+  const significantA = significant(a);
+  const significantB = significant(b);
+  if (!significantA.length || !significantB.length || significantA.at(-1) !== significantB.at(-1)) return false;
+  const aPrefix = significantA.slice(0, -1);
+  const bPrefix = significantB.slice(0, -1);
   const initials = (tokens: string[]) => tokens.map((token) => token[0]).join("");
   const prefixMatches = (shorter: string[], longer: string[]) => {
     const shortText = shorter.join("");
@@ -48,8 +53,8 @@ function sameClubName(left: string, right: string): boolean {
 
   // Also accept minor spelling/wording changes when at least two meaningful
   // tokens overlap and most of the shorter name is accounted for.
-  const aMeaningful = new Set(a.filter((token) => token.length > 2));
-  const bMeaningful = new Set(b.filter((token) => token.length > 2));
+  const aMeaningful = new Set(significantA.filter((token) => token.length > 2));
+  const bMeaningful = new Set(significantB.filter((token) => token.length > 2));
   const overlap = [...aMeaningful].filter((token) => bMeaningful.has(token)).length;
   const smallerSize = Math.min(aMeaningful.size, bMeaningful.size);
   return overlap >= 2 && smallerSize > 0 && overlap / smallerSize >= 0.75;
@@ -114,10 +119,8 @@ async function persistCompetitionOpponentAliases(competitionId: string, standing
       select: { teamId: true, isHomeFixture: true, homeTeamName: true, awayTeamName: true }
     })
   ]);
-  if (!competition?.teamId) return;
-
   const fixtureNames = matches
-    .filter((match) => match.teamId === competition.teamId)
+    .filter((match) => !competition?.teamId || match.teamId === competition.teamId)
     .map((match) => match.isHomeFixture ? match.awayTeamName : match.homeTeamName)
     .filter(Boolean);
 
@@ -145,7 +148,7 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
   ]);
   const clubLogo = normalizePublicMediaUrl(clubSettings?.logoUrl) || CLUB_DEFAULT_CREST;
   const opponentNames = matches.map((match) =>
-    competition?.teamId && match.teamId === competition.teamId
+    !competition?.teamId || match.teamId === competition.teamId
       ? (match.isHomeFixture ? match.awayTeamName : match.homeTeamName)
       : ""
   ).filter(Boolean);
