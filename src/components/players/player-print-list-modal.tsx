@@ -230,7 +230,6 @@ export function PlayerPrintListModal({
                 {isLastPage && <div className="document-signatures relative z-10 mt-6 flex shrink-0 justify-end px-4 pt-4 text-right text-zinc-700">
                   <div className="text-right">
                     <p className="mb-1 font-bold text-zinc-900">{isAr ? "رئيس الجمعية" : "Le Président de l'association"}</p>
-                    <p className="text-zinc-500">{isAr ? "الختم والتوقيع" : "Cachet et signature"}</p>
                     <div className="h-16"></div>
                   </div>
                 </div>}
