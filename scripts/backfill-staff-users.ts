@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 
 const STAFF_CARD_ROLE: Record<string, string> = {
-  HEAD_COACH: "Entraîneur principal",
+  HEAD_COACH: "Entraîneur",
   ASSISTANT_COACH: "Entraîneur adjoint",
   GOALKEEPING_COACH: "Entraîneur des gardiens",
   FITNESS_COACH: "Préparateur physique",
