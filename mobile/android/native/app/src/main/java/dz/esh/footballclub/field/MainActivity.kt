@@ -19,7 +19,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -27,7 +26,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.background
@@ -807,12 +805,7 @@ private fun MatchdayApp() {
                         }
                     }
                 })
-                AnimatedContent(
-                    targetState = locale,
-                    modifier = Modifier.weight(1f).padding(bottom = 106.dp),
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "language-content"
-                ) { displayedLocale -> SectionPage(section, data, user, loading, connectionError, displayedLocale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onSaveStandings = ::saveCompetitionStandings, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts) }
+                SectionPage(section, data, user, loading, connectionError, locale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onSaveStandings = ::saveCompetitionStandings, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts, modifier = Modifier.weight(1f).padding(bottom = 106.dp))
             }
             GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), showCompetitions = data?.permissions?.competitions == true, onSelect = { section = it })
         }
@@ -1214,7 +1207,8 @@ private fun SectionPage(
     onDeleteEvent: (NativeMatch, NativeEvent) -> Unit,
     onSaveStandings: (NativeCompetition, List<NativeStanding>) -> Unit,
     onDeleteAlert: (NativeAlert) -> Unit,
-    onDeleteAllAlerts: () -> Unit
+    onDeleteAllAlerts: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var selectedStatPlayer by remember(section) { mutableStateOf<NativePlayerPerformance?>(null) }
     var playerStatsPage by remember(section) { mutableIntStateOf(0) }
@@ -1240,7 +1234,7 @@ private fun SectionPage(
         onDispose { activity?.lifecycle?.removeObserver(observer) }
     }
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
@@ -1269,12 +1263,12 @@ private fun SectionPage(
             }
             Section.MATCHES -> {
                 if (data?.matches.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Match, L(locale, "إدارة المباريات", "Gestion des matchs"), L(locale, "لا توجد مباريات متاحة لحسابك حاليًا.", "Aucun match n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(data!!.matches) { match -> MatchCard(match, loading, locale, onUpdateMatch, onAddEvent, onDeleteEvent) }
+                else items(data!!.matches, key = { it.id }) { match -> MatchCard(match, loading, locale, onUpdateMatch, onAddEvent, onDeleteEvent) }
             }
             Section.MEETINGS -> {
                 val meetings = data?.upcomingMeetings.orEmpty() + data?.meetings.orEmpty()
                 if (meetings.isEmpty()) item { EmptyNativeSection(IconlyIcons.Meeting, L(locale, "الاجتماعات", "Réunions"), L(locale, "لا توجد اجتماعات متاحة لحسابك حاليًا.", "Aucune réunion n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(meetings) { meeting -> MeetingCard(meeting, locale) }
+                else items(meetings, key = { it.id }) { meeting -> MeetingCard(meeting, locale) }
             }
             Section.COMPETITIONS -> {
                 val competitions = data?.competitions.orEmpty()
@@ -1303,7 +1297,7 @@ private fun SectionPage(
             Section.CALENDAR -> {
                 val calendarItems = data?.calendarItems.orEmpty()
                 if (calendarItems.isEmpty()) item { EmptyNativeSection(IconlyIcons.Calendar, L(locale, "الرزنامة", "Calendrier"), L(locale, "لا توجد أحداث قادمة. ستظهر هنا المباريات والتدريبات والاجتماعات والمواعيد الإدارية.", "Aucun événement à venir. Les matchs, entraînements, réunions et rendez-vous administratifs apparaîtront ici."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
-                else items(calendarItems) { calendarItem -> CalendarItemCard(calendarItem, data?.clubLogoUrl, locale) }
+                else items(calendarItems, key = { it.id }) { calendarItem -> CalendarItemCard(calendarItem, data?.clubLogoUrl, locale) }
             }
             Section.ALERTS -> {
                 if (data?.alerts.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Notification, L(locale, "تنبيهات الهاتف", "Alertes téléphone"), L(locale, "لا توجد تنبيهات جديدة في حسابك.", "Aucune nouvelle notification."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
@@ -3158,20 +3152,18 @@ private fun GlassNavigation(modifier: Modifier = Modifier, selected: Section, lo
       ) {
         (if (locale == "ar") Section.entries.reversed() else Section.entries).filter { (showPlayerStats || it != Section.PLAYER_STATS) && (showCompetitions || it != Section.COMPETITIONS) }.forEach { item ->
             val active = selected == item
-            val width by animateDpAsState(if (active) 72.dp else 48.dp, label = "nav-width")
             val interaction = remember { MutableInteractionSource() }
             Column(
-                Modifier.width(width).height(54.dp).clip(RoundedCornerShape(18.dp))
+                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp))
+                    .background(if (active) Red.copy(alpha = .08f) else Color.Transparent)
                     .clickable(interactionSource = interaction, indication = null) { onSelect(item) }
                     .padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                AnimatedContent(targetState = active, label = "nav-icon-${item.name}") {
-                    // Keep one outline asset for every state. Selection changes only
-                    // the tint, avoiding malformed filled resources on matches/meetings.
-                    Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(22.dp))
-                }
+                // Keep the icon and item width stable; animating the whole nav row
+                // made every item remeasure on each tap and caused visible jank.
+                Icon(item.icon, contentDescription = item.title(locale), tint = if (active) Red else Muted, modifier = Modifier.size(22.dp))
                 if (active) {
                     Spacer(Modifier.height(2.dp))
                     Text(item.title(locale), color = Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
