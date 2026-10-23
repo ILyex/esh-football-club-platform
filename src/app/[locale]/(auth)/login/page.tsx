@@ -230,7 +230,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@esh-club.dz"
-                    className={`login-input w-full rounded-xl border border-muted-foreground/50 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none ${isRtl ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"}`}
+                    className={`login-input w-full rounded-xl border border-foreground/50 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none ${isRtl ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"}`}
                   />
                 </div>
               </div>
@@ -255,7 +255,7 @@ export default function LoginPage() {
                     minLength={8}
                     autoComplete="current-password"
                     placeholder="••••••••••••"
-                    className="login-input w-full rounded-xl border border-muted-foreground/50 bg-muted/40 py-2.5 ps-10 pe-12 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none"
+                    className="login-input w-full rounded-xl border border-foreground/50 bg-muted/40 py-2.5 ps-10 pe-12 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none"
                   />
                   <button
                     type="button"

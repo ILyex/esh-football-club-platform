@@ -120,7 +120,7 @@ export default async function HomePage({
   return (
     <div className="space-y-10 pb-6 sm:pb-10 bg-background">
       {/* 1. CINEMATIC FULL-BLEED HERO */}
-      <section className="relative overflow-hidden bg-[#0C0D0E] text-white border-b border-border/40 min-h-[420px] sm:min-h-[540px] flex items-center">
+      <section className="public-home-hero relative overflow-hidden text-white border-b border-border/40 min-h-[420px] sm:min-h-[540px] flex items-center">
         {/* Official Custom Club Header Banner with Floodlights & Badge */}
         {isVideoUrl(homeData.club.homepageHeroImageUrl) ? (
           <video
@@ -135,17 +135,17 @@ export default async function HomePage({
             poster="/branding/esh-header-stadium.png"
             aria-hidden="true"
             tabIndex={-1}
-            className="absolute inset-0 h-full w-full scale-100 object-cover opacity-75 transition-all duration-700"
+            className="absolute inset-0 h-full w-full scale-100 object-cover opacity-75 transition-opacity duration-500 motion-reduce:transition-none"
           />
         ) : (
           <div
-            className="absolute inset-0 scale-100 bg-cover bg-center opacity-75 transition-all duration-700"
+            className="absolute inset-0 bg-cover bg-center opacity-75"
             style={{ backgroundImage: `url('${homeData.club.homepageHeroImageUrl || "/branding/esh-header-stadium.png"}')` }}
             aria-hidden="true"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0C0D0E] via-[#0C0D0E]/60 to-black/30 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(220,38,38,0.22),transparent_70%)] pointer-events-none" />
+        <div className="public-home-hero-scrim absolute inset-0 pointer-events-none" />
+        <div className="public-home-hero-glow absolute inset-0 pointer-events-none" />
 
         <div className="relative mx-auto max-w-7xl w-full px-4 py-12 sm:px-6 sm:py-24">
           <div className="max-w-2xl text-start space-y-4">
@@ -163,7 +163,7 @@ export default async function HomePage({
             <div className="pt-4 flex flex-wrap items-center gap-3">
               <Link
                 href={`/${locale}/news`}
-                className="inline-flex max-w-full items-center gap-2.5 rounded-lg bg-club-primary px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-club-primary-hover sm:px-6"
+                className="inline-flex max-w-full items-center gap-2.5 rounded-lg bg-club-primary px-4 py-3 text-sm font-bold text-white shadow-md transition-colors duration-150 hover:bg-club-primary-hover motion-reduce:transition-none sm:px-6"
               >
                 <span className="line-clamp-1 max-w-[min(56vw,18rem)] sm:max-w-[22rem]" title={latestNews[0]?.title || tPublic("home.latestNews")}>
                   {latestNews[0]?.title || tPublic("home.latestNews")}
@@ -172,14 +172,14 @@ export default async function HomePage({
               </Link>
               <Link
                 href={`/${locale}/matches`}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-xs hover:bg-white/20 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/20 motion-reduce:transition-none"
               >
                 <Calendar className="h-4 w-4 text-zinc-300" />
                 <span>{tPublic("home.upcomingMatches")}</span>
               </Link>
               <Link
                 href={`/${locale}/team`}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-xs hover:bg-white/20 hover:border-club-primary/50 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-[color,background-color,border-color] duration-150 hover:bg-white/20 hover:border-club-primary/50 motion-reduce:transition-none"
               >
                 <Users className="h-4 w-4 text-zinc-300" />
                 <span>{tPublic("home.ourTeams")}</span>
@@ -285,10 +285,10 @@ export default async function HomePage({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex min-w-0 items-center gap-1.5 sm:mb-1 sm:gap-2">
-                          <span className="max-w-[7rem] truncate rounded bg-club-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-club-primary sm:text-[10px]">
+                          <span className="max-w-[7rem] truncate rounded bg-club-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-foreground">
                             {item.category || (locale === "ar" ? "النادي" : "Club")}
                           </span>
-                          <span className="shrink-0 text-[9px] text-muted-foreground sm:text-[10px]">
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
                             {new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" }).format(
                               item.publishedAt
                             )}
@@ -308,7 +308,7 @@ export default async function HomePage({
               )}
             </div>
             <div className="mt-4 flex min-h-[58px] items-center border-t border-border/60 pt-4">
-              <Link href={`/${locale}/news`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+              <Link href={`/${locale}/news`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-xs font-bold text-foreground transition-colors hover:bg-club-primary hover:text-white motion-reduce:transition-none">
                 <span>{locale === "ar" ? "جميع الأخبار" : "Toutes les actualités"}</span>
                 <Arrow className="h-3 w-3" />
               </Link>
@@ -331,7 +331,7 @@ export default async function HomePage({
                   <Link
                     key={sec.id}
                     href={sec.href}
-                    className="group relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs transition-all hover:-translate-y-1 hover:border-club-primary/60 hover:shadow-md block"
+                    className="group relative block overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs transition-[border-color,box-shadow] duration-150 hover:border-club-primary/60 hover:shadow-md motion-reduce:transition-none"
                   >
                     <div className="relative aspect-[507/249] w-full overflow-hidden">
                       <CategoryCardVideo
@@ -358,7 +358,7 @@ export default async function HomePage({
               <p className="mb-3 text-center text-[11px] text-muted-foreground">
                 {locale === "ar" ? "أكاديمية تكوين المواهب الشابة" : "Académie de formation des jeunes"}
               </p>
-              <Link href={`/${locale}/team`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+              <Link href={`/${locale}/team`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-xs font-bold text-foreground transition-colors hover:bg-club-primary hover:text-white motion-reduce:transition-none">
                 <span>{tNav("team")}</span>
                 <Arrow className="h-3 w-3" />
               </Link>
@@ -396,7 +396,7 @@ export default async function HomePage({
             <div className="mt-5 flex min-h-[58px] items-center border-t border-border/60 pt-4">
               <Link
                 href={`/${locale}/club`}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-xs font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white"
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-xs font-bold text-foreground transition-colors hover:bg-club-primary hover:text-white motion-reduce:transition-none"
               >
                 <span>{locale === "ar" ? "تعرف على الجمعية" : "Découvrir l’association"}</span>
               </Link>
@@ -440,10 +440,10 @@ export default async function HomePage({
                         ? "border-club-primary/50 bg-club-primary/[0.08]"
                         : "border-red-500/30 bg-red-500/[0.04]";
                     return (
-                      <Link key={res.id} href={`/${locale}/matches/${res.id}`} className={`group block rounded-lg border px-2 py-2 transition-all hover:border-club-primary/60 hover:bg-muted/30 ${resultTone}`}>
+                      <Link key={res.id} href={`/${locale}/matches/${res.id}`} className={`group block rounded-lg border px-2 py-2 transition-[background-color,border-color] duration-150 hover:border-club-primary/60 hover:bg-muted/30 motion-reduce:transition-none ${resultTone}`}>
                         <div dir={locale === "ar" ? "rtl" : "ltr"} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
                           <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex min-w-0 items-center justify-start gap-1.5 text-start">
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-club-primary/20 bg-club-primary/10 p-1">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center p-0.5">
                               {res.isHomeFixture ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/branding/esh-logo-32.png" alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
@@ -451,13 +451,13 @@ export default async function HomePage({
                                 <OpponentCrest src={res.opponentLogo} className="h-full w-full object-contain" />
                               ) : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
                             </div>
-                            <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-1 min-w-0 text-[9px] font-bold text-foreground">{localizedClubName(res.homeTeamName, locale, locale === "ar" ? "الفريق المضيف" : "Équipe locale")}</span>
+                            <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-2 min-w-0 text-[11px] font-bold leading-tight text-foreground">{localizedClubName(res.homeTeamName, locale, locale === "ar" ? "الفريق المضيف" : "Équipe locale")}</span>
                           </div>
                           <div className="col-span-1 flex min-w-[58px] flex-col items-center justify-self-center gap-0.5">
                             <span dir={locale === "ar" ? "rtl" : "ltr"} className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-black tabular-nums text-foreground"><span>{res.homeScore ?? 0}</span><span>-</span><span>{res.awayScore ?? 0}</span></span>
                           </div>
                           <div dir={locale === "ar" ? "ltr" : "rtl"} className="flex min-w-0 items-center justify-start gap-1.5 text-start">
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card p-1">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center p-0.5">
                               {!res.isHomeFixture ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/branding/esh-logo-32.png" alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
@@ -465,7 +465,7 @@ export default async function HomePage({
                                 <OpponentCrest src={res.opponentLogo} className="h-full w-full object-contain" />
                               ) : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
                             </div>
-                            <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-1 min-w-0 text-[9px] font-bold text-foreground">{localizedClubName(res.awayTeamName, locale, locale === "ar" ? "الفريق الضيف" : "Équipe visiteuse")}</span>
+                            <span dir={locale === "ar" ? "rtl" : "ltr"} className="line-clamp-2 min-w-0 text-[11px] font-bold leading-tight text-foreground">{localizedClubName(res.awayTeamName, locale, locale === "ar" ? "الفريق الضيف" : "Équipe visiteuse")}</span>
                           </div>
                         </div>
                       </Link>
@@ -480,7 +480,7 @@ export default async function HomePage({
             </div>
 
             <div className="mt-4 flex min-h-[58px] items-center border-t border-border/60 pt-4">
-              <Link href={`/${locale}/matches?status=FINISHED`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-[11px] font-bold text-club-primary transition-colors hover:bg-club-primary hover:text-white">
+              <Link href={`/${locale}/matches?status=FINISHED`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-club-primary/20 bg-club-primary/10 py-2 text-xs font-bold text-foreground transition-colors hover:bg-club-primary hover:text-white motion-reduce:transition-none">
                 <span>{locale === "ar" ? "جميع النتائج" : "Tous les résultats"}</span>
                 <Arrow className="h-3 w-3" />
               </Link>

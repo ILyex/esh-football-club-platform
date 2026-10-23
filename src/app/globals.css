@@ -40,6 +40,10 @@
   --login-diagonal-glow: linear-gradient(135deg, transparent 35%, rgb(220 38 38 / 0.025) 58%, transparent 78%);
   --login-panel-glow: radial-gradient(ellipse at top right, rgb(220 38 38 / 0.055), transparent 48%);
   --login-side-glow: radial-gradient(ellipse at top left, rgb(220 38 38 / 0.07), transparent 55%);
+  --home-hero-ground: #0C0D0E;
+  --home-hero-text: #fff;
+  --home-hero-scrim: linear-gradient(to top, #0C0D0E, rgb(12 13 14 / 0.6), rgb(0 0 0 / 0.3));
+  --home-hero-glow: radial-gradient(ellipse 80% 60% at 50% 0%, rgb(220 38 38 / 0.22), transparent 70%);
 }
 
 .dark {
@@ -63,6 +67,15 @@
 .login-diagonal-glow { background-image: var(--login-diagonal-glow); }
 .login-panel-glow { background-image: var(--login-panel-glow); }
 .login-side-glow { background-image: var(--login-side-glow); }
+.public-home-hero { background-color: var(--home-hero-ground); color: var(--home-hero-text); }
+.public-home-hero-scrim { background-image: var(--home-hero-scrim); }
+.public-home-hero-glow { background-image: var(--home-hero-glow); }
+
+cap-widget:focus-within {
+  outline: 2px solid var(--club-primary);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
 
 body {
   background-color: hsl(var(--background));
