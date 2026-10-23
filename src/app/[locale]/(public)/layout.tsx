@@ -83,15 +83,15 @@ export default async function PublicLayout({
               <p className="text-base font-black leading-tight text-club-primary sm:text-lg">{locale === "ar" ? "تحت رعاية" : "Sous le patronage de"}</p>
             </div>
           </div>
-          <div dir="ltr" className="sponsor-lockup group inline-flex items-center gap-3 rounded-xl border border-border/80 border-s-2 border-s-club-primary bg-background/60 px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-club-primary/50 hover:shadow-md sm:gap-4 sm:px-4 sm:py-3">
-            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-[#111214] p-1.5 sm:h-14 sm:w-14">
+          <div dir="ltr" className="sponsor-lockup group inline-flex items-center gap-3 rounded-xl border border-border/80 border-s-2 border-s-club-primary bg-background/60 px-3 py-2.5 shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-club-primary/50 hover:shadow-md motion-reduce:transition-none sm:gap-4 sm:px-4 sm:py-3">
+            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-club-secondary p-1.5 sm:h-14 sm:w-14">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/branding/apc-sidi-hosni-logo.png" alt="APC Sidi Hosni" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+              <img src="/branding/apc-sidi-hosni-logo.png" alt="APC Sidi Hosni" className="h-full w-full object-contain" />
             </span>
             <span className="h-9 w-px bg-border" aria-hidden="true" />
             <span className="flex flex-col leading-none text-start">
-              <span className="text-sm font-black tracking-[0.22em] text-club-primary sm:text-base">APC</span>
-              <span className="mt-1.5 text-[10px] font-bold tracking-[0.16em] text-muted-foreground sm:text-xs">SIDI HOSNI</span>
+              <span className="text-sm font-black text-foreground sm:text-base">APC</span>
+              <span className="mt-1.5 text-xs font-bold text-muted-foreground sm:text-sm">SIDI HOSNI</span>
             </span>
           </div>
         </div>

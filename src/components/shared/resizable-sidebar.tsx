@@ -89,7 +89,7 @@ export function ResizableSidebar({
       ref={sidebarRef}
       data-dashboard-sidebar
       style={{ width: `${width}px` }}
-      className="relative sticky top-0 z-40 flex w-full shrink-0 flex-col justify-between border-b border-border bg-card transition-none dark:bg-[#111214] print:hidden md:z-30 md:w-auto md:border-b-0 md:border-e md:h-screen"
+      className="relative sticky top-0 z-40 flex w-full shrink-0 flex-col justify-between border-b border-border bg-card transition-none dark:bg-[var(--club-secondary)] print:hidden md:z-30 md:w-auto md:border-b-0 md:border-e md:h-screen"
     >
       {/* Sidebar Content */}
       <div className="flex flex-col h-full w-full overflow-hidden">
@@ -114,10 +114,10 @@ export function ResizableSidebar({
         className="hidden md:flex absolute top-0 bottom-0 z-40 w-3 items-center justify-center cursor-col-resize group transition-colors select-none hover:bg-club-primary/15 active:bg-club-primary/30"
       >
         {/* Subtle indicator line */}
-        <div className={`w-1 rounded-full transition-all duration-200 ${
+        <div className={`h-8 w-1 rounded-full transition-[background-color,opacity,transform] duration-150 ${
           isResizing
-            ? "bg-club-primary h-14 ring-2 ring-club-primary/20"
-            : "bg-muted-foreground/30 h-8 group-hover:bg-club-primary group-hover:h-12"
+            ? "scale-y-150 bg-club-primary ring-2 ring-club-primary/20"
+            : "bg-muted-foreground/30 group-hover:scale-y-150 group-hover:bg-club-primary"
         }`} />
       </div>
     </aside>

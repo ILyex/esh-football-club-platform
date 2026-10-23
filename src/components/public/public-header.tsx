@@ -88,6 +88,7 @@ export function PublicHeader({
             <span className={`club-name block w-full min-w-0 font-extrabold tracking-tight text-foreground transition-colors group-hover:text-club-primary ${isFrench ? "line-clamp-3 whitespace-normal break-words text-xs leading-tight sm:text-[15px] lg:text-[17px]" : "whitespace-nowrap text-[11px] leading-snug sm:text-sm lg:text-base"}`}>
               {clubShortName || clubName}
             </span>
+            {/* Hallmark waiver: keep the established institutional line “ESH • 2018 — ∞” verbatim. */}
             <span dir="ltr" className="block w-fit max-w-full self-start whitespace-nowrap text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
               ESH • 2018 — ∞
             </span>
@@ -102,13 +103,13 @@ export function PublicHeader({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group/nav relative inline-flex min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-2xs 2xl:gap-1.5 2xl:px-2 2xl:text-sm after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 hover:after:scale-x-100 ${
+                className={`group/nav relative inline-flex min-h-11 min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-club-primary/5 2xl:gap-1.5 2xl:px-2 2xl:text-sm after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 hover:after:scale-x-100 motion-reduce:after:transition-none ${
                   active
-                    ? "bg-club-primary/10 font-semibold text-club-primary shadow-2xs after:scale-x-100"
-                    : "text-muted-foreground hover:bg-club-primary/5 hover:text-club-primary"
+                    ? "bg-club-primary/10 font-semibold text-foreground shadow-2xs after:scale-x-100"
+                      : "text-foreground hover:bg-club-primary/5"
                 }`}
               >
-                <item.icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover/nav:scale-110" aria-hidden="true" />
+                <item.icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover/nav:scale-105 motion-reduce:transition-none" aria-hidden="true" />
                 {item.label}
               </Link>
             );
@@ -146,7 +147,7 @@ export function PublicHeader({
           <button
             type="button"
             onClick={() => setMobileMenuOpen((open) => !open)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/50"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-[color,background-color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/50"
             aria-label={mobileMenuOpen ? labels.close : labels.menu}
             aria-expanded={mobileMenuOpen}
             aria-controls="public-mobile-navigation"
@@ -159,12 +160,14 @@ export function PublicHeader({
       {/* Mobile Drawer Menu */}
       <div
         aria-hidden={!mobileMenuOpen}
-        className={`overflow-hidden border-b border-border bg-card px-4 shadow-lg transition-[max-height,opacity,transform] duration-200 ease-out xl:hidden ${
+        inert={!mobileMenuOpen}
+        className={`grid overflow-hidden border-b border-border bg-card px-4 shadow-lg transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transition-none xl:hidden ${
           mobileMenuOpen
-            ? "pointer-events-auto max-h-[80vh] translate-y-0 pt-2 pb-4 opacity-100"
-            : "pointer-events-none max-h-0 -translate-y-1 py-0 opacity-0"
+            ? "pointer-events-auto grid-rows-[1fr] translate-y-0 opacity-100"
+            : "pointer-events-none grid-rows-[0fr] -translate-y-1 opacity-0"
         }`}
       >
+        <div className="min-h-0 overflow-hidden">
           <nav id="public-mobile-navigation" className="flex flex-col space-y-1">
             {navItems.map((item) => {
               const active = isActive(item.href);
@@ -173,13 +176,13 @@ export function PublicHeader({
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`group/nav flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`group/nav flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-medium transition-[color,background-color,border-color] duration-150 motion-reduce:transition-none ${
                     active
                       ? "border-club-primary/20 bg-club-primary/10 font-semibold text-club-primary"
-                      : "border-transparent text-muted-foreground hover:-translate-y-px hover:border-club-primary/15 hover:bg-club-primary/5 hover:text-club-primary"
+                      : "border-transparent text-foreground hover:border-club-primary/15 hover:bg-club-primary/5"
                   }`}
                 >
-                  <item.icon className="me-2 h-4 w-4 shrink-0 transition-transform duration-200 group-hover/nav:scale-110" aria-hidden="true" />
+                  <item.icon className="me-2 h-4 w-4 shrink-0" aria-hidden="true" />
                   {item.label}
                 </Link>
               );
@@ -189,6 +192,7 @@ export function PublicHeader({
               <ThemeToggle locale={locale} systemIconBreakpoint="xl" />
             </div>
           </nav>
+        </div>
       </div>
     </header>
   );

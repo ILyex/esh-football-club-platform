@@ -96,9 +96,13 @@ export default async function DashboardLayout({
   }).format(today);
 
   const userInitial = user.name ? user.name.trim().charAt(0).toUpperCase() : "U";
+  // Hallmark waiver: keep the established institutional line “ESH • 2018 — ∞” verbatim.
+  const clubBrandStyle = clubSettings?.primaryColor && clubSettings?.secondaryColor
+    ? getClubBrandStyle(clubSettings.primaryColor, clubSettings.secondaryColor)
+    : undefined;
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row bg-background antialiased" style={getClubBrandStyle(clubSettings?.primaryColor ?? "#DC2626", clubSettings?.secondaryColor ?? "#111214")}>
+    <div className="flex min-h-screen flex-col md:flex-row bg-background antialiased" style={clubBrandStyle}>
       <DashboardPresenceHeartbeat />
       <DashboardMailNotifier locale={locale} enabled={hasPermission(user, "mail.view")} />
       <DhikrReminder locale={locale} />
@@ -146,7 +150,7 @@ export default async function DashboardLayout({
               href={publicSiteUrl}
               target="_blank"
               title={locale === "ar" ? "زيارة الموقع العام للنادي" : "Visiter le site public du club"}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/80 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:border-club-primary hover:text-foreground transition-all shadow-2xs shrink-0"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-[color,border-color,background-color] duration-150 hover:border-club-primary hover:text-foreground motion-reduce:transition-none shadow-2xs shrink-0"
             >
               <ExternalLink className="h-3 w-3" />
               <span>{locale === "ar" ? "الموقع" : "Site"}</span>
@@ -252,7 +256,7 @@ export default async function DashboardLayout({
           </div>
         </div>
 
-        <div className="flex-1">
+        <div className="dashboard-page-frame flex-1">
           {children}
         </div>
       </main>

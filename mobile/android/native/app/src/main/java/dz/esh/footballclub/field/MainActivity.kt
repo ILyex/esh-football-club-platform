@@ -2670,14 +2670,14 @@ private fun NativeStandingRow(row: NativeStanding, locale: String) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(row.points.toString(), color = if (row.isOurClub) Color.White else AppText, fontSize = 15.sp, fontWeight = FontWeight.Black, lineHeight = 17.sp)
-                Text(L(locale, "نقاط", "Pts"), color = if (row.isOurClub) Color.White.copy(alpha = .88f) else Muted, fontSize = 7.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp)
+                Text(L(locale, "نقاط", "Pts"), color = if (row.isOurClub) Color.White.copy(alpha = .88f) else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp)
             }
         }
         Row(Modifier.fillMaxWidth().padding(start = 33.dp, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             metrics.forEach { (label, value) ->
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(label, color = Muted, fontSize = 7.sp, maxLines = 1, textAlign = TextAlign.Center)
-                    Text(value.toString(), color = if (label == L(locale, "الفارق", "+/-") && value > 0) Mint else AppText.copy(alpha = .82f), fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    Text(label, color = Muted, fontSize = 9.sp, lineHeight = 11.sp, maxLines = 1, textAlign = TextAlign.Center)
+                    Text(value.toString(), color = if (label == L(locale, "الفارق", "+/-") && value > 0) Mint else AppText.copy(alpha = .82f), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                 }
             }
         }

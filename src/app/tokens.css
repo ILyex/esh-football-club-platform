@@ -1,0 +1,15 @@
+/* Hallmark · ESH brand tokens · existing palette and font roles are the source of truth */
+@theme static {
+  --color-esh-canvas: hsl(var(--background));
+  --color-esh-surface: hsl(var(--card));
+  --color-esh-subtle: hsl(var(--muted));
+  --color-esh-ink: hsl(var(--foreground));
+  --color-esh-muted: hsl(var(--muted-foreground));
+  --color-esh-line: hsl(var(--border));
+  --color-esh-accent: var(--club-primary);
+  --font-esh-body: var(--font-plus-jakarta), var(--font-ibm-plex-arabic), var(--font-cairo), system-ui, sans-serif;
+  --font-esh-arabic: var(--font-ibm-plex-arabic), var(--font-cairo), system-ui, sans-serif;
+  --ease-esh-ui: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --duration-esh-quick: 150ms;
+  --duration-esh-panel: 220ms;
+}

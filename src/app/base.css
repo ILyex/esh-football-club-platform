@@ -1,0 +1,40 @@
+/* Hallmark · shared interaction and responsive foundations · brand values come from tokens.css */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html,
+body { overflow-x: clip; }
+
+html {
+  scroll-padding-block-start: 5rem;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+video,
+svg { max-width: 100%; }
+
+:where(h1, h2, h3, h4, h5, h6) {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+:where(button, input, select, textarea) { font: inherit; }
+
+:where(a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"]:not([aria-disabled="true"])):focus-visible {
+  outline: 2px solid var(--club-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

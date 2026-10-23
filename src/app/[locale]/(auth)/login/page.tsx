@@ -76,9 +76,9 @@ export default function LoginPage() {
 
       {/* Subtle club-colored atmosphere behind the login surfaces. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -right-40 -top-48 h-[34rem] w-[34rem] rounded-full bg-[radial-gradient(circle,rgba(220,38,38,0.16)_0%,rgba(220,38,38,0.06)_38%,transparent_72%)] blur-2xl dark:bg-[radial-gradient(circle,rgba(220,38,38,0.22)_0%,rgba(220,38,38,0.08)_40%,transparent_72%)]" />
-        <div className="absolute -bottom-64 -left-48 h-[36rem] w-[36rem] rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.12)_0%,rgba(16,185,129,0.04)_42%,transparent_72%)] blur-2xl dark:bg-[radial-gradient(circle,rgba(32,215,160,0.14)_0%,rgba(32,215,160,0.05)_42%,transparent_72%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_35%,rgba(220,38,38,0.025)_58%,transparent_78%)] dark:bg-[linear-gradient(135deg,transparent_35%,rgba(220,38,38,0.035)_58%,transparent_78%)]" />
+        <div className="absolute -right-40 -top-48 h-[34rem] w-[34rem] rounded-full login-glow-red" />
+        <div className="absolute -bottom-64 -left-48 h-[36rem] w-[36rem] rounded-full login-glow-green" />
+        <div className="absolute inset-0 login-diagonal-glow" />
       </div>
 
       {/* Top Header Bar */}
@@ -89,7 +89,7 @@ export default function LoginPage() {
             href={publicSiteUrl}
             aria-label={isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}
             title={isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}
-            className="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 px-0 py-0 text-xs font-semibold text-muted-foreground shadow-2xs transition-all hover:border-club-primary/40 hover:bg-card hover:text-foreground sm:h-auto sm:w-auto sm:justify-start sm:gap-2 sm:px-3.5 sm:py-1.5"
+            className="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 px-0 py-0 text-xs font-semibold text-muted-foreground shadow-2xs transition-[color,border-color,background-color] duration-150 motion-reduce:transition-none hover:border-club-primary/40 hover:bg-card hover:text-foreground sm:h-auto sm:w-auto sm:justify-start sm:gap-2 sm:px-3.5 sm:py-1.5"
           >
             <ArrowIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5" />
             <span className="hidden sm:inline">{isRtl ? "العودة للموقع الرسمي" : "Retour au site officiel"}</span>
@@ -102,7 +102,7 @@ export default function LoginPage() {
             <div className="flex items-center rounded-lg border border-border/80 bg-background/80 p-0.5 shadow-2xs text-xs font-medium">
               <Link
                 href="/ar/login"
-                className={`rounded-md px-2.5 py-1 transition-all ${
+                className={`rounded-md px-2.5 py-1 transition-[color,background-color] duration-150 motion-reduce:transition-none ${
                   locale === "ar"
                     ? "bg-club-primary text-white font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -112,7 +112,7 @@ export default function LoginPage() {
               </Link>
               <Link
                 href="/fr/login"
-                className={`rounded-md px-2.5 py-1 transition-all ${
+                className={`rounded-md px-2.5 py-1 transition-[color,background-color] duration-150 motion-reduce:transition-none ${
                   locale === "fr"
                     ? "bg-club-primary text-white font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -129,15 +129,15 @@ export default function LoginPage() {
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:px-6">
         <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-5 md:grid-cols-[minmax(0,0.9fr)_minmax(26rem,1.1fr)] md:gap-6">
           {/* Club identity panel: keeps the football visual distinct from the credential form. */}
-          <aside className="relative order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border/80 bg-card/65 p-8 text-foreground shadow-lg shadow-black/[0.04] backdrop-blur-xl md:flex md:flex-col md:justify-between lg:p-10">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(220,38,38,0.07),transparent_55%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(220,38,38,0.12),transparent_55%)]" aria-hidden="true" />
+          <aside className="relative order-1 hidden min-h-[34rem] overflow-hidden rounded-3xl border border-border/80 bg-card/65 p-8 text-foreground shadow-lg shadow-black/[0.04] md:flex md:flex-col md:justify-between lg:p-10">
+            <div className="pointer-events-none absolute inset-0 login-side-glow" aria-hidden="true" />
             <div className="absolute inset-x-0 top-0 h-1 bg-club-primary" aria-hidden="true" />
             <div className="relative flex items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-club-primary/20 bg-white p-0.5 shadow-xs">
                 <ClubLogo src="/branding/esh-logo-256.png" fallbackSrc="/branding/esh-logo-256.png" alt={isRtl ? "الشعار الرسمي لنادي أمل سيدي حسني" : "Logo officiel d’Espoir Sidi Hosni"} className="h-full w-full object-contain" />
               </div>
               <div>
-                <p className="text-xs font-semibold tracking-wide text-club-primary">E SIDI HOSNI</p>
+                <p className="text-sm font-semibold text-foreground">E SIDI HOSNI</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{isRtl ? "بوابة النادي" : "Portail du club"}</p>
               </div>
             </div>
@@ -160,7 +160,7 @@ export default function LoginPage() {
           </aside>
 
           <div className="relative order-2 overflow-hidden rounded-3xl border border-border/80 bg-card/80 p-6 shadow-xl shadow-black/[0.08] backdrop-blur-2xl sm:p-8 lg:p-9">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.055),transparent_48%)] dark:bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.09),transparent_48%)]" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-0 login-panel-glow" aria-hidden="true" />
             <div className="absolute inset-x-0 top-0 h-1 bg-club-primary" />
 
             <div className="relative mb-6 border-b border-border/70 pb-5">
@@ -230,7 +230,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@esh-club.dz"
-                    className={`login-input w-full rounded-xl border border-border/90 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 ${isRtl ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"}`}
+                    className={`login-input w-full rounded-xl border border-muted-foreground/50 bg-muted/40 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none ${isRtl ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"}`}
                   />
                 </div>
               </div>
@@ -255,7 +255,7 @@ export default function LoginPage() {
                     minLength={8}
                     autoComplete="current-password"
                     placeholder="••••••••••••"
-                    className="login-input w-full rounded-xl border border-border/90 bg-muted/40 py-2.5 ps-10 pe-12 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20"
+                    className="login-input w-full rounded-xl border border-muted-foreground/50 bg-muted/40 py-2.5 ps-10 pe-12 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,background-color,box-shadow] duration-150 focus:border-club-primary focus:bg-background focus:outline-hidden focus:ring-2 focus:ring-club-primary/20 motion-reduce:transition-none"
                   />
                   <button
                     type="button"
@@ -343,7 +343,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={pending || (captchaEnabled && (!captchaReady || !captchaToken))}
-                className="w-full mt-2 rounded-xl bg-club-primary hover:bg-club-primary-hover py-2.5 text-sm font-bold text-white shadow-md shadow-club-primary/25 transition-all active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
+                className="w-full mt-2 rounded-xl bg-club-primary hover:bg-club-primary-hover py-2.5 text-sm font-bold text-white shadow-md shadow-club-primary/25 transition-[background-color,box-shadow,transform] duration-150 motion-reduce:transition-none active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
               >
                 {pending ? (
                   <>
