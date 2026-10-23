@@ -429,10 +429,6 @@ private fun MatchdayApp() {
     var refreshNonce by remember { mutableIntStateOf(0) }
     var updateCheckNonce by remember { mutableIntStateOf(0) }
     var firstResumeHandled by remember { mutableStateOf(false) }
-    // "Later" suppresses the automatic update prompt for this app session.
-    // The flag is intentionally in Compose state, so it resets when the app
-    // process is launched again and the next entry can check for updates.
-    var updateSnoozedThisSession by remember { mutableStateOf(false) }
     var updateNotice by remember { mutableStateOf<String?>(null) }
     var updateRelease by remember { mutableStateOf<NativeRelease?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
@@ -505,11 +501,17 @@ private fun MatchdayApp() {
         }
     }
 
+    fun dismissUpdatePrompt(releaseTag: String) {
+        updateRelease = null
+        context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE).edit()
+            .putString(ApkDownloadReceiver.DISMISSED_TAG, releaseTag)
+            .apply()
+    }
+
     fun checkForUpdate() {
         if (checkingUpdate) return
-        // A manual check from Settings is always allowed, even after the user
-        // dismissed the automatic prompt with "Later".
-        updateSnoozedThisSession = false
+        // A manual check from Settings intentionally ignores the persisted
+        // automatic-prompt dismissal and can show the release again.
         scope.launch {
             checkingUpdate = true
             val releaseCheck = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() } }
@@ -526,17 +528,20 @@ private fun MatchdayApp() {
     }
 
     LaunchedEffect(updateCheckNonce) {
-        if (updateSnoozedThisSession) return@LaunchedEffect
         val updaterPrefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
         if (updaterPrefs.getBoolean(ApkDownloadReceiver.DOWNLOAD_ACTIVE, false) ||
-            updaterPrefs.getString(ApkDownloadReceiver.PENDING_URI, null) != null ||
-            updaterPrefs.getString(ApkDownloadReceiver.SUPPRESS_TAG, null) != null) return@LaunchedEffect
+            updaterPrefs.getString(ApkDownloadReceiver.PENDING_URI, null) != null) return@LaunchedEffect
         // Let the authenticated dashboard request use the network first on cold start.
         delay(2_000)
         checkingUpdate = true
         val release = withContext(Dispatchers.IO) { runCatching { NativeApi.latestRelease() }.getOrNull() }
         checkingUpdate = false
-        if (release != null && isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "")) updateRelease = release
+        val dismissedTag = updaterPrefs.getString(ApkDownloadReceiver.DISMISSED_TAG, null)
+            ?: updaterPrefs.getString(ApkDownloadReceiver.SUPPRESS_TAG, null)
+        if (release != null && release.tag != dismissedTag &&
+            isNativeUpdateAvailable(release.tag, context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "")) {
+            updateRelease = release
+        }
     }
 
     SideEffect {
@@ -882,7 +887,7 @@ private fun MatchdayApp() {
         }
         updateRelease?.let { release ->
             AlertDialog(
-                onDismissRequest = { updateRelease = null; updateSnoozedThisSession = true },
+                onDismissRequest = { dismissUpdatePrompt(release.tag) },
                 shape = RoundedCornerShape(22.dp),
                 containerColor = Panel,
                 title = { Text(L(locale, "تحديث جديد متاح", "Nouvelle mise à jour disponible"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily) },
@@ -896,9 +901,12 @@ private fun MatchdayApp() {
                     ClubPrimaryButton(
                         text = L(locale, "تنزيل التحديث", "Télécharger"),
                         onClick = {
+                        // Persist before starting either downloader so a
+                        // lifecycle resume or failed transfer cannot reopen
+                        // this same update dialog automatically.
+                        dismissUpdatePrompt(release.tag)
                         updateProgress = 0
                         updateDownloading = true
-                        updateRelease = null
                         updateDownloadJob = scope.launch {
                             runCatching {
                                 // DownloadManager owns the transfer, so it
@@ -1043,7 +1051,7 @@ private fun MatchdayApp() {
                         }
                     }, modifier = Modifier.width(170.dp))
                 },
-                dismissButton = { TextButton(onClick = { updateRelease = null; updateSnoozedThisSession = true }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
+                dismissButton = { TextButton(onClick = { dismissUpdatePrompt(release.tag) }) { Text(L(locale, "لاحقًا", "Plus tard"), color = Muted, fontFamily = CairoFamily) } }
             )
         }
         updateNotice?.let { message ->

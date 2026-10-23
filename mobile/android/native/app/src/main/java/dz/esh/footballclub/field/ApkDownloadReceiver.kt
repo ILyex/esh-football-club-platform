@@ -128,6 +128,7 @@ class ApkDownloadReceiver : BroadcastReceiver() {
         const val PENDING_URI = "pending_install_uri"
         const val DOWNLOAD_ACTIVE = "download_active"
         const val SUPPRESS_TAG = "suppress_update_tag"
+        const val DISMISSED_TAG = "dismissed_update_tag"
         const val DOWNLOAD_FAILED = "download_failed"
         const val APK_MIME = "application/vnd.android.package-archive"
         const val ACTION_INSTALL_UPDATE = "dz.esh.footballclub.field.INSTALL_UPDATE"

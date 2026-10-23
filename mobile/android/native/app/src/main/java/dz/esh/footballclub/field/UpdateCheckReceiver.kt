@@ -41,6 +41,10 @@ class UpdateCheckReceiver : BroadcastReceiver() {
                     context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
                 }.getOrDefault("")
                 if (!isNativeUpdateAvailable(release.tag, installed)) return@thread
+                val updaterPrefs = context.getSharedPreferences(ApkDownloadReceiver.PREFS, Context.MODE_PRIVATE)
+                val dismissedTag = updaterPrefs.getString(ApkDownloadReceiver.DISMISSED_TAG, null)
+                    ?: updaterPrefs.getString(ApkDownloadReceiver.SUPPRESS_TAG, null)
+                if (dismissedTag == release.tag) return@thread
                 val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 if (prefs.getString(NOTIFIED_TAG, null) == release.tag) return@thread
                 postNotification(context, release.tag)
