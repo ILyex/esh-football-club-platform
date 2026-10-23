@@ -1,4 +1,4 @@
-import { Activity, Calendar, ClipboardList, Trophy } from "lucide-react";
+import { Activity, Calendar, CalendarDays, ClipboardList, Trophy } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
