@@ -175,7 +175,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
             <input id="user-last-name" name="lastName" autoComplete="family-name" maxLength={100} defaultValue={user.lastName ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
-            <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم الأول" : "Prénom"}</label>
+            <label htmlFor="user-first-name" className="block text-sm font-medium leading-5">{locale === "ar" ? "الاسم و اللقب" : "Prénom"}</label>
             <input id="user-first-name" name="firstName" autoComplete="given-name" maxLength={100} defaultValue={user.firstName ?? ""} readOnly={isStaffLinked} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-club-primary focus:ring-2 focus:ring-club-primary/15 read-only:opacity-60" />
           </div>
           <div className="min-w-0 space-y-2">
