@@ -192,7 +192,7 @@ export function OfficialAttendanceSheetModal({
                     {isAr ? "المدرب المشرف:" : "Entraîneur Responsable :"}
                   </span>
                   <span className="font-bold text-black text-[18px]">
-                    {session.coachName || (isAr ? "المدرب الرئيسي" : "Staff Technique")}
+                    {session.coachName || (isAr ? "المدرب" : "Staff Technique")}
                   </span>
                 </div>
                 <div>

@@ -81,7 +81,7 @@ export function StaffThematicCharts({ staff, locale }: StaffThematicChartsProps)
   // Role labels
   const roleLabels: Record<string, string> = useMemo(
     () => ({
-      HEAD_COACH: isAr ? "المدرب الرئيسي" : "Entraîneur",
+      HEAD_COACH: isAr ? "المدرب" : "Entraîneur",
       ASSISTANT_COACH: isAr ? "المدرب المساعد" : "Entraîneur Adjoint",
       GOALKEEPING_COACH: isAr ? "مدرب الحراس" : "Entraîneur des Gardiens",
       FITNESS_COACH: isAr ? "مدرب اللياقة" : "Préparateur Physique",

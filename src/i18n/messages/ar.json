@@ -199,7 +199,7 @@
       "photo": "صورة العضو"
     },
     "roles": {
-      "HEAD_COACH": "المدرب الرئيسي",
+      "HEAD_COACH": "المدرب",
       "ASSISTANT_COACH": "المدرب المساعد",
       "GOALKEEPING_COACH": "مدرب حراس المرمى",
       "FITNESS_COACH": "مدرب اللياقة البدنية",

@@ -1379,7 +1379,7 @@ export function TestingSessionSheet({
         </div>
         <div className="text-end">
           <p className="font-bold">
-            {locale === "ar" ? "المدير الفني / المدرب الرئيسي" : "L'Entraîneur Principal / DTN"}
+            {locale === "ar" ? "المدير الفني / المدرب" : "L'Entraîneur Principal / DTN"}
           </p>
           <div className="h-16" />
         </div>
