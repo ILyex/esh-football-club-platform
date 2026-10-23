@@ -14,6 +14,10 @@ export interface StandingTeamEntry {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  /** Official point deduction carried forward when later match results are applied. */
+  pointsAdjustment?: number;
+  /** Match records dated after this baseline are applied to this imported snapshot. */
+  baselineAt?: string;
   form?: ("W" | "D" | "L")[];
 }
 

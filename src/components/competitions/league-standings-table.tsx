@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Trophy,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import type { StandingTeamEntry } from "@/lib/competitions/types";
 import { rankStandings } from "@/lib/competitions/standings";
-import { saveCompetitionStandingsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
+import { importOfficialRoundTwoSeniorStandingsAction, saveCompetitionStandingsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
 
 interface LeagueStandingsTableProps {
   competitionId: string;
@@ -36,6 +37,7 @@ export function LeagueStandingsTable({
   isPublic = false
 }: LeagueStandingsTableProps) {
   const isAr = locale === "ar";
+  const router = useRouter();
   const [standings, setStandings] = useState<StandingTeamEntry[]>(initialStandings);
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -56,7 +58,7 @@ export function LeagueStandingsTable({
         if (item.id !== id) return item;
         const updated = { ...item, [field]: Math.max(0, Number.isFinite(val) ? Math.trunc(val) : 0) };
         updated.played = updated.won + updated.drawn + updated.lost;
-        updated.points = updated.won * 3 + updated.drawn;
+        updated.points = updated.won * 3 + updated.drawn + (updated.pointsAdjustment ?? 0);
         if (field === "goalsFor" || field === "goalsAgainst") {
           updated.goalDifference = updated.goalsFor - updated.goalsAgainst;
         }
@@ -97,7 +99,7 @@ export function LeagueStandingsTable({
     const canonicalStandings = rankStandings(standings.map((team) => ({
       ...team,
       played: team.won + team.drawn + team.lost,
-      points: team.won * 3 + team.drawn,
+      points: team.won * 3 + team.drawn + (team.pointsAdjustment ?? 0),
       goalDifference: team.goalsFor - team.goalsAgainst
     })));
     startTransition(async () => {
@@ -116,6 +118,19 @@ export function LeagueStandingsTable({
           type: "error",
           message: err?.message || (isAr ? "فشل في حفظ الترتيب" : "Erreur de mise à jour")
         });
+      }
+    });
+  };
+
+  const handleImportOfficialRound = () => {
+    startTransition(async () => {
+      try {
+        setFeedback(null);
+        await importOfficialRoundTwoSeniorStandingsAction(competitionId);
+        setFeedback({ type: "success", message: isAr ? "تم ربط ترتيب الجولة الثانية بالمسابقة والفرق" : "Le classement du 2e tour est lié à la compétition" });
+        router.refresh();
+      } catch (error: any) {
+        setFeedback({ type: "error", message: error?.message || (isAr ? "تعذر استيراد الترتيب" : "Import impossible") });
       }
     });
   };
@@ -142,6 +157,13 @@ export function LeagueStandingsTable({
               </span>
             )}
           </div>
+
+          {(standings.length === 0 || standings.every((team) => team.id.startsWith("official-r2-"))) && (
+            <button type="button" onClick={handleImportOfficialRound} disabled={isPending} className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 text-xs font-bold text-sky-700 transition hover:bg-sky-500/15 disabled:opacity-60 dark:text-sky-300">
+              <Trophy className="h-3.5 w-3.5" />
+              {isPending ? (isAr ? "جارٍ ربط البيانات..." : "Import en cours…") : (isAr ? "إدخال ترتيب الجولة الثانية وربطه" : "Importer le classement du 2e tour")}
+            </button>
+          )}
 
           <div className="flex items-center gap-2">
             {isEditing ? (

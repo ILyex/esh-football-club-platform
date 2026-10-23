@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { frenchCompetitionName, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
+import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
 
 export default async function PublicCompetitionsPage({
   params
@@ -47,10 +48,11 @@ export default async function PublicCompetitionsPage({
     orderBy: { name: "asc" }
   });
 
-  const formattedCompetitions: CompetitionHubData[] = dbCompetitions.map((c) => {
+  const formattedCompetitions: CompetitionHubData[] = await Promise.all(dbCompetitions.map(async (c) => {
     const cat = c.team?.category || "SENIOR";
     const displayData = getCompetitionDisplayData(c.standingsData, c.bracketData);
-    const localizedStandings = isAr ? displayData.standings : displayData.standings.map((row) => ({
+    const liveStandings = await getLiveCompetitionStandings(c.id, displayData.standings);
+    const localizedStandings = isAr ? liveStandings : liveStandings.map((row) => ({
       ...row,
       teamName: frenchPublicText(row.teamName, "Adversaire")
     }));
@@ -89,7 +91,7 @@ export default async function PublicCompetitionsPage({
         awayTeamName: localizedClubName(match.awayTeamName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")
       }))
     };
-  });
+  }));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-10">

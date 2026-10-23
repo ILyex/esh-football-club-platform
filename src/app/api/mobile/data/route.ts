@@ -8,6 +8,7 @@ import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
 import { getCompetitionDisplayData, OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
+import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -195,9 +196,10 @@ export async function GET(request: Request) {
       };
     }),
     notifications,
-    competitions: competitions.map((competition) => {
+    competitions: await Promise.all(competitions.map(async (competition) => {
       const category = competition.team?.category || "SENIOR";
       const display = getCompetitionDisplayData(competition.standingsData, competition.bracketData);
+      const standings = await getLiveCompetitionStandings(competition.id, display.standings);
       return {
         id: competition.id,
         name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
@@ -207,10 +209,10 @@ export async function GET(request: Request) {
         seasonLabel: competition.season.label,
         category,
         categoryLabel: OFFICIAL_CATEGORY_NAMES[category as keyof typeof OFFICIAL_CATEGORY_NAMES]?.[locale === "fr" ? "fr" : "ar"] || category,
-        standings: display.standings,
+        standings,
         bracket: display.bracket,
         canManage: canManageCompetitions
       };
-    })
+    }))
   }, { headers: { "Cache-Control": "no-store" } });
 }

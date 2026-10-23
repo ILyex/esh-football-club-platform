@@ -14,6 +14,7 @@ import {
   getCompetitionDisplayData
 } from "@/lib/competitions";
 import { createSeasonAction } from "./actions";
+import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
 
 export default async function CompetitionsListPage({
   params
@@ -50,7 +51,7 @@ export default async function CompetitionsListPage({
     orderBy: { name: "asc" }
   });
 
-  const formattedCompetitions: CompetitionHubData[] = dbCompetitions.map((c) => {
+  const formattedCompetitions: CompetitionHubData[] = await Promise.all(dbCompetitions.map(async (c) => {
     const cat = c.team?.category || "SENIOR";
     const displayData = getCompetitionDisplayData(c.standingsData, c.bracketData);
     return {
@@ -66,9 +67,10 @@ export default async function CompetitionsListPage({
       categoryLabelFr: OFFICIAL_CATEGORY_NAMES[cat]?.fr || cat,
       status: c.status,
       ...displayData,
+      standings: await getLiveCompetitionStandings(c.id, displayData.standings),
       matches: c.matches
     };
-  });
+  }));
 
   async function addSeason(_prevState: { id?: string; error?: string } | undefined, formData: FormData) {
     "use server";
