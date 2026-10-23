@@ -159,7 +159,7 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
     getOpponentsMap(),
     db.match.findMany({
       where: { competitionId },
-      select: { teamId: true, isHomeFixture: true, homeTeamName: true, awayTeamName: true }
+      select: { id: true, teamId: true, isHomeFixture: true, homeTeamName: true, awayTeamName: true }
     }),
     db.competition.findUnique({ where: { id: competitionId }, select: { teamId: true } }),
     db.clubSettings.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } })
@@ -172,6 +172,28 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
   ).filter(Boolean);
   const savedClubNames = Object.values(opponents).map((club) => club.name);
   const knownNames = [...new Set([...savedClubNames, ...opponentNames])];
+
+  // Match creation records the uploaded crest URL in its audit entry as a
+  // recovery source. Older installs can have the match and uploaded asset but
+  // lack the corresponding OpponentClub row, so recover those links here.
+  const logoAudits = matches.length ? await db.auditLog.findMany({
+    where: { entityType: "Match", entityId: { in: matches.map((match) => match.id) }, action: "match.create" },
+    select: { entityId: true, changes: true },
+    orderBy: { createdAt: "desc" }
+  }) : [];
+  const matchLogoCandidates: Array<{ name: string; logo: string }> = [];
+  for (const audit of logoAudits) {
+    if (!audit.entityId || !audit.changes || typeof audit.changes !== "object" || Array.isArray(audit.changes)) continue;
+    const changes = audit.changes as { after?: { opponent?: unknown; opponentNameFr?: unknown }; opponentLogoUrl?: unknown };
+    const names = [changes.after?.opponent, changes.after?.opponentNameFr]
+      .filter((name): name is string => typeof name === "string")
+      .map((name) => name.trim())
+      .filter(Boolean);
+    const logo = typeof changes.opponentLogoUrl === "string" ? normalizePublicMediaUrl(changes.opponentLogoUrl) : null;
+    if (logo && !isDefaultOpponentCrest(logo)) {
+      for (const name of names) matchLogoCandidates.push({ name, logo });
+    }
+  }
 
   return Promise.all(rows.map(async (row) => {
     if (row.isOurClub || row.id === "official-r2-esh") return { ...row, teamLogo: clubLogo };
@@ -191,6 +213,8 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
       if (!aliasLogo || isDefaultOpponentCrest(aliasLogo)) continue;
       return { ...row, teamLogo: aliasLogo };
     }
+    const auditedLogo = matchLogoCandidates.find((candidate) => sameClubName(row.teamName, candidate.name))?.logo;
+    if (auditedLogo) return { ...row, teamLogo: auditedLogo };
     // Let OpponentCrest render the same shield fallback used elsewhere in the
     // platform; passing the old decorative SVG made placeholders look like logos.
     return { ...row, teamLogo: null };
