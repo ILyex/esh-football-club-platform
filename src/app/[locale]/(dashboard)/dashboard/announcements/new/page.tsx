@@ -51,7 +51,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
         nextLabel={isAr ? "التالي" : "Suivant"}
         saveLabel={tCommon("save")}
         steps={[
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
+        <section key="content" className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 border-b border-border/70 pb-3">
             <h2 className="text-sm font-bold text-foreground">{isAr ? "محتوى الإعلان" : "Contenu de l’annonce"}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{isAr ? "اكتب النص بالعربية والفرنسية ليظهر حسب لغة الموقع." : "Renseignez les deux langues pour l’affichage sur le site."}</p>
@@ -89,7 +89,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
           </div>
         </section>,
 
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
+        <section key="publishing" className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 border-b border-border/70 pb-3">
             <h2 className="text-sm font-bold text-foreground">{isAr ? "النشر والاستهداف" : "Publication et ciblage"}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{isAr ? "حدد أولوية الإعلان ومدته ومكان عرضه." : "Choisissez la priorité, la période et l’emplacement."}</p>
@@ -122,7 +122,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
           </div>
         </section>,
 
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
+        <section key="images" className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 border-b border-border/70 pb-3">
             <h2 className="text-sm font-bold text-foreground">{isAr ? "صور الإعلان" : "Images de l’annonce"}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{isAr ? "أضف الصور ثم راجع الإعلان قبل نشره." : "Ajoutez les images, puis vérifiez l’annonce avant de la publier."}</p>
