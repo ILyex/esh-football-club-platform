@@ -192,7 +192,7 @@ export async function createStaffAction(formData: FormData) {
   const teamId = parsed.teamId ?? null;
   const validTeam = teamId ? await db.team.findFirst({ where: { id: teamId, active: true }, select: { id: true, category: true } }) : null;
   if (teamId && !validTeam) throw new Error("staffTeamAssignmentInvalid");
-  if (accountRole.teamScoped && !teamId) throw new Error("teamScopedStaffNeedsOneTeam");
+  if (accountRole.teamScoped && accountRole.key !== "secretary_general" && !teamId) throw new Error("teamScopedStaffNeedsOneTeam");
   if (parsed.role === "HEAD_COACH" && teamId) {
     const occupied = await db.staff.findFirst({ where: { role: "HEAD_COACH", status: "ACTIVE", teamId }, select: { id: true } });
     if (occupied) throw new Error("categoryAlreadyHasHeadCoach");
@@ -278,7 +278,7 @@ export async function createStaffAction(formData: FormData) {
     await tx.staff.update({ where: { id: staff.id }, data: { userId: linkedUser.id } });
     if (teamId) {
       await tx.staffTeam.create({ data: { staffId: staff.id, teamId } });
-      await tx.userTeam.create({ data: { userId: linkedUser.id, teamId } });
+      if (accountRole.teamScoped) await tx.userTeam.create({ data: { userId: linkedUser.id, teamId } });
     }
   });
   } catch (error) {
@@ -346,7 +346,7 @@ export async function updateStaffAction(staffId: string, formData: FormData) {
     ? await db.role.findUnique({ where: { id: accountRoleId }, select: { id: true, key: true, teamScoped: true } })
     : null;
   if (accountRole && ["super_admin", "treasurer"].includes(accountRole.key)) throw new Error("staffAccountRoleNotAllowed");
-  if (before.userId && accountRole?.teamScoped && !effectiveTeamId) {
+  if (before.userId && accountRole?.teamScoped && accountRole.key !== "secretary_general" && !effectiveTeamId) {
     throw new Error("teamScopedStaffNeedsOneTeam");
   }
 
@@ -364,8 +364,22 @@ export async function updateStaffAction(staffId: string, formData: FormData) {
     await tx.staffTeam.deleteMany({ where: { staffId } });
     if (effectiveTeamId) await tx.staffTeam.create({ data: { staffId, teamId: effectiveTeamId } });
     if (updatedStaff.userId) {
-      await tx.userTeam.deleteMany({ where: { userId: updatedStaff.userId } });
-      if (effectiveTeamId) await tx.userTeam.create({ data: { userId: updatedStaff.userId, teamId: effectiveTeamId } });
+      if (accountRole?.key === "secretary_general") {
+        if (before.teamId && before.teamId !== effectiveTeamId) {
+          await tx.userTeam.deleteMany({ where: { userId: updatedStaff.userId, teamId: before.teamId } });
+        }
+        if (effectiveTeamId) await tx.userTeam.upsert({
+          where: { userId_teamId: { userId: updatedStaff.userId, teamId: effectiveTeamId } },
+          create: { userId: updatedStaff.userId, teamId: effectiveTeamId },
+          update: {}
+        });
+      } else if (accountRole?.teamScoped && effectiveTeamId) {
+        await tx.userTeam.deleteMany({ where: { userId: updatedStaff.userId } });
+        await tx.userTeam.create({ data: { userId: updatedStaff.userId, teamId: effectiveTeamId } });
+      } else {
+        // Association-wide roles, including the president, have no category scope.
+        await tx.userTeam.deleteMany({ where: { userId: updatedStaff.userId } });
+      }
       await tx.user.update({
         where: { id: updatedStaff.userId },
         data: {

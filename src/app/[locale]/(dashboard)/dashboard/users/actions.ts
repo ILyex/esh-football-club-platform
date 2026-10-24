@@ -16,6 +16,7 @@ import {
 import { userIdPrefixFromRoute } from "@/lib/user-route";
 
 const TEAM_SCOPED_COACH_ROLE_KEYS = new Set(["coach", "assistant_coach"]);
+const MULTI_TEAM_STAFF_ROLE_KEYS = new Set(["secretary_general"]);
 
 /**
  * User detail links intentionally expose a readable route segment such as
@@ -116,7 +117,7 @@ export async function updateUserAction(userId: string, formData: FormData) {
   if (selectedRole.key === "super_admin" && actor.roleKey !== "super_admin") {
     throw new Error("superAdminAssignmentRestricted");
   }
-  if (selectedRole.teamScoped) {
+  if (selectedRole.teamScoped && TEAM_SCOPED_COACH_ROLE_KEYS.has(selectedRole.key)) {
     if (before.staff) {
       const staffTeamAssignments = await db.staffTeam.count({ where: { staffId: before.staff.id } });
       if (staffTeamAssignments !== 1) throw new Error("teamScopedStaffNeedsOneTeam");
@@ -192,9 +193,24 @@ export async function updateUserAction(userId: string, formData: FormData) {
         ...(roleOrActiveChanged ? { tokenVersion: { increment: 1 }, lastSeenAt: null } : {})
       }
     });
+    if (!selectedRole.teamScoped) {
+      // Unrestricted roles such as the association president have no fixed
+      // category. Remove dormant scopes so they cannot reappear on a later role change.
+      await tx.userTeam.deleteMany({ where: { userId: targetUserId } });
+    }
     if (before.staff) {
       await tx.staff.update({ where: { id: before.staff.id }, data: { accountRoleId: effectiveRoleId } });
-      if (selectedRole.teamScoped) {
+      if (selectedRole.key === "secretary_general") {
+        const existingAssignments = await tx.userTeam.count({ where: { userId: targetUserId } });
+        if (existingAssignments === 0) {
+          const staffTeam = await tx.staffTeam.findFirst({ where: { staffId: before.staff.id }, select: { teamId: true } });
+          if (staffTeam) await tx.userTeam.upsert({
+            where: { userId_teamId: { userId: targetUserId, teamId: staffTeam.teamId } },
+            create: { userId: targetUserId, teamId: staffTeam.teamId },
+            update: {}
+          });
+        }
+      } else if (selectedRole.teamScoped) {
         const assignment = await tx.staffTeam.findFirst({ where: { staffId: before.staff.id }, select: { teamId: true } });
         if (!assignment) throw new Error("teamScopedStaffNeedsOneTeam");
         await tx.userTeam.deleteMany({ where: { userId: targetUserId, teamId: { not: assignment.teamId } } });
@@ -346,7 +362,9 @@ export async function addUserTeamAction(userId: string, formData: FormData) {
     where: { id: targetUserId, deletedAt: null },
     select: { id: true, role: { select: { key: true } } }
   });
-  if (await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } })) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
+  if (targetUser.role.key === "president") throw new Error("presidentHasNoTeamAssignment");
+  const linkedStaff = await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } });
+  if (linkedStaff && !MULTI_TEAM_STAFF_ROLE_KEYS.has(targetUser.role.key)) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
 
   await db.$transaction(async (tx) => {
     if (TEAM_SCOPED_COACH_ROLE_KEYS.has(targetUser.role.key)) {
@@ -380,8 +398,12 @@ export async function removeUserTeamAction(userId: string, teamId: string) {
   const actor = await requirePermission("users.manage");
   const targetUserId = await resolveUserId(userId);
 
-  await db.user.findFirstOrThrow({ where: { id: targetUserId, deletedAt: null }, select: { id: true } });
-  if (await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } })) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
+  const targetUser = await db.user.findFirstOrThrow({
+    where: { id: targetUserId, deletedAt: null },
+    select: { id: true, role: { select: { key: true } } }
+  });
+  const linkedStaff = await db.staff.findUnique({ where: { userId: targetUserId }, select: { id: true } });
+  if (linkedStaff && !MULTI_TEAM_STAFF_ROLE_KEYS.has(targetUser.role.key)) throw new Error("staffTeamsMustBeManagedFromStaffProfile");
 
   await db.$transaction(async (tx) => {
     await tx.userTeam.deleteMany({ where: { userId: targetUserId, teamId } });

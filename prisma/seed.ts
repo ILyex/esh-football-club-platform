@@ -148,7 +148,8 @@ const ROLE_DEFINITIONS: {
   {
     key: "secretary_general",
     name: "الكاتب العام",
-    description: "إدارة وثائق الجمعية ومحتوى الموقع دون المالية أو التدريب أو إدارة النظام.",
+    description: "إدارة وثائق الجمعية ومحتوى الموقع ضمن الفئات المعيّنة، دون المالية أو التدريب أو إدارة النظام.",
+    teamScoped: true,
     syncPermissions: true,
     permissions: [
       "documents.view", "documents.view.restricted", "documents.create", "documents.update", "documents.delete",

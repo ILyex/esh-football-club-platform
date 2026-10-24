@@ -56,7 +56,10 @@ export default async function UserDetailPage({ params, searchParams }: { params:
   const assignedTeamIds = new Set(user.teamAssignments.map((a) => a.teamId));
   const unassignedTeams = allTeams.filter((t) => !assignedTeamIds.has(t.id));
   const isSingleTeamCoach = user.role.key === "coach" || user.role.key === "assistant_coach";
+  const isSecretaryGeneral = user.role.key === "secretary_general";
+  const isPresident = user.role.key === "president";
   const isStaffLinked = Boolean(user.staff);
+  const canManageTeamAssignments = !isStaffLinked || isSecretaryGeneral;
 
   // Inline server wrappers required by Next.js for form actions that close
   // over `id` from params — they cannot be directly bound in JSX.
@@ -249,7 +252,13 @@ export default async function UserDetailPage({ params, searchParams }: { params:
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">
-          {isStaffLinked && <p className="text-xs text-muted-foreground">{locale === "ar" ? "فئات هذا الحساب تُدار من ملف الطاقم." : "Les équipes de ce compte se gèrent depuis la fiche staff."}</p>}
+          {isPresident ? (
+            <p className="rounded-xl border border-club-primary/20 bg-club-primary/[0.04] px-4 py-3 text-sm text-muted-foreground">
+              {locale === "ar" ? "رئيس الجمعية له صلاحية على مستوى الجمعية، ولا يُعيّن لفئة محددة." : "Le président dispose d’un accès à l’échelle de l’association, sans catégorie attribuée."}
+            </p>
+          ) : <>
+          {isStaffLinked && !isSecretaryGeneral && <p className="text-xs text-muted-foreground">{locale === "ar" ? "فئات هذا الحساب تُدار من ملف الطاقم." : "Les équipes de ce compte se gèrent depuis la fiche staff."}</p>}
+          {isStaffLinked && isSecretaryGeneral && <p className="text-xs text-muted-foreground">{locale === "ar" ? "يمكن تعيين عدة فئات لهذا الدور من هنا؛ تبقى فئة الملف المهني منفصلة." : "Plusieurs catégories peuvent être attribuées à ce rôle ici ; la catégorie professionnelle du profil reste indépendante."}</p>}
           {user.teamAssignments.length === 0 ? (
             <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
               <UsersRound className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
@@ -269,7 +278,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
                       <span className="truncate text-sm font-semibold text-foreground">{tTeams(`categories.${a.team.category}` as any)}</span>
                     </div>
                       <form action={remove}>
-                        {!isStaffLinked && <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
+                      {canManageTeamAssignments && <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={tCommon("remove")} title={tCommon("remove")}>
                         <X className="h-4 w-4" aria-hidden="true" />
                         </Button>}
                     </form>
@@ -279,7 +288,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
             </ul>
           )}
 
-          {!isStaffLinked && unassignedTeams.length > 0 && !(isSingleTeamCoach && user.teamAssignments.length > 0) && (
+          {canManageTeamAssignments && unassignedTeams.length > 0 && !(isSingleTeamCoach && user.teamAssignments.length > 0) && (
             <form action={addTeam} className="rounded-xl border border-dashed border-club-primary/35 bg-club-primary/[0.035] p-4">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-foreground">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-club-primary/10 text-club-primary">
@@ -322,6 +331,7 @@ export default async function UserDetailPage({ params, searchParams }: { params:
             {tTeam("notTeamScopedNote")}
           </p>
         )}
+          </>}
         </div>
       </section>
     </div>
