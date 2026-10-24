@@ -67,6 +67,19 @@ function remoteCards(match: any): any[] {
   ];
 }
 
+function remoteEventType(entry: any): ImportedMatchEvent["type"] | null {
+  const value = String(entry?.eventType || entry?.typeEvent || entry?.typeEvenement || entry?.event || entry?.type || entry?.nature || "")
+    .normalize("NFKC").toLocaleLowerCase("ar").replace(/[ _-]+/g, " ").trim();
+  if (/own goal|contre son camp|but contre|هدف عكسي|هدف ذاتي/.test(value)) return "OWN_GOAL";
+  if (/penalt|penalty|جزاء/.test(value) && /goal|but|هدف|scor/.test(value)) return "PENALTY_GOAL";
+  if (/red card|carton rouge|بطاقة حمراء|طرد/.test(value)) return "RED_CARD";
+  if (/yellow card|carton jaune|بطاقة صفراء|إنذار/.test(value)) return "YELLOW_CARD";
+  if (/substitution in|entrant|entrée|دخول/.test(value)) return "SUBSTITUTION_IN";
+  if (/substitution out|sortant|sortie|خروج/.test(value)) return "SUBSTITUTION_OUT";
+  if (/goal|but|هدف|scor/.test(value)) return "GOAL";
+  return null;
+}
+
 function scoreValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 99) return value;
   if (typeof value === "string" && /^\d{1,2}$/.test(value.trim())) return Number(value.trim());
@@ -309,6 +322,7 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     let side = remoteLocSide == null ? null : sideFor(remoteLocSide);
     if (side && type === "OWN_GOAL") side = side === "HOME" ? "AWAY" : "HOME";
     const identity = `${type}|${side || "unknown"}|${minute}|${player.licence || normalize(playerName)}`;
+    if (output.some((event) => event.fafExternalKey.startsWith(`faf:${externalId}:${identity}:`))) return;
     const occurrence = keys.get(identity) ?? 0;
     keys.set(identity, occurrence + 1);
     output.push({
@@ -343,6 +357,23 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     if (pairEvents.length === 2 && pairEvents[0]!.side === pairEvents[1]!.side) {
       const pairKey = `__SUBSTITUTION_PAIR__:faf-${externalId}-${String(substitution.id ?? substitutionIndex)}-${minute}-${pairEvents[0]!.side}`;
       pairEvents.forEach((event) => { event.notes = pairKey; });
+    }
+  }
+  for (const raw of remoteArray(match, ["events", "evenements", "matchEvents", "timeline", "actions"])) {
+    const type = remoteEventType(raw);
+    if (!type) continue;
+    const side = remoteLocSideOf(raw, match, historyMatch, clubCode, remoteLocIsOurClub);
+    const outPlayer = raw.outPlayer || raw.playerOut || raw.playerSortant;
+    const inPlayer = raw.inPlayer || raw.playerIn || raw.playerEntrant;
+    const minute = eventMinuteFrom(raw);
+    if (type === "SUBSTITUTION_IN" || type === "SUBSTITUTION_OUT") {
+      const pairSide = side;
+      if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? pairSide, "خروج بالتبديل", undefined, minute);
+      if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? pairSide, "دخول بالتبديل", undefined, minute);
+      if (!outPlayer && !inPlayer) add(raw, type, side, type === "SUBSTITUTION_IN" ? "دخول بالتبديل" : "خروج بالتبديل", undefined, minute);
+    } else {
+      const label = type === "RED_CARD" ? "بطاقة حمراء" : type === "YELLOW_CARD" ? "بطاقة صفراء" : type === "OWN_GOAL" ? "هدف عكسي" : type === "PENALTY_GOAL" ? "هدف من ركلة جزاء" : "هدف";
+      add(raw, type, side, label);
     }
   }
   if (missingMinuteEvents) warnings.push(`تُرك ${missingMinuteEvents} أحداث دون استيراد لأن وثيقة FAF EMS لا تحتوي على دقيقة موثوقة لها.`);
@@ -625,21 +656,28 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   let refreshedDocuments = 0;
   for (const item of documentSpecs) {
     const originalName = `FAF-EMS-${externalId}-${item.label}.pdf`;
-    const existing = await db.document.findFirst({ where: { relatedMatchId: local.id, originalName }, select: { id: true, storageKey: true } });
+    const existing = await db.document.findFirst({ where: { relatedMatchId: local.id, originalName }, select: { id: true, storageKey: true, status: true } });
     if (existing && item.bytes) {
       let unchanged = false;
       try { unchanged = (await getPrivateFileBuffer(existing.storageKey)).equals(item.bytes); }
       catch { /* A missing/legacy local object is repaired from the authoritative FAF copy below. */ }
-      if (!unchanged) {
-        const validation = await validateUploadedFile(item.bytes);
-        const storageKey = generateStorageKey("faf-ems", validation.ext);
-        await uploadPrivateFile({ key: storageKey, buffer: item.bytes, mimeType: validation.mime });
+      if (!unchanged || existing.status === "PENDING_REVIEW") {
+        let storageKey = existing.storageKey;
+        let mimeType: string | undefined;
+        let sizeBytes: number | undefined;
+        if (!unchanged) {
+          const validation = await validateUploadedFile(item.bytes);
+          storageKey = generateStorageKey("faf-ems", validation.ext);
+          await uploadPrivateFile({ key: storageKey, buffer: item.bytes, mimeType: validation.mime });
+          mimeType = validation.mime;
+          sizeBytes = item.bytes.byteLength;
+          await deletePrivateFile(existing.storageKey).catch(() => undefined);
+        }
         await db.document.update({
           where: { id: existing.id },
-          data: { storageKey, mimeType: validation.mime, sizeBytes: item.bytes.byteLength }
+          data: { ...(mimeType ? { storageKey, mimeType, sizeBytes } : {}), ...(existing.status === "PENDING_REVIEW" ? { status: "APPROVED" } : {}) }
         });
-        await deletePrivateFile(existing.storageKey).catch(() => undefined);
-        refreshedDocuments++;
+        if (!unchanged) refreshedDocuments++;
       }
       documentIdsByKind.set(item.kind, existing.id);
       continue;
@@ -656,7 +694,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
         description: `مستوردة مباشرة من FAF EMS للمباراة ${externalId}.`,
         documentDate: local.matchDate,
         classification: "INTERNAL",
-        status: "PENDING_REVIEW",
+        status: "APPROVED",
         matchDocumentType: item.kind,
         storageKey,
         mimeType: validation.mime,
@@ -712,7 +750,10 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     : "";
   const homeTeamName = clubIsHome ? "نادي أمل سيدي حسني" : opponentDisplayName;
   const awayTeamName = clubIsHome ? opponentDisplayName : "نادي أمل سيدي حسني";
-  const importedEvents = remoteMatchEvents(official, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
+  // The EMS match-info API may return its event timeline beside `match` at the
+  // response root. Keep both shapes available to the event normalizer.
+  const officialWithResponseEvents = { ...remote, ...detailsResult.value, ...official };
+  const importedEvents = remoteMatchEvents(officialWithResponseEvents, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
