@@ -38,6 +38,11 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.SportsSoccer
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -113,13 +118,32 @@ private fun PublicApp() {
     }
     LaunchedEffect(locale) { PublicMessagingService.registerIfConfigured(context, locale) }
     LaunchedEffect(locale, tab, refreshKey) {
+        if (snapshot == null) {
+            snapshot = withContext(Dispatchers.IO) { PublicApi.cachedSnapshot(context, locale) }
+        }
         loading = snapshot == null
-        do {
-            val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(locale) } }
-            result.onSuccess { snapshot = it; error = false }.onFailure { error = true }
-            loading = false
-            delay(if (snapshot?.matches?.any { it.status == "LIVE" } == true && tab in listOf(PublicTab.HOME, PublicTab.MATCHES)) 20_000L else 60_000L)
-        } while (tab in listOf(PublicTab.HOME, PublicTab.MATCHES))
+        var attempt = 0
+        while (attempt < 2) {
+            val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
+            if (result.isSuccess) {
+                snapshot = result.getOrThrow()
+                error = false
+                break
+            }
+            error = true
+            if (attempt == 0) delay(900L)
+            attempt++
+        }
+        loading = false
+        // Keep live scores fresh while the supporter is viewing the dashboard
+        // or fixtures, without refetching the whole feed on every other tab.
+        if (tab in listOf(PublicTab.HOME, PublicTab.MATCHES)) {
+            while (true) {
+                delay(if (snapshot?.matches?.any { it.status == "LIVE" } == true) 20_000L else 60_000L)
+                val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
+                result.onSuccess { snapshot = it; error = false }.onFailure { error = true }
+            }
+        }
     }
     LaunchedEffect(tab) {
         if (tab == PublicTab.ALERTS) {
@@ -137,23 +161,13 @@ private fun PublicApp() {
         Scaffold(
             containerColor = Canvas,
             topBar = {
-                PublicTopBar(locale, snapshot?.club, onToggleLocale = {
+                PublicTopBar(locale, snapshot?.club, alertCount = alertItems.size, onAlerts = { tab = PublicTab.ALERTS }, onToggleLocale = {
                     locale = if (locale == "ar") "fr" else "ar"
                     preferences.edit().putString(PublicMessagingService.LOCALE, locale).apply()
                 }, onRefresh = { refreshKey++ })
             },
             bottomBar = {
-                NavigationBar(containerColor = Panel, contentColor = PrimaryText, tonalElevation = 10.dp) {
-                    PublicTab.entries.forEach { item ->
-                        NavigationBarItem(
-                            selected = tab == item,
-                            onClick = { tab = item },
-                            icon = { Icon(item.icon(), contentDescription = null) },
-                            label = { Text(item.label(locale), fontSize = 10.sp, maxLines = 1) },
-                            colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.White, selectedTextColor = Color.White, indicatorColor = Accent, unselectedIconColor = SecondaryText, unselectedTextColor = SecondaryText)
-                        )
-                    }
-                }
+                PublicBottomBar(tab, locale) { tab = it }
             }
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
@@ -189,16 +203,48 @@ private fun PublicApp() {
 }
 
 @Composable
-private fun PublicTopBar(locale: String, club: PublicClub?, onToggleLocale: () -> Unit, onRefresh: () -> Unit) {
+private fun PublicTopBar(locale: String, club: PublicClub?, alertCount: Int, onAlerts: () -> Unit, onToggleLocale: () -> Unit, onRefresh: () -> Unit) {
     Row(Modifier.fillMaxWidth().background(Canvas).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        AsyncImage(model = club?.logo ?: R.drawable.esh_logo, contentDescription = club?.shortName ?: "ESH", modifier = Modifier.size(42.dp).clip(CircleShape).background(Panel).padding(4.dp))
-        Column(Modifier.weight(1f)) {
-            Text(club?.name ?: "أمل سيدي حسني", color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(L(locale, "التطبيق الرسمي للجمهور", "L’application officielle des supporters"), color = SecondaryText, fontSize = 10.sp)
+        AsyncImage(model = club?.logo ?: R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.size(42.dp).padding(1.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text("ESH", color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp, maxLines = 1)
+            Text(club?.name ?: L(locale, "الجمعية الرياضية أمل سيدي حسني", "Association Sportive Espoir Sidi Hosni"), color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconButton(onClick = onRefresh, modifier = Modifier.size(38.dp).clip(CircleShape).background(Panel)) { Icon(Icons.Rounded.Refresh, null, tint = PrimaryText, modifier = Modifier.size(18.dp)) }
-        TextButton(onClick = onToggleLocale, contentPadding = PaddingValues(horizontal = 9.dp, vertical = 4.dp)) {
-            Icon(Icons.Rounded.Language, null, tint = Gold, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Box {
+            HeaderAction(Icons.Outlined.NotificationsNone, L(locale, "التنبيهات", "Notifications"), onAlerts)
+            if (alertCount > 0) Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp).size(8.dp).clip(CircleShape).background(Accent))
+        }
+        HeaderAction(Icons.Rounded.Refresh, L(locale, "تحديث", "Actualiser"), onRefresh)
+        TextButton(onClick = onToggleLocale, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+            Icon(Icons.Rounded.Language, null, tint = Accent, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun HeaderAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(Panel).then(Modifier)) {
+        Icon(icon, contentDescription = label, tint = PrimaryText, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun PublicBottomBar(selected: PublicTab, locale: String, onSelect: (PublicTab) -> Unit) {
+    Surface(color = Canvas, tonalElevation = 0.dp) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 9.dp, vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+            PublicTab.entries.forEach { item ->
+                val active = selected == item
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { onSelect(item) }.padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Box(Modifier.size(if (active) 34.dp else 32.dp).clip(RoundedCornerShape(12.dp)).background(if (active) Accent.copy(alpha = .16f) else Color.Transparent), contentAlignment = Alignment.Center) {
+                        Icon(item.icon(), contentDescription = item.label(locale), tint = if (active) Accent else SecondaryText, modifier = Modifier.size(20.dp))
+                    }
+                    Text(item.label(locale), color = if (active) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
     }
 }
@@ -222,7 +268,7 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
         if (data.announcements.isNotEmpty()) item { AnnouncementStrip(data.announcements.first(), locale) }
         if (featured != null) item {
             SectionHeading(L(locale, "المواجهة القادمة", "Prochain match"), Icons.Rounded.SportsSoccer, locale, action = { onTab(PublicTab.MATCHES) })
-            MatchCard(featured, locale, onClick = { onMatch(featured.id) }, featured = true)
+            MatchCard(featured, locale, clubLogo = data.club.logo, onClick = { onMatch(featured.id) }, featured = true)
         }
         if (data.trainings.isNotEmpty()) item {
             SectionHeading(L(locale, "التدريبات القادمة", "Prochains entraînements"), Icons.Rounded.FitnessCenter, locale, action = { onTab(PublicTab.MATCHES) })
@@ -246,7 +292,7 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
     var category by remember { mutableStateOf("ALL") }
     val filtered = data.matches.filter { category == "ALL" || it.category == category }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeading(L(locale, "المباريات والنتائج", "Matchs et résultats"), L(locale, "تابع الأكابر والفئات الشبانية", "Suivez les seniors et les catégories jeunes"), Icons.Rounded.EmojiEvents) }
+        item { ScreenHeading(L(locale, "المباريات", "Matchs"), L(locale, "المواعيد والنتائج والأحداث المباشرة", "Calendrier, résultats et événements en direct"), Icons.Outlined.SportsSoccer) }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(listOf("ALL", "SENIOR", "U20", "U17", "U15")) { value ->
@@ -256,11 +302,11 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
         }
         val live = filtered.filter { it.status == "LIVE" }
         if (live.isNotEmpty()) item { SectionHeading(L(locale, "مباشر الآن", "En direct"), Icons.Rounded.SportsSoccer, locale) }
-        items(live, key = { "live-${it.id}" }) { MatchCard(it, locale, onClick = { onMatch(it.id) }, featured = true) }
+        items(live, key = { "live-${it.id}" }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }, featured = true) }
         item { SectionHeading(L(locale, "المواعيد القادمة", "Calendrier à venir"), Icons.Rounded.CalendarMonth, locale) }
-        items(filtered.filter { it.status == "SCHEDULED" }, key = { it.id }) { MatchCard(it, locale, onClick = { onMatch(it.id) }) }
+        items(filtered.filter { it.status == "SCHEDULED" }, key = { it.id }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }) }
         item { SectionHeading(L(locale, "آخر النتائج", "Derniers résultats"), Icons.Rounded.EmojiEvents, locale) }
-        items(data.results.filter { category == "ALL" || it.category == category }, key = { "result-${it.id}" }) { MatchCard(it, locale, onClick = { onMatch(it.id) }) }
+        items(data.results.filter { category == "ALL" || it.category == category }, key = { "result-${it.id}" }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }) }
         if (filtered.isEmpty() && data.results.isEmpty()) item { EmptyState(L(locale, "لا توجد مباريات منشورة حالياً", "Aucun match publié pour le moment")) }
     }
 }
@@ -269,7 +315,7 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
 private fun MediaScreen(data: PublicSnapshot, locale: String, onAlbum: (String) -> Unit, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
     val context = LocalContext.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { ScreenHeading(L(locale, "الصور والفيديوهات", "Photos et vidéos"), L(locale, "لحظات الأمل داخل وخارج الملعب", "Les moments d’Espoir sur et en dehors du terrain"), Icons.Rounded.Image) }
+        item { ScreenHeading(L(locale, "المعرض", "Galerie"), L(locale, "صور وفيديوهات الأمل داخل الملعب وخارجه", "Photos et vidéos d’Espoir, sur et en dehors du terrain"), Icons.Outlined.PhotoLibrary) }
         if (data.reels.isNotEmpty()) item {
             SectionHeading(L(locale, "لقطات النادي", "Les vidéos du club"), Icons.Rounded.PlayArrow, locale)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -301,7 +347,7 @@ private fun MediaScreen(data: PublicSnapshot, locale: String, onAlbum: (String) 
 @Composable
 private fun NewsScreen(data: PublicSnapshot, locale: String, onArticle: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeading(L(locale, "أخبار النادي", "Actualités du club"), L(locale, "آخر المستجدات من الأسرة الرياضية", "Les dernières nouvelles de la famille sportive"), Icons.Rounded.Newspaper) }
+        item { ScreenHeading(L(locale, "الأخبار", "Actualités"), L(locale, "آخر المستجدات من الأسرة الرياضية", "Les dernières nouvelles de la famille sportive"), Icons.Outlined.Newspaper) }
         items(data.announcements, key = { it.id }) { AnnouncementStrip(it, locale) }
         items(data.news, key = { it.id }) { article -> NewsCard(article, locale, onClick = { onArticle(article.slug) }) }
         if (data.news.isEmpty() && data.announcements.isEmpty()) item { EmptyState(L(locale, "لا توجد أخبار منشورة حالياً", "Aucune actualité publiée pour le moment")) }
@@ -311,7 +357,7 @@ private fun NewsScreen(data: PublicSnapshot, locale: String, onArticle: (String)
 @Composable
 private fun AlertsScreen(alerts: List<PublicAlert>, locale: String, onDismiss: (PublicAlert) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        item { ScreenHeading(L(locale, "تنبيهات الجمهور", "Alertes supporters"), L(locale, "أهداف وتحديثات المباريات المباشرة", "Buts et actualités des matchs en direct"), Icons.Rounded.Notifications) }
+        item { ScreenHeading(L(locale, "التنبيهات", "Notifications"), L(locale, "أهداف وتحديثات المباريات المباشرة", "Buts et actualités des matchs en direct"), Icons.Outlined.NotificationsNone) }
         item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.clip(CircleShape).background(Panel).padding(horizontal = 12.dp, vertical = 8.dp)) { Box(Modifier.size(7.dp).clip(CircleShape).background(Accent)); Text(L(locale, "إشعارات تطبيق الجمهور فقط", "Notifications de l’application supporters uniquement"), color = SecondaryText, fontSize = 10.sp) } }
         items(alerts, key = { it.id }) { alert ->
             Surface(color = Panel, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Hairline)) {
@@ -331,7 +377,7 @@ private fun AlertsScreen(alerts: List<PublicAlert>, locale: String, onDismiss: (
 }
 
 @Composable
-private fun MatchCard(match: PublicMatch, locale: String, onClick: () -> Unit, featured: Boolean = false) {
+private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = null, onClick: () -> Unit, featured: Boolean = false) {
     val live = match.status == "LIVE"
     Surface(Modifier.fillMaxWidth().clickable(onClick = onClick).animateContentSize(), color = if (featured) PanelRaised else Panel, shape = RoundedCornerShape(if (featured) 23.dp else 18.dp), border = BorderStroke(1.dp, if (live) Accent.copy(alpha = .55f) else Hairline)) {
         Column(Modifier.padding(if (featured) 16.dp else 13.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -340,14 +386,14 @@ private fun MatchCard(match: PublicMatch, locale: String, onClick: () -> Unit, f
                 Spacer(Modifier.weight(1f))
                 if (live) LiveBadge(locale) else Text(statusLabel(locale, match.status), color = SecondaryText, fontSize = 9.sp)
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                TeamName(match.home, modifier = Modifier.weight(1f), alignEnd = true)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                TeamBadge(match.home, if (match.isHomeFixture) clubLogo else match.opponentLogo, modifier = Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (match.homeScore != null && match.awayScore != null) Text("${match.homeScore} : ${match.awayScore}", color = PrimaryText, fontSize = if (featured) 25.sp else 20.sp, fontWeight = FontWeight.Black)
-                    else Text("VS", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Black)
+                    if (match.homeScore != null && match.awayScore != null) Text("${match.homeScore} : ${match.awayScore}", color = PrimaryText, fontSize = if (featured) 26.sp else 21.sp, fontWeight = FontWeight.Black, letterSpacing = .5.sp)
+                    else Text("VS", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                     Text(if (live) L(locale, "مباشر", "EN DIRECT") else formatDate(match.date), color = if (live) Accent else SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
-                TeamName(match.away, modifier = Modifier.weight(1f), alignEnd = false)
+                TeamBadge(match.away, if (match.isHomeFixture) match.opponentLogo else clubLogo, modifier = Modifier.weight(1f))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(match.competition, color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -358,8 +404,14 @@ private fun MatchCard(match: PublicMatch, locale: String, onClick: () -> Unit, f
 }
 
 @Composable
-private fun TeamName(name: String, modifier: Modifier, alignEnd: Boolean) {
-    Text(name, modifier = modifier, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = if (alignEnd) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start)
+private fun TeamBadge(name: String, logo: String?, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(Panel).padding(5.dp), contentAlignment = Alignment.Center) {
+            if (!logo.isNullOrBlank()) AsyncImage(model = logo, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            else Text(name.take(1).uppercase(), color = Accent, fontSize = 17.sp, fontWeight = FontWeight.Black)
+        }
+        Text(name, color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
 }
 
 @Composable
@@ -531,13 +583,24 @@ private fun VideoDialog(url: String, onDismiss: () -> Unit) {
 private fun LoadingScreen(locale: String) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { CircularProgressIndicator(color = Accent); Text(L(locale, "نجهز لك جديد النادي...", "Chargement des nouvelles du club…"), color = SecondaryText, fontSize = 12.sp) } } }
 
 @Composable
-private fun ErrorScreen(locale: String, error: Boolean, onRetry: () -> Unit) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) { Icon(Icons.Rounded.Newspaper, null, tint = SecondaryText, modifier = Modifier.size(40.dp)); Text(L(locale, "تعذر تحميل المحتوى", "Impossible de charger le contenu"), color = PrimaryText, fontWeight = FontWeight.Bold); TextButton(onClick = onRetry) { Text(L(locale, "إعادة المحاولة", "Réessayer"), color = Gold) } } } }
+private fun ErrorScreen(locale: String, error: Boolean, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.Center) {
+        Surface(color = Panel, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, Hairline)) {
+            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.size(54.dp).clip(CircleShape).background(Accent.copy(alpha = .13f)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Newspaper, null, tint = Accent, modifier = Modifier.size(26.dp)) }
+                Text(L(locale, "نحاول الاتصال بالنادي", "Connexion au club en cours"), color = PrimaryText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(L(locale, "تحقق من اتصال الإنترنت، ثم أعد المحاولة. سيظهر المحتوى المحفوظ هنا عند توفره.", "Vérifiez votre connexion puis réessayez. Le dernier contenu enregistré s’affichera ici dès qu’il sera disponible."), color = SecondaryText, fontSize = 11.sp, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Accent), shape = RoundedCornerShape(13.dp)) { Text(L(locale, "إعادة المحاولة", "Réessayer"), color = Color.White, fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
 
 @Composable
 private fun EmptyState(text: String) { Surface(Modifier.fillMaxWidth(), color = Panel, shape = RoundedCornerShape(17.dp), border = BorderStroke(1.dp, Hairline)) { Text(text, Modifier.padding(20.dp).fillMaxWidth(), color = SecondaryText, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
 
-private fun PublicTab.icon() = when (this) { PublicTab.HOME -> Icons.Rounded.Home; PublicTab.MATCHES -> Icons.Rounded.SportsSoccer; PublicTab.MEDIA -> Icons.Rounded.Image; PublicTab.NEWS -> Icons.Rounded.Newspaper; PublicTab.ALERTS -> Icons.Rounded.Notifications }
-private fun PublicTab.label(locale: String) = when (this) { PublicTab.HOME -> L(locale, "الرئيسية", "Accueil"); PublicTab.MATCHES -> L(locale, "المباريات", "Matchs"); PublicTab.MEDIA -> L(locale, "الوسائط", "Médias"); PublicTab.NEWS -> L(locale, "الأخبار", "Actualités"); PublicTab.ALERTS -> L(locale, "التنبيهات", "Alertes") }
+private fun PublicTab.icon() = when (this) { PublicTab.HOME -> Icons.Outlined.Home; PublicTab.MATCHES -> Icons.Outlined.SportsSoccer; PublicTab.MEDIA -> Icons.Outlined.PhotoLibrary; PublicTab.NEWS -> Icons.Outlined.Newspaper; PublicTab.ALERTS -> Icons.Outlined.NotificationsNone }
+private fun PublicTab.label(locale: String) = when (this) { PublicTab.HOME -> L(locale, "الرئيسية", "Accueil"); PublicTab.MATCHES -> L(locale, "المباريات", "Matchs"); PublicTab.MEDIA -> L(locale, "المعرض", "Galerie"); PublicTab.NEWS -> L(locale, "الأخبار", "Actualités"); PublicTab.ALERTS -> L(locale, "التنبيهات", "Notifications") }
 private fun L(locale: String, arabic: String, french: String) = if (locale == "ar") arabic else french
 private fun categoryLabel(locale: String, category: String) = when (category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; "ALL" -> L(locale, "الكل", "Tous"); else -> category }
 private fun albumCategory(locale: String, category: String) = when (category) { "MATCHES" -> L(locale, "مباريات", "Matchs"); "TRAINING" -> L(locale, "تدريبات", "Entraînements"); "TEAM" -> L(locale, "الفريق", "Équipe"); "EVENTS" -> L(locale, "فعاليات", "Événements"); else -> L(locale, "النادي", "Club") }

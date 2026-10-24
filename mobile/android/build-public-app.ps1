@@ -32,9 +32,26 @@ try {
   $output = Join-Path $project "app\build\outputs\apk\release\app-release.apk"
   $delivery = Join-Path $project "app-release-public-signed.apk"
   Copy-Item -LiteralPath $output -Destination $delivery -Force
+  $platformRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+  $downloadRoot = Join-Path $platformRoot "public\downloads"
+  New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+  $releaseVersion = (Select-String -Path (Join-Path $project "app\build.gradle") -Pattern "versionName\s+'([^']+)'" ).Matches[0].Groups[1].Value
+  $releaseVersionCode = [int](Select-String -Path (Join-Path $project "app\build.gradle") -Pattern "versionCode\s+(\d+)" ).Matches[0].Groups[1].Value
+  $versionedFileName = "esh-public-v$releaseVersion-$releaseVersionCode.apk"
+  $versionedApk = Join-Path $downloadRoot $versionedFileName
+  Copy-Item -LiteralPath $output -Destination $versionedApk -Force
+  $publicApk = Join-Path $downloadRoot "esh-public-latest.apk"
+  Copy-Item -LiteralPath $output -Destination $publicApk -Force
+  $sha256 = (Get-FileHash -LiteralPath $publicApk -Algorithm SHA256).Hash.ToLowerInvariant()
+  $manifest = [ordered]@{ version = $releaseVersion; versionCode = $releaseVersionCode; packageName = "dz.esh.footballclub.publicapp"; apkUrl = "/downloads/$versionedFileName"; sha256 = $sha256 }
+  $manifestPath = Join-Path $platformRoot "public\public-android-release.json"
+  [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
   Write-Output "Public app APK: $delivery"
+  Write-Output "Public download APK: $publicApk"
+  Write-Output "Versioned download APK: $versionedApk"
+  Write-Output "Public release manifest: $manifestPath"
   Write-Output "Package: dz.esh.footballclub.publicapp"
-  Write-Output "SHA-256: $((Get-FileHash -LiteralPath $delivery -Algorithm SHA256).Hash.ToLowerInvariant())"
+  Write-Output "SHA-256: $sha256"
 } finally {
   Remove-Item Env:ESH_SIGNING_PROPERTIES -ErrorAction SilentlyContinue
   if (Test-Path $signingProperties) { Remove-Item -LiteralPath $signingProperties -Force }
