@@ -117,12 +117,12 @@ export default async function MatchesListPage({
       </form>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-        <table className="w-full min-w-[760px] text-start text-xs sm:text-sm">
+        <table className="w-full min-w-[920px] text-start text-xs sm:text-sm">
           <thead className="border-b border-border bg-muted/50 text-start">
             <tr>
               <th className="w-[170px] px-3 py-3 text-start">{t("fields.matchDate")}</th>
               <th className="px-2.5 py-2.5 text-center sm:px-3">{t("title")}</th>
-              <th className="w-[390px] px-3 py-3 text-start">{locale === "ar" ? "الحالة والإجراءات" : "Statut et actions"}</th>
+              <th className="w-[540px] px-3 py-3 text-start">{locale === "ar" ? "الحالة والإجراءات" : "Statut et actions"}</th>
             </tr>
           </thead>
           <tbody>
@@ -168,7 +168,7 @@ export default async function MatchesListPage({
                       </span>
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="w-[540px] px-3 py-3">
                     <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                       <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
                         <span className="min-w-0 flex-1 truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={competitionName}>{competitionName}</span>

@@ -51,7 +51,7 @@ export function MatchDocumentPreviewButton({
     return (
       <Link
         href={`/${locale}/dashboard/matches/${matchId}#match-documents`}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
         title={isAr ? "افتح سجل المباراة لرفع الوثائق أو مراجعتها" : "Ouvrir le match pour ajouter ou consulter ses documents"}
       >
         <FileText className="h-3.5 w-3.5 text-primary" />
@@ -72,7 +72,7 @@ export function MatchDocumentPreviewButton({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
         aria-label={isAr ? `عرض وثائق ${matchTitle}` : `Consulter les documents de ${matchTitle}`}
       >
         <Eye className="h-3.5 w-3.5" />
