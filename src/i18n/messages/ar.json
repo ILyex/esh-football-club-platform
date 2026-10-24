@@ -147,7 +147,7 @@
     "title": "اللاعبون",
     "addPlayer": "إضافة لاعب",
     "fields": {
-      "firstName": "الاسم الأول",
+      "firstName": "اللقب والاسم",
       "lastName": "اللقب",
       "position": "المركز",
       "nationality": "الجنسية",
@@ -190,7 +190,7 @@
     "title": "الطاقم",
     "addStaff": "إضافة عضو طاقم",
     "fields": {
-      "firstName": "الاسم الأول",
+      "firstName": "اللقب والاسم",
       "lastName": "اللقب",
       "role": "المهمة",
       "biography": "نبذة تعريفية",
