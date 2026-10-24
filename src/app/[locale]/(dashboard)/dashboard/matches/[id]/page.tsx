@@ -42,7 +42,6 @@ import { ShootoutKickForm } from "@/components/matches/shootout-kick-form";
 import { MatchLiveClock } from "@/components/matches/match-live-clock";
 import { FafEmsSyncButton } from "@/components/matches/faf-ems-sync-button";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
-import { LiveMatchRefresh } from "@/components/public/live-match-refresh";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
 import { PreMatchSheetUploadGate } from "@/components/matches/pre-match-sheet-upload-gate";
 import { arabicRefereeNames, getRefereeRoleLabel, splitRefereeNames } from "@/lib/matches/referees";
@@ -216,7 +215,6 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl space-y-6">
-      <LiveMatchRefresh enabled={match.status === "LIVE"} />
       <section className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-club-primary/[0.07] to-transparent" aria-hidden="true" />
         <div className="relative px-4 py-6 sm:px-7 sm:py-8">
