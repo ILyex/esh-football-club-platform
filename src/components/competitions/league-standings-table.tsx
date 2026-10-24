@@ -13,7 +13,9 @@ import {
 import { OpponentCrest } from "@/components/public/opponent-crest";
 import type { StandingTeamEntry } from "@/lib/competitions/types";
 import { rankStandings } from "@/lib/competitions/standings";
-import { saveCompetitionManualPointsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
+import { saveCompetitionStandingsAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
+
+type EditableStandingNumber = "rank" | "played" | "won" | "drawn" | "lost" | "goalsFor" | "goalsAgainst" | "goalDifference" | "points";
 
 interface LeagueStandingsTableProps {
   competitionId: string;
@@ -36,29 +38,47 @@ export function LeagueStandingsTable({
   const router = useRouter();
   const [standings, setStandings] = useState<StandingTeamEntry[]>(initialStandings);
   const [isEditing, setIsEditing] = useState(false);
+  const [manualRankEditing, setManualRankEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Auto-sort function
   const handleAutoSort = () => {
-    setStandings(rankStandings(standings));
+    setManualRankEditing(false);
+    setStandings(rankStandings(standings).map(({ manualRank: _manualRank, ...team }) => team));
   };
 
-  const handleManualPointsChange = (id: string, points: number) => {
-    setStandings((prev) => prev.map((item) => item.id === id ? { ...item, points } : item));
+  const handleNumberChange = (id: string, field: EditableStandingNumber, rawValue: string) => {
+    const value = Math.trunc(Number(rawValue) || 0);
+    if (field === "rank") setManualRankEditing(true);
+    setStandings((prev) => prev.map((item) => item.id === id
+      ? field === "rank" ? { ...item, rank: value, manualRank: value } : { ...item, [field]: value }
+      : item));
   };
 
   const handleSave = () => {
-    const pointChanges = standings.map(({ id, points }) => ({ id, points }));
+    const changes = standings.map((team) => ({
+      id: team.id,
+      rank: manualRankEditing ? team.rank : team.manualRank == null ? null : team.rank,
+      played: team.played,
+      won: team.won,
+      drawn: team.drawn,
+      lost: team.lost,
+      goalsFor: team.goalsFor,
+      goalsAgainst: team.goalsAgainst,
+      goalDifference: team.goalDifference,
+      points: team.points
+    }));
     startTransition(async () => {
       try {
         setFeedback(null);
-        const result = await saveCompetitionManualPointsAction(competitionId, pointChanges);
+        const result = await saveCompetitionStandingsAction(competitionId, changes);
         setStandings(result.standings);
         setIsEditing(false);
+        setManualRankEditing(false);
         setFeedback({
           type: "success",
-          message: isAr ? "تم حفظ النقاط اليدوية مع استمرار احتساب نتائج المباريات" : "Points manuels enregistrés, les résultats restent automatiques"
+          message: isAr ? "تم حفظ جميع أرقام الترتيب" : "Tous les chiffres du classement ont été enregistrés"
         });
         router.refresh();
         setTimeout(() => setFeedback(null), 4000);
@@ -71,6 +91,25 @@ export function LeagueStandingsTable({
     });
   };
 
+  const numberEditor = (team: StandingTeamEntry, field: EditableStandingNumber, label: string, className = "") => {
+    const value = field === "rank" ? team.rank : team[field];
+    if (!isEditing) return field === "goalDifference" && value > 0 ? `+${value}` : value;
+    const min = field === "rank" ? 1 : field === "points" || field === "goalDifference" ? -1000 : 0;
+    const max = field === "goalsFor" || field === "goalsAgainst" ? 10000 : field === "goalDifference" ? 10000 : field === "rank" ? 100 : 1000;
+    return (
+      <input
+        type="number"
+        step="1"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => handleNumberChange(team.id, field, event.target.value)}
+        aria-label={isAr ? `${label} ${team.teamName}` : `${label} ${team.teamName}`}
+        className={`w-14 rounded-md border border-club-primary/30 bg-background px-1 py-1 text-center text-sm font-bold focus:border-club-primary focus:outline-none ${className}`}
+      />
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Table Actions Header (Only for Admin when not public) */}
@@ -78,7 +117,7 @@ export function LeagueStandingsTable({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-muted-foreground">
-              {isAr ? "إدارة الترتيب (الفوز 3، التعادل 1):" : "Classement (victoire 3 pts, nul 1 pt) :"}
+            {isAr ? "إدارة أرقام الترتيب:" : "Modifier les chiffres du classement :"}
             </span>
             {feedback && (
               <span
@@ -100,7 +139,7 @@ export function LeagueStandingsTable({
                 <button
                   type="button"
                   onClick={handleAutoSort}
-                  title={isAr ? "النقاط ثم فارق الأهداف ثم الأهداف المسجلة؛ التعادل الإحصائي يشترك في المركز" : "Points, différence puis buts marqués ; les égalités statistiques partagent le rang"}
+                  title={isAr ? "إعادة ترتيب الفرق تلقائيًا حسب النقاط وفارق الأهداف والأهداف المسجلة" : "Reclasser selon les points, la différence et les buts marqués"}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
                 >
                   <RotateCcw className="h-3.5 w-3.5 text-club-primary" />
@@ -121,6 +160,7 @@ export function LeagueStandingsTable({
                   type="button"
                   onClick={() => {
                     setIsEditing(false);
+                    setManualRankEditing(false);
                     setStandings(initialStandings);
                   }}
                   className="inline-flex items-center rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
@@ -135,7 +175,7 @@ export function LeagueStandingsTable({
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:border-club-primary hover:text-club-primary transition-colors shadow-2xs"
               >
                 <Edit3 className="h-3.5 w-3.5 text-club-primary" />
-                <span>{isAr ? "تعديل جدول الترتيب" : "Modifier le classement"}</span>
+            <span>{isAr ? "تعديل كل الأرقام" : "Modifier tous les chiffres"}</span>
               </button>
             )}
           </div>
@@ -145,7 +185,7 @@ export function LeagueStandingsTable({
       {/* Standings Table Container */}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs sm:rounded-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[360px] text-start text-[11px] sm:min-w-0 sm:text-sm">
+          <table className={`w-full ${isEditing ? "min-w-[760px]" : "min-w-[360px] sm:min-w-0"} text-start text-[11px] sm:text-sm`}>
             <thead>
               <tr className="border-b border-border bg-muted/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-xs">
                 <th className="w-8 px-1 py-2 text-center sm:w-12 sm:px-3 sm:py-3">{isAr ? "#" : "Pos"}</th>
@@ -197,7 +237,7 @@ export function LeagueStandingsTable({
                               : "text-muted-foreground"
                           }`}
                         >
-                          {team.rank}
+                          {numberEditor(team, "rank", isAr ? "المركز" : "Position")}
                         </span>
                       </div>
                     </td>
@@ -245,19 +285,19 @@ export function LeagueStandingsTable({
                     </td>
 
                     {/* Stats */}
-                    <td className="py-3 px-2.5 text-center font-mono">{team.played}</td>
-                    <td className="py-3 px-2.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{team.won}</td>
-                    <td className="py-3 px-2.5 text-center font-mono text-amber-600 dark:text-amber-400">{team.drawn}</td>
-                    <td className="py-3 px-2.5 text-center font-mono text-red-600 dark:text-red-400">{team.lost}</td>
-                    <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsFor}</td>
-                    <td className="py-3 px-2.5 text-center font-mono hidden md:table-cell">{team.goalsAgainst}</td>
-                    <td className="hidden py-3 px-2.5 text-center font-mono font-bold sm:table-cell">
+                    <td className="py-3 px-2.5 text-center font-mono">{numberEditor(team, "played", isAr ? "لعب" : "MJ")}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{numberEditor(team, "won", isAr ? "فاز" : "G")}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-amber-600 dark:text-amber-400">{numberEditor(team, "drawn", isAr ? "تعادل" : "N")}</td>
+                    <td className="py-3 px-2.5 text-center font-mono text-red-600 dark:text-red-400">{numberEditor(team, "lost", isAr ? "خسر" : "P")}</td>
+                    <td className={`${isEditing ? "table-cell" : "hidden md:table-cell"} py-3 px-2.5 text-center font-mono`}>{numberEditor(team, "goalsFor", isAr ? "له" : "BP")}</td>
+                    <td className={`${isEditing ? "table-cell" : "hidden md:table-cell"} py-3 px-2.5 text-center font-mono`}>{numberEditor(team, "goalsAgainst", isAr ? "عليه" : "BC")}</td>
+                    <td className={`${isEditing ? "table-cell" : "hidden sm:table-cell"} py-3 px-2.5 text-center font-mono font-bold`}>
                       <span className={team.goalDifference > 0 ? "text-emerald-600 dark:text-emerald-400" : team.goalDifference < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
-                        {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
+                        {numberEditor(team, "goalDifference", isAr ? "الفارق" : "Diff")}
                       </span>
                     </td>
                     <td className={`py-3 px-2 text-center font-mono font-black text-base tabular-nums ${isOur ? "bg-club-primary/10 text-club-primary dark:text-red-400 font-extrabold" : "text-foreground bg-muted/40"}`}>
-                      {isEditing ? <input type="number" step="1" value={team.points} onChange={(event) => handleManualPointsChange(team.id, Number.parseInt(event.target.value, 10) || 0)} aria-label={isAr ? `نقاط ${team.teamName}` : `Points ${team.teamName}`} className="w-14 rounded-md border border-club-primary/30 bg-background px-1 py-1 text-center text-sm font-bold focus:border-club-primary focus:outline-none" /> : team.points}
+                      {numberEditor(team, "points", isAr ? "النقاط" : "Points")}
                     </td>
                   </tr>
                 );

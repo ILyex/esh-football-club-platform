@@ -8,10 +8,21 @@ import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { setCompetitionManualPoints } from "@/lib/competitions/live-standings";
+import { setCompetitionManualStandings } from "@/lib/competitions/live-standings";
 import { Prisma } from "@prisma/client";
 
-const manualPointsSchema = z.array(z.object({ id: z.string().min(1).max(120), points: z.number().int().min(-1000).max(1000) })).max(100);
+const manualStandingsSchema = z.array(z.object({
+  id: z.string().min(1).max(120),
+  rank: z.number().int().min(1).max(100).nullable(),
+  played: z.number().int().min(0).max(1000),
+  won: z.number().int().min(0).max(1000),
+  drawn: z.number().int().min(0).max(1000),
+  lost: z.number().int().min(0).max(1000),
+  goalsFor: z.number().int().min(0).max(10000),
+  goalsAgainst: z.number().int().min(0).max(10000),
+  goalDifference: z.number().int().min(-10000).max(10000),
+  points: z.number().int().min(-1000).max(1000)
+})).min(1).max(100);
 
 const bracketMatchSchema = z.object({
   id: z.string().min(1).max(120),
@@ -218,21 +229,32 @@ export async function uploadCompetitionLogoAction(competitionId: string, formDat
   return { logoUrl };
 }
 
-export async function saveCompetitionManualPointsAction(competitionId: string, changes: Array<{ id: string; points: number }>) {
+export async function saveCompetitionStandingsAction(competitionId: string, changes: Array<{
+  id: string;
+  rank: number | null;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}>) {
   const user = await requirePermission("competitions.manage");
   const comp = await db.competition.findUniqueOrThrow({ where: { id: competitionId } });
   const scopeContext = await getMutationScopeContext();
   assertTeamScope(scopeContext, comp.teamId, "Competition");
   if (comp.type !== "LEAGUE") throw new Error("Standings can only be saved for league competitions.");
-  const parsedChanges = manualPointsSchema.parse(changes);
-  const standings = await setCompetitionManualPoints(competitionId, parsedChanges);
+  const parsedChanges = manualStandingsSchema.parse(changes);
+  const standings = await setCompetitionManualStandings(competitionId, parsedChanges);
 
   await writeAuditLog({
     userId: user.id,
-    action: "competition.adjustManualPoints",
+    action: "competition.updateStandings",
     entityType: "Competition",
     entityId: competitionId,
-    changes: { teamCount: parsedChanges.length, points: parsedChanges }
+    changes: { teamCount: parsedChanges.length, standings: parsedChanges }
   });
 
   revalidatePath("/[locale]/dashboard/competitions", "page");

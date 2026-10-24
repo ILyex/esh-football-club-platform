@@ -259,7 +259,7 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
     baselineRows = getOfficialRoundTwoSeniorStandings();
   }
   if (!baselineRows.length) return [];
-  baselineRows = baselineRows.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT, pointsAdjustment: row.pointsAdjustment ?? 0 }));
+  baselineRows = baselineRows.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT, pointsAdjustment: row.pointsAdjustment ?? 0, manualStatsAdjustment: row.manualStatsAdjustment ?? {} }));
   const baselineAt = baselineRows.find((row) => row.baselineAt)?.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT;
   const matches = await db.match.findMany({
     where: { competitionId, status: "FINISHED", matchDate: { gt: new Date(baselineAt) }, homeScore: { not: null }, awayScore: { not: null } },
@@ -281,7 +281,7 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
     row.points = row.won * 3 + row.drawn + (row.pointsAdjustment ?? 0);
   };
 
-  if (matches.length === 0) return resolveStandingsLogos(competitionId, baselineRows);
+  if (matches.length === 0) return resolveStandingsLogos(competitionId, rankRowsWithManualAdjustments(baselineRows));
 
   for (const match of matches) {
     const homeScore = match.homeScore!;
@@ -305,30 +305,99 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
     applyResult(away, awayScore, homeScore);
   }
 
-  return resolveStandingsLogos(competitionId, rankStandings(rows));
+  return resolveStandingsLogos(competitionId, rankRowsWithManualAdjustments(rows));
 }
 
-/** Apply manual points without baking match results into the round-two baseline. */
-export async function setCompetitionManualPoints(
+function rankRowsWithManualAdjustments(rows: StandingTeamEntry[]): StandingTeamEntry[] {
+  const adjusted = rows.map((row) => {
+    const changes = row.manualStatsAdjustment ?? {};
+    const goalsFor = row.goalsFor + (changes.goalsFor ?? 0);
+    const goalsAgainst = row.goalsAgainst + (changes.goalsAgainst ?? 0);
+    return {
+      ...row,
+      played: row.played + (changes.played ?? 0),
+      won: row.won + (changes.won ?? 0),
+      drawn: row.drawn + (changes.drawn ?? 0),
+      lost: row.lost + (changes.lost ?? 0),
+      goalsFor,
+      goalsAgainst,
+      goalDifference: goalsFor - goalsAgainst + (changes.goalDifference ?? 0),
+      points: row.points + (changes.points ?? 0)
+    };
+  });
+  const automaticallyRanked = rankStandings(adjusted);
+  if (!adjusted.some((row) => row.manualRank != null)) return automaticallyRanked;
+  return automaticallyRanked
+    .sort((a, b) => (a.manualRank ?? a.rank) - (b.manualRank ?? b.rank) || a.rank - b.rank)
+    .map((row) => ({ ...row, rank: row.manualRank ?? row.rank }));
+}
+
+/** Save editable league figures as offsets so later match results remain additive. */
+export async function setCompetitionManualStandings(
   competitionId: string,
-  changes: Array<{ id: string; points: number }>
+  changes: Array<{
+    id: string;
+    rank: number | null;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    goalDifference: number;
+    points: number;
+  }>
 ): Promise<StandingTeamEntry[]> {
   const baseline = await ensureCompetitionStandingsBaseline(competitionId);
   if (!baseline.length) throw new Error("لا يوجد خط أساس ترتيب لهذا الدوري.");
   const live = await getLiveCompetitionStandings(competitionId, baseline);
   const liveById = new Map(live.map((row) => [row.id, row]));
-  const changeById = new Map(changes.map((change) => [change.id, change.points]));
-  if (changeById.size !== changes.length || changes.some((change) => !liveById.has(change.id))) throw new Error("ترتيب الفرق المرسل غير صالح.");
+  const changeById = new Map(changes.map((change) => [change.id, change]));
+  if (changeById.size !== changes.length || changeById.size !== liveById.size || changes.some((change) => !liveById.has(change.id))) throw new Error("ترتيب الفرق المرسل غير صالح.");
 
-  const adjusted = baseline.map((row) => {
+  const adjustedBaseline = baseline.map((row) => {
     const target = changeById.get(row.id);
-    if (target === undefined) return row;
+    if (!target) return row;
     const current = liveById.get(row.id)!;
-    const oldAdjustment = row.pointsAdjustment ?? 0;
-    const pointsAdjustment = target - current.points + oldAdjustment;
-    return { ...row, pointsAdjustment, points: row.won * 3 + row.drawn + pointsAdjustment };
+    const previous = row.manualStatsAdjustment ?? {};
+    const nextAdjustment = {
+      played: (previous.played ?? 0) + target.played - current.played,
+      won: (previous.won ?? 0) + target.won - current.won,
+      drawn: (previous.drawn ?? 0) + target.drawn - current.drawn,
+      lost: (previous.lost ?? 0) + target.lost - current.lost,
+      goalsFor: (previous.goalsFor ?? 0) + target.goalsFor - current.goalsFor,
+      goalsAgainst: (previous.goalsAgainst ?? 0) + target.goalsAgainst - current.goalsAgainst,
+      goalDifference: (previous.goalDifference ?? 0) + target.goalDifference - current.goalDifference,
+      points: (previous.points ?? 0) + target.points - current.points
+    };
+    return { ...row, manualRank: target.rank, manualStatsAdjustment: nextAdjustment };
   });
-  const ordered = rankStandings(adjusted);
-  await db.competition.update({ where: { id: competitionId }, data: { standingsData: ordered as any } });
-  return getLiveCompetitionStandings(competitionId, ordered);
+  await db.competition.update({ where: { id: competitionId }, data: { standingsData: adjustedBaseline as any } });
+  return getLiveCompetitionStandings(competitionId, adjustedBaseline);
+}
+
+/** Preserve the point-only API used by older mobile app versions. */
+export async function setCompetitionManualPoints(
+  competitionId: string,
+  changes: Array<{ id: string; points: number }>
+): Promise<StandingTeamEntry[]> {
+  const baseline = await ensureCompetitionStandingsBaseline(competitionId);
+  const live = await getLiveCompetitionStandings(competitionId, baseline);
+  const pointsById = new Map(changes.map((change) => [change.id, change.points]));
+  if (pointsById.size !== changes.length || pointsById.size !== live.length || changes.some((change) => !live.some((row) => row.id === change.id))) {
+    throw new Error("ترتيب الفرق المرسل غير صالح.");
+  }
+
+  return setCompetitionManualStandings(competitionId, live.map((row) => ({
+    id: row.id,
+    rank: row.manualRank ?? null,
+    played: row.played,
+    won: row.won,
+    drawn: row.drawn,
+    lost: row.lost,
+    goalsFor: row.goalsFor,
+    goalsAgainst: row.goalsAgainst,
+    goalDifference: row.goalDifference,
+    points: pointsById.get(row.id)!
+  })));
 }

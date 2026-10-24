@@ -14,6 +14,10 @@ export interface StandingTeamEntry {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  /** Manual ranking position; omitted rows use the automatic league sort. */
+  manualRank?: number | null;
+  /** Persistent offsets applied after results newer than the official snapshot. */
+  manualStatsAdjustment?: Partial<Record<"played" | "won" | "drawn" | "lost" | "goalsFor" | "goalsAgainst" | "goalDifference" | "points", number>>;
   /** Official point deduction carried forward when later match results are applied. */
   pointsAdjustment?: number;
   /** Match records dated after this baseline are applied to this imported snapshot. */
