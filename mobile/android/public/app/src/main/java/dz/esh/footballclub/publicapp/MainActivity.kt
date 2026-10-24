@@ -8,6 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -283,7 +286,7 @@ private fun PublicApp() {
         colorScheme = darkColorScheme(background = Canvas, surface = Panel, primary = Accent, secondary = Mint, onSurface = PrimaryText),
         typography = Typography()
     ) {
-      CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = Cairo)) {
+      CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = if (locale == "ar") Cairo else FontFamily.SansSerif)) {
       CompositionLocalProvider(LocalLayoutDirection provides if (locale == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
         Scaffold(
             containerColor = Canvas,
@@ -311,7 +314,7 @@ private fun PublicApp() {
                         PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
                         PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id) } } }
                         PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, competitionsError, locale) { refreshKey++ }
-                        PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
+                        PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id, locale) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
                         PublicTab.NEWS -> NewsScreen(data, locale) { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }
                         PublicTab.CLUB -> ClubScreen(data, locale)
                         PublicTab.ALERTS -> AlertsScreen(alertItems, locale, onDismiss = { item -> PublicMessagingService.dismiss(context, item.id); alertItems = PublicMessagingService.alerts(context) })
@@ -494,7 +497,7 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
 @Composable
 private fun TeamsScreen(teams: List<PublicTeam>, isLoading: Boolean, locale: String) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeading(L(locale, "الفريق", "Équipe"), L(locale, "فئات النادي ولاعبوها", "Les catégories et les effectifs du club"), PublicIcons.Team) }
+        item { ScreenHeading(L(locale, "الفريق", "Effectifs"), L(locale, "فئات النادي ولاعبوها", "Les équipes et leurs joueurs"), PublicIcons.Team) }
         if (isLoading && teams.isEmpty()) item { LoadingInline(locale) }
         if (!isLoading && teams.isEmpty()) item { EmptyState(L(locale, "تعذر تحميل فئات الفريق. اسحب للأسفل للمحاولة مجددًا.", "Chargement impossible. Tirez vers le bas pour réessayer.")) }
         items(teams, key = { it.id }) { team ->
@@ -506,7 +509,7 @@ private fun TeamsScreen(teams: List<PublicTeam>, isLoading: Boolean, locale: Str
                         team.description?.takeIf { it.isNotBlank() }?.let { Text(it, color = SecondaryText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
                         if (team.birthYearFrom != null || team.birthYearTo != null) Text("${team.birthYearFrom ?: "…"} – ${team.birthYearTo ?: "…"}", color = Gold, fontSize = 10.sp)
                     }
-                    Text("${team.playerCount} ${L(locale, "لاعب", "joueurs")}", color = Mint, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    Text(if (locale == "fr") "${team.playerCount} ${if (team.playerCount == 1) "joueur" else "joueurs"}" else "${team.playerCount} لاعب", color = Mint, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                 }
             }
         }
@@ -532,7 +535,7 @@ private fun CompetitionsScreen(competitions: List<PublicCompetition>, isLoading:
                             Text("${categoryLabel(locale, competition.category)} · ${competition.season}", color = SecondaryText, fontSize = 9.sp)
                         }
                     }
-                    if (competition.standings.isEmpty()) EmptyState(L(locale, "لم يُنشر ترتيب لهذه المسابقة بعد", "Le classement de cette compétition n’est pas encore publié"))
+                    if (competition.standings.isEmpty()) EmptyState(L(locale, "لم يُنشر ترتيب لهذه المسابقة بعد", "Le classement n’a pas encore été publié pour cette compétition."))
                     else {
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(PanelRaised).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("#", color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(22.dp))
@@ -582,6 +585,24 @@ private fun ClubScreen(data: PublicSnapshot, locale: String) {
                 }
             }
         }
+        item { SectionHeading(L(locale, "قيمنا", "Nos engagements"), PublicIcons.Shield, locale) }
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(end = 2.dp)) {
+                items(listOf(
+                    L(locale, "التكوين", "Formation") to L(locale, "تطوير اللاعبين داخل الملعب وخارجه.", "Accompagner chaque joueur sur et en dehors du terrain."),
+                    L(locale, "المنافسة", "Compétition") to L(locale, "تمثيل سيدي حسني بفخر في المنافسات.", "Porter les couleurs de Sidi Hosni avec fierté."),
+                    L(locale, "روح الفريق", "Esprit d’équipe") to L(locale, "الاحترام والانضباط والعمل الجماعي.", "Cultiver le respect, la discipline et le collectif.")
+                )) { (title, detail) ->
+                    Surface(Modifier.width(205.dp), color = Panel, shape = RoundedCornerShape(17.dp), border = BorderStroke(1.dp, Hairline)) {
+                        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Box(Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Shield, null, Accent, Modifier.size(16.dp)) }
+                            Text(title, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(detail, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
         data.club.stadium?.takeIf { it.isNotBlank() }?.let { stadium -> item {
             Surface(color = Panel, shape = RoundedCornerShape(17.dp), border = BorderStroke(1.dp, Hairline)) {
                 Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -598,9 +619,9 @@ private fun ClubScreen(data: PublicSnapshot, locale: String) {
 @Composable
 private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String) -> Unit) {
     var category by remember { mutableStateOf("ALL") }
-    val filtered = data.matches.filter { category == "ALL" || it.category == category }
+    val filtered = data.matches.filter { categoryMatches(it.category, category) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeading(L(locale, "المباريات", "Matchs"), L(locale, "المواعيد والنتائج والأحداث المباشرة", "Calendrier, résultats et événements en direct"), PublicIcons.Match) }
+        item { ScreenHeading(L(locale, "المباريات", "Matchs"), L(locale, "المواعيد والنتائج والأحداث المباشرة", "Calendrier, résultats et suivi en direct"), PublicIcons.Match) }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(listOf("ALL", "SENIOR", "U20", "U17", "U15")) { value ->
@@ -614,7 +635,7 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
         item { SectionHeading(L(locale, "المواعيد القادمة", "Calendrier à venir"), PublicIcons.Calendar, locale) }
         items(filtered.filter { it.status == "SCHEDULED" }, key = { it.id }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }) }
         item { SectionHeading(L(locale, "آخر النتائج", "Derniers résultats"), PublicIcons.Trophy, locale) }
-        items(data.results.filter { category == "ALL" || it.category == category }, key = { "result-${it.id}" }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }) }
+        items(data.results.filter { categoryMatches(it.category, category) }, key = { "result-${it.id}" }) { MatchCard(it, locale, clubLogo = data.club.logo, onClick = { onMatch(it.id) }) }
         if (filtered.isEmpty() && data.results.isEmpty()) item { EmptyState(L(locale, "لا توجد مباريات منشورة حالياً", "Aucun match publié pour le moment")) }
     }
 }
@@ -665,8 +686,8 @@ private fun NewsScreen(data: PublicSnapshot, locale: String, onArticle: (String)
 @Composable
 private fun AlertsScreen(alerts: List<PublicAlert>, locale: String, onDismiss: (PublicAlert) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        item { ScreenHeading(L(locale, "التنبيهات", "Notifications"), L(locale, "أهداف وتحديثات المباريات المباشرة", "Buts et actualités des matchs en direct"), PublicIcons.Alerts) }
-        item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.clip(CircleShape).background(Panel).padding(horizontal = 12.dp, vertical = 8.dp)) { Box(Modifier.size(7.dp).clip(CircleShape).background(Accent)); Text(L(locale, "إشعارات تطبيق الجمهور فقط", "Notifications de l’application supporters uniquement"), color = SecondaryText, fontSize = 10.sp) } }
+        item { ScreenHeading(L(locale, "التنبيهات", "Notifications"), L(locale, "أهداف وتحديثات المباريات المباشرة", "Buts et mises à jour des matchs en direct"), PublicIcons.Alerts) }
+        item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.clip(CircleShape).background(Panel).padding(horizontal = 12.dp, vertical = 8.dp)) { Box(Modifier.size(7.dp).clip(CircleShape).background(Accent)); Text(L(locale, "إشعارات تطبيق الجمهور فقط", "Notifications de l’application ESH"), color = SecondaryText, fontSize = 10.sp) } }
         items(alerts, key = { it.id }) { alert ->
             Surface(color = Panel, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Hairline)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -674,7 +695,7 @@ private fun AlertsScreen(alerts: List<PublicAlert>, locale: String, onDismiss: (
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(alert.title, color = PrimaryText, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Text(alert.body, color = SecondaryText, fontSize = 11.sp)
-                        Text(formatDate(alert.time.toString()), color = Gold, fontSize = 9.sp)
+                        Text(formatDate(alert.time.toString(), locale), color = Gold, fontSize = 9.sp)
                     }
                     HeaderAction(PublicIcons.Delete, L(locale, "حذف التنبيه", "Supprimer l’alerte"), { onDismiss(alert) })
                 }
@@ -717,7 +738,7 @@ private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = nu
                 Text(match.competition, color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (!live) {
                     AppIcon(PublicIcons.Calendar, null, SecondaryText, Modifier.size(13.dp))
-                    Text(formatDate(match.date), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDate(match.date, locale), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -749,7 +770,7 @@ private fun TrainingCard(training: PublicTraining, locale: String) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Mint.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Training, null, Mint, Modifier.size(20.dp)) }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(categoryLabel(locale, training.category), color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text("${formatDate(training.date)} · ${formatClock(training.start)}", color = Gold, fontSize = 10.sp)
+                Text("${formatDate(training.date, locale)} · ${formatClock(training.start)}", color = Gold, fontSize = 10.sp)
                 Text(training.location ?: training.team, color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -764,7 +785,7 @@ private fun NewsCard(article: PublicNews, locale: String, onClick: () -> Unit) {
             Column(Modifier.weight(1f).padding(horizontal = 13.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     article.category?.let { Text(it, color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
-                    Text(formatDate(article.date), color = SecondaryText, fontSize = 9.sp)
+                    Text(formatDate(article.date, locale), color = SecondaryText, fontSize = 9.sp)
                 }
                 Text(article.title, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(article.excerpt, color = SecondaryText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -814,18 +835,23 @@ private fun AnnouncementStrip(item: PublicAnnouncement, locale: String) {
 
 @Composable
 private fun SectionHeading(title: String, icon: Int, locale: String, action: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(bottom = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(icon, null, Accent, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
-        Text(title, color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-        if (action != null) Text(L(locale, "عرض الكل", "Tout voir"), Modifier.clickable(onClick = action), color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Box(Modifier.size(30.dp).clip(RoundedCornerShape(10.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(icon, null, Accent, Modifier.size(16.dp)) }
+        Text(title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (action != null) Text(L(locale, "عرض الكل", "Tout voir"), Modifier.clip(CircleShape).clickable(onClick = action).padding(horizontal = 9.dp, vertical = 6.dp), color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
 @Composable
 private fun ScreenHeading(title: String, subtitle: String, icon: Int) {
-    Row(Modifier.fillMaxWidth().padding(bottom = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Accent.copy(alpha = .14f)).border(1.dp, Accent.copy(alpha = .2f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { AppIcon(icon, null, Accent, Modifier.size(23.dp)) }
-        Column { Text(title, color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.Black); Text(subtitle, color = SecondaryText, fontSize = 10.sp) }
+    Surface(Modifier.fillMaxWidth().padding(bottom = 3.dp), color = Panel, shape = RoundedCornerShape(19.dp), border = BorderStroke(1.dp, Hairline)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .22f), Accent.copy(alpha = .07f)))).border(1.dp, Accent.copy(alpha = .2f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { AppIcon(icon, null, Accent, Modifier.size(21.dp)) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 
@@ -942,7 +968,7 @@ private fun PublicTab.icon(selected: Boolean) = when (this) {
 }
 private fun PublicTab.label(locale: String) = when (this) {
     PublicTab.HOME -> L(locale, "الرئيسية", "Accueil")
-    PublicTab.TEAM -> L(locale, "الفريق", "Équipe")
+    PublicTab.TEAM -> L(locale, "الفريق", "Effectifs")
     PublicTab.MATCHES -> L(locale, "المباريات", "Matchs")
     PublicTab.COMPETITIONS -> L(locale, "المسابقات", "Compétitions")
     PublicTab.NEWS -> L(locale, "الأخبار", "Actualités")
@@ -951,10 +977,24 @@ private fun PublicTab.label(locale: String) = when (this) {
     PublicTab.ALERTS -> L(locale, "التنبيهات", "Notifications")
 }
 private fun L(locale: String, arabic: String, french: String) = if (locale == "ar") arabic else french
-private fun categoryLabel(locale: String, category: String) = when (category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; "ALL" -> L(locale, "الكل", "Tous"); else -> category }
+private fun categoryLabel(locale: String, category: String) = when (category) { "SENIOR" -> L(locale, "الأكابر", "Séniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; "ALL" -> L(locale, "الكل", "Toutes"); else -> category }
+private fun categoryMatches(actual: String?, selected: String): Boolean {
+    if (selected == "ALL") return true
+    if (selected == "SENIOR") return actual.equals("SENIOR", true) || actual.equals("Séniors", true) || actual.equals("Seniors", true)
+    return actual.equals(selected, true)
+}
 private fun albumCategory(locale: String, category: String) = when (category) { "MATCHES" -> L(locale, "مباريات", "Matchs"); "TRAINING" -> L(locale, "تدريبات", "Entraînements"); "TEAM" -> L(locale, "الفريق", "Équipe"); "EVENTS" -> L(locale, "فعاليات", "Événements"); else -> L(locale, "النادي", "Club") }
 private fun statusLabel(locale: String, status: String) = when (status) { "SCHEDULED" -> L(locale, "قادمة", "À venir"); "FINISHED" -> L(locale, "انتهت", "Terminé"); "POSTPONED" -> L(locale, "مؤجلة", "Reporté"); "CANCELLED" -> L(locale, "ملغاة", "Annulé"); else -> status }
-private fun formatDate(value: String): String = value.take(16).replace('T', ' ').replace('-', '/')
+private fun formatDate(value: String, locale: String): String = runCatching {
+    val date = if (value.all(Char::isDigit)) {
+        val timestamp = value.toLong()
+        Date(if (timestamp < 10_000_000_000L) timestamp * 1_000L else timestamp)
+    } else {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply { isLenient = true }
+        parser.parse(value.take(19)) ?: error("invalid date")
+    }
+    SimpleDateFormat("dd/MM/yyyy", if (locale == "fr") Locale.FRANCE else Locale.forLanguageTag("ar")).format(date)
+}.getOrElse { value.take(10).replace('-', '/') }
 private fun formatClock(value: String): String = value.substringAfter('T', value).take(5)
 private fun isVideo(url: String) = listOf(".mp4", ".webm", ".mov", ".m3u8").any { url.substringBefore('?').lowercase().endsWith(it) }
 private fun openUrl(url: String, context: android.content.Context) { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }

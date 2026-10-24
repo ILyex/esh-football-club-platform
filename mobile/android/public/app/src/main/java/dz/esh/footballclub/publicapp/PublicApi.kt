@@ -31,19 +31,20 @@ data class PublicRelease(val version: String, val apkUrl: String, val sha256: St
 
 object PublicApi {
     private const val CACHE_PREFS = "esh_public_content_cache"
+    private const val CACHE_SCHEMA = "v2"
 
     fun fetch(context: Context, locale: String): PublicSnapshot {
         val response = request("/api/public/mobile?locale=$locale")
         // Keep the last good public feed on-device. If a later launch has no
         // connection, supporters still get the latest saved fixtures/news.
         context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
-            .edit().putString("snapshot_$locale", response).apply()
+            .edit().putString("snapshot_${CACHE_SCHEMA}_$locale", response).apply()
         return parse(response)
     }
 
     fun cachedSnapshot(context: Context, locale: String): PublicSnapshot? = runCatching {
         context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
-            .getString("snapshot_$locale", null)?.let(::parse)
+            .getString("snapshot_${CACHE_SCHEMA}_$locale", null)?.let(::parse)
     }.getOrNull()
 
     fun teams(locale: String): List<PublicTeam> = JSONObject(request("/api/public/mobile/teams?locale=$locale&t=${System.currentTimeMillis()}"))
@@ -173,8 +174,8 @@ object PublicApi {
         return PublicArticle(item.optString("title"), item.optString("content").replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim(), item.url("featuredImageUrl"), item.optNullable("category"), item.optString("publishedAt"))
     }
 
-    fun album(id: String): PublicAlbum {
-        val item = JSONObject(request("/api/public/mobile/gallery/${encode(id)}"))
+    fun album(id: String, locale: String): PublicAlbum {
+        val item = JSONObject(request("/api/public/mobile/gallery/${encode(id)}?locale=$locale"))
         return PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("photos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.optString("url"), photo.optNullable("caption")) })
     }
 
