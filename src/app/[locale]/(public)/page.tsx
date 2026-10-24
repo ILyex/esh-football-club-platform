@@ -171,11 +171,11 @@ export default async function HomePage({
                 <Arrow className="h-4 w-4" />
               </Link>
               <Link
-                href={`/${locale}/matches`}
+                href={`/${locale}/competitions?type=LEAGUE&category=SENIOR`}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/20 motion-reduce:transition-none"
               >
                 <Calendar className="h-4 w-4 text-zinc-300" />
-                <span>{tPublic("home.upcomingMatches")}</span>
+                <span>{locale === "ar" ? "ترتيب الدوري" : "Classement du championnat"}</span>
               </Link>
               <Link
                 href={`/${locale}/team`}
