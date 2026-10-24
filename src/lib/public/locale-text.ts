@@ -84,6 +84,14 @@ export function localizedClubName(value: string | null | undefined, locale: stri
   const name = value?.trim();
   if (!name) return fallback;
 
+  // Older club settings contain a Latin transliteration of the Arabic name
+  // (for example "aldjmia alriadia ... sidi hsni"). It is not a French name.
+  const latinClubAlias = name.normalize("NFKD").toLocaleLowerCase().replace(/[\u0300-\u036f]/gu, "");
+  if (/(?:al)?djmia.*(?:sidi\s+hsni|sidi\s+hosni)/u.test(latinClubAlias)
+    || /(?:al)?riadia.*(?:sidi\s+hsni|sidi\s+hosni)/u.test(latinClubAlias)) {
+    return fallback;
+  }
+
   const parts = name.split(/[\/|]/u).map((part) => part.trim()).filter(Boolean);
   if (locale === "fr") {
     const frenchName = frenchPublicText(name, fallback);

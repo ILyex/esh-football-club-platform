@@ -65,8 +65,10 @@ private val Panel = Color(0xFF1A1D20)
 private val PanelRaised = Color(0xFF202328)
 private val Glass = Color(0xFF25292E)
 private val Accent = Color(0xFFDC2626)
-private val Mint = Color(0xFF20D7A0)
-private val Gold = Color(0xFFFFC45D)
+// Keep interactive accents within the club's red identity; reserve champagne
+// for secondary metadata so green/red/gold no longer compete in the same view.
+private val Mint = Color(0xFFFF596B)
+private val Gold = Color(0xFFE8BE72)
 private val PrimaryText = Color(0xFFF5F6F7)
 private val SecondaryText = Color(0xFF9AA1A9)
 private val Hairline = Color.White.copy(alpha = .09f)
