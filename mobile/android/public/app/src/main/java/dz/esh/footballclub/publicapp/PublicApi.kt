@@ -46,12 +46,12 @@ object PublicApi {
             .getString("snapshot_$locale", null)?.let(::parse)
     }.getOrNull()
 
-    fun teams(locale: String): List<PublicTeam> = JSONObject(request("/api/public/mobile/teams?locale=$locale"))
+    fun teams(locale: String): List<PublicTeam> = JSONObject(request("/api/public/mobile/teams?locale=$locale&t=${System.currentTimeMillis()}"))
         .optJSONArray("teams").objects().map { item ->
             PublicTeam(item.optString("id"), item.optString("category"), item.optString("name"), item.optNullable("description"), item.intOrNull("birthYearFrom"), item.intOrNull("birthYearTo"), item.optInt("playerCount"))
         }
 
-    fun competitions(locale: String): List<PublicCompetition> = JSONObject(request("/api/public/mobile/competitions?locale=$locale"))
+    fun competitions(locale: String): List<PublicCompetition> = JSONObject(request("/api/public/mobile/competitions?locale=$locale&t=${System.currentTimeMillis()}"))
         .optJSONArray("competitions").objects().map { item ->
             PublicCompetition(
                 item.optString("id"), item.optString("name"), item.optNullable("organization"), item.optString("seasonLabel"), item.optString("category"),
@@ -200,6 +200,9 @@ object PublicApi {
             connection.readTimeout = 10_000
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("User-Agent", "ESH-Public-Android/1.0")
+            connection.useCaches = false
+            connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
+            connection.setRequestProperty("Pragma", "no-cache")
             if (body != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
