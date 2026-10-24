@@ -1205,9 +1205,9 @@ button:active,
   scroll-margin-block: 1rem;
 }
 
-/* Dashboard fields already have a focus border. Remove the extra outline and
-   ring that several older utility classes add on top of it. */
-[data-dashboard-main] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea, [role="combobox"]):focus {
+/* Keep form fields free of the extra square browser outline/ring on focus.
+   Their existing borders remain visible; links and buttons keep keyboard focus styles. */
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea, [role="combobox"]):focus {
   outline: none !important;
   box-shadow: none !important;
 }

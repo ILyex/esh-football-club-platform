@@ -23,7 +23,7 @@ svg { max-width: 100%; }
 
 :where(button, input, select, textarea) { font: inherit; }
 
-:where(a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"]:not([aria-disabled="true"])):focus-visible {
+:where(a[href], button:not(:disabled), [role="button"]:not([aria-disabled="true"])):focus-visible {
   outline: 2px solid var(--club-primary);
   outline-offset: 3px;
 }
