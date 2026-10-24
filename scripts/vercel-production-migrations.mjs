@@ -6,6 +6,7 @@ import pg from "pg";
 
 const tacticalPlansMigration = "20261016110000_tactical_plans";
 const retiredStaffProfileMigration = "20261024020000_remove_staff_profile_role";
+const lineupPositionsMigration = "20261024050000_sync_match_lineup_positions";
 
 function normalizeConstraint(value) {
   const normalized = value.toLowerCase().replaceAll('"', "").replace(/\s+/g, " ").trim();
@@ -204,6 +205,18 @@ if (process.env.VERCEL_ENV !== "production") {
     if (hasUnresolvedStaffProfileFailure) {
       console.warn(`Recovering the failed ${retiredStaffProfileMigration} attempt; its migration body failed atomically before applying changes.`);
       await runWithMigrationLockRetry("npx", ["prisma", "migrate", "resolve", "--rolled-back", retiredStaffProfileMigration], `resolve ${retiredStaffProfileMigration}`);
+    }
+
+    const { rows: lineupPositionsRows } = await pool.query(
+      `SELECT finished_at, rolled_back_at FROM "_prisma_migrations" WHERE migration_name = $1`,
+      [lineupPositionsMigration]
+    );
+    const hasUnresolvedLineupPositionsFailure = lineupPositionsRows.some(
+      (row) => !row.finished_at && !row.rolled_back_at
+    );
+    if (hasUnresolvedLineupPositionsFailure) {
+      console.warn(`Recovering the failed ${lineupPositionsMigration} attempt; its type mismatch was corrected before retrying.`);
+      await runWithMigrationLockRetry("npx", ["prisma", "migrate", "resolve", "--rolled-back", lineupPositionsMigration], `resolve ${lineupPositionsMigration}`);
     }
     pendingMigrations = await getPendingMigrations(pool);
   } finally {

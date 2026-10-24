@@ -6,4 +6,4 @@ UPDATE "MatchLineup" AS lineup
 SET "position" = player."position"
 FROM "Player" AS player
 WHERE lineup."playerId" = player."id"
-  AND lineup."position" IS DISTINCT FROM player."position";
+  AND lineup."position" IS DISTINCT FROM player."position"::text;
