@@ -86,9 +86,9 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
   const isLoading = pending || jobActive;
   const showProgress = isLoading || completed;
 
-  return <div className="w-full max-w-[32rem] space-y-2">
+  return <div className="w-full min-w-0 space-y-2">
     <div className="flex justify-end">
-      <Button type="button" size="sm" variant="outline" className="min-w-44 justify-center" aria-label={isLoading ? (ar ? "جارٍ جلب بيانات FAF EMS" : "Import FAF EMS en cours") : (buttonLabel || (ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS"))} onClick={async () => {
+      <Button type="button" size="sm" variant="outline" className="w-full justify-center sm:w-auto sm:min-w-52" aria-label={isLoading ? (ar ? "جارٍ جلب بيانات FAF EMS" : "Import FAF EMS en cours") : (buttonLabel || (ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS"))} onClick={async () => {
         setPending(true);
         setCompleted(false);
         setProgress(8);
@@ -108,7 +108,7 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
         {isLoading ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <><Download className="me-2 h-4 w-4" aria-hidden="true" />{buttonLabel || (ar ? "جلب وثائق FAF EMS" : "Importer les documents FAF EMS")}</>}
       </Button>
     </div>
-    {showProgress && <div dir={ar ? "rtl" : "ltr"} role="status" aria-live="polite" className="space-y-1.5 rounded-lg border border-border/70 bg-background/70 px-3 py-2">
+    {showProgress && <div dir={ar ? "rtl" : "ltr"} role="status" aria-live="polite" className="min-w-0 space-y-2 rounded-xl border border-border/70 bg-background/70 p-3 sm:p-3.5">
       <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
         <span>{phase || (jobType === "match.referee_report_analysis" ? (ar ? "جارٍ تحليل التقرير" : "Analyse du rapport en cours") : (ar ? "جارٍ تنفيذ الطلب" : "Traitement en cours"))}</span>
         <span dir="ltr" className="shrink-0 font-mono tabular-nums">{Math.round(progress)}%</span>

@@ -339,17 +339,19 @@ export function MatchLineupWorkspace({
 
   return (
     <div className="space-y-4">
-      <div dir={isAr ? "rtl" : "ltr"} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/35 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-bold text-foreground">{isAr ? "إعداد قائمة المباراة" : "Préparer la composition"}</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">{isAr ? "وزّع اللاعبين بين التشكيلة الأساسية والدكة والحالات." : "Répartissez les joueurs entre les titulaires, le banc et les statuts."}</p>
+      <div dir={isAr ? "rtl" : "ltr"} className="grid min-w-0 items-start gap-4 rounded-2xl border border-border/70 bg-background/35 p-4 sm:p-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+        <div className="min-w-0 space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">{isAr ? "إعداد قائمة المباراة" : "Préparer la composition"}</h2>
+            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{isAr ? "وزّع اللاعبين بين التشكيلة الأساسية والدكة والحالات." : "Répartissez les joueurs entre les titulaires, le banc et les statuts."}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+            <Badge tone="neutral">{isAr ? `أساسي ${startingPlayers.length}/11` : `Titulaires ${startingPlayers.length}/11`}</Badge>
+            <Badge tone="neutral">{isAr ? `احتياط ${benchPlayers.length}` : `Remplaçants ${benchPlayers.length}`}</Badge>
+            <Badge tone="neutral">{isAr ? `متاح ${availablePlayers.length}` : `Disponibles ${availablePlayers.length}`}</Badge>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-          {canEdit && fetchFafLineup}
-          <Badge tone="neutral">{isAr ? `أساسي ${startingPlayers.length}/11` : `Titulaires ${startingPlayers.length}/11`}</Badge>
-          <Badge tone="neutral">{isAr ? `احتياط ${benchPlayers.length}` : `Remplaçants ${benchPlayers.length}`}</Badge>
-          <Badge tone="neutral">{isAr ? `متاح ${availablePlayers.length}` : `Disponibles ${availablePlayers.length}`}</Badge>
-        </div>
+        {canEdit && <div className="min-w-0">{fetchFafLineup}</div>}
       </div>
       <div dir="ltr" className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.5fr)] 2xl:gap-6">
       <aside dir={isAr ? "rtl" : "ltr"} className="min-w-0 rounded-2xl border border-border/70 bg-background/35 p-4 sm:p-5 xl:sticky xl:top-20">
