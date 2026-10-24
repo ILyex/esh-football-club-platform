@@ -87,15 +87,15 @@ export default async function AccountSecurityPage({
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-medium sm:col-span-2">
               <span>{isAr ? "كلمة المرور الحالية" : "Mot de passe actuel"}</span>
-              <PasswordVisibilityInput name="currentPassword" autoComplete="current-password" locale={locale} showLabel={isAr ? "إظهار كلمة المرور الحالية" : "Afficher le mot de passe actuel"} hideLabel={isAr ? "إخفاء كلمة المرور الحالية" : "Masquer le mot de passe actuel"} />
+              <PasswordVisibilityInput name="currentPassword" autoComplete="current-password" showLabel={isAr ? "إظهار كلمة المرور الحالية" : "Afficher le mot de passe actuel"} hideLabel={isAr ? "إخفاء كلمة المرور الحالية" : "Masquer le mot de passe actuel"} />
             </label>
             <label className="space-y-2 text-sm font-medium">
               <span>{isAr ? "كلمة المرور الجديدة" : "Nouveau mot de passe"}</span>
-              <PasswordVisibilityInput name="newPassword" autoComplete="new-password" locale={locale} showLabel={isAr ? "إظهار كلمة المرور الجديدة" : "Afficher le nouveau mot de passe"} hideLabel={isAr ? "إخفاء كلمة المرور الجديدة" : "Masquer le nouveau mot de passe"} />
+              <PasswordVisibilityInput name="newPassword" autoComplete="new-password" showLabel={isAr ? "إظهار كلمة المرور الجديدة" : "Afficher le nouveau mot de passe"} hideLabel={isAr ? "إخفاء كلمة المرور الجديدة" : "Masquer le nouveau mot de passe"} />
             </label>
             <label className="space-y-2 text-sm font-medium">
               <span>{isAr ? "تأكيد كلمة المرور الجديدة" : "Confirmer le nouveau mot de passe"}</span>
-              <PasswordVisibilityInput name="confirmPassword" autoComplete="new-password" locale={locale} showLabel={isAr ? "إظهار تأكيد كلمة المرور" : "Afficher la confirmation du mot de passe"} hideLabel={isAr ? "إخفاء تأكيد كلمة المرور" : "Masquer la confirmation du mot de passe"} />
+              <PasswordVisibilityInput name="confirmPassword" autoComplete="new-password" showLabel={isAr ? "إظهار تأكيد كلمة المرور" : "Afficher la confirmation du mot de passe"} hideLabel={isAr ? "إخفاء تأكيد كلمة المرور" : "Masquer la confirmation du mot de passe"} />
             </label>
           </div>
 
