@@ -7,7 +7,7 @@ import { AIError } from "@/lib/ai/types";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { generatePublicStorageKey, uploadPublicFile, validateUploadedImage, validateUploadedBannerImage, validateUploadedMedia } from "@/lib/storage";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { identifySocialReel, readSocialReels, type SocialReel } from "@/lib/social-reels";
@@ -38,6 +38,8 @@ export async function updateWebsiteSocialLinksAction(formData: FormData): Promis
   if (unchanged) return { success: true, changed: false };
   await db.clubSettings.update({ where: { id: "singleton" }, data: { socialLinks: socialLinks as unknown as Prisma.InputJsonObject } });
   await writeAuditLog({ userId: user.id, action: "website.social_links.update", entityType: "ClubSettings", entityId: "singleton", changes: { before: before?.socialLinks ?? null, after: socialLinks } });
+  revalidateTag("public-club-settings");
+  revalidateTag("public-home");
   revalidatePath("/[locale]", "layout");
   revalidatePath("/[locale]/dashboard/website/reels", "page");
   return { success: true };
@@ -173,6 +175,10 @@ export async function updateWebsiteSocialReelsAction(formData: FormData): Promis
     entityId: "singleton",
     changes: { beforeCount: previousReels.length, afterCount: savedReels.length }
   });
+  // Reels are read through both the shared public settings cache and the
+  // cached homepage payload; invalidate both as soon as a manager saves.
+  revalidateTag("public-club-settings");
+  revalidateTag("public-home");
   revalidatePath("/[locale]", "layout");
   revalidatePath("/[locale]/gallery", "page");
   revalidatePath("/[locale]/dashboard/website/reels", "page");
