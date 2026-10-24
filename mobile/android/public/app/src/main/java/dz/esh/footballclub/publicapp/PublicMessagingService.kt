@@ -30,6 +30,13 @@ class PublicMessagingService : FirebaseMessagingService() {
         val kind = message.data["kind"] ?: "MATCH_UPDATE"
         val id = "public-$tag"
         saveAlert(applicationContext, PublicAlert(id, title, body, System.currentTimeMillis(), kind))
+        val matchId = message.data["matchId"]
+        if (matchId != null) {
+            when (kind) {
+                "MATCH_STARTED", "MATCH_REOPENED", "GOAL" -> LiveMatchNotifications.update(this, message.data, title)
+                "MATCH_FINISHED" -> LiveMatchNotifications.finish(this, matchId)
+            }
+        }
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(CHANNEL, "أخبار المباريات", NotificationManager.IMPORTANCE_HIGH).apply {

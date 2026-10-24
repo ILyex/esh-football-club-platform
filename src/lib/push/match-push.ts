@@ -196,7 +196,26 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     db.publicAppDevice.findMany({ select: { fcmToken: true, locale: true } })
   ]);
   if (!outbox || outbox.processedAt) return;
-  const payload = outbox.payload as { category?: string; teamId?: string };
+  const payload = outbox.payload as {
+    category?: string;
+    teamId?: string;
+    matchId?: string;
+    homeTeamName?: string;
+    awayTeamName?: string;
+    homeScore?: number | null;
+    awayScore?: number | null;
+    minute?: number | null;
+  };
+  // Match identity and scoreboard travel separately from the localized alert
+  // text so the supporter app can update one persistent live card per match.
+  const liveMatchData = {
+    ...(payload.matchId ? { matchId: payload.matchId } : {}),
+    ...(payload.homeTeamName ? { homeTeamName: payload.homeTeamName } : {}),
+    ...(payload.awayTeamName ? { awayTeamName: payload.awayTeamName } : {}),
+    ...(payload.homeScore != null ? { homeScore: String(payload.homeScore) } : {}),
+    ...(payload.awayScore != null ? { awayScore: String(payload.awayScore) } : {}),
+    ...(payload.minute != null ? { minute: String(payload.minute) } : {})
+  };
   const subscribers = await db.pushSubscription.findMany({
     where: { categories: { some: { category: payload.category as TeamCategory } } },
     select: { id: true }
@@ -234,10 +253,10 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     const canAccessTeam = role.key === "super_admin" || !role.teamScoped || Boolean(payload.teamId && device.user.teamAssignments.some((assignment) => assignment.teamId === payload.teamId));
     if (!canAccessTeam) return [];
     const localized = buildNotification(outbox, device.locale);
-    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind }];
+    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind, ...liveMatchData }];
   }).concat(publicDevices.map((device) => {
     const localized = buildNotification(outbox, device.locale);
-    return { token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind };
+    return { token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind, ...liveMatchData };
   }));
   if (nativeMessages.length) {
     const nativeResult = await sendNativePush(nativeMessages);

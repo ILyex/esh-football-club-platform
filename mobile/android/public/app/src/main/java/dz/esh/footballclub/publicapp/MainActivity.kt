@@ -98,7 +98,13 @@ private fun PublicApp() {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences(PublicMessagingService.PREFS, 0) }
     var locale by remember { mutableStateOf(preferences.getString(PublicMessagingService.LOCALE, "ar") ?: "ar") }
-    var tab by remember { mutableStateOf(if ((context as? MainActivity)?.intent?.getStringExtra("open_tab") == "alerts") PublicTab.ALERTS else PublicTab.HOME) }
+    var tab by remember {
+        mutableStateOf(when ((context as? MainActivity)?.intent?.getStringExtra("open_tab")) {
+            "alerts" -> PublicTab.ALERTS
+            "matches" -> PublicTab.MATCHES
+            else -> PublicTab.HOME
+        })
+    }
     var snapshot by remember { mutableStateOf<PublicSnapshot?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf(false) }
@@ -127,6 +133,7 @@ private fun PublicApp() {
             val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
             if (result.isSuccess) {
                 snapshot = result.getOrThrow()
+                LiveMatchNotifications.sync(context, snapshot!!.matches)
                 error = false
                 break
             }
@@ -141,7 +148,7 @@ private fun PublicApp() {
             while (true) {
                 delay(if (snapshot?.matches?.any { it.status == "LIVE" } == true) 20_000L else 60_000L)
                 val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
-                result.onSuccess { snapshot = it; error = false }.onFailure { error = true }
+                result.onSuccess { snapshot = it; LiveMatchNotifications.sync(context, it.matches); error = false }.onFailure { error = true }
             }
         }
     }

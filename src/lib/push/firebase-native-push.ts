@@ -3,7 +3,20 @@ import "server-only";
 import { createSign } from "node:crypto";
 
 type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string; token_uri?: string };
-type FcmMessage = { token: string; title: string; body: string; section?: string; tag?: string; kind?: string };
+type FcmMessage = {
+  token: string;
+  title: string;
+  body: string;
+  section?: string;
+  tag?: string;
+  kind?: string;
+  matchId?: string;
+  homeTeamName?: string;
+  awayTeamName?: string;
+  homeScore?: string;
+  awayScore?: string;
+  minute?: string;
+};
 
 let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
@@ -62,7 +75,19 @@ export async function sendNativePush(messages: FcmMessage[]): Promise<{ configur
         token: message.token,
         // Use a data-only message so NativeMessagingService can render the branded,
         // high-priority notification consistently while the app is backgrounded.
-        data: { section: message.section!, title: message.title, body: message.body, ...(message.tag ? { tag: message.tag } : {}), ...(message.kind ? { kind: message.kind } : {}) },
+        data: {
+          section: message.section!,
+          title: message.title,
+          body: message.body,
+          ...(message.tag ? { tag: message.tag } : {}),
+          ...(message.kind ? { kind: message.kind } : {}),
+          ...(message.matchId ? { matchId: message.matchId } : {}),
+          ...(message.homeTeamName ? { homeTeamName: message.homeTeamName } : {}),
+          ...(message.awayTeamName ? { awayTeamName: message.awayTeamName } : {}),
+          ...(message.homeScore != null ? { homeScore: message.homeScore } : {}),
+          ...(message.awayScore != null ? { awayScore: message.awayScore } : {}),
+          ...(message.minute ? { minute: message.minute } : {})
+        },
         android: { priority: "high" }
       } })
     });
