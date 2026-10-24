@@ -30,6 +30,12 @@ import type { TeamCategory } from "@prisma/client";
 // ============================================================================
 
 const COOKIE_NAME = "esh_current_team";
+const TEAM_CATEGORY_ORDER: Record<TeamCategory, number> = {
+  SENIOR: 0,
+  U20: 1,
+  U17: 2,
+  U15: 3
+};
 
 export type AuthorizedTeam = {
   id: string;
@@ -74,6 +80,11 @@ const resolveUserTeamContextForRequest = cache(async (requestedTeamId: string | 
     }),
     cookies()
   ]);
+
+  // Database enum ordering is lexical (for example U15 before U20), which
+  // makes category menus jump around. Keep all authorized team lists in the
+  // same sporting order, with names stable within each category.
+  allTeams.sort((a, b) => TEAM_CATEGORY_ORDER[a.category] - TEAM_CATEGORY_ORDER[b.category] || a.name.localeCompare(b.name));
 
   const rawUser = session?.user && !(session as any).invalid ? (session.user as any) : null;
 
