@@ -35,7 +35,20 @@ function normalize(value: string): string {
 }
 
 const STARTING = /اساسي|التشكيل الاساسي|التشكيله الاساسيه|starting|titulaires?|onze de depart/;
-const SUBSTITUTE = /احتياط|بديل|دكه|substitut|remplacant|banc/;
+const SUBSTITUTE = /احتياط|بديل|بدلاء|دكه|substitut|remplacant|banc/;
+
+const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة/;
+
+function playerMatchesLine(line: string, player: SheetPlayer): boolean {
+  const tokens = new Set(line.split(/\s+/u).filter(Boolean));
+  const firstTokens = normalize(player.firstName).split(/\s+/u).filter(Boolean);
+  const lastTokens = normalize(player.lastName).split(/\s+/u).filter(Boolean);
+  const hasName = firstTokens.length > 0 && lastTokens.length > 0
+    && [...firstTokens, ...lastTokens].every((token) => tokens.has(token));
+  const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
+  const licensed = licence.length >= 5 && line.replace(/\s/g, "").includes(licence);
+  return hasName || licensed;
+}
 
 function detectPlayers(text: string, players: SheetPlayer[]): Map<string, "STARTING" | "SUBSTITUTE"> {
   const found = new Map<string, "STARTING" | "SUBSTITUTE">();
@@ -46,30 +59,24 @@ function detectPlayers(text: string, players: SheetPlayer[]): Map<string, "START
     if (!line) continue;
     const isStartingSection = STARTING.test(line);
     const isSubstituteSection = SUBSTITUTE.test(line);
+    const isOutsideLineup = OUTSIDE_LINEUP.test(line);
+    if (isOutsideLineup && !isStartingSection && !isSubstituteSection) {
+      section = null;
+      continue;
+    }
+
+    // Names and licences identify roster members; shirt numbers alone are too
+    // ambiguous. Ignore any OCR row that matches multiple players.
+    const candidates = players.filter((player) => !found.has(player.id) && playerMatchesLine(line, player));
+    if (candidates.length === 1) {
+      const explicitStatus = isSubstituteSection ? "SUBSTITUTE" : isStartingSection ? "STARTING" : null;
+      const status = explicitStatus ?? section;
+      if (status) found.set(candidates[0]!.id, status);
+    }
+
+    // Some sheets put the section label and the first player's name on one line.
     if (isStartingSection && !isSubstituteSection) section = "STARTING";
     else if (isSubstituteSection) section = "SUBSTITUTE";
-
-    for (const player of players) {
-      if (found.has(player.id)) continue;
-      const first = normalize(player.firstName);
-      const last = normalize(player.lastName);
-      const named = first.length > 1 && last.length > 1 && line.includes(first) && line.includes(last);
-      const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
-      const lineCompact = line.replace(/\s/g, "");
-      const licensed = licence.length >= 5 && lineCompact.includes(licence);
-      // Names and licence numbers identify roster members. Shirt numbers alone
-      // are not reliable identity keys and can silently select the wrong player.
-      if (!named && !licensed) continue;
-
-      const explicitStarting = STARTING.test(line);
-      const explicitSubstitute = SUBSTITUTE.test(line);
-      const status = explicitSubstitute
-        ? "SUBSTITUTE"
-        : explicitStarting
-          ? "STARTING"
-          : section;
-      if (status) found.set(player.id, status);
-    }
   }
   return found;
 }
@@ -80,15 +87,8 @@ function detectOfficialCaptain(text: string, players: SheetPlayer[]): string | n
     // standalone marker avoids treating the letter in a name or a column as it.
     if (!/(?:^|\s)\(?C\)?(?=\s|$|[.)])/i.test(rawLine)) continue;
     const line = normalize(rawLine);
-    const lineCompact = line.replace(/\s/g, "");
-    for (const player of players) {
-      const first = normalize(player.firstName);
-      const last = normalize(player.lastName);
-      const named = first.length > 1 && last.length > 1 && line.includes(first) && line.includes(last);
-      const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
-      const licensed = licence.length >= 5 && lineCompact.includes(licence);
-      if (named || licensed) return player.id;
-    }
+    const candidates = players.filter((player) => playerMatchesLine(line, player));
+    if (candidates.length === 1) return candidates[0]!.id;
   }
   return null;
 }
@@ -103,23 +103,16 @@ function detectOfficialShirtNumbers(text: string, players: SheetPlayer[]): Map<s
     const shirtNumber = Number(leadingNumber[1]);
     if (shirtNumber < 1 || shirtNumber > 99) continue;
     const line = normalize(rawLine);
-    const lineCompact = line.replace(/\s/g, "");
-    for (const player of players) {
-      if (numbers.has(player.id)) continue;
-      const first = normalize(player.firstName);
-      const last = normalize(player.lastName);
-      const named = first.length > 1 && last.length > 1 && line.includes(first) && line.includes(last);
-      const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
-      const licensed = licence.length >= 5 && lineCompact.includes(licence);
-      if (named || licensed) numbers.set(player.id, shirtNumber);
-    }
+    const candidates = players.filter((player) => !numbers.has(player.id) && playerMatchesLine(line, player));
+    if (candidates.length === 1) numbers.set(candidates[0]!.id, shirtNumber);
   }
   return numbers;
 }
 
 /**
  * Apply the official FAF match sheet as the source of who was called up.
- * Players missing from a sufficiently legible sheet become NOT_CALLED.
+ * Only confidently recognized players are changed; partial/OCR-derived pages
+ * must not turn the rest of the roster into NOT_CALLED.
  * Existing manually recorded injuries are retained; previous-match red cards
  * in this competition take precedence over the sheet and become SUSPENDED.
  */
@@ -143,7 +136,7 @@ export async function applyMatchSheetLineup(
 
   const detected = detectPlayers(text, players);
   const officialCaptainId = detectOfficialCaptain(text, players);
-  if (officialCaptainId) detected.set(officialCaptainId, "STARTING");
+  if (officialCaptainId && detected.has(officialCaptainId)) detected.set(officialCaptainId, "STARTING");
   const officialShirtNumbers = detectOfficialShirtNumbers(text, players);
   const starters = [...detected.values()].filter((status) => status === "STARTING").length;
   const substitutes = [...detected.values()].filter((status) => status === "SUBSTITUTE").length;
@@ -165,23 +158,35 @@ export async function applyMatchSheetLineup(
   const counts = { STARTING: 0, SUBSTITUTE: 0, NOT_CALLED: 0, INJURED: 0, SUSPENDED: 0 };
 
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
-    if (officialCaptainId) {
+    if (officialCaptainId && detected.has(officialCaptainId)) {
       await tx.matchLineup.updateMany({ where: { matchId, isCaptain: true, playerId: { not: officialCaptainId } }, data: { isCaptain: false } });
     }
     for (const player of players) {
       const detectedStatus = detected.get(player.id);
       const existing = existingById.get(player.id);
       const existingStatus = existing?.selectionStatus;
-      // EMS only corrects players it can positively identify on the sheet.
-      // Keep manually entered selections for everyone else instead of
-      // rewriting them as NOT_CALLED on every document import.
-      if (!detectedStatus && existing) {
-        if (existingStatus && Object.hasOwn(counts, existingStatus)) counts[existingStatus as keyof typeof counts]++;
+      // The recognized sheet is authoritative for starters and substitutes.
+      // Remove stale lineup rows from earlier broad OCR passes, but retain
+      // explicit injury/suspension states that are not listed on this sheet.
+      if (!detectedStatus) {
+        const preservedStatus = suspendedIds.has(player.id) || existingStatus === "SUSPENDED"
+          ? "SUSPENDED"
+          : existingStatus === "INJURED" ? "INJURED" : null;
+        if (!preservedStatus) {
+          if (existing) await tx.matchLineup.delete({ where: { matchId_playerId: { matchId, playerId: player.id } } });
+          continue;
+        }
+        counts[preservedStatus]++;
+        await tx.matchLineup.upsert({
+          where: { matchId_playerId: { matchId, playerId: player.id } },
+          create: { matchId, playerId: player.id, isStarting: false, isCaptain: false, selectionStatus: preservedStatus, position: player.position },
+          update: { isStarting: false, isCaptain: false, selectionStatus: preservedStatus }
+        });
         continue;
       }
       const selectionStatus = suspendedIds.has(player.id)
         ? "SUSPENDED"
-        : detectedStatus ?? (player.status === "INJURED" ? "INJURED" : "NOT_CALLED");
+        : detectedStatus;
       const isStarting = selectionStatus === "STARTING";
       counts[selectionStatus as keyof typeof counts]++;
       await tx.matchLineup.upsert({
