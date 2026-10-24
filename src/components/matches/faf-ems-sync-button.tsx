@@ -59,7 +59,9 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
           setJobId(null);
           setCompleted(false);
           setProgress(0);
-          toast.error(ar ? "تعذر إكمال جلب الوثائق. أعد المحاولة." : "Impossible de terminer l’import. Réessayez.");
+          const errorTitle = ar ? "تعذر جلب تشكيلة المباراة من FAF EMS." : "Impossible d’importer la composition depuis FAF EMS.";
+          const errorDescription = state.error?.trim();
+          toast.error(errorTitle, errorDescription ? { description: errorDescription, duration: 10000 } : undefined);
         } else {
           timer = setTimeout(poll, 2500);
         }
