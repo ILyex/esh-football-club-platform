@@ -517,7 +517,7 @@ export function DateInput({
               onClick={prevMonth}
               className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors"
             >
-              {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              <ChevronLeft className="h-4 w-4" />
             </button>
 
             <div ref={monthYearRef} className="flex items-center gap-1.5 text-xs font-bold text-foreground">
@@ -530,7 +530,7 @@ export function DateInput({
               onClick={nextMonth}
               className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors"
             >
-              {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
