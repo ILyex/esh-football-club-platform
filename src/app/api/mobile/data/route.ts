@@ -31,6 +31,7 @@ export async function GET(request: Request) {
   const teamWhere = scope.restricted ? { teamId: { in: [...scope.teamIds] } } : {};
   const meetingScopeWhere = scope.restricted ? { OR: [{ teamId: { in: [...scope.teamIds] } }, { teamId: null }] } : {};
   const canViewMatches = hasPermission(user, "matches.view");
+  const canCreateMatches = hasPermission(user, "matches.create");
   const canUpdateMatches = hasPermission(user, "matches.update");
   const canReportMatches = hasPermission(user, "matches.report");
   const canScheduleMeetings = hasPermission(user, "meetings.schedule");
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
       take: 120
     }) : Promise.resolve([]),
     db.notification.findMany({ where: { userId: user.id, type: "UPCOMING_MATCH" }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
-    (canManageTraining || canManageAnnouncements || canScheduleMeetings) ? db.team.findMany({ where: scope.restricted ? { id: { in: [...scope.teamIds] } } : {}, orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }) : Promise.resolve([]),
+    (canManageTraining || canManageAnnouncements || canScheduleMeetings || canCreateMatches) ? db.team.findMany({ where: { active: true, ...(scope.restricted ? { id: { in: [...scope.teamIds] } } : {}) }, orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }) : Promise.resolve([]),
     canManageTraining ? db.staff.findMany({
       where: {
         status: "ACTIVE",
@@ -103,9 +104,9 @@ export async function GET(request: Request) {
       select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, teamId: true, teamAssignments: { select: { teamId: true } } }
     }) : Promise.resolve([]),
     db.season.findFirst({ where: { isCurrent: true }, select: { label: true }, orderBy: { startDate: "desc" } })
-    ,canViewCompetitions ? db.competition.findMany({
-      where: { ...(scope.restricted ? { OR: [{ teamId: { in: [...scope.teamIds] } }, { teamId: null }] } : {}), season: { isCurrent: true } },
-      include: { season: { select: { label: true } }, team: { select: { category: true } } },
+    ,(canViewCompetitions || canCreateMatches) ? db.competition.findMany({
+      where: { ...(scope.restricted ? { OR: [{ teamId: { in: [...scope.teamIds] } }, { teamId: null }] } : {}), ...(canViewCompetitions ? { season: { isCurrent: true } } : {}) },
+      include: { season: { select: { label: true } }, team: { select: { id: true, category: true } } },
       orderBy: { name: "asc" }
     }) : Promise.resolve([])
   ]);
@@ -121,7 +122,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     clubLogoUrl: mediaUrl(clubSettings?.logoUrl) || mediaUrl("/branding/esh-logo-128.png"),
     user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, firstNameFr: user.firstNameFr, lastNameFr: user.lastNameFr, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
-    permissions: { matches: canViewMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
+    permissions: { matches: canViewMatches, createMatches: canCreateMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
     coaches: coaches.map((coach) => ({
       id: coach.id,
@@ -203,11 +204,12 @@ export async function GET(request: Request) {
     }),
     notifications,
     competitions: await Promise.all(competitions.map(async (competition) => {
-      const category = competition.team?.category || "SENIOR";
-      const display = getCompetitionDisplayData(competition.standingsData, competition.bracketData);
-      const standings = await getLiveCompetitionStandings(competition.id, display.standings);
+      const category = competition.team?.category || "";
+      const display = canViewCompetitions ? getCompetitionDisplayData(competition.standingsData, competition.bracketData) : null;
+      const standings = display ? await getLiveCompetitionStandings(competition.id, display.standings) : [];
       return {
         id: competition.id,
+        teamId: competition.team?.id ?? null,
         name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
         type: competition.type,
         logoUrl: mediaUrl(competition.logoUrl),
@@ -219,7 +221,7 @@ export async function GET(request: Request) {
         // The platform's standings resolver remains the source of truth for
         // opponent and club crests; this only makes those assets portable in-app.
         standings: standings.map((row) => ({ ...row, teamLogo: mediaUrl(row.teamLogo) })),
-        bracket: display.bracket,
+        bracket: display?.bracket ?? { rounds: [] },
         canManage: canManageCompetitions
       };
     }))

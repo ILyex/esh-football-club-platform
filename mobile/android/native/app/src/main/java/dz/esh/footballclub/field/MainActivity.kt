@@ -438,6 +438,9 @@ private fun MatchdayApp() {
     var updateFile by remember { mutableStateOf<File?>(null) }
     var composerType by remember { mutableStateOf<String?>(null) }
     var createError by remember { mutableStateOf<String?>(null) }
+    var matchWizardOpen by remember { mutableStateOf(false) }
+    var matchWizardError by remember { mutableStateOf<String?>(null) }
+    var matchCreating by remember { mutableStateOf(false) }
 
     LaunchedEffect(token, locale) {
         val cachedLocale = locale
@@ -843,7 +846,7 @@ private fun MatchdayApp() {
                         }
                     }
                 })
-                SectionPage(section, data, user, loading, connectionError, locale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onSaveStandings = ::saveCompetitionStandings, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts, modifier = Modifier.weight(1f).padding(bottom = 106.dp))
+                SectionPage(section, data, user, loading, connectionError, locale, playerStats, playerStatsLoading, playerStatsError, onRetryPlayerStats = { refreshNonce++ }, onNavigate = { section = it }, onCreate = { createError = null; composerType = it }, onAddMatch = { matchWizardError = null; matchWizardOpen = true }, onUpdateMatch = ::updateMatch, onAddEvent = ::addMatchEvent, onDeleteEvent = ::deleteMatchEvent, onSaveStandings = ::saveCompetitionStandings, onDeleteAlert = ::dismissAlert, onDeleteAllAlerts = ::dismissAllAlerts, modifier = Modifier.weight(1f).padding(bottom = 106.dp))
             }
             GlassNavigation(modifier = Modifier.align(Alignment.BottomCenter), selected = section, locale = locale, showPlayerStats = data?.permissions?.playerStats == true || user?.roleKey in setOf("developer", "super_admin"), showCompetitions = data?.permissions?.competitions == true, onSelect = { section = it })
         }
@@ -872,6 +875,39 @@ private fun MatchdayApp() {
                     loading = false
                 }
             }
+        }
+        if (matchWizardOpen) {
+            NativeMatchWizard(
+                teams = data?.teams.orEmpty(), competitions = data?.competitions.orEmpty(), locale = locale,
+                isSubmitting = matchCreating, errorMessage = matchWizardError,
+                onDismiss = { if (!matchCreating) { matchWizardOpen = false; matchWizardError = null } },
+                onSubmit = { payload ->
+                    val activeToken = token ?: return@NativeMatchWizard
+                    scope.launch {
+                        matchWizardError = null
+                        matchCreating = true
+                        val result = runCatching {
+                            withContext(Dispatchers.IO) {
+                                NativeApi.createMatch(activeToken, payload)
+                                NativeApi.data(activeToken, locale)
+                            }
+                        }
+                        result.onSuccess {
+                            data = visiblePayload(it)
+                            matchDetailsLoaded = true
+                            matchWizardOpen = false
+                            connectionError = null
+                        }.onFailure { error ->
+                            matchWizardError = when ((error as? NativeApi.ApiFailure)?.code) {
+                                "forbidden", "team_scope_forbidden" -> L(locale, "لا تملك صلاحية إضافة مباراة لهذه الفئة.", "Vous n’avez pas l’autorisation d’ajouter un match pour cette catégorie.")
+                                "competition_team_mismatch", "invalid_match", "team_not_found", "competition_not_found" -> L(locale, "تحقق من الفئة والمسابقة وبيانات المباراة.", "Vérifiez la catégorie, la compétition et les informations du match.")
+                                else -> L(locale, "تعذر نشر المباراة. تحقق من الاتصال وحاول مجددًا.", "Impossible de publier le match. Vérifiez la connexion et réessayez.")
+                            }
+                        }
+                        matchCreating = false
+                    }
+                }
+            )
         }
         if (updateDownloading) {
             AlertDialog(
@@ -1243,6 +1279,7 @@ private fun SectionPage(
     onRetryPlayerStats: () -> Unit,
     onNavigate: (Section) -> Unit,
     onCreate: (String) -> Unit,
+    onAddMatch: () -> Unit,
     onUpdateMatch: (NativeMatch, Int, Int, String?) -> Unit,
     onAddEvent: (NativeMatch, org.json.JSONObject) -> Unit,
     onDeleteEvent: (NativeMatch, NativeEvent) -> Unit,
@@ -1303,6 +1340,9 @@ private fun SectionPage(
         item { QuickActions(onNavigate, data, locale, onCreate) }
             }
             Section.MATCHES -> {
+                if (data?.permissions?.createMatches == true) item {
+                    ActionTile(L(locale, "إضافة مباراة", "Ajouter un match"), L(locale, "برمجها خطوة بخطوة", "Programmer étape par étape"), IconlyIcons.Match, Red, onAddMatch)
+                }
                 if (data?.matches.isNullOrEmpty()) item { EmptyNativeSection(IconlyIcons.Match, L(locale, "إدارة المباريات", "Gestion des matchs"), L(locale, "لا توجد مباريات متاحة لحسابك حاليًا.", "Aucun match n’est disponible pour ce compte."), if (loading) L(locale, "جارٍ التحديث", "Actualisation…") else L(locale, "محدّث من المنصة", "Synchronisé avec la plateforme"), locale) }
                 else items(data!!.matches, key = { it.id }) { match -> MatchCard(match, loading, locale, onUpdateMatch, onAddEvent, onDeleteEvent) }
             }
@@ -2776,6 +2816,103 @@ private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching 
         connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
     } finally { connection.disconnect() }
 }.getOrNull()
+
+@Composable
+private fun NativeMatchWizard(
+    teams: List<NativeTeam>, competitions: List<NativeCompetition>, locale: String,
+    isSubmitting: Boolean, errorMessage: String?, onDismiss: () -> Unit,
+    onSubmit: (org.json.JSONObject) -> Unit
+) {
+    val context = LocalContext.current
+    val orderedTeams = remember(teams) { orderedNativeTeams(teams) }
+    var opponent by remember { mutableStateOf("") }
+    var opponentFr by remember { mutableStateOf("") }
+    var teamId by remember(orderedTeams) { mutableStateOf(orderedTeams.firstOrNull()?.id.orEmpty()) }
+    val selectedTeam = orderedTeams.firstOrNull { it.id == teamId }
+    val availableCompetitions = competitions.filter { (it.category.isBlank() || it.category == selectedTeam?.category) && (it.teamId == null || it.teamId == teamId) }
+    var competitionId by remember(availableCompetitions) { mutableStateOf(availableCompetitions.firstOrNull()?.id.orEmpty()) }
+    var isHome by remember { mutableStateOf(true) }
+    var date by remember { mutableStateOf(java.time.LocalDate.now().plusWeeks(1).toString()) }
+    var time by remember { mutableStateOf("14:30") }
+    var stadium by remember { mutableStateOf("") }
+    var step by remember { mutableIntStateOf(1) }
+    val dateParts = date.split("-").mapNotNull { it.toIntOrNull() }
+    val initialCalendar = Calendar.getInstance().apply {
+        if (dateParts.size == 3) set(dateParts[0], dateParts[1] - 1, dateParts[2])
+    }
+    val canContinue = when (step) {
+        1 -> opponent.trim().isNotEmpty()
+        2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && time.matches(Regex("\\d{2}:\\d{2}"))
+        3 -> teamId.isNotBlank() && competitionId.isNotBlank()
+        else -> true
+    }
+    val actionLabel = if (step < 4) L(locale, "الخطوة التالية", "Étape suivante") else L(locale, "نشر المباراة", "Publier le match")
+    AlertDialog(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        shape = RoundedCornerShape(22.dp), containerColor = Panel,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(L(locale, "إضافة مباراة", "Ajouter un match"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily)
+                Text(L(locale, "الخطوة $step من 4", "Étape $step sur 4"), color = Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(Modifier.fillMaxWidth().heightIn(max = 430.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                when (step) {
+                    1 -> {
+                        Text(L(locale, "أدخل اسم الفريق الخصم للبدء.", "Saisissez le nom de l’équipe adverse pour commencer."), color = Muted, fontSize = 12.sp)
+                        OutlinedTextField(value = opponent, onValueChange = { opponent = it.take(120) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "اسم الخصم", "Nom de l’adversaire")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        OutlinedTextField(value = opponentFr, onValueChange = { opponentFr = it.take(120) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "اسم الخصم بالفرنسية (اختياري)", "Nom en français (facultatif)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    }
+                    2 -> {
+                        Text(L(locale, "حدد موعد المباراة.", "Choisissez la date et l’heure du match."), color = Muted, fontSize = 12.sp)
+                        OutlinedTextField(value = date, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable {
+                            DatePickerDialog(context, { _, year, month, day -> date = "%04d-%02d-%02d".format(year, month + 1, day) }, initialCalendar.get(Calendar.YEAR), initialCalendar.get(Calendar.MONTH), initialCalendar.get(Calendar.DAY_OF_MONTH)).show()
+                        }, label = { Text(L(locale, "التاريخ", "Date")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        OutlinedTextField(value = time, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable {
+                            val parts = time.split(":").mapNotNull { it.toIntOrNull() }
+                            TimePickerDialog(context, { _, hour, minute -> time = "%02d:%02d".format(hour, minute) }, parts.getOrElse(0) { 14 }, parts.getOrElse(1) { 30 }, true).show()
+                        }, label = { Text(L(locale, "الوقت", "Heure")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    }
+                    3 -> {
+                        if (orderedTeams.isEmpty() || competitions.isEmpty()) {
+                            Text(L(locale, "لا توجد فئة أو مسابقة متاحة لحسابك. تحقق من صلاحيات الفئة والموسم في المنصة.", "Aucune catégorie ou compétition n’est disponible pour ce compte. Vérifiez les autorisations et la saison sur la plateforme."), color = Muted, fontSize = 12.sp)
+                        } else {
+                            NativeDropdownField(L(locale, "الفئة", "Catégorie"), selectedTeam?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), L(locale, "اختر الفئة", "Choisir la catégorie"), orderedTeams.map { it.id to "${it.name} · ${categoryLabel(it.category, locale)}" }) { teamId = it }
+                            NativeDropdownField(L(locale, "المسابقة", "Compétition"), availableCompetitions.firstOrNull { it.id == competitionId }?.name.orEmpty(), L(locale, "اختر المسابقة", "Choisir la compétition"), availableCompetitions.map { it.id to it.name }) { competitionId = it }
+                        }
+                        NativeDropdownField(L(locale, "مكان الفريق", "Lieu du club"), if (isHome) L(locale, "على أرضنا", "À domicile") else L(locale, "خارج أرضنا", "À l’extérieur"), "", listOf("home" to L(locale, "على أرضنا", "À domicile"), "away" to L(locale, "خارج أرضنا", "À l’extérieur"))) { isHome = it == "home" }
+                        if (!isHome) OutlinedTextField(value = stadium, onValueChange = { stadium = it.take(160) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "الملعب (اختياري)", "Stade (facultatif)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    }
+                    else -> {
+                        Text(L(locale, "راجع تفاصيل المواجهة قبل نشرها على المنصة والموقع.", "Vérifiez les détails avant la publication sur la plateforme et le site."), color = Muted, fontSize = 12.sp)
+                        Text(if (isHome) "${L(locale, "نادي أمل سيدي حسني", "Club Espoir Sidi Hosni")}  ·  $opponent" else "$opponent  ·  ${L(locale, "نادي أمل سيدي حسني", "Club Espoir Sidi Hosni")}", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("${date} · ${time}", color = Mint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("${selectedTeam?.name.orEmpty()} · ${selectedTeam?.let { categoryLabel(it.category, locale) }.orEmpty()} · ${availableCompetitions.firstOrNull { it.id == competitionId }?.name.orEmpty()}", color = Muted, fontSize = 11.sp)
+                        if (!isHome && stadium.isNotBlank()) Text(stadium, color = Muted, fontSize = 11.sp)
+                    }
+                }
+                errorMessage?.let { Text(it, color = Color(0xFFFF7A7A), fontSize = 11.sp, lineHeight = 17.sp) }
+            }
+        },
+        confirmButton = {
+            ClubPrimaryButton(text = actionLabel, enabled = canContinue && !isSubmitting && (step != 3 || availableCompetitions.isNotEmpty()), loading = isSubmitting, modifier = Modifier.width(190.dp), onClick = {
+                if (step < 4) { step += 1; return@ClubPrimaryButton }
+                val localDateTime = java.time.LocalDateTime.parse("$date" + "T" + time)
+                val matchInstant = localDateTime.atZone(java.time.ZoneId.of("Africa/Algiers")).toInstant().toString()
+                val payload = org.json.JSONObject().put("competitionId", competitionId).put("teamId", teamId)
+                    .put("opponent", opponent.trim()).put("opponentNameFr", opponentFr.trim()).put("isHomeFixture", isHome)
+                    .put("matchDate", matchInstant).put("stadium", stadium.trim()).put("status", "SCHEDULED")
+                onSubmit(payload)
+            })
+        },
+        dismissButton = {
+            TextButton(enabled = !isSubmitting, onClick = { if (step > 1) step -= 1 else onDismiss() }) {
+                Text(if (step > 1) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
+            }
+        }
+    )
+}
 
 @Composable
 private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: List<NativeCoach>, teamScopeRestricted: Boolean, locale: String, isSubmitting: Boolean, errorMessage: String?, onDismiss: () -> Unit, onSubmit: (org.json.JSONObject) -> Unit) {

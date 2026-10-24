@@ -42,7 +42,7 @@ data class NativeMeeting(val id: String, val title: String, val date: String, va
 data class NativeCalendarItem(val id: String, val type: String, val title: String, val startDateTime: String, val endDateTime: String, val location: String?, val team: String?, val isHomeFixture: Boolean? = null, val opponentLogo: String? = null)
 data class NativeAlert(val id: String, val title: String, val message: String?, val read: Boolean, val kind: String = "MATCH")
 data class NativeStanding(val id: String, val rank: Int, val teamName: String, val teamLogo: String?, val isOurClub: Boolean, val played: Int, val won: Int, val drawn: Int, val lost: Int, val goalsFor: Int, val goalsAgainst: Int, val goalDifference: Int, val points: Int, val form: List<String>)
-data class NativeCompetition(val id: String, val name: String, val type: String, val logoUrl: String?, val organization: String?, val seasonLabel: String, val category: String, val categoryLabel: String, val standings: List<NativeStanding>, val canManage: Boolean)
+data class NativeCompetition(val id: String, val name: String, val type: String, val logoUrl: String?, val organization: String?, val seasonLabel: String, val category: String, val categoryLabel: String, val standings: List<NativeStanding>, val canManage: Boolean, val teamId: String? = null)
 data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
 data class NativePlayerPerformance(
@@ -56,7 +56,7 @@ data class NativePlayerPerformance(
 )
 data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
 data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
-data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val competitions: Boolean, val manageCompetitions: Boolean, val teamScopeRestricted: Boolean)
+data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val createMatches: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val competitions: Boolean, val manageCompetitions: Boolean, val teamScopeRestricted: Boolean)
 data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser, val clubLogoUrl: String? = null)
 data class NativeUser(
     val id: String,
@@ -233,15 +233,19 @@ object NativeApi {
             val standings = item.optJSONArray("standings")?.objects()?.map { row ->
                 NativeStanding(row.optString("id"), row.optInt("rank"), row.optString("teamName"), row.optNullableString("teamLogo"), row.optBoolean("isOurClub"), row.optInt("played"), row.optInt("won"), row.optInt("drawn"), row.optInt("lost"), row.optInt("goalsFor"), row.optInt("goalsAgainst"), row.optInt("goalDifference"), row.optInt("points"), row.optJSONArray("form")?.let { form -> (0 until form.length()).map { form.optString(it) } }.orEmpty())
             }.orEmpty()
-            NativeCompetition(item.optString("id"), item.optString("name"), item.optString("type"), item.optNullableString("logoUrl"), item.optNullableString("organization"), item.optString("seasonLabel"), item.optString("category"), item.optString("categoryLabel"), standings, item.optBoolean("canManage"))
+            NativeCompetition(item.optString("id"), item.optString("name"), item.optString("type"), item.optNullableString("logoUrl"), item.optNullableString("organization"), item.optString("seasonLabel"), item.optString("category"), item.optString("categoryLabel"), standings, item.optBoolean("canManage"), item.optNullableString("teamId"))
         }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user, json.optNullableString("clubLogoUrl"))
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("createMatches"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user, json.optNullableString("clubLogoUrl"))
     }
 
     fun createContent(token: String, payload: JSONObject) {
         request("/api/mobile/content", token, payload.toString(), "POST")
+    }
+
+    fun createMatch(token: String, payload: JSONObject): String {
+        return JSONObject(request("/api/mobile/matches", token, payload.toString(), "POST")).getString("id")
     }
 
     fun uploadNewsImage(context: Context, token: String, uri: Uri): String {
@@ -588,5 +592,5 @@ object NativeApi {
         user.optNullableString("season"), user.optNullableString("licenseRole"), user.optNullableString("roleKey"),
         user.optNullableString("firstNameFr"), user.optNullableString("lastNameFr")
     )
-    private class ApiFailure(val code: String, val statusCode: Int? = null) : Exception(code)
+    class ApiFailure(val code: String, val statusCode: Int? = null) : Exception(code)
 }
