@@ -175,6 +175,12 @@ export function MatchLineupWorkspace({
       toast.error(isAr ? "لا يمكن أن يتجاوز التشكيل الأساسي 11 لاعباً." : "L’équipe titulaire ne peut pas dépasser 11 joueurs.");
       return;
     }
+    if (selectionStatus === "STARTING" && player.position === "GOALKEEPER" && entries.some((entry) =>
+      entry.playerId !== playerId && entry.selectionStatus === "STARTING" && playerById.get(entry.playerId)?.position === "GOALKEEPER"
+    )) {
+      toast.error(isAr ? "لا يمكن اختيار أكثر من حارس مرمى واحد في التشكيلة الأساسية." : "Un seul gardien peut être titulaire.");
+      return;
+    }
 
     const nextEntry: LineupEntry = {
       playerId,
@@ -204,6 +210,8 @@ export function MatchLineupWorkspace({
       const reason = error instanceof Error ? error.message : "";
       toast.error(reason === "lineupStartingLimit"
         ? (isAr ? "اكتمل الحد الأقصى للتشكيل الأساسي: 11 لاعباً." : "Le maximum de 11 titulaires est atteint.")
+        : reason === "lineupGoalkeeperLimit"
+          ? (isAr ? "لا يمكن اختيار أكثر من حارس مرمى واحد في التشكيلة الأساسية." : "Un seul gardien peut être titulaire.")
         : reason === "lineupPlayerInjured"
           ? (isAr ? "اللاعب مصاب ويجب أن يبقى في قائمة المصابين." : "Ce joueur est blessé et doit rester dans la liste des blessés.")
         : reason === "lineupPlayerSuspended"

@@ -26,10 +26,11 @@ export type MatchSheetLineupResult = {
 function normalize(value: string): string {
   return value.toLocaleLowerCase("ar")
     .normalize("NFKD")
-    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/\p{M}/gu, "")
     .replace(/[أإآ]/g, "ا")
     .replace(/ة/g, "ه")
     .replace(/ى/g, "ي")
+    .replace(/ç/g, "c")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
@@ -37,7 +38,7 @@ function normalize(value: string): string {
 const STARTING = /اساسي|التشكيل الاساسي|التشكيله الاساسيه|starting|titulaires?|onze de depart/;
 const SUBSTITUTE = /احتياط|بديل|بدلاء|دكه|substitut|remplacant|banc/;
 
-const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة/;
+const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|absents?|absences?|non convoqu|indisponibles?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|اهداف|أهداف|احداث|أحداث|غيابات|غائب|غير مستدعى|مصاب|نتيجه|نتيجة/;
 
 function playerMatchesLine(line: string, player: SheetPlayer): boolean {
   const tokens = new Set(line.split(/\s+/u).filter(Boolean));
@@ -111,10 +112,9 @@ function detectOfficialShirtNumbers(text: string, players: SheetPlayer[]): Map<s
 
 /**
  * Apply the official FAF match sheet as the source of who was called up.
- * Only confidently recognized players are changed; partial/OCR-derived pages
- * must not turn the rest of the roster into NOT_CALLED.
- * Existing manually recorded injuries are retained; previous-match red cards
- * in this competition take precedence over the sheet and become SUSPENDED.
+ * A sufficiently recognized sheet is authoritative: listed players become
+ * starters/substitutes and everyone else becomes NOT_CALLED. Existing manual
+ * injuries are retained; prior-match red cards take precedence as SUSPENDED.
  */
 export async function applyMatchSheetLineup(
   matchId: string,
@@ -138,14 +138,7 @@ export async function applyMatchSheetLineup(
   const officialCaptainId = detectOfficialCaptain(text, players);
   if (officialCaptainId && detected.has(officialCaptainId)) detected.set(officialCaptainId, "STARTING");
   const officialShirtNumbers = detectOfficialShirtNumbers(text, players);
-  const starters = [...detected.values()].filter((status) => status === "STARTING").length;
-  const substitutes = [...detected.values()].filter((status) => status === "SUBSTITUTE").length;
-  // Prevent OCR noise or an unrelated page from clearing a previously entered lineup.
-  if (starters < 7) {
-    return { applied: false, starters, substitutes, notCalled: 0, injured: 0, suspended: 0, reason: "insufficient_recognition" };
-  }
 
-  const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true, isCaptain: true } });
   const previousMatch = match.competitionId
     ? await db.match.findFirst({
         where: { teamId, competitionId: match.competitionId, status: "FINISHED", matchDate: { lt: match.matchDate } },
@@ -154,6 +147,32 @@ export async function applyMatchSheetLineup(
       })
     : null;
   const suspendedIds = new Set(previousMatch?.events.flatMap((event) => event.playerId ? [event.playerId] : []) ?? []);
+
+  // Reject impossible starter groups caused by OCR/table-column confusion.
+  // Keep the order in which names were read from the official sheet.
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  let starterCount = 0;
+  let goalkeeperCount = 0;
+  for (const [playerId, detectedStatus] of detected) {
+    if (detectedStatus !== "STARTING") continue;
+    const player = playerById.get(playerId);
+    const extraGoalkeeper = player?.position === "GOALKEEPER" && goalkeeperCount > 0;
+    if (starterCount >= 11 || extraGoalkeeper) {
+      detected.set(playerId, "SUBSTITUTE");
+      continue;
+    }
+    starterCount++;
+    if (player?.position === "GOALKEEPER") goalkeeperCount++;
+  }
+
+  const starters = [...detected.values()].filter((status) => status === "STARTING").length;
+  const substitutes = [...detected.values()].filter((status) => status === "SUBSTITUTE").length;
+  // Prevent OCR noise or an unrelated page from clearing a previously entered lineup.
+  if (starters < 7) {
+    return { applied: false, starters, substitutes, notCalled: 0, injured: 0, suspended: 0, reason: "insufficient_recognition" };
+  }
+
+  const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true, isCaptain: true } });
   const existingById = new Map(existingLineups.map((entry) => [entry.playerId, entry]));
   const counts = { STARTING: 0, SUBSTITUTE: 0, NOT_CALLED: 0, INJURED: 0, SUSPENDED: 0 };
 
@@ -165,28 +184,23 @@ export async function applyMatchSheetLineup(
       const detectedStatus = detected.get(player.id);
       const existing = existingById.get(player.id);
       const existingStatus = existing?.selectionStatus;
-      // The recognized sheet is authoritative for starters and substitutes.
-      // Remove stale lineup rows from earlier broad OCR passes, but retain
-      // explicit injury/suspension states that are not listed on this sheet.
+      // Keep injuries selected manually. Everyone else absent from a valid
+      // sheet is explicitly stored as NOT_CALLED instead of being omitted.
       if (!detectedStatus) {
-        const preservedStatus = suspendedIds.has(player.id) || existingStatus === "SUSPENDED"
+        const preservedStatus = suspendedIds.has(player.id)
           ? "SUSPENDED"
-          : existingStatus === "INJURED" ? "INJURED" : null;
-        if (!preservedStatus) {
-          if (existing) await tx.matchLineup.delete({ where: { matchId_playerId: { matchId, playerId: player.id } } });
-          continue;
-        }
+          : existingStatus === "INJURED" ? "INJURED" : "NOT_CALLED";
         counts[preservedStatus]++;
         await tx.matchLineup.upsert({
           where: { matchId_playerId: { matchId, playerId: player.id } },
           create: { matchId, playerId: player.id, isStarting: false, isCaptain: false, selectionStatus: preservedStatus, position: player.position },
-          update: { isStarting: false, isCaptain: false, selectionStatus: preservedStatus }
+          update: { isStarting: false, isCaptain: false, selectionStatus: preservedStatus, position: player.position }
         });
         continue;
       }
       const selectionStatus = suspendedIds.has(player.id)
         ? "SUSPENDED"
-        : detectedStatus;
+        : existingStatus === "INJURED" ? "INJURED" : detectedStatus;
       const isStarting = selectionStatus === "STARTING";
       counts[selectionStatus as keyof typeof counts]++;
       await tx.matchLineup.upsert({
