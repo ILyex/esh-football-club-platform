@@ -76,6 +76,7 @@ export function MatchLineupWorkspace({
   canEdit,
   saveEntry,
   removeEntry,
+  swapPositions,
   fetchFafLineup,
   syncAutomaticSuspensions
 }: {
@@ -87,6 +88,7 @@ export function MatchLineupWorkspace({
   canEdit: boolean;
   saveEntry: (formData: FormData) => Promise<unknown>;
   removeEntry: (playerId: string) => Promise<void>;
+  swapPositions: (playerId: string, targetPlayerId: string, position: string, targetPosition: string) => Promise<void>;
   fetchFafLineup?: ReactNode;
   syncAutomaticSuspensions: () => Promise<string[]>;
 }) {
@@ -176,9 +178,9 @@ export function MatchLineupWorkspace({
       return;
     }
     const nextPosition = positionOverride || current?.position || player.position;
-    if (selectionStatus === "STARTING" && nextPosition.toUpperCase() === "GOALKEEPER" && entries.some((entry) =>
+    if (selectionStatus === "STARTING" && nextPosition.toUpperCase().split(":", 1)[0] === "GOALKEEPER" && entries.some((entry) =>
       entry.playerId !== playerId && entry.selectionStatus === "STARTING" &&
-      (entry.position || playerById.get(entry.playerId)?.position)?.toUpperCase() === "GOALKEEPER"
+      (entry.position || playerById.get(entry.playerId)?.position)?.toUpperCase().split(":", 1)[0] === "GOALKEEPER"
     )) {
       toast.error(isAr ? "لا يمكن اختيار أكثر من حارس مرمى واحد في التشكيلة الأساسية." : "Un seul gardien peut être titulaire.");
       return;
@@ -219,6 +221,31 @@ export function MatchLineupWorkspace({
         : reason === "lineupPlayerSuspended"
           ? (isAr ? "هذا اللاعب موقوف بسبب بطاقة حمراء في المباراة السابقة من البطولة." : "Ce joueur est suspendu après un carton rouge au match précédent de la compétition.")
           : (isAr ? "تعذر تحديث التشكيلة. حاول مرة أخرى." : "Impossible de mettre à jour la composition. Réessayez."));
+    } finally {
+      setSavingPlayerId(null);
+    }
+  };
+
+  const swapStartingPlayers = async (playerId: string, targetPlayerId: string, position: string, targetPosition: string) => {
+    if (!canEdit || savingPlayerId || playerId === targetPlayerId) return;
+    const source = entryById.get(playerId);
+    const target = entryById.get(targetPlayerId);
+    if (source?.selectionStatus !== "STARTING" || target?.selectionStatus !== "STARTING") return;
+    const previousEntries = entries;
+    setEntries((currentEntries) => currentEntries.map((entry) =>
+      entry.playerId === playerId ? { ...entry, position: targetPosition }
+        : entry.playerId === targetPlayerId ? { ...entry, position }
+          : entry
+    ));
+    setSelectedPlayerId(null);
+    setSavingPlayerId(playerId);
+    try {
+      await swapPositions(playerId, targetPlayerId, position, targetPosition);
+      router.refresh();
+    } catch (error) {
+      setEntries(previousEntries);
+      console.error("Match lineup position swap failed:", error);
+      toast.error(isAr ? "تعذر تبديل مركزي اللاعبين. حاول مرة أخرى." : "Impossible d’échanger les postes. Réessayez.");
     } finally {
       setSavingPlayerId(null);
     }
@@ -510,6 +537,7 @@ export function MatchLineupWorkspace({
             selectedPlayerId={selectedPlayerId}
             onDropPlayer={(playerId) => void persistStatus(playerId, "STARTING")}
             onAssignPosition={(playerId, position) => void persistStatus(playerId, "STARTING", position)}
+            onSwapPlayers={(playerId, targetPlayerId, position, targetPosition) => void swapStartingPlayers(playerId, targetPlayerId, position, targetPosition)}
             onClickField={() => { if (selectedPlayerId) void persistStatus(selectedPlayerId, "STARTING"); }}
             onDragStartPlayer={(playerId, event) => { event.dataTransfer.setData("text/plain", playerId); event.dataTransfer.effectAllowed = "move"; }}
             onClickPlayer={(playerId) => setSelectedPlayerId(playerId)}

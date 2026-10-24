@@ -11,6 +11,7 @@ import {
   updateMatchEventAction,
   deleteMatchEventAction,
   upsertLineupEntryAction,
+  swapMatchLineupPositionsAction,
   removeLineupEntryAction,
   attachMatchSheetAction,
   addShootoutKickAction,
@@ -166,6 +167,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
   async function removeLineupPlayer(playerId: string) {
     "use server";
     await removeLineupEntryAction(id, playerId);
+  }
+  async function swapLineupPositions(playerId: string, targetPlayerId: string, position: string, targetPosition: string) {
+    "use server";
+    await swapMatchLineupPositionsAction(id, playerId, targetPlayerId, position, targetPosition);
   }
   async function syncLineupSuspensions() {
     "use server";
@@ -532,6 +537,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           fetchFafLineup={canManageLineup ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
           saveEntry={addLineupEntry}
           removeEntry={removeLineupPlayer}
+          swapPositions={swapLineupPositions}
           syncAutomaticSuspensions={syncLineupSuspensions}
         />
 

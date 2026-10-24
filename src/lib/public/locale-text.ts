@@ -148,7 +148,7 @@ export function frenchPublicPersonName(person: {
 /** Translate position categories and common football role abbreviations. */
 export function localizedFootballPosition(value: string | null | undefined, locale: string): string {
   if (!value) return "";
-  const normalized = value.trim().toUpperCase();
+  const normalized = value.trim().toUpperCase().split(":", 1)[0] || "";
   const labels: Record<string, { ar: string; fr: string }> = {
     GOALKEEPER: { ar: "حارس المرمى", fr: "Gardien" },
     DEFENDER: { ar: "مدافع", fr: "Défenseur" },

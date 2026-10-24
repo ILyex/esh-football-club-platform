@@ -1028,7 +1028,7 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
       where: { matchId, selectionStatus: "STARTING", playerId: { not: parsed.playerId } }
     });
     if (currentStarters >= 11) throw new Error("lineupStartingLimit");
-    if ((parsed.position || player.position).toUpperCase() === "GOALKEEPER") {
+    if ((parsed.position || player.position).toUpperCase().split(":", 1)[0] === "GOALKEEPER") {
       const otherStartingGoalkeepers = await db.matchLineup.count({
         where: {
           matchId,
@@ -1036,6 +1036,7 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
           playerId: { not: parsed.playerId },
           OR: [
             { position: { in: ["GOALKEEPER", "GK"] } },
+            { position: { startsWith: "GOALKEEPER:" } },
             { position: null, player: { is: { position: "GOALKEEPER" } } }
           ]
         }
@@ -1068,6 +1069,54 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
       changes: { after: parsed }
     }, tx);
   });
+  revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
+  revalidatePath(`/[locale]/matches/${matchId}`, "page");
+}
+
+export async function swapMatchLineupPositionsAction(
+  matchId: string,
+  playerId: string,
+  targetPlayerId: string,
+  position: string,
+  targetPosition: string
+) {
+  const user = await requirePermission("matches.report");
+  const scopeContext = await getMutationScopeContext();
+  const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  assertTeamScope(scopeContext, match.teamId, "Match");
+  if (match.status !== "LIVE" && match.status !== "SCHEDULED") throw new Error("lineupNotAvailable");
+  if (playerId === targetPlayerId) throw new Error("invalidLineupPositionSwap");
+
+  const validSlot = (value: string) => {
+    const matchValue = /^(GOALKEEPER|DEFENDER|MIDFIELDER|FORWARD):(\d+)$/.exec(value);
+    if (!matchValue) return false;
+    const [, group, rawIndex] = matchValue;
+    const index = Number(rawIndex);
+    const limit = group === "GOALKEEPER" ? 1 : group === "DEFENDER" ? 4 : 3;
+    return Number.isInteger(index) && index >= 0 && index < limit;
+  };
+  if (!validSlot(position) || !validSlot(targetPosition)) throw new Error("invalidLineupPositionSwap");
+
+  const [source, target] = await Promise.all([
+    db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId } } }),
+    db.matchLineup.findUnique({ where: { matchId_playerId: { matchId, playerId: targetPlayerId } } })
+  ]);
+  if (!source || !target || source.selectionStatus !== "STARTING" || target.selectionStatus !== "STARTING") {
+    throw new Error("invalidLineupPositionSwap");
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.matchLineup.update({ where: { matchId_playerId: { matchId, playerId } }, data: { position: targetPosition } });
+    await tx.matchLineup.update({ where: { matchId_playerId: { matchId, playerId: targetPlayerId } }, data: { position } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "match.lineup.position.swap",
+      entityType: "MatchLineup",
+      entityId: `${matchId}:${playerId}:${targetPlayerId}`,
+      changes: { before: { [playerId]: source.position, [targetPlayerId]: target.position }, after: { [playerId]: targetPosition, [targetPlayerId]: position } }
+    }, tx);
+  });
+
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
   revalidatePath(`/[locale]/matches/${matchId}`, "page");
 }

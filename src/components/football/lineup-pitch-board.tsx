@@ -23,7 +23,8 @@ interface TacticalPitchProps {
   locale?: string;
   editable?: boolean;
   onDropPlayer?: (playerId: string) => void;
-  onAssignPosition?: (playerId: string, position: PositionGroup) => void;
+  onAssignPosition?: (playerId: string, position: string) => void;
+  onSwapPlayers?: (playerId: string, targetPlayerId: string, position: string, targetPosition: string) => void;
   onClickField?: () => void;
   onDragStartPlayer?: (playerId: string, event: DragEvent<HTMLButtonElement>) => void;
   onClickPlayer?: (playerId: string) => void;
@@ -39,6 +40,8 @@ const GROUP_Y: Record<PositionGroup, number> = { GOALKEEPER: 16, DEFENDER: 37, M
 
 function positionGroup(position?: string | null): PositionGroup | null {
   const value = (position || "").toUpperCase().trim();
+  const baseValue = value.split(":", 1)[0] || value;
+  if (baseValue === "GOALKEEPER" || baseValue === "DEFENDER" || baseValue === "MIDFIELDER" || baseValue === "FORWARD") return baseValue;
   if (["GOALKEEPER", "GK", "G"].includes(value) || value.includes("حارس") || value.includes("GARDIEN")) return "GOALKEEPER";
   if (["DEFENDER", "DF", "DEFENSEUR"].includes(value) || value.includes("مدافع") || value.includes("دفاع")) return "DEFENDER";
   if (["MIDFIELDER", "MF", "MILIEU"].includes(value) || value.includes("وسط") || value.includes("MILIEU")) return "MIDFIELDER";
@@ -54,6 +57,11 @@ function fallbackGroup(index: number): PositionGroup {
   if (index <= 4) return "DEFENDER";
   if (index <= 7) return "MIDFIELDER";
   return "FORWARD";
+}
+
+function storedSlotIndex(position?: string | null): number | null {
+  const match = position?.match(/^(?:GOALKEEPER|DEFENDER|MIDFIELDER|FORWARD):(\d+)$/i);
+  return match ? Number(match[1]) : null;
 }
 
 function slotXPositions(count: number, group: PositionGroup): number[] {
@@ -80,6 +88,7 @@ export function TacticalPitch({
   editable = false,
   onDropPlayer,
   onAssignPosition,
+  onSwapPlayers,
   onClickField,
   onDragStartPlayer,
   onClickPlayer,
@@ -90,6 +99,9 @@ export function TacticalPitch({
   const groups = useMemo(() => {
     const grouped: Record<PositionGroup, PitchPlayer[]> = { GOALKEEPER: [], DEFENDER: [], MIDFIELDER: [], FORWARD: [] };
     startingLineup.slice(0, 11).forEach((player, index) => grouped[positionGroup(player.position) ?? fallbackGroup(index)].push(player));
+    for (const group of POSITION_GROUPS) {
+      grouped[group].sort((a, b) => (storedSlotIndex(a.position) ?? Number.MAX_SAFE_INTEGER) - (storedSlotIndex(b.position) ?? Number.MAX_SAFE_INTEGER));
+    }
     const overflow: PitchPlayer[] = [];
     for (const group of POSITION_GROUPS) {
       if (grouped[group].length > DEFAULT_SLOT_COUNT[group]) {
@@ -109,6 +121,7 @@ export function TacticalPitch({
     const slotCount = editable ? DEFAULT_SLOT_COUNT[group] : Math.min(DEFAULT_SLOT_COUNT[group], groupPlayers.length);
     return Array.from({ length: slotCount }, (_, index) => ({
       group,
+      slotIndex: index,
       player: groupPlayers[index] ?? null,
       x: slotXPositions(slotCount, group)[index] ?? 50,
       y: GROUP_Y[group]
@@ -158,7 +171,7 @@ export function TacticalPitch({
       </div>
 
       <div className="absolute inset-0 z-20">
-        {slots.map(({ group, player, x, y }, index) => {
+        {slots.map(({ group, slotIndex, player, x, y }) => {
           if (!player && !editable) return null;
           const displayName = player
             ? locale === "fr"
@@ -190,7 +203,14 @@ export function TacticalPitch({
             event.preventDefault();
             event.stopPropagation();
             const playerId = event.dataTransfer.getData("text/plain");
-            if (playerId) onAssignPosition?.(playerId, group);
+            if (!playerId) return;
+            const targetPosition = `${group}:${slotIndex}`;
+            const sourceSlot = slots.find((slot) => slot.player?.playerId === playerId);
+            if (player && player.playerId !== playerId && sourceSlot) {
+              onSwapPlayers?.(playerId, player.playerId, `${sourceSlot.group}:${sourceSlot.slotIndex}`, targetPosition);
+            } else {
+              onAssignPosition?.(playerId, targetPosition);
+            }
           } : undefined;
           const onSlotDragOver = editable ? (event: DragEvent<HTMLButtonElement>) => {
             event.preventDefault();
@@ -204,17 +224,24 @@ export function TacticalPitch({
             onDragStart={editable ? (event) => onDragStartPlayer?.(player.playerId, event) : undefined}
             onDragOver={onSlotDragOver}
             onDrop={onSlotDrop}
-            onClick={editable ? (event) => { event.stopPropagation(); if (selectedPlayerId) onAssignPosition?.(selectedPlayerId, group); else onClickPlayer?.(player.playerId); } : undefined}
+            onClick={editable ? (event) => {
+              event.stopPropagation();
+              if (!selectedPlayerId) { onClickPlayer?.(player.playerId); return; }
+              if (selectedPlayerId === player.playerId) return;
+              const sourceSlot = slots.find((slot) => slot.player?.playerId === selectedPlayerId);
+              if (sourceSlot) onSwapPlayers?.(selectedPlayerId, player.playerId, `${sourceSlot.group}:${sourceSlot.slotIndex}`, `${group}:${slotIndex}`);
+              else onAssignPosition?.(selectedPlayerId, `${group}:${slotIndex}`);
+            } : undefined}
             className={nodeClass}
             style={style}
             aria-label={ariaLabel}
             title={ariaLabel}
           >{contents}</button> : <button
-            key={`${group}-empty-${index}`}
+            key={`${group}-empty-${slotIndex}`}
             type="button"
             onDragOver={onSlotDragOver}
             onDrop={onSlotDrop}
-            onClick={(event) => { event.stopPropagation(); if (selectedPlayerId) onAssignPosition?.(selectedPlayerId, group); else onClickField?.(); }}
+            onClick={(event) => { event.stopPropagation(); if (selectedPlayerId) onAssignPosition?.(selectedPlayerId, `${group}:${slotIndex}`); else onClickField?.(); }}
             className={nodeClass}
             style={style}
             aria-label={ariaLabel}
