@@ -959,6 +959,18 @@ model NativePushDevice {
   @@index([userId])
 }
 
+/// FCM registration for the public supporter app. Kept separate from the
+/// administrator device table so the two apps never share account state.
+model PublicAppDevice {
+  id        String   @id @default(cuid())
+  fcmToken  String   @unique @db.VarChar(512)
+  locale    String   @default("ar") @db.VarChar(5)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 /// Revocable, short-lived bearer sessions used only by the standalone Android client.
 model NativeSession {
   id        String    @id @default(cuid())

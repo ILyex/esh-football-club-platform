@@ -5,7 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope } from "@/lib/authz/policy";
 import { getMatchDisplayNames } from "@/lib/matches/team-names";
 import { frenchCompetitionName } from "@/lib/public/locale-text";
-import { findOpponentLogo, getOpponentsMap } from "@/lib/opponents";
+import { findOpponentLogo, getAllOpponentsList, getOpponentsMap } from "@/lib/opponents";
 import { getCompetitionDisplayData, OFFICIAL_CATEGORY_NAMES } from "@/lib/competitions";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
 import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
@@ -71,11 +71,11 @@ export async function GET(request: Request) {
     canViewMeetings ? db.meetingMinute.findMany({
       where: teamWhere,
       include: { team: { select: { name: true } }, responsiblePerson: { select: { name: true } } },
-      orderBy: { date: "desc" }, take: 50
+      orderBy: { date: "desc" }, take: summary ? 6 : 50
     }) : Promise.resolve([]),
     (canViewMeetings || canManageCalendar) ? db.calendarEvent.findMany({
       where: { ...meetingScopeWhere, type: "MEETING", endDateTime: { gte: new Date() } },
-      include: { team: { select: { name: true } }, meetingMinute: { select: { id: true } } }, orderBy: { startDateTime: "asc" }, take: 25
+      include: { team: { select: { name: true } }, meetingMinute: { select: { id: true } } }, orderBy: { startDateTime: "asc" }, take: summary ? 6 : 25
     }) : Promise.resolve([]),
     calendarTypes.length ? db.calendarEvent.findMany({
       where: {
@@ -88,9 +88,9 @@ export async function GET(request: Request) {
         relatedMatch: { select: { homeTeamName: true, awayTeamName: true, isHomeFixture: true } }
       },
       orderBy: { startDateTime: "asc" },
-      take: 120
+      take: summary ? 18 : 120
     }) : Promise.resolve([]),
-    db.notification.findMany({ where: { userId: user.id, type: { in: ["UPCOMING_MATCH", "UPCOMING_TRAINING", "NEW_ANNOUNCEMENT"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
+    db.notification.findMany({ where: { userId: user.id, type: { in: ["UPCOMING_MATCH", "UPCOMING_TRAINING", "NEW_ANNOUNCEMENT"] } }, orderBy: { createdAt: "desc" }, take: summary ? 8 : 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
     (canManageTraining || canManageAnnouncements || canScheduleMeetings || canCreateMatches) ? db.team.findMany({ where: { active: true, ...(scope.restricted ? { id: { in: [...scope.teamIds] } } : {}) }, orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }) : Promise.resolve([]),
     canManageTraining ? db.staff.findMany({
       where: {
@@ -125,6 +125,12 @@ export async function GET(request: Request) {
     user: { id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, firstNameFr: user.firstNameFr, lastNameFr: user.lastNameFr, dateOfBirth: user.dateOfBirth?.toISOString() ?? null, bloodGroup: user.bloodGroup, email: user.email, image: mediaUrl(user.image), licenseNumber: user.licenseNumber, licenseRole: user.licenseRole, roleKey: user.roleKey, roleName: user.roleName, season: currentSeason?.label ?? null },
     permissions: { matches: canViewMatches, createMatches: canCreateMatches, updateMatches: canUpdateMatches, reportMatches: canReportMatches, meetings: canViewMeetings, manageMeetings: canManageMeetings, scheduleMeetings: canScheduleMeetings, calendar: canManageCalendar, training: canManageTraining, news: canCreateNews, announcements: canManageAnnouncements, competitions: canViewCompetitions, manageCompetitions: canManageCompetitions, playerStats: hasPermission(user, "player.stats.view") || user.roleKey === "developer" || user.roleKey === "super_admin", teamScopeRestricted: scope.restricted },
     teams,
+    opponents: canCreateMatches ? (await getAllOpponentsList()).map((opponent) => ({
+      name: opponent.name,
+      logoUrl: mediaUrl(opponent.logoUrl),
+      stadium: opponent.stadium ?? null,
+      aliases: opponent.aliases ?? []
+    })) : [],
     coaches: coaches.map((coach) => ({
       id: coach.id,
       name: locale === "fr"
@@ -207,7 +213,10 @@ export async function GET(request: Request) {
     competitions: await Promise.all(competitions.map(async (competition) => {
       const category = competition.team?.category || "";
       const display = canViewCompetitions ? getCompetitionDisplayData(competition.standingsData, competition.bracketData) : null;
-      const standings = display ? await getLiveCompetitionStandings(competition.id, display.standings) : [];
+      // The home dashboard only needs competition labels and metadata. Live
+      // standings fan out into extra database queries for every competition;
+      // defer that work until a user opens the competitions area.
+      const standings = display && !summary ? await getLiveCompetitionStandings(competition.id, display.standings) : [];
       return {
         id: competition.id,
         teamId: competition.team?.id ?? null,
@@ -222,7 +231,7 @@ export async function GET(request: Request) {
         // The platform's standings resolver remains the source of truth for
         // opponent and club crests; this only makes those assets portable in-app.
         standings: standings.map((row) => ({ ...row, teamLogo: mediaUrl(row.teamLogo) })),
-        bracket: display?.bracket ?? { rounds: [] },
+        bracket: summary ? { rounds: [] } : display?.bracket ?? { rounds: [] },
         canManage: canManageCompetitions
       };
     }))

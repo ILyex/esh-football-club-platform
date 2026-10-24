@@ -49,6 +49,9 @@ export async function POST(request: Request) {
         isHomeFixture: parsed.data.isHomeFixture,
         matchDate: parsed.data.matchDate,
         stadium,
+        refereeName: parsed.data.refereeNameAr || parsed.data.refereeName || parsed.data.refereeNameFr,
+        refereeNameAr: parsed.data.refereeNameAr,
+        refereeNameFr: parsed.data.refereeNameFr,
         status: "SCHEDULED",
         hasExtraTime: false,
         hasPenaltyShootout: false

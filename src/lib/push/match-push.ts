@@ -190,9 +190,10 @@ export async function sha256Hex(value: string): Promise<string> {
 }
 
 export async function fanoutMatchPush(outboxId: string): Promise<void> {
-  const [outbox, env] = await Promise.all([
+  const [outbox, env, publicDevices] = await Promise.all([
     db.matchPushOutbox.findUnique({ where: { id: outboxId }, select: { id: true, kind: true, payload: true, processedAt: true } }),
-    getPushRuntimeEnv()
+    getPushRuntimeEnv(),
+    db.publicAppDevice.findMany({ select: { fcmToken: true, locale: true } })
   ]);
   if (!outbox || outbox.processedAt) return;
   const payload = outbox.payload as { category?: string; teamId?: string };
@@ -234,7 +235,10 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     if (!canAccessTeam) return [];
     const localized = buildNotification(outbox, device.locale);
     return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind }];
-  });
+  }).concat(publicDevices.map((device) => {
+    const localized = buildNotification(outbox, device.locale);
+    return { token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind };
+  }));
   if (nativeMessages.length) {
     const nativeResult = await sendNativePush(nativeMessages);
     if (!nativeResult.configured) {

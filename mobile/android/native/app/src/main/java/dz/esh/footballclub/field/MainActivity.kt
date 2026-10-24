@@ -21,7 +21,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -598,7 +597,7 @@ private fun MatchdayApp() {
     LaunchedEffect(token, locale, refreshNonce) {
         val activeToken = token ?: return@LaunchedEffect
         val requestLocale = locale
-        val requestSummary = section != Section.MATCHES
+        val requestSummary = section != Section.MATCHES && section != Section.COMPETITIONS
         loading = data == null
         if (data == null) connectionError = null
         val result = runCatching {
@@ -634,7 +633,7 @@ private fun MatchdayApp() {
         val activeToken = token ?: return@LaunchedEffect
         val requestLocale = locale
         val result = runCatching {
-            withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale, summary = true) }
+            withContext(Dispatchers.IO) { NativeApi.data(activeToken, requestLocale) }
         }
         if (token == activeToken && locale == requestLocale && section == Section.COMPETITIONS) {
             result.onSuccess { payload ->
@@ -885,7 +884,7 @@ private fun MatchdayApp() {
         }
         if (matchWizardOpen) {
             NativeMatchWizard(
-                teams = data?.teams.orEmpty(), competitions = data?.competitions.orEmpty(), locale = locale,
+                teams = data?.teams.orEmpty(), competitions = data?.competitions.orEmpty(), savedOpponents = data?.opponents.orEmpty(), locale = locale,
                 isSubmitting = matchCreating, errorMessage = matchWizardError,
                 onDismiss = { if (!matchCreating) { matchWizardOpen = false; matchWizardError = null } },
                 onSubmit = { payload ->
@@ -895,6 +894,12 @@ private fun MatchdayApp() {
                         matchCreating = true
                         val result = runCatching {
                             withContext(Dispatchers.IO) {
+                                val logoUri = payload.optString("opponentLogoUri").takeIf { it.isNotBlank() }
+                                payload.remove("opponentLogoUri")
+                                if (logoUri != null) {
+                                    val opponentStadium = if (payload.optBoolean("isHomeFixture")) "" else payload.optString("stadium")
+                                    NativeApi.uploadOpponentLogo(context, activeToken, Uri.parse(logoUri), payload.optString("opponent"), payload.optString("opponentNameFr"), opponentStadium)
+                                }
                                 NativeApi.createMatch(activeToken, payload)
                                 NativeApi.data(activeToken, locale)
                             }
@@ -1681,12 +1686,6 @@ private fun CompactMetric(icon: Int, value: String, label: String) {
 private fun DigitalAdminCard(user: NativeUser, locale: String) {
     var flipped by remember(user.id) { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (flipped) 180f else 0f, tween(720), label = "license-card-flip")
-    val sweep = remember(user.id) { Animatable(-1.35f) }
-    LaunchedEffect(user.id) {
-        sweep.snapTo(-1.35f)
-        // A slow, single pass keeps the physical-card details readable.
-        sweep.animateTo(1.45f, animationSpec = tween(durationMillis = 2800))
-    }
     val embeddedImage by produceState<ImageBitmap?>(initialValue = null, user.image) {
         value = withContext(Dispatchers.IO) {
             runCatching {
@@ -1744,7 +1743,9 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                 } else {
             val fontScale = (cardWidth / 360.dp).coerceIn(.82f, 1.16f)
             Canvas(Modifier.fillMaxSize()) {
-                val pitch = 4.dp.toPx()
+                // The old 4dp x 2dp grid built tens of thousands of path
+                // segments whenever this card was drawn. Use a lighter grid.
+                val pitch = 10.dp.toPx()
                 val amplitude = 2.2.dp.toPx()
                 val wavelength = 48.dp.toPx()
                 fun drawPhysicalWaves() {
@@ -1756,7 +1757,7 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                         while (y <= size.height) {
                             val wave = kotlin.math.sin((y / wavelength) * (2.0 * Math.PI)).toFloat() * amplitude
                             path.lineTo(startX + y * .48f + wave, y)
-                            y += 2.dp.toPx()
+                            y += 8.dp.toPx()
                         }
                         drawPath(path, Color(0x247A7568), style = androidx.compose.ui.graphics.drawscope.Stroke(width = .48.dp.toPx()))
                         startX += pitch
@@ -1842,16 +1843,6 @@ private fun DigitalAdminCard(user: NativeUser, locale: String) {
                     Text("Saison : ${user.season?.takeIf { it.isNotBlank() } ?: "—"}", modifier = Modifier.fillMaxWidth(), color = Color.White, fontSize = (8.1f * fontScale).sp, lineHeight = (9.8f * fontScale).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, textAlign = TextAlign.Center)
                 }
             }
-
-            Box(
-                Modifier
-                    .offset(x = with(LocalDensity.current) { (cardWidth.toPx() * sweep.value).toDp() })
-                    .width(cardWidth * .24f)
-                    .fillMaxHeight()
-                    .graphicsLayer { rotationZ = 12f }
-                    .graphicsLayer { alpha = .78f }
-                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = .25f), Color.Transparent)))
-            )
 
             Row(
                 Modifier.offset(x = cardWidth * .12f, y = cardHeight * .835f)
@@ -2834,7 +2825,7 @@ private fun decodeNativeRemoteImage(source: String): ImageBitmap? = runCatching 
 
 @Composable
 private fun NativeMatchWizard(
-    teams: List<NativeTeam>, competitions: List<NativeCompetition>, locale: String,
+    teams: List<NativeTeam>, competitions: List<NativeCompetition>, savedOpponents: List<NativeOpponent>, locale: String,
     isSubmitting: Boolean, errorMessage: String?, onDismiss: () -> Unit,
     onSubmit: (org.json.JSONObject) -> Unit
 ) {
@@ -2842,6 +2833,10 @@ private fun NativeMatchWizard(
     val orderedTeams = remember(teams) { orderedNativeTeams(teams) }
     var opponent by remember { mutableStateOf("") }
     var opponentFr by remember { mutableStateOf("") }
+    var selectedSavedOpponentName by remember { mutableStateOf("") }
+    var selectedLogoUri by remember { mutableStateOf<Uri?>(null) }
+    var refereeNameAr by remember { mutableStateOf("") }
+    var refereeNameFr by remember { mutableStateOf("") }
     var teamId by remember(orderedTeams) { mutableStateOf(orderedTeams.firstOrNull()?.id.orEmpty()) }
     val selectedTeam = orderedTeams.firstOrNull { it.id == teamId }
     val availableCompetitions = competitions.filter { (it.category.isBlank() || it.category == selectedTeam?.category) && (it.teamId == null || it.teamId == teamId) }
@@ -2849,34 +2844,53 @@ private fun NativeMatchWizard(
     var isHome by remember { mutableStateOf(true) }
     var date by remember { mutableStateOf(java.time.LocalDate.now().plusWeeks(1).toString()) }
     var time by remember { mutableStateOf("14:30") }
-    var stadium by remember { mutableStateOf("") }
+    var stadium by remember { mutableStateOf("الملعب البلدي طاهري حسني – سيدي حسني") }
     var step by remember { mutableIntStateOf(1) }
+    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { selectedLogoUri = it }
+    val selectedSavedOpponent = savedOpponents.firstOrNull { it.name == selectedSavedOpponentName }
     val dateParts = date.split("-").mapNotNull { it.toIntOrNull() }
     val initialCalendar = Calendar.getInstance().apply {
         if (dateParts.size == 3) set(dateParts[0], dateParts[1] - 1, dateParts[2])
     }
+    val validDateTime = runCatching { java.time.LocalDate.parse(date); java.time.LocalTime.parse(time); true }.getOrDefault(false)
+    val validRefereeCount = listOf(refereeNameAr, refereeNameFr).all { value -> value.split(',', '،').map { it.trim() }.count { it.isNotEmpty() } <= 3 }
     val canContinue = when (step) {
         1 -> opponent.trim().isNotEmpty()
-        2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && time.matches(Regex("\\d{2}:\\d{2}"))
+        2 -> validDateTime
         3 -> teamId.isNotBlank() && competitionId.isNotBlank()
+        4 -> opponent.trim().isNotEmpty() && (isHome || stadium.isNotBlank()) && validRefereeCount
         else -> true
     }
-    val actionLabel = if (step < 4) L(locale, "الخطوة التالية", "Étape suivante") else L(locale, "نشر المباراة", "Publier le match")
+    val actionLabel = if (step < 5) L(locale, "الخطوة التالية", "Étape suivante") else L(locale, "نشر المباراة", "Publier le match")
     AlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
         shape = RoundedCornerShape(22.dp), containerColor = Panel,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(L(locale, "إضافة مباراة", "Ajouter un match"), color = AppText, fontWeight = FontWeight.Bold, fontFamily = CairoFamily)
-                Text(L(locale, "الخطوة $step من 4", "Étape $step sur 4"), color = Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(L(locale, "الخطوة $step من 5", "Étape $step sur 5"), color = Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         },
         text = {
-            Column(Modifier.fillMaxWidth().heightIn(max = 430.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 490.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                 when (step) {
                     1 -> {
                         Text(L(locale, "أدخل اسم الفريق الخصم للبدء.", "Saisissez le nom de l’équipe adverse pour commencer."), color = Muted, fontSize = 12.sp)
-                        OutlinedTextField(value = opponent, onValueChange = { opponent = it.take(120) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "اسم الخصم", "Nom de l’adversaire")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        if (savedOpponents.isNotEmpty()) NativeDropdownField(
+                            L(locale, "اختر منافسًا محفوظًا", "Choisir un adversaire enregistré"),
+                            selectedSavedOpponent?.name.orEmpty(), L(locale, "اختياري", "Facultatif"),
+                            listOf("" to L(locale, "بدون اختيار", "Aucun choix")) + savedOpponents.map { it.name to it.name }
+                        ) { key ->
+                            selectedSavedOpponentName = key
+                            val selected = savedOpponents.firstOrNull { it.name == key }
+                            if (selected != null) {
+                                opponent = selected.name
+                                opponentFr = selected.aliases.firstOrNull().orEmpty()
+                                selectedLogoUri = null
+                                if (!isHome) stadium = selected.stadium.orEmpty().ifBlank { L(locale, "ملعب الخصم", "Stade de l’adversaire") }
+                            }
+                        }
+                        OutlinedTextField(value = opponent, onValueChange = { opponent = it.take(120); selectedSavedOpponentName = "" }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "اسم الخصم", "Nom de l’adversaire")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                         OutlinedTextField(value = opponentFr, onValueChange = { opponentFr = it.take(120) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "اسم الخصم بالفرنسية (اختياري)", "Nom en français (facultatif)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                     }
                     2 -> {
@@ -2896,15 +2910,34 @@ private fun NativeMatchWizard(
                             NativeDropdownField(L(locale, "الفئة", "Catégorie"), selectedTeam?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), L(locale, "اختر الفئة", "Choisir la catégorie"), orderedTeams.map { it.id to "${it.name} · ${categoryLabel(it.category, locale)}" }) { teamId = it }
                             NativeDropdownField(L(locale, "المسابقة", "Compétition"), availableCompetitions.firstOrNull { it.id == competitionId }?.name.orEmpty(), L(locale, "اختر المسابقة", "Choisir la compétition"), availableCompetitions.map { it.id to it.name }) { competitionId = it }
                         }
-                        NativeDropdownField(L(locale, "مكان الفريق", "Lieu du club"), if (isHome) L(locale, "على أرضنا", "À domicile") else L(locale, "خارج أرضنا", "À l’extérieur"), "", listOf("home" to L(locale, "على أرضنا", "À domicile"), "away" to L(locale, "خارج أرضنا", "À l’extérieur"))) { isHome = it == "home" }
-                        if (!isHome) OutlinedTextField(value = stadium, onValueChange = { stadium = it.take(160) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "الملعب (اختياري)", "Stade (facultatif)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    }
+                    4 -> {
+                        Text(L(locale, "أكمل تفاصيل الملعب والشعار والحكام.", "Complétez le stade, le logo et les arbitres."), color = Muted, fontSize = 12.sp)
+                        NativeDropdownField(L(locale, "مكان الفريق", "Lieu du club"), if (isHome) L(locale, "على أرضنا", "À domicile") else L(locale, "خارج أرضنا", "À l’extérieur"), "", listOf("home" to L(locale, "على أرضنا", "À domicile"), "away" to L(locale, "خارج أرضنا", "À l’extérieur"))) {
+                            isHome = it == "home"
+                            stadium = if (isHome) "الملعب البلدي طاهري حسني – سيدي حسني" else selectedSavedOpponent?.stadium.orEmpty().ifBlank { L(locale, "ملعب $opponent", "Stade de $opponent") }
+                        }
+                        OutlinedTextField(value = stadium, onValueChange = { stadium = it.take(160) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "الملعب", "Stade")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors(), supportingText = { if (isHome) Text(L(locale, "سيُستخدم الملعب البلدي طاهري حسني للمباراة داخل الديار.", "Le stade communal Taheri Hosni sera utilisé à domicile."), color = Muted, fontSize = 9.sp) })
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            AsyncImage(model = selectedLogoUri ?: selectedSavedOpponent?.logoUrl, contentDescription = null, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Glass).padding(4.dp), contentScale = ContentScale.Fit)
+                            Column(Modifier.weight(1f)) {
+                                Text(L(locale, "شعار الخصم", "Logo de l’adversaire"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(if (selectedLogoUri != null) L(locale, "تم اختيار صورة جديدة", "Nouvelle image sélectionnée") else L(locale, "يمكن اختيار شعار من الجهاز", "Choisissez un logo depuis l’appareil"), color = Muted, fontSize = 9.sp)
+                            }
+                            TextButton(onClick = { logoPicker.launch("image/*") }) { Text(L(locale, "اختيار", "Choisir"), color = Red, fontSize = 11.sp) }
+                        }
+                        OutlinedTextField(value = refereeNameAr, onValueChange = { refereeNameAr = it.take(480) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "الحكام بالعربية (حتى 3)", "Arbitres en arabe (3 max.)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        OutlinedTextField(value = refereeNameFr, onValueChange = { refereeNameFr = it.take(480) }, modifier = Modifier.fillMaxWidth(), label = { Text(L(locale, "الحكام بالفرنسية (حتى 3)", "Arbitres en français (3 max.)")) }, singleLine = true, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                        if (!validRefereeCount) Text(L(locale, "أدخل ثلاثة حكام كحد أقصى، وافصل الأسماء بفاصلة.", "Saisissez trois arbitres au maximum, séparés par des virgules."), color = Color(0xFFFF7A7A), fontSize = 10.sp)
                     }
                     else -> {
                         Text(L(locale, "راجع تفاصيل المواجهة قبل نشرها على المنصة والموقع.", "Vérifiez les détails avant la publication sur la plateforme et le site."), color = Muted, fontSize = 12.sp)
                         Text(if (isHome) "${L(locale, "نادي أمل سيدي حسني", "Club Espoir Sidi Hosni")}  ·  $opponent" else "$opponent  ·  ${L(locale, "نادي أمل سيدي حسني", "Club Espoir Sidi Hosni")}", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Text("${date} · ${time}", color = Mint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         Text("${selectedTeam?.name.orEmpty()} · ${selectedTeam?.let { categoryLabel(it.category, locale) }.orEmpty()} · ${availableCompetitions.firstOrNull { it.id == competitionId }?.name.orEmpty()}", color = Muted, fontSize = 11.sp)
-                        if (!isHome && stadium.isNotBlank()) Text(stadium, color = Muted, fontSize = 11.sp)
+                        Text("${stadium} · ${if (isHome) L(locale, "داخل الديار", "À domicile") else L(locale, "خارج الديار", "À l’extérieur")}", color = Muted, fontSize = 11.sp)
+                        if (refereeNameAr.isNotBlank() || refereeNameFr.isNotBlank()) Text(listOf(refereeNameAr, refereeNameFr).filter { it.isNotBlank() }.joinToString(" · "), color = Muted, fontSize = 10.sp)
+                        selectedLogoUri?.let { Text(L(locale, "سيتم رفع شعار الخصم عند النشر.", "Le logo sera envoyé lors de la publication."), color = Mint, fontSize = 10.sp) }
                     }
                 }
                 errorMessage?.let { Text(it, color = Color(0xFFFF7A7A), fontSize = 11.sp, lineHeight = 17.sp) }
@@ -2912,12 +2945,13 @@ private fun NativeMatchWizard(
         },
         confirmButton = {
             ClubPrimaryButton(text = actionLabel, enabled = canContinue && !isSubmitting && (step != 3 || availableCompetitions.isNotEmpty()), loading = isSubmitting, modifier = Modifier.width(190.dp), onClick = {
-                if (step < 4) { step += 1; return@ClubPrimaryButton }
+                if (step < 5) { step += 1; return@ClubPrimaryButton }
                 val localDateTime = java.time.LocalDateTime.parse("$date" + "T" + time)
                 val matchInstant = localDateTime.atZone(java.time.ZoneId.of("Africa/Algiers")).toInstant().toString()
                 val payload = org.json.JSONObject().put("competitionId", competitionId).put("teamId", teamId)
                     .put("opponent", opponent.trim()).put("opponentNameFr", opponentFr.trim()).put("isHomeFixture", isHome)
-                    .put("matchDate", matchInstant).put("stadium", stadium.trim()).put("status", "SCHEDULED")
+                    .put("matchDate", matchInstant).put("stadium", stadium.trim()).put("refereeNameAr", refereeNameAr.trim()).put("refereeNameFr", refereeNameFr.trim()).put("status", "SCHEDULED")
+                selectedLogoUri?.let { payload.put("opponentLogoUri", it.toString()) }
                 onSubmit(payload)
             })
         },
@@ -2947,7 +2981,6 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
     var teamId by remember(type, orderedTeams) { mutableStateOf(orderedTeams.firstOrNull()?.id.orEmpty()) }
     var coachId by remember(type) { mutableStateOf("") }
     var teamMenu by remember { mutableStateOf(false) }
-    var contentLocale by remember(type) { mutableStateOf("ar") }
     var step by remember(type) { mutableIntStateOf(1) }
     val selectedImages = remember(type) { mutableStateListOf<Uri>() }
     val formScrollState = rememberScrollState()
@@ -2956,7 +2989,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         selectedImages.clear()
         selectedImages.addAll(images.distinct().take(10))
     }
-    val stepCount = if (type == "news") 2 else if (type == "training" || type == "meeting") 3 else 1
+    val stepCount = if (type == "news" || type == "announcement") 3 else if (type == "training" || type == "meeting") 3 else 1
     val validTimeRange = runCatching {
         val start = startTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
         val end = endTime.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
@@ -2969,8 +3002,9 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         else -> L(locale, "إضافة خبر", "Nouvelle actualité")
     }
     val canContinue = when {
-        type == "news" && step == 1 -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank()
-        type == "news" -> true
+        (type == "news" || type == "announcement") && step == 1 -> titleAr.isNotBlank() && contentAr.isNotBlank()
+        (type == "news" || type == "announcement") && step == 2 -> titleFr.isNotBlank() && contentFr.isNotBlank()
+        type == "news" -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank()
         type == "training" && step == 1 -> teamId.isNotBlank() && coachId.isNotBlank()
         type == "training" && step == 2 -> date.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && validTimeRange
         type == "training" -> teamId.isNotBlank()
@@ -2980,8 +3014,9 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
         else -> titleAr.isNotBlank() && contentAr.isNotBlank() && titleFr.isNotBlank() && contentFr.isNotBlank() && !(type == "announcement" && teamScopeRestricted && teamId.isBlank())
     }
     val actionLabel = when {
-        (type == "news" && step == 1) || ((type == "training" || type == "meeting") && step < 3) -> L(locale, "متابعة", "Continuer")
+        ((type == "news" || type == "announcement") && step < 3) || ((type == "training" || type == "meeting") && step < 3) -> L(locale, "متابعة", "Continuer")
         type == "news" -> L(locale, "نشر الخبر", "Publier l’actualité")
+        type == "announcement" -> L(locale, "نشر الإعلان", "Publier l’annonce")
         type == "training" -> L(locale, "نشر التدريب", "Publier la séance")
         type == "meeting" -> L(locale, "جدولة الاجتماع", "Planifier la réunion")
         else -> L(locale, "حفظ ونشر", "Enregistrer et publier")
@@ -3066,11 +3101,11 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                         OutlinedTextField(value = notes, onValueChange = { notes = it.take(2000) }, modifier = Modifier.fillMaxWidth().height(92.dp), label = { Text(if (type == "meeting") L(locale, "جدول الأعمال / ملاحظات", "Ordre du jour / notes") else L(locale, "ملاحظات للمدربين واللاعبين", "Notes pour l’équipe")) }, shape = RoundedCornerShape(13.dp), colors = loginFieldColors())
                     }
                 } else {
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(12.dp)).padding(11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    if ((type == "news" || type == "announcement") && step == 3) Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .20f), RoundedCornerShape(12.dp)).padding(11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         Icon(IconlyIcons.Paper, contentDescription = null, tint = Red, modifier = Modifier.size(17.dp))
                         Text(L(locale, "سيظهر المحتوى بعد نشره على المنصة والموقع العام.", "Le contenu sera publié sur la plateforme et le site public."), color = AppText, fontSize = 10.sp, lineHeight = 15.sp)
                     }
-                    if (type == "announcement" && teamScopeRestricted && teams.isNotEmpty()) Box {
+                    if (type == "announcement" && step == 3 && teamScopeRestricted && teams.isNotEmpty()) Box {
                         OutlinedTextField(value = orderedTeams.firstOrNull { it.id == teamId }?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty(), onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().clickable { teamMenu = true }, label = { Text(L(locale, "الفريق / الفئة", "Équipe / catégorie")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                         ClubDropdownMenu(
                             expanded = teamMenu,
@@ -3082,28 +3117,23 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             onSelected = { teamId = it; teamMenu = false }
                         )
                     }
-                    if (type != "news" || step == 1) {
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Glass).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("ar" to L(locale, "العربية", "Arabe"), "fr" to "Français").forEach { (code, label) ->
-                            val activeLanguage = contentLocale == code
-                            Text(label, color = if (activeLanguage) Color.White else Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                                    .background(if (activeLanguage) Red else Color.Transparent).clickable { contentLocale = code }.padding(vertical = 10.dp))
-                        }
-                    }
-                    AnimatedContent(targetState = contentLocale, label = "news-language-fields") { language ->
-                        val arabic = language == "ar"
+                    if ((type == "news" || type == "announcement") && step <= 2) {
+                    val language = if (step == 1) "ar" else "fr"
+                    AnimatedContent(targetState = language, label = "news-language-fields") { activeLanguage ->
+                        val arabic = activeLanguage == "ar"
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Glass).border(1.dp, if (arabic) Red.copy(alpha = .28f) else GlassBorder, RoundedCornerShape(15.dp)).padding(11.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(if (arabic) "العربية" else "Français", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = CairoFamily)
                                 Text(if (arabic) L(locale, "النسخة الأساسية", "Version principale") else L(locale, "النسخة الفرنسية", "Version française"), color = if (arabic) Red else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(if (arabic) Red.copy(alpha = .10f) else Panel).padding(horizontal = 9.dp, vertical = 5.dp))
                             }
-                            OutlinedTextField(value = if (arabic) titleAr else titleFr, onValueChange = { if (arabic) titleAr = it.take(200) else titleFr = it.take(200) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(if (arabic) L(locale, "عنوان الخبر", "Titre de l’actualité") else "Titre de l’actualité") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                            OutlinedTextField(value = if (arabic) contentAr else contentFr, onValueChange = { if (arabic) contentAr = it.take(20000) else contentFr = it.take(20000) }, modifier = Modifier.fillMaxWidth().height(132.dp), label = { Text(if (arabic) L(locale, "نص الخبر", "Texte de l’actualité") else "Texte de l’actualité") }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                            val contentKind = if (type == "announcement") L(locale, "الإعلان", "l’annonce") else L(locale, "الخبر", "l’actualité")
+                            OutlinedTextField(value = if (arabic) titleAr else titleFr, onValueChange = { if (arabic) titleAr = it.take(200) else titleFr = it.take(200) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(if (arabic) L(locale, "عنوان $contentKind", "Titre $contentKind") else L(locale, "العنوان", "Titre")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                            OutlinedTextField(value = if (arabic) contentAr else contentFr, onValueChange = { if (arabic) contentAr = it.take(20000) else contentFr = it.take(20000) }, modifier = Modifier.fillMaxWidth().height(132.dp), label = { Text(if (arabic) L(locale, "نص $contentKind", "Texte $contentKind") else L(locale, "النص", "Texte")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
                         }
                     }
-                    if (type == "news") OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف · اختياري", "Catégorie · facultative")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
-                    if (type == "announcement") {
+                    }
+                    if (type == "news" && step == 3) OutlinedTextField(value = category, onValueChange = { category = it.take(80) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(L(locale, "التصنيف · اختياري", "Catégorie · facultative")) }, shape = RoundedCornerShape(12.dp), colors = loginFieldColors())
+                    if (type == "announcement" && step == 3) {
                         val priorityOptions = listOf(
                             "LOW" to L(locale, "منخفضة", "Basse"),
                             "NORMAL" to L(locale, "عادية", "Normale"),
@@ -3133,8 +3163,15 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                             )
                         }
                     }
+                    if ((type == "news" || type == "announcement") && step == 3) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(L(locale, "مراجعة قبل النشر", "Vérification avant publication"), color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(titleAr.ifBlank { titleFr }, color = AppText, fontSize = 12.sp, maxLines = 2)
+                        Text(titleFr.ifBlank { titleAr }, color = Muted, fontSize = 11.sp, maxLines = 2)
+                        if (type == "announcement") Text("${L(locale, "الأولوية", "Priorité")}: ${when (announcementPriority) { "LOW" -> L(locale, "منخفضة", "Basse"); "HIGH" -> L(locale, "مرتفعة", "Haute"); "URGENT" -> L(locale, "عاجلة", "Urgente"); else -> L(locale, "عادية", "Normale") }}", color = Red, fontSize = 10.sp)
+                        if (type == "announcement" && teamScopeRestricted) Text("${L(locale, "الفئة", "Équipe")}: ${orderedTeams.firstOrNull { it.id == teamId }?.let { "${it.name} · ${categoryLabel(it.category, locale)}" }.orEmpty()}", color = Muted, fontSize = 10.sp)
+                        if (type == "news") Text(L(locale, "الصور المحددة: ${selectedImages.size}", "Images sélectionnées : ${selectedImages.size}"), color = Mint, fontSize = 10.sp)
                     }
-                    if (type == "news" && step == 2) {
+                    if (type == "news" && step == 3) {
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(17.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                 Icon(IconlyIcons.Camera, contentDescription = null, tint = Mint, modifier = Modifier.size(20.dp))
@@ -3168,7 +3205,7 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
                 loading = isSubmitting,
                 modifier = Modifier.width(190.dp),
                 onClick = {
-                if ((type == "news" && step == 1) || ((type == "training" || type == "meeting") && step < 3)) {
+                if (((type == "news" || type == "announcement") && step < 3) || ((type == "training" || type == "meeting") && step < 3)) {
                     step += 1
                     return@ClubPrimaryButton
                 }
@@ -3188,8 +3225,8 @@ private fun NativeCreateDialog(type: String, teams: List<NativeTeam>, coaches: L
             })
         },
         dismissButton = {
-            TextButton(enabled = !isSubmitting, onClick = { if (step > 1 && (type == "news" || type == "training" || type == "meeting")) step -= 1 else onDismiss() }) {
-                Text(if (step > 1 && (type == "news" || type == "training" || type == "meeting")) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
+            TextButton(enabled = !isSubmitting, onClick = { if (step > 1 && (type == "news" || type == "announcement" || type == "training" || type == "meeting")) step -= 1 else onDismiss() }) {
+                Text(if (step > 1 && (type == "news" || type == "announcement" || type == "training" || type == "meeting")) L(locale, "السابق", "Précédent") else L(locale, "إلغاء", "Annuler"), color = Muted, fontFamily = CairoFamily)
             }
         }
     )

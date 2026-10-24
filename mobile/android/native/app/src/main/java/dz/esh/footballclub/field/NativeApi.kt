@@ -45,6 +45,7 @@ data class NativeStanding(val id: String, val rank: Int, val teamName: String, v
 data class NativeCompetition(val id: String, val name: String, val type: String, val logoUrl: String?, val organization: String?, val seasonLabel: String, val category: String, val categoryLabel: String, val standings: List<NativeStanding>, val canManage: Boolean, val teamId: String? = null)
 data class NativeTeam(val id: String, val name: String, val category: String)
 data class NativeCoach(val id: String, val name: String, val teamIds: List<String>)
+data class NativeOpponent(val name: String, val logoUrl: String?, val stadium: String?, val aliases: List<String>)
 data class NativePlayerPerformance(
     val id: String, val firstName: String, val lastName: String, val firstNameFr: String?, val lastNameFr: String?,
     val number: Int?, val position: String, val photoUrl: String?, val team: String, val category: String,
@@ -57,7 +58,7 @@ data class NativePlayerPerformance(
 data class NativePlayerMatch(val date: String, val opponent: String, val isStarting: Boolean)
 data class NativePlayerStats(val season: String?, val players: List<NativePlayerPerformance>)
 data class NativePermissions(val training: Boolean, val news: Boolean, val announcements: Boolean, val scheduleMeetings: Boolean, val createMatches: Boolean, val updateMatches: Boolean, val playerStats: Boolean, val competitions: Boolean, val manageCompetitions: Boolean, val teamScopeRestricted: Boolean)
-data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser, val clubLogoUrl: String? = null)
+data class NativeData(val matches: List<NativeMatch>, val meetings: List<NativeMeeting>, val upcomingMeetings: List<NativeMeeting>, val calendarItems: List<NativeCalendarItem>, val alerts: List<NativeAlert>, val teams: List<NativeTeam>, val coaches: List<NativeCoach>, val competitions: List<NativeCompetition>, val permissions: NativePermissions, val user: NativeUser, val clubLogoUrl: String? = null, val opponents: List<NativeOpponent> = emptyList())
 data class NativeUser(
     val id: String,
     val name: String,
@@ -106,8 +107,10 @@ object NativeApi {
         if (source.startsWith("http://") || source.startsWith("https://")) return source
         return URL(BASE_URL).toURI().resolve(source.removePrefix("/")).toString()
     }
-    private const val CONNECT_TIMEOUT = 20_000
-    private const val READ_TIMEOUT = 40_000
+    // Bound cold-start waits so the cached dashboard stays usable and a slow
+    // server cannot leave the launch screen waiting for tens of seconds.
+    private const val CONNECT_TIMEOUT = 4_000
+    private const val READ_TIMEOUT = 7_000
 
     fun login(email: String, password: String, locale: String, rememberMe: Boolean): NativeLoginResult {
         return try {
@@ -242,6 +245,7 @@ object NativeApi {
             }.toList()
         val alerts = (storedAlerts + calendarAlerts).distinctBy { it.id }
         val teams = json.optJSONArray("teams")?.objects()?.map { NativeTeam(it.optString("id"), it.optString("name"), it.optString("category")) }.orEmpty()
+        val opponents = json.optJSONArray("opponents")?.objects()?.map { item -> NativeOpponent(item.optString("name"), item.optNullableString("logoUrl"), item.optNullableString("stadium"), item.optJSONArray("aliases")?.let { aliases -> (0 until aliases.length()).map { aliases.optString(it) } }.orEmpty()) }.orEmpty()
         val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->
             NativeCoach(item.optString("id"), item.optString("name"), item.optJSONArray("teamIds")?.let { ids -> (0 until ids.length()).map { ids.optString(it) } }.orEmpty())
         }.orEmpty()
@@ -253,7 +257,7 @@ object NativeApi {
         }.orEmpty()
         val permissions = json.optJSONObject("permissions") ?: JSONObject()
         val user = parseUser(json.optJSONObject("user") ?: JSONObject())
-        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("createMatches"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user, json.optNullableString("clubLogoUrl"))
+        return NativeData(matches, meetings, upcoming, calendarItems, alerts, teams, coaches, competitions, NativePermissions(permissions.optBoolean("training"), permissions.optBoolean("news"), permissions.optBoolean("announcements"), permissions.optBoolean("scheduleMeetings"), permissions.optBoolean("createMatches"), permissions.optBoolean("updateMatches"), permissions.optBoolean("playerStats"), permissions.optBoolean("competitions"), permissions.optBoolean("manageCompetitions"), permissions.optBoolean("teamScopeRestricted")), user, json.optNullableString("clubLogoUrl"), opponents)
     }
 
     fun createContent(token: String, payload: JSONObject) {
@@ -262,6 +266,52 @@ object NativeApi {
 
     fun createMatch(token: String, payload: JSONObject): String {
         return JSONObject(request("/api/mobile/matches", token, payload.toString(), "POST")).getString("id")
+    }
+
+    fun uploadOpponentLogo(context: Context, token: String, uri: Uri, opponent: String, opponentNameFr: String, stadium: String): String {
+        val mime = context.contentResolver.getType(uri)?.takeIf { it in listOf("image/jpeg", "image/png", "image/webp") }
+            ?: throw IllegalArgumentException("صيغة الشعار غير مدعومة. استخدم JPG أو PNG أو WebP.")
+        val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(16 * 1024)
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                if (total > 4 * 1024 * 1024) throw IllegalArgumentException("يجب ألا يتجاوز حجم الشعار 4 ميغابايت.")
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        } ?: throw IllegalArgumentException("تعذر قراءة الشعار المحدد.")
+        if (bytes.isEmpty()) throw IllegalArgumentException("الشعار المحدد فارغ.")
+        val boundary = "----ESH${System.currentTimeMillis()}${(1000..9999).random()}"
+        val connection = URL("$BASE_URL/api/mobile/matches/opponent-logo").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = CONNECT_TIMEOUT
+            connection.readTimeout = READ_TIMEOUT
+            connection.doOutput = true
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            connection.outputStream.use { output ->
+                fun field(name: String, value: String) {
+                    output.write("--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray(Charsets.UTF_8))
+                }
+                field("opponent", opponent)
+                field("opponentNameFr", opponentNameFr)
+                field("stadium", stadium)
+                output.write("--$boundary\r\nContent-Disposition: form-data; name=\"image\"; filename=\"opponent-logo\"\r\nContent-Type: $mime\r\n\r\n".toByteArray(Charsets.UTF_8))
+                output.write(bytes)
+                output.write("\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8))
+            }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) throw ApiFailure(JSONObject(response).optString("error", "http_$status"))
+            return JSONObject(response).getString("url")
+        } finally { connection.disconnect() }
     }
 
     fun uploadNewsImage(context: Context, token: String, uri: Uri): String {
