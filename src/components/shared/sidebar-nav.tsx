@@ -211,7 +211,7 @@ export function SidebarNav({
                 type="button"
                 onClick={() => setCollapsedGroups((prev) => ({ ...prev, [group.groupKey]: !prev[group.groupKey] }))}
                 aria-expanded={!collapsed}
-                className="mb-1 flex min-h-10 w-full items-center justify-between rounded-lg px-2.5 py-1 text-xs font-bold text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground motion-reduce:transition-none dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-200"
+                className="mb-1 flex min-h-10 w-full items-center justify-between rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-200"
               >
                 <span>{tGroups(group.groupKey as any)}</span>
                 <ChevronDown className={cn("h-3 w-3 transition-transform text-muted-foreground dark:text-zinc-400", collapsed && "-rotate-90")} />
@@ -236,7 +236,7 @@ export function SidebarNav({
                       }}
                       aria-busy={pendingHref === item.href}
                       className={cn(
-                        "group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-start transition-[color,background-color,border-color,box-shadow] duration-150 motion-reduce:transition-none md:min-h-11",
+                        "group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-start transition-all md:min-h-0",
                         active
                           ? "bg-club-primary text-white shadow-xs font-bold"
                           : "text-foreground/80 hover:bg-muted hover:text-foreground dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"

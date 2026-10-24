@@ -114,10 +114,10 @@ export function ResizableSidebar({
         className="hidden md:flex absolute top-0 bottom-0 z-40 w-3 items-center justify-center cursor-col-resize group transition-colors select-none hover:bg-club-primary/15 active:bg-club-primary/30"
       >
         {/* Subtle indicator line */}
-        <div className={`h-8 w-1 rounded-full transition-[background-color,opacity,transform] duration-150 ${
+        <div className={`w-1 rounded-full transition-all duration-200 ${
           isResizing
-            ? "scale-y-150 bg-club-primary ring-2 ring-club-primary/20"
-            : "bg-muted-foreground/30 group-hover:scale-y-150 group-hover:bg-club-primary"
+            ? "bg-club-primary h-14 ring-2 ring-club-primary/20"
+            : "bg-muted-foreground/30 h-8 group-hover:bg-club-primary group-hover:h-12"
         }`} />
       </div>
     </aside>
