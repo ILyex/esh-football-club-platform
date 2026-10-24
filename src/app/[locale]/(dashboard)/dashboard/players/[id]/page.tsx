@@ -509,7 +509,8 @@ export default async function PlayerDetailPage({
 
             {/* Submit and Save */}
             {(canUpdate || canArchive || canDelete) && (
-              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2" dir={isAr ? "rtl" : "ltr"}>
+              <div className="sticky bottom-3 z-20 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md sm:p-4">
+                <div className="flex flex-wrap items-center justify-start gap-2.5" dir={isAr ? "rtl" : "ltr"}>
                 {canUpdate && <Button type="submit" className="inline-flex h-10 min-w-36 items-center justify-center gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"><Save className="h-4 w-4 shrink-0" /><span>{tCommon("save")}</span></Button>}
                 {canArchive && (
                   player.status === "ARCHIVED" ? (
@@ -547,6 +548,7 @@ export default async function PlayerDetailPage({
                     </Button>
                   </ConfirmDialog>
                 )}
+                </div>
               </div>
             )}
           </form>
