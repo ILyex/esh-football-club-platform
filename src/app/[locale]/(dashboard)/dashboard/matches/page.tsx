@@ -141,14 +141,14 @@ export default async function MatchesListPage({
               }
               return (
                 <tr key={m.id} className="border-b border-border/70 last:border-0 align-middle transition-colors hover:bg-muted/20">
-                  <td className="px-3 py-3 text-start">
+                  <td className="px-3 py-2 text-start">
                     <span dir="ltr" className="inline-flex min-w-0 flex-row items-center gap-2 whitespace-nowrap rounded-xl border border-border/70 bg-background px-2.5 py-2 font-mono tabular-nums">
                       <time className="text-xs font-bold text-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaDate(m.matchDate)}</time>
                       <time className="text-[11px] text-muted-foreground" dateTime={m.matchDate.toISOString()}>{formatAlgeriaTime(m.matchDate, locale)}</time>
                     </span>
                   </td>
-                  <td className="px-2.5 py-2.5 align-middle font-medium sm:px-3">
-                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-[620px] grid-rows-[1.75rem_1rem] items-center gap-y-1">
+                  <td className="px-2.5 py-2 align-middle font-medium sm:px-3">
+                    <span dir={locale === "ar" ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-[620px] grid-rows-[1.5rem_0.75rem] items-center gap-y-0.5">
                       <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
                         <span dir={locale === "ar" ? "rtl" : "ltr"} title={homeTeamName} className="min-w-0 truncate text-start leading-tight">{homeTeamName}</span>
                         <span dir={locale === "ar" ? "rtl" : "ltr"} className="inline-flex min-w-[48px] items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-border/70 bg-muted/70 px-1.5 py-1 text-center font-mono text-[11px] font-extrabold tabular-nums shadow-sm sm:min-w-[56px]">
@@ -158,7 +158,7 @@ export default async function MatchesListPage({
                         </span>
                         <span dir={locale === "ar" ? "rtl" : "ltr"} title={awayTeamName} className="min-w-0 truncate text-end leading-tight">{awayTeamName}</span>
                       </span>
-                      <span className="flex h-4 min-w-0 items-center justify-center overflow-hidden whitespace-nowrap text-center text-[10px] font-bold leading-none text-emerald-600 dark:text-emerald-400">
+                      <span className="flex h-3 min-w-0 items-center justify-center overflow-hidden whitespace-nowrap text-center text-[10px] font-bold leading-none text-emerald-600 dark:text-emerald-400">
                         {winnerName ? (
                           <span className="min-w-0 truncate">
                             {locale === "ar" ? `الفائز: ${winnerName}` : `Vainqueur : ${winnerName}`}
@@ -168,10 +168,10 @@ export default async function MatchesListPage({
                       </span>
                     </span>
                   </td>
-                  <td className="w-[540px] px-3 py-3">
+                  <td className="w-[540px] px-3 py-2">
                     <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                       <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
-                        <span className="min-w-0 flex-1 truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={competitionName}>{competitionName}</span>
+                        <span className="inline-flex w-fit max-w-[min(15rem,45%)] shrink-0 truncate rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground" title={competitionName}>{competitionName}</span>
                         <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground">{m.team ? tTeams(`categories.${m.team.category}` as any) : "—"}</span>
                         <span className="shrink-0">
                         <MatchOperationalStatus

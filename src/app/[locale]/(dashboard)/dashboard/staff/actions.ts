@@ -361,8 +361,21 @@ export async function updateStaffAction(staffId: string, formData: FormData) {
         ...(newPhotoUrl ? { photoUrl: newPhotoUrl } : {})
       }
     });
-    await tx.staffTeam.deleteMany({ where: { staffId } });
-    if (effectiveTeamId) await tx.staffTeam.create({ data: { staffId, teamId: effectiveTeamId } });
+    if (accountRole?.key === "secretary_general") {
+      // The secretary general can manage several categories. Changing the
+      // profile's primary category must not erase the other assignments.
+      if (before.teamId && before.teamId !== effectiveTeamId) {
+        await tx.staffTeam.deleteMany({ where: { staffId, teamId: before.teamId } });
+      }
+      if (effectiveTeamId) await tx.staffTeam.upsert({
+        where: { staffId_teamId: { staffId, teamId: effectiveTeamId } },
+        create: { staffId, teamId: effectiveTeamId },
+        update: {}
+      });
+    } else {
+      await tx.staffTeam.deleteMany({ where: { staffId } });
+      if (effectiveTeamId) await tx.staffTeam.create({ data: { staffId, teamId: effectiveTeamId } });
+    }
     if (updatedStaff.userId) {
       if (accountRole?.key === "secretary_general") {
         if (before.teamId && before.teamId !== effectiveTeamId) {
@@ -543,7 +556,7 @@ export async function addStaffTeamAction(staffId: string, formData: FormData) {
   assertTeamScope(scopeContext, parsed.teamId, "StaffTeam");
 
   // Verify staff exists before writing any assignment row.
-  const targetStaff = await db.staff.findUniqueOrThrow({ where: { id: staffId }, select: { id: true, userId: true, teamId: true, user: { select: { role: { select: { teamScoped: true } } } } } });
+  const targetStaff = await db.staff.findUniqueOrThrow({ where: { id: staffId }, select: { id: true, userId: true, teamId: true, user: { select: { role: { select: { key: true, teamScoped: true } } } } } });
   if (targetStaff.userId && !hasPermission(actor, "users.manage")) throw new Error("usersManagePermissionRequiredForLinkedStaffTeam");
 
   const currentStaffRole = await db.staff.findUniqueOrThrow({ where: { id: staffId }, select: { role: true, status: true } });
@@ -553,10 +566,11 @@ export async function addStaffTeamAction(staffId: string, formData: FormData) {
   }
 
   await db.$transaction(async (tx) => {
-    // A staff profile has exactly one operational category. Replace its old
-    // assignment atomically and keep the linked account scope synchronized.
-    await tx.staffTeam.deleteMany({ where: { staffId } });
-    if (targetStaff.userId) await tx.userTeam.deleteMany({ where: { userId: targetStaff.userId } });
+    // Secretary generals retain multiple category assignments. Other staff
+    // profiles continue to have a single operational category.
+    const canManageMultipleTeams = targetStaff.user?.role.key === "secretary_general";
+    if (!canManageMultipleTeams) await tx.staffTeam.deleteMany({ where: { staffId } });
+    if (targetStaff.userId && !canManageMultipleTeams) await tx.userTeam.deleteMany({ where: { userId: targetStaff.userId } });
     await tx.staffTeam.upsert({
       where: { staffId_teamId: { staffId, teamId: parsed.teamId } },
       create: { staffId, teamId: parsed.teamId },
@@ -570,7 +584,7 @@ export async function addStaffTeamAction(staffId: string, formData: FormData) {
       });
       await tx.user.update({ where: { id: targetStaff.userId }, data: { tokenVersion: { increment: 1 }, lastSeenAt: null } });
     }
-    await tx.staff.update({ where: { id: staffId }, data: { teamId: parsed.teamId } });
+    await tx.staff.update({ where: { id: staffId }, data: { teamId: canManageMultipleTeams ? (targetStaff.teamId ?? parsed.teamId) : parsed.teamId } });
   });
 
   await writeAuditLog({
@@ -599,8 +613,8 @@ export async function removeStaffTeamAction(staffId: string, teamId: string) {
   await db.$transaction(async (tx) => {
     if (targetStaff.userId) {
       const assignedCount = await tx.staffTeam.count({ where: { staffId } });
-      const targetRole = await tx.user.findUniqueOrThrow({ where: { id: targetStaff.userId }, select: { role: { select: { teamScoped: true } } } });
-      if (targetRole.role.teamScoped && assignedCount <= 1) throw new Error("teamScopedStaffNeedsOneTeam");
+      const targetRole = await tx.user.findUniqueOrThrow({ where: { id: targetStaff.userId }, select: { role: { select: { key: true, teamScoped: true } } } });
+      if (targetRole.role.teamScoped && targetRole.role.key !== "secretary_general" && assignedCount <= 1) throw new Error("teamScopedStaffNeedsOneTeam");
     }
     // Scoped deletes use both keys so neither account can detach another
     // member's category.

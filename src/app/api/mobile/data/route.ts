@@ -37,6 +37,7 @@ export async function GET(request: Request) {
   const canScheduleMeetings = hasPermission(user, "meetings.schedule");
   const canViewMeetings = hasPermission(user, "meetings.view") || canScheduleMeetings;
   const canManageMeetings = hasPermission(user, "meetings.manage");
+  const canViewTraining = hasPermission(user, "training.view") || hasPermission(user, "training.manage");
   const canManageCalendar = hasPermission(user, "calendar.manage");
   const canManageTraining = hasPermission(user, "training.manage");
   const canCreateNews = hasPermission(user, "news.create");
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
   const calendarTypes = [
     ...(canViewMatches ? ["MATCH"] : []),
     ...(canViewMeetings ? ["MEETING"] : []),
-    ...(canManageTraining ? ["TRAINING"] : []),
+    ...(canViewTraining ? ["TRAINING"] : []),
     ...(canManageCalendar ? ["OTHER"] : [])
   ];
 
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
       orderBy: { startDateTime: "asc" },
       take: 120
     }) : Promise.resolve([]),
-    db.notification.findMany({ where: { userId: user.id, type: "UPCOMING_MATCH" }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
+    db.notification.findMany({ where: { userId: user.id, type: { in: ["UPCOMING_MATCH", "UPCOMING_TRAINING", "NEW_ANNOUNCEMENT"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, type: true, title: true, message: true, link: true, isRead: true, createdAt: true } }),
     (canManageTraining || canManageAnnouncements || canScheduleMeetings || canCreateMatches) ? db.team.findMany({ where: { active: true, ...(scope.restricted ? { id: { in: [...scope.teamIds] } } : {}) }, orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }) : Promise.resolve([]),
     canManageTraining ? db.staff.findMany({
       where: {

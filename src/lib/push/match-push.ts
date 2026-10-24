@@ -233,7 +233,7 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     const canAccessTeam = role.key === "super_admin" || !role.teamScoped || Boolean(payload.teamId && device.user.teamAssignments.some((assignment) => assignment.teamId === payload.teamId));
     if (!canAccessTeam) return [];
     const localized = buildNotification(outbox, device.locale);
-    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag }];
+    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind }];
   });
   if (nativeMessages.length) {
     const nativeResult = await sendNativePush(nativeMessages);

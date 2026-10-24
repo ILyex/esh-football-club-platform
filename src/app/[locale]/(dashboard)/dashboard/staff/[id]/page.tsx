@@ -7,7 +7,9 @@ import {
   updateStaffAction,
   archiveStaffAction,
   restoreStaffAction,
-  hardDeleteStaffAction
+  hardDeleteStaffAction,
+  addStaffTeamAction,
+  removeStaffTeamAction
 } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -46,14 +48,16 @@ export default async function StaffDetailPage({ params, searchParams }: { params
       include: {
         contracts: true,
         documents: true,
-        user: { select: { id: true, roleId: true, email: true, isActive: true } },
-        team: { select: { category: true } }
+        user: { select: { id: true, roleId: true, email: true, isActive: true, role: { select: { key: true } } } },
+        team: { select: { category: true } },
+        teamAssignments: { include: { team: { select: { id: true, category: true } } }, orderBy: { createdAt: "asc" } }
       }
     }),
     db.team.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     db.role.findMany({ orderBy: { name: "asc" }, select: { id: true, key: true, name: true } })
   ]);
   if (!staff) notFound();
+  const canManageSecretaryAssignments = canUpdate && (!staff.user || canAssignUserAccess);
   const accountRoles = allRoles.filter((role) => !["super_admin", "treasurer", "staff_profile"].includes(role.key));
 
   const cniDoc = staff.documents.find(
@@ -99,6 +103,17 @@ export default async function StaffDetailPage({ params, searchParams }: { params
     "use server";
     await hardDeleteStaffAction(id);
     redirect(`/${locale}/dashboard/staff`);
+  }
+  async function addSecretaryCategory(formData: FormData) {
+    "use server";
+    await addStaffTeamAction(id, formData);
+    redirect(`/${locale}/dashboard/staff/${id}`);
+  }
+  async function removeSecretaryCategory(formData: FormData) {
+    "use server";
+    const teamId = formData.get("teamId");
+    if (typeof teamId === "string") await removeStaffTeamAction(id, teamId);
+    redirect(`/${locale}/dashboard/staff/${id}`);
   }
   return (
     <div className="mx-auto w-full max-w-4xl space-y-7">
@@ -240,6 +255,36 @@ export default async function StaffDetailPage({ params, searchParams }: { params
             {locale === "ar" ? "إدارة البريد وكلمة المرور" : "Gérer l’e-mail et le mot de passe"}
           </Link>
         </aside>
+      )}
+
+      {staff.user?.role.key === "secretary_general" && (
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <div>
+            <h2 className="text-base font-bold">{locale === "ar" ? "الفئات التي يديرها الكاتب العام" : "Catégories gérées par le secrétaire général"}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "يمكن تعيين الكاتب العام على أكثر من فئة، وتنعكس هذه التعيينات على صلاحيات حسابه." : "Le secrétaire général peut être affecté à plusieurs catégories ; ces affectations définissent aussi les accès de son compte."}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {staff.teamAssignments.map(({ team }) => (
+              <div key={team.id} className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                <span>{tTeams(`categories.${team.category}` as any)}</span>
+                {canManageSecretaryAssignments && <form action={removeSecretaryCategory}>
+                  <input type="hidden" name="teamId" value={team.id} />
+                  <button type="submit" className="font-semibold text-destructive hover:underline" aria-label={locale === "ar" ? "إزالة الفئة" : "Retirer la catégorie"}>×</button>
+                </form>}
+              </div>
+            ))}
+            {staff.teamAssignments.length === 0 && <span className="text-sm text-muted-foreground">{locale === "ar" ? "لم تُعيّن له فئة بعد." : "Aucune catégorie affectée."}</span>}
+          </div>
+          {canManageSecretaryAssignments && allTeams.some((team) => !staff.teamAssignments.some((assignment) => assignment.teamId === team.id)) && (
+            <form action={addSecretaryCategory} className="flex flex-col gap-2 sm:flex-row">
+              <select name="teamId" required defaultValue="" className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm">
+                <option value="" disabled>{locale === "ar" ? "اختر فئة لإضافتها" : "Choisir une catégorie à ajouter"}</option>
+                {allTeams.filter((team) => !staff.teamAssignments.some((assignment) => assignment.teamId === team.id)).map((team) => <option key={team.id} value={team.id}>{tTeams(`categories.${team.category}` as any)}</option>)}
+              </select>
+              <Button type="submit">{locale === "ar" ? "إضافة الفئة" : "Ajouter la catégorie"}</Button>
+            </form>
+          )}
+        </section>
       )}
 
       {/* Documents remain part of the profile form via formId. */}

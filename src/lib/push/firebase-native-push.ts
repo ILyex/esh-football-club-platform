@@ -3,7 +3,7 @@ import "server-only";
 import { createSign } from "node:crypto";
 
 type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string; token_uri?: string };
-type FcmMessage = { token: string; title: string; body: string; section?: string; tag?: string };
+type FcmMessage = { token: string; title: string; body: string; section?: string; tag?: string; kind?: string };
 
 let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
@@ -49,7 +49,7 @@ async function getAccessToken(account: ServiceAccount): Promise<string> {
 
 /** Sends native system notifications through FCM when the deployment has its service account configured. */
 export async function sendNativePush(messages: FcmMessage[]): Promise<{ configured: boolean; failed: number; errors: string[] }> {
-  const eligibleMessages = messages.filter((message) => message.section === "matches" || message.section === "meetings");
+  const eligibleMessages = messages.filter((message) => ["matches", "meetings", "training", "updates"].includes(message.section ?? ""));
   if (eligibleMessages.length === 0) return { configured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON), failed: 0, errors: [] };
   const account = loadServiceAccount();
   if (!account) return { configured: false, failed: 0, errors: [] };
@@ -62,7 +62,7 @@ export async function sendNativePush(messages: FcmMessage[]): Promise<{ configur
         token: message.token,
         // Use a data-only message so NativeMessagingService can render the branded,
         // high-priority notification consistently while the app is backgrounded.
-        data: { section: message.section!, title: message.title, body: message.body, ...(message.tag ? { tag: message.tag } : {}) },
+        data: { section: message.section!, title: message.title, body: message.body, ...(message.tag ? { tag: message.tag } : {}), ...(message.kind ? { kind: message.kind } : {}) },
         android: { priority: "high" }
       } })
     });

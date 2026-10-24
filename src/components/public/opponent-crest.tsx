@@ -42,7 +42,7 @@ export function OpponentCrest({
 
   return (
     <span
-      className={`relative inline-flex h-full w-full shrink-0 items-center justify-center ${className.replace(/\b(object-contain|object-cover)\b/g, "")}`}
+      className={`relative inline-flex shrink-0 items-center justify-center ${className.replace(/\b(object-contain|object-cover)\b/g, "")}`}
       role={alt ? "img" : undefined}
       aria-label={alt || undefined}
     >

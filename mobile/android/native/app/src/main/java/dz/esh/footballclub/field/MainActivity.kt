@@ -398,7 +398,10 @@ private fun MatchdayApp() {
     var token by remember { mutableStateOf(sessionStore.read()) }
     val preferences = remember { context.getSharedPreferences("esh_native_ui", android.content.Context.MODE_PRIVATE) }
     var dismissedAlertIds by remember { mutableStateOf(preferences.getStringSet("dismissed_alert_ids", emptySet()).orEmpty()) }
-    fun visiblePayload(payload: NativeData): NativeData = payload.copy(alerts = payload.alerts.filterNot { it.id in dismissedAlertIds })
+    fun visiblePayload(payload: NativeData): NativeData {
+        val localPushAlerts = NativeMessagingService.savedAppAlerts(context)
+        return payload.copy(alerts = (payload.alerts + localPushAlerts).distinctBy { it.id }.filterNot { it.id in dismissedAlertIds })
+    }
     // SharedPreferences contains serialized dashboard data. Parsing it can be
     // expensive on older phones, so defer the disk read and JSON decoding to IO.
     var user by remember { mutableStateOf<NativeUser?>(null) }
@@ -410,7 +413,7 @@ private fun MatchdayApp() {
     var playerStatsLoading by remember { mutableStateOf(false) }
     var playerStatsError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
-    var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("matches", "meetings")) }
+    var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("matches", "meetings", "training", "updates")) }
     var locale by remember { mutableStateOf(preferences.getString("locale", "ar") ?: "ar") }
     var lightMode by remember {
         val saved = preferences.getBoolean("light_mode", false)
@@ -775,7 +778,11 @@ private fun MatchdayApp() {
         scope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    if (!alert.id.startsWith("meeting-")) NativeApi.deleteNotification(activeToken, alert.id)
+                    when {
+                        alert.id.startsWith("push-") -> NativeMessagingService.dismissAppAlert(context, alert.id)
+                        alert.id.startsWith("calendar-") || alert.id.startsWith("meeting-") -> Unit
+                        else -> NativeApi.deleteNotification(activeToken, alert.id)
+                    }
                 }
             }
             result.onSuccess {
@@ -794,7 +801,7 @@ private fun MatchdayApp() {
     fun dismissAllAlerts() {
         val activeToken = token ?: return
         scope.launch {
-            val result = runCatching { withContext(Dispatchers.IO) { NativeApi.deleteAllNotifications(activeToken) } }
+            val result = runCatching { withContext(Dispatchers.IO) { NativeApi.deleteAllNotifications(activeToken); NativeMessagingService.clearAppAlerts(context) } }
             result.onSuccess {
                 val next = dismissedAlertIds + data?.alerts.orEmpty().map { it.id }
                 dismissedAlertIds = next
@@ -2545,6 +2552,14 @@ private fun AlertCard(alert: NativeAlert, locale: String, onDelete: () -> Unit) 
             Icon(IconlyIcons.Notification, contentDescription = null, tint = if (alert.read) Muted else Red, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
+                val category = when {
+                    alert.kind.contains("GOAL") || alert.kind.startsWith("MATCH") || alert.kind == "UPCOMING_MATCH" -> L(locale, "مباريات", "Matchs")
+                    alert.kind.contains("MEETING") -> L(locale, "اجتماعات", "Réunions")
+                    alert.kind.contains("TRAINING") -> L(locale, "تدريبات", "Entraînements")
+                    alert.kind.contains("ANNOUNCEMENT") || alert.kind.contains("NEWS") -> L(locale, "تحديثات التطبيق", "Actualités de l’application")
+                    else -> L(locale, "تنبيه التطبيق", "Notification de l’application")
+                }
+                Text(category, color = Red, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
                 Text(alert.title, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 alert.message?.let { Text(it, color = Muted, fontSize = 10.sp) }
             }

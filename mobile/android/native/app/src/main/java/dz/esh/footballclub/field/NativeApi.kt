@@ -224,7 +224,23 @@ object NativeApi {
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
         val calendarItems = json.optJSONArray("calendarItems")?.objects()?.map { item -> NativeCalendarItem(item.optString("id"), item.optString("type", "OTHER"), item.optString("title"), item.optString("startDateTime"), item.optString("endDateTime"), item.optNullableString("location"), item.optNullableString("team"), if (item.has("isHomeFixture") && !item.isNull("isHomeFixture")) item.optBoolean("isHomeFixture") else null, item.optNullableString("opponentLogo")) }.orEmpty()
-        val alerts = json.getJSONArray("notifications").objects().map { item -> NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), "MATCH") } + upcoming.map { meeting -> NativeAlert("meeting-${meeting.id}", meeting.title, meeting.location, false, "MEETING") }
+        val storedAlerts = json.getJSONArray("notifications").objects().map { item ->
+            NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), item.optString("type", "MATCH"))
+        }
+        val calendarAlerts = calendarItems.asSequence()
+            .filter { it.type in setOf("MATCH", "MEETING", "TRAINING") }
+            .take(30)
+            .map { event ->
+                val kind = when (event.type) {
+                    "MATCH" -> "UPCOMING_MATCH"
+                    "MEETING" -> "MEETING"
+                    else -> "TRAINING"
+                }
+                val details = listOf(event.startDateTime.replace('T', ' ').take(16), event.team, event.location)
+                    .filterNot { it.isNullOrBlank() }.joinToString(" · ")
+                NativeAlert("calendar-${event.id}", event.title, details.ifBlank { null }, false, kind)
+            }.toList()
+        val alerts = (storedAlerts + calendarAlerts).distinctBy { it.id }
         val teams = json.optJSONArray("teams")?.objects()?.map { NativeTeam(it.optString("id"), it.optString("name"), it.optString("category")) }.orEmpty()
         val coaches = json.optJSONArray("coaches")?.objects()?.map { item ->
             NativeCoach(item.optString("id"), item.optString("name"), item.optJSONArray("teamIds")?.let { ids -> (0 until ids.length()).map { ids.optString(it) } }.orEmpty())

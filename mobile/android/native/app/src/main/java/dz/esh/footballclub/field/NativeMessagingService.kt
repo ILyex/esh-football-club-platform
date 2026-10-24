@@ -15,6 +15,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.concurrent.thread
 
 class NativeMessagingService : FirebaseMessagingService() {
@@ -26,16 +28,26 @@ class NativeMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        // General platform announcements must not be mirrored to the native app.
-        // Only match and meeting events are in scope for native notifications.
+        // General platform notifications must not be mirrored to the native app.
+        // Only app-owned sports and club events are accepted here.
         val section = message.data["section"] ?: return
-        if (section != "matches" && section != "meetings") return
+        if (section !in setOf("matches", "meetings", "training", "updates")) return
         val title = message.notification?.title ?: message.data["title"] ?: "تنبيه · أمل سيدي حسني"
         val body = message.notification?.body ?: message.data["body"].orEmpty()
+        val kind = message.data["kind"] ?: when (section) {
+            "matches" -> "MATCH_UPDATE"
+            "meetings" -> "MEETING"
+            "training" -> "TRAINING"
+            else -> "NEW_ANNOUNCEMENT"
+        }
+        val alertId = "push-${message.data["tag"] ?: message.messageId ?: System.currentTimeMillis()}"
+        saveAppAlert(applicationContext, NativeAlert(alertId, title, body, false, kind))
         val isFrench = getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE).getString("locale", "ar") == "fr"
         val sectionLabel = when (section) {
             "matches" -> if (isFrench) "Matchs" else "المباريات"
-            else -> if (isFrench) "Réunions" else "الاجتماعات"
+            "meetings" -> if (isFrench) "Réunions" else "الاجتماعات"
+            "training" -> if (isFrench) "Entraînements" else "التدريبات"
+            else -> if (isFrench) "Actualités de l’application" else "تحديثات التطبيق"
         }
         val manager = getSystemService(NotificationManager::class.java)
         val soundsEnabled = getSharedPreferences("esh_native_ui", Context.MODE_PRIVATE).getBoolean("sound_effects", true)
@@ -43,7 +55,7 @@ class NativeMessagingService : FirebaseMessagingService() {
         val notificationSound = Uri.parse("android.resource://$packageName/${R.raw.sound_notification_pop}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(channelId, "تنبيهات أمل سيدي حسني", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "تنبيهات المباريات والاجتماعات المهمة"
+                description = "تنبيهات المباريات والأهداف والاجتماعات والتدريبات"
                 setSound(if (soundsEnabled) notificationSound else null, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 180, 80, 180)
@@ -80,8 +92,47 @@ class NativeMessagingService : FirebaseMessagingService() {
     companion object {
         const val PUSH_PREFS = "esh_native_push"
         const val PUSH_TOKEN_KEY = "fcm_token"
+        private const val APP_INBOX_KEY = "app_notification_inbox"
         private const val CHANNEL_ID_SOUND = "esh_club_updates_sound_v3"
         private const val CHANNEL_ID_SILENT = "esh_club_updates_silent_v3"
+
+        fun savedAppAlerts(context: Context): List<NativeAlert> = runCatching {
+            val alerts = JSONArray(context.getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE).getString(APP_INBOX_KEY, "[]"))
+            (0 until alerts.length()).mapNotNull { index ->
+                val item = alerts.optJSONObject(index) ?: return@mapNotNull null
+                NativeAlert(item.optString("id"), item.optString("title"), item.optString("message").takeIf(String::isNotBlank), false, item.optString("kind", "MATCH_UPDATE"))
+            }
+        }.getOrDefault(emptyList())
+
+        fun dismissAppAlert(context: Context, id: String) {
+            val prefs = context.getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE)
+            val existing = runCatching { JSONArray(prefs.getString(APP_INBOX_KEY, "[]")) }.getOrDefault(JSONArray())
+            val next = JSONArray()
+            for (index in 0 until existing.length()) {
+                val item = existing.optJSONObject(index) ?: continue
+                if (item.optString("id") != id) next.put(item)
+            }
+            prefs.edit().putString(APP_INBOX_KEY, next.toString()).apply()
+        }
+
+        fun clearAppAlerts(context: Context) {
+            context.getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE).edit().remove(APP_INBOX_KEY).apply()
+        }
+
+        private fun saveAppAlert(context: Context, alert: NativeAlert) {
+            val prefs = context.getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE)
+            val existing = runCatching { JSONArray(prefs.getString(APP_INBOX_KEY, "[]")) }.getOrDefault(JSONArray())
+            val next = JSONArray()
+            for (index in 0 until existing.length()) {
+                val item = existing.optJSONObject(index) ?: continue
+                if (item.optString("id") != alert.id) next.put(item)
+            }
+            next.put(JSONObject().put("id", alert.id).put("title", alert.title).put("message", alert.message).put("kind", alert.kind))
+            val compact = JSONArray()
+            val first = (next.length() - 100).coerceAtLeast(0)
+            for (index in first until next.length()) compact.put(next.getJSONObject(index))
+            prefs.edit().putString(APP_INBOX_KEY, compact.toString()).apply()
+        }
 
         private fun registerDeviceToken(context: Context, session: String, token: String, locale: String) {
             thread(name = "esh-register-fcm") {
