@@ -1,10 +1,13 @@
 package dz.esh.footballclub.publicapp
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -21,11 +24,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -51,6 +59,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -83,7 +94,6 @@ private object PublicIcons {
     val News = R.drawable.iconly_paper
     val Alerts = R.drawable.iconly_notification
     val AlertsSelected = R.drawable.iconly_notification_filled
-    val Refresh = R.drawable.iconly_swap
     val Language = R.drawable.iconly_language
     val Training = R.drawable.iconly_activity
     val Play = R.drawable.iconly_game
@@ -91,9 +101,11 @@ private object PublicIcons {
     val Shield = R.drawable.iconly_shield_done
     val Delete = R.drawable.iconly_delete
     val Trophy = R.drawable.iconly_star
+    val Team = R.drawable.iconly_users
+    val Club = R.drawable.iconly_shield_done
 }
 
-private enum class PublicTab { HOME, MATCHES, MEDIA, NEWS, ALERTS }
+private enum class PublicTab { HOME, TEAM, MATCHES, COMPETITIONS, NEWS, GALLERY, CLUB, ALERTS }
 
 class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
@@ -111,7 +123,26 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun installPublicApk(context: android.content.Context, apkFile: File): Boolean {
+    if (!apkFile.isFile || apkFile.length() <= 0L) return false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+        context.getSharedPreferences("esh_public_app_updater", 0).edit()
+            .putString("pending_update_path", apkFile.absolutePath).apply()
+        val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(settings); true }.getOrDefault(false)
+    }
+    return runCatching {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
+        val install = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply { clipData = android.content.ClipData.newRawUri("ESH app update", uri) }
+        context.startActivity(install)
+        true
+    }.getOrDefault(false)
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 private fun PublicApp() {
     val context = LocalContext.current
@@ -125,7 +156,9 @@ private fun PublicApp() {
         })
     }
     var snapshot by remember { mutableStateOf<PublicSnapshot?>(null) }
+    var snapshotLocale by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
     var selectedMatch by remember { mutableStateOf<PublicMatchCenter?>(null) }
@@ -134,41 +167,70 @@ private fun PublicApp() {
     var selectedPhoto by remember { mutableStateOf<PublicPhoto?>(null) }
     var selectedVideo by remember { mutableStateOf<String?>(null) }
     var alertItems by remember { mutableStateOf(PublicMessagingService.alerts(context)) }
+    var updateRelease by remember { mutableStateOf<PublicRelease?>(null) }
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var downloadingUpdate by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+    var updateError by remember { mutableStateOf<String?>(null) }
+    var publicTeams by remember(locale) { mutableStateOf<List<PublicTeam>>(emptyList()) }
+    var teamsLoading by remember(locale) { mutableStateOf(false) }
+    var teamsLoadedAtRefresh by remember(locale) { mutableIntStateOf(-1) }
+    var publicCompetitions by remember(locale) { mutableStateOf<List<PublicCompetition>>(emptyList()) }
+    var competitionsLoading by remember(locale) { mutableStateOf(false) }
+    var competitionsLoadedAtRefresh by remember(locale) { mutableIntStateOf(-1) }
     val scope = rememberCoroutineScope()
+    val updaterPreferences = remember { context.getSharedPreferences("esh_public_app_updater", 0) }
+    val pullRefreshState = androidx.compose.material.pullrefresh.rememberPullRefreshState(refreshing, { refreshKey++ })
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    fun checkForAppUpdate() {
+        if (checkingUpdate || downloadingUpdate) return
+        scope.launch {
+            checkingUpdate = true
+            val result = withContext(Dispatchers.IO) { runCatching { PublicApi.latestRelease() } }
+            checkingUpdate = false
+            val release = result.getOrNull()
+            @Suppress("DEPRECATION")
+            val installedVersion = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }.getOrDefault("")
+            val dismissed = updaterPreferences.getString("dismissed_update", null)
+            if (release != null && PublicApi.isUpdateAvailable(release.version, installedVersion) && dismissed != release.version) {
+                updateRelease = release
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= 33) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         PublicMessagingService.registerIfConfigured(context, locale)
+        delay(1_800)
+        checkForAppUpdate()
     }
     LaunchedEffect(locale) { PublicMessagingService.registerIfConfigured(context, locale) }
-    LaunchedEffect(locale, tab, refreshKey) {
-        if (snapshot == null) {
+    LaunchedEffect(locale, refreshKey) {
+        if (snapshotLocale != locale) {
             snapshot = withContext(Dispatchers.IO) { PublicApi.cachedSnapshot(context, locale) }
+            snapshotLocale = locale
         }
         loading = snapshot == null
-        var attempt = 0
-        while (attempt < 2) {
-            val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
-            if (result.isSuccess) {
-                snapshot = result.getOrThrow()
-                LiveMatchNotifications.sync(context, snapshot!!.matches)
-                error = false
-                break
-            }
-            error = true
-            if (attempt == 0) delay(900L)
-            attempt++
-        }
-        loading = false
-        // Keep live scores fresh while the supporter is viewing the dashboard
-        // or fixtures, without refetching the whole feed on every other tab.
-        if (tab in listOf(PublicTab.HOME, PublicTab.MATCHES)) {
-            while (true) {
-                delay(if (snapshot?.matches?.any { it.status == "LIVE" } == true) 20_000L else 60_000L)
+        refreshing = snapshot != null
+        try {
+            var attempt = 0
+            while (attempt < 2) {
                 val result = runCatching { withContext(Dispatchers.IO) { PublicApi.fetch(context, locale) } }
-                result.onSuccess { snapshot = it; LiveMatchNotifications.sync(context, it.matches); error = false }.onFailure { error = true }
+                if (result.isSuccess) {
+                    snapshot = result.getOrThrow()
+                    snapshotLocale = locale
+                    LiveMatchNotifications.sync(context, snapshot!!.matches)
+                    error = false
+                    break
+                }
+                error = true
+                if (attempt == 0) delay(900L)
+                attempt++
             }
+        } finally {
+            loading = false
+            refreshing = false
         }
     }
     LaunchedEffect(tab) {
@@ -181,6 +243,36 @@ private fun PublicApp() {
             }
         }
     }
+    LaunchedEffect(tab, locale, refreshKey) {
+        if (tab == PublicTab.TEAM && teamsLoadedAtRefresh != refreshKey) {
+            teamsLoading = true
+            runCatching { withContext(Dispatchers.IO) { PublicApi.teams(locale) } }
+                .onSuccess { publicTeams = it; teamsLoadedAtRefresh = refreshKey }
+            teamsLoading = false
+        }
+        if (tab == PublicTab.COMPETITIONS && competitionsLoadedAtRefresh != refreshKey) {
+            competitionsLoading = true
+            runCatching { withContext(Dispatchers.IO) { PublicApi.competitions(locale) } }
+                .onSuccess { publicCompetitions = it; competitionsLoadedAtRefresh = refreshKey }
+            competitionsLoading = false
+        }
+    }
+
+    DisposableEffect(context) {
+        val activity = context as? ComponentActivity
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val pendingPath = updaterPreferences.getString("pending_update_path", null)
+                if (pendingPath != null && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls())) {
+                    updaterPreferences.edit().remove("pending_update_path").apply()
+                    installPublicApk(context, File(pendingPath))
+                }
+                checkForAppUpdate()
+            }
+        }
+        activity?.lifecycle?.addObserver(observer)
+        onDispose { activity?.lifecycle?.removeObserver(observer) }
+    }
 
     MaterialTheme(
         colorScheme = darkColorScheme(background = Canvas, surface = Panel, primary = Accent, secondary = Mint, onSurface = PrimaryText),
@@ -192,15 +284,16 @@ private fun PublicApp() {
             containerColor = Canvas,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                PublicTopBar(locale, snapshot?.club, alertCount = alertItems.size, modifier = Modifier.statusBarsPadding(), onAlerts = { tab = PublicTab.ALERTS }, onToggleLocale = {
+                PublicTopBar(locale, snapshot?.club, modifier = Modifier.statusBarsPadding(), onToggleLocale = {
                     locale = if (locale == "ar") "fr" else "ar"
                     preferences.edit().putString(PublicMessagingService.LOCALE, locale).apply()
-                }, onRefresh = { refreshKey++ })
+                })
             },
             bottomBar = {
                 PublicBottomBar(tab, locale) { tab = it }
             }
         ) { padding ->
+          Box(Modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
             Box(Modifier.fillMaxSize().padding(padding)) {
                 val data = snapshot
                 if (data == null && loading) LoadingScreen(locale)
@@ -210,14 +303,19 @@ private fun PublicApp() {
                         PublicTab.HOME -> HomeScreen(data, locale, onMatch = { id ->
                             scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id) } }
                         }, onArticle = { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }, onTab = { tab = it })
+                        PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
                         PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id) } } }
-                        PublicTab.MEDIA -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
+                        PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, locale)
+                        PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
                         PublicTab.NEWS -> NewsScreen(data, locale) { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }
+                        PublicTab.CLUB -> ClubScreen(data, locale)
                         PublicTab.ALERTS -> AlertsScreen(alertItems, locale, onDismiss = { item -> PublicMessagingService.dismiss(context, item.id); alertItems = PublicMessagingService.alerts(context) })
                     }
                 }
                 if (data != null && error) Text(L(locale, "تعذر تحديث بعض البيانات · نعرض آخر محتوى محمّل", "Mise à jour impossible · affichage des derniers contenus reçus"), Modifier.align(Alignment.BottomCenter).padding(8.dp).clip(CircleShape).background(PanelRaised).padding(horizontal = 12.dp, vertical = 7.dp), color = Gold, fontSize = 10.sp)
             }
+            PullRefreshIndicator(refreshing, pullRefreshState, Modifier.align(Alignment.TopCenter), backgroundColor = Panel, contentColor = Accent)
+          }
         }
       }
       }
@@ -232,28 +330,54 @@ private fun PublicApp() {
         }
     } }
     selectedVideo?.let { video -> VideoDialog(video) { selectedVideo = null } }
+
+    updateRelease?.let { release ->
+        AlertDialog(
+            onDismissRequest = { if (!downloadingUpdate) { updaterPreferences.edit().putString("dismissed_update", release.version).apply(); updateRelease = null } },
+            containerColor = Panel,
+            title = { Text(L(locale, "تحديث جديد متاح", "Mise à jour disponible"), color = PrimaryText, fontWeight = FontWeight.Black) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(L(locale, "الإصدار ${release.version} جاهز. سيُنزّل داخل التطبيق ثم يفتح مثبت أندرويد.", "La version ${release.version} est prête. Elle sera téléchargée dans l’application puis l’installateur Android s’ouvrira."), color = SecondaryText, fontSize = 12.sp, lineHeight = 19.sp)
+                    if (downloadingUpdate) LinearProgressIndicator(progress = { updateProgress / 100f }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = PanelRaised)
+                    if (downloadingUpdate) Text("$updateProgress%", color = Gold, fontSize = 11.sp)
+                    updateError?.let { Text(it, color = Color(0xFFFF8895), fontSize = 11.sp) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !downloadingUpdate, onClick = {
+                    downloadingUpdate = true
+                    updateError = null
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching { PublicApi.downloadApk(context, release) { value -> if (value > updateProgress) scope.launch { updateProgress = value } } }
+                        }
+                        downloadingUpdate = false
+                        result.onSuccess { file ->
+                            updateRelease = null
+                            if (!installPublicApk(context, file)) updateError = L(locale, "تعذر فتح مثبت التحديث. تحقق من صلاحية تثبيت التطبيقات لهذا التطبيق.", "Impossible d’ouvrir l’installation. Vérifiez l’autorisation d’installation pour cette application.")
+                        }.onFailure { updateError = L(locale, "تعذر تنزيل التحديث أو التحقق من سلامته. حاول مرة أخرى.", "Téléchargement ou vérification impossible. Réessayez.") }
+                    }
+                }) { Text(if (downloadingUpdate) L(locale, "جارٍ التنزيل", "Téléchargement…") else L(locale, "تنزيل وتثبيت", "Télécharger et installer"), color = Accent, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(enabled = !downloadingUpdate, onClick = { updaterPreferences.edit().putString("dismissed_update", release.version).apply(); updateRelease = null }) { Text(L(locale, "لاحقًا", "Plus tard"), color = SecondaryText) } }
+        )
+    }
+    updateError?.takeIf { updateRelease == null }?.let { message ->
+        AlertDialog(onDismissRequest = { updateError = null }, text = { Text(message, color = PrimaryText) }, confirmButton = { TextButton(onClick = { updateError = null }) { Text(L(locale, "حسنًا", "OK"), color = Accent) } }, containerColor = Panel)
+    }
 }
 
 @Composable
-private fun PublicTopBar(locale: String, club: PublicClub?, alertCount: Int, modifier: Modifier = Modifier, onAlerts: () -> Unit, onToggleLocale: () -> Unit, onRefresh: () -> Unit) {
+private fun PublicTopBar(locale: String, club: PublicClub?, modifier: Modifier = Modifier, onToggleLocale: () -> Unit) {
     Row(Modifier.fillMaxWidth().background(Canvas).then(modifier).padding(horizontal = 17.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(Modifier.size(45.dp).clip(CircleShape).background(Glass).border(1.dp, Hairline, CircleShape).padding(5.dp), contentAlignment = Alignment.Center) {
             AsyncImage(model = club?.logo ?: R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("ESH", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp, maxLines = 1)
-                Box(Modifier.clip(CircleShape).background(Accent.copy(alpha = .15f)).padding(horizontal = 7.dp, vertical = 2.dp)) {
-                    Text(L(locale, "الجمهور", "SUPPORTERS"), color = Color(0xFFFF7182), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .35.sp)
-                }
-            }
+            Text(club?.shortName ?: "ESH", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp, maxLines = 1)
             Text(club?.name ?: L(locale, "الجمعية الرياضية أمل سيدي حسني", "Association Sportive Espoir Sidi Hosni"), color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Box {
-            HeaderAction(PublicIcons.Alerts, L(locale, "التنبيهات", "Notifications"), onAlerts, selected = alertCount > 0)
-            if (alertCount > 0) Box(Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp).size(8.dp).clip(CircleShape).background(Mint).border(1.5.dp, Canvas, CircleShape))
-        }
-        HeaderAction(PublicIcons.Refresh, L(locale, "تحديث", "Actualiser"), onRefresh)
         Surface(onClick = onToggleLocale, shape = RoundedCornerShape(13.dp), color = Panel, border = BorderStroke(1.dp, Hairline)) {
             Row(Modifier.height(38.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
@@ -277,6 +401,12 @@ private fun AppIcon(resource: Int, description: String?, tint: Color, modifier: 
 
 @Composable
 private fun PublicBottomBar(selected: PublicTab, locale: String, onSelect: (PublicTab) -> Unit) {
+    val tabs = remember { PublicTab.entries.filter { it != PublicTab.ALERTS } }
+    val listState = rememberLazyListState()
+    val navScope = rememberCoroutineScope()
+    LaunchedEffect(selected) {
+        tabs.indexOf(selected).takeIf { it >= 0 }?.let { listState.animateScrollToItem(it) }
+    }
     Surface(
         modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 13.dp, vertical = 7.dp),
         color = PanelRaised,
@@ -284,18 +414,25 @@ private fun PublicBottomBar(selected: PublicTab, locale: String, onSelect: (Publ
         border = BorderStroke(1.dp, Hairline),
         shadowElevation = 16.dp
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-            PublicTab.entries.forEach { item ->
+        Box {
+          LazyRow(state = listState, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 5.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            items(tabs) { item ->
                 val active = selected == item
-                Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(if (active) Accent.copy(alpha = .15f) else Color.Transparent).clickable { onSelect(item) }.padding(vertical = 5.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(20.dp))
-                    Text(item.label(locale), color = if (active) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                Surface(onClick = { onSelect(item) }, shape = RoundedCornerShape(14.dp), color = if (active) Accent.copy(alpha = .16f) else Color.Transparent) {
+                    Row(Modifier.padding(horizontal = 11.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(17.dp))
+                        Text(item.label(locale), color = if (active) PrimaryText else SecondaryText, fontSize = 10.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
                 }
             }
+          }
+          if (listState.canScrollForward) {
+              Surface(
+                  onClick = { navScope.launch { listState.animateScrollToItem((listState.firstVisibleItemIndex + 3).coerceAtMost(tabs.lastIndex)) } },
+                  modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).size(27.dp),
+                  shape = CircleShape, color = PanelRaised, border = BorderStroke(1.dp, Hairline)
+              ) { Box(contentAlignment = Alignment.Center) { AppIcon(if (locale == "ar") R.drawable.iconly_arrow_left else R.drawable.iconly_arrow_right, L(locale, "أقسام أخرى", "Autres rubriques"), Accent, Modifier.size(14.dp)) } }
+          }
         }
     }
 }
@@ -328,7 +465,7 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
             MatchCard(featured, locale, clubLogo = data.club.logo, onClick = { onMatch(featured.id) }, featured = true)
         }
         if (data.trainings.isNotEmpty()) item {
-            SectionHeading(L(locale, "التدريبات القادمة", "Prochains entraînements"), PublicIcons.Training, locale, action = { onTab(PublicTab.MATCHES) })
+            SectionHeading(L(locale, "التدريبات القادمة", "Prochains entraînements"), PublicIcons.Training, locale, action = { onTab(PublicTab.CLUB) })
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items(data.trainings.take(4), key = { it.id }) { TrainingCard(it, locale) } }
         }
         if (data.news.isNotEmpty()) item {
@@ -336,11 +473,100 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
             NewsCard(data.news.first(), locale, onClick = { onArticle(data.news.first().slug) })
         }
         if (data.albums.isNotEmpty() || data.reels.isNotEmpty()) item {
-            SectionHeading(L(locale, "من ألبوم النادي", "Dans l’album du club"), PublicIcons.Media, locale, action = { onTab(PublicTab.MEDIA) })
+            SectionHeading(L(locale, "من ألبوم النادي", "Dans l’album du club"), PublicIcons.Media, locale, action = { onTab(PublicTab.GALLERY) })
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(data.albums.take(5), key = { it.id }) { album -> AlbumTile(album, locale, Modifier.width(210.dp)) { onTab(PublicTab.MEDIA) } }
+                items(data.albums.take(5), key = { it.id }) { album -> AlbumTile(album, locale, Modifier.width(210.dp)) { onTab(PublicTab.GALLERY) } }
             }
         }
+    }
+}
+
+@Composable
+private fun TeamsScreen(teams: List<PublicTeam>, isLoading: Boolean, locale: String) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { ScreenHeading(L(locale, "الفريق", "Équipe"), L(locale, "فئات النادي ولاعبوها", "Les catégories et les effectifs du club"), PublicIcons.Team) }
+        if (isLoading && teams.isEmpty()) item { LoadingInline(locale) }
+        if (!isLoading && teams.isEmpty()) item { EmptyState(L(locale, "تعذر تحميل فئات الفريق. اسحب للأسفل للمحاولة مجددًا.", "Chargement impossible. Tirez vers le bas pour réessayer.")) }
+        items(teams, key = { it.id }) { team ->
+            Surface(color = Panel, shape = RoundedCornerShape(19.dp), border = BorderStroke(1.dp, Hairline)) {
+                Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(43.dp).clip(RoundedCornerShape(14.dp)).background(Accent.copy(alpha = .13f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Team, null, Accent, Modifier.size(21.dp)) }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(categoryLabel(locale, team.category), color = PrimaryText, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                        team.description?.takeIf { it.isNotBlank() }?.let { Text(it, color = SecondaryText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                        if (team.birthYearFrom != null || team.birthYearTo != null) Text("${team.birthYearFrom ?: "…"} – ${team.birthYearTo ?: "…"}", color = Gold, fontSize = 10.sp)
+                    }
+                    Text("${team.playerCount} ${L(locale, "لاعب", "joueurs")}", color = Mint, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompetitionsScreen(competitions: List<PublicCompetition>, isLoading: Boolean, locale: String) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        item { ScreenHeading(L(locale, "المسابقات", "Compétitions"), L(locale, "الترتيب والنتائج الرسمية", "Classements et résultats officiels"), PublicIcons.Trophy) }
+        if (isLoading && competitions.isEmpty()) item { LoadingInline(locale) }
+        if (!isLoading && competitions.isEmpty()) item { EmptyState(L(locale, "تعذر تحميل ترتيب المسابقات. اسحب للأسفل للمحاولة مجددًا.", "Chargement impossible. Tirez vers le bas pour réessayer.")) }
+        items(competitions, key = { it.id }) { competition ->
+            Surface(color = Panel, shape = RoundedCornerShape(19.dp), border = BorderStroke(1.dp, Hairline)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(Accent.copy(alpha = .13f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Trophy, null, Accent, Modifier.size(18.dp)) }
+                        Column(Modifier.weight(1f)) {
+                            Text(competition.name, color = PrimaryText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text("${categoryLabel(locale, competition.category)} · ${competition.season}", color = SecondaryText, fontSize = 9.sp)
+                        }
+                    }
+                    if (competition.standings.isEmpty()) EmptyState(L(locale, "لم يُنشر ترتيب لهذه المسابقة بعد", "Le classement de cette compétition n’est pas encore publié"))
+                    else {
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(PanelRaised).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("#", color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(22.dp))
+                            Text(L(locale, "الفريق", "Club"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.weight(1f))
+                            Text(L(locale, "لعب", "J"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Text(L(locale, "+/−", "+/−"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Text(L(locale, "ن", "Pts"), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                        }
+                        competition.standings.take(12).forEach { standing ->
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (standing.isOurClub) Accent.copy(alpha = .11f) else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(standing.rank.toString(), color = if (standing.isOurClub) Accent else SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
+                                Text(standing.teamName, color = if (standing.isOurClub) PrimaryText else SecondaryText, fontSize = 10.sp, fontWeight = if (standing.isOurClub) FontWeight.Bold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(standing.played.toString(), color = PrimaryText, fontSize = 10.sp, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(if (standing.goalDifference > 0) "+${standing.goalDifference}" else standing.goalDifference.toString(), color = SecondaryText, fontSize = 10.sp, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(standing.points.toString(), color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Black, modifier = Modifier.width(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClubScreen(data: PublicSnapshot, locale: String) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        item { ScreenHeading(L(locale, "النادي", "Club"), L(locale, "تعرف على جمعية أمل سيدي حسني", "Découvrez l’Association Sportive Espoir Sidi Hosni"), PublicIcons.Club) }
+        item {
+            Surface(color = Panel, shape = RoundedCornerShape(21.dp), border = BorderStroke(1.dp, Hairline)) {
+                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(94.dp).clip(CircleShape).background(Glass).border(1.dp, Hairline, CircleShape).padding(9.dp), contentAlignment = Alignment.Center) { AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
+                    Text(data.club.name, color = PrimaryText, fontSize = 17.sp, fontWeight = FontWeight.Black, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    data.club.description?.takeIf { it.isNotBlank() }?.let { Text(it, color = SecondaryText, fontSize = 11.sp, lineHeight = 18.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+                }
+            }
+        }
+        data.club.stadium?.takeIf { it.isNotBlank() }?.let { stadium -> item {
+            Surface(color = Panel, shape = RoundedCornerShape(17.dp), border = BorderStroke(1.dp, Hairline)) {
+                Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppIcon(PublicIcons.Calendar, null, Accent, Modifier.size(19.dp))
+                    Column { Text(L(locale, "الملعب", "Stade"), color = SecondaryText, fontSize = 9.sp); Text(stadium, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                }
+            }
+        } }
+        if (data.trainings.isNotEmpty()) item { SectionHeading(L(locale, "التدريبات القادمة", "Prochains entraînements"), PublicIcons.Training, locale) }
+        items(data.trainings, key = { "club-training-${it.id}" }) { TrainingCard(it, locale) }
     }
 }
 
@@ -653,6 +879,9 @@ private fun VideoDialog(url: String, onDismiss: () -> Unit) {
 private fun LoadingScreen(locale: String) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { CircularProgressIndicator(color = Accent); Text(L(locale, "نجهز لك جديد النادي...", "Chargement des nouvelles du club…"), color = SecondaryText, fontSize = 12.sp) } } }
 
 @Composable
+private fun LoadingInline(locale: String) { Row(Modifier.fillMaxWidth().padding(vertical = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(18.dp), color = Accent, strokeWidth = 2.dp); Spacer(Modifier.width(9.dp)); Text(L(locale, "جارٍ التحميل", "Chargement…"), color = SecondaryText, fontSize = 11.sp) } }
+
+@Composable
 private fun ErrorScreen(locale: String, error: Boolean, onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.Center) {
         Surface(color = Panel, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, Hairline)) {
@@ -671,12 +900,24 @@ private fun EmptyState(text: String) { Surface(Modifier.fillMaxWidth(), color = 
 
 private fun PublicTab.icon(selected: Boolean) = when (this) {
     PublicTab.HOME -> if (selected) PublicIcons.HomeSelected else PublicIcons.Home
+    PublicTab.TEAM -> PublicIcons.Team
     PublicTab.MATCHES -> PublicIcons.Match
-    PublicTab.MEDIA -> PublicIcons.Media
+    PublicTab.COMPETITIONS -> PublicIcons.Trophy
     PublicTab.NEWS -> PublicIcons.News
+    PublicTab.GALLERY -> PublicIcons.Media
+    PublicTab.CLUB -> PublicIcons.Club
     PublicTab.ALERTS -> if (selected) PublicIcons.AlertsSelected else PublicIcons.Alerts
 }
-private fun PublicTab.label(locale: String) = when (this) { PublicTab.HOME -> L(locale, "الرئيسية", "Accueil"); PublicTab.MATCHES -> L(locale, "المباريات", "Matchs"); PublicTab.MEDIA -> L(locale, "المعرض", "Galerie"); PublicTab.NEWS -> L(locale, "الأخبار", "Actualités"); PublicTab.ALERTS -> L(locale, "التنبيهات", "Notifications") }
+private fun PublicTab.label(locale: String) = when (this) {
+    PublicTab.HOME -> L(locale, "الرئيسية", "Accueil")
+    PublicTab.TEAM -> L(locale, "الفريق", "Équipe")
+    PublicTab.MATCHES -> L(locale, "المباريات", "Matchs")
+    PublicTab.COMPETITIONS -> L(locale, "المسابقات", "Compétitions")
+    PublicTab.NEWS -> L(locale, "الأخبار", "Actualités")
+    PublicTab.GALLERY -> L(locale, "المعرض", "Galerie")
+    PublicTab.CLUB -> L(locale, "النادي", "Club")
+    PublicTab.ALERTS -> L(locale, "التنبيهات", "Notifications")
+}
 private fun L(locale: String, arabic: String, french: String) = if (locale == "ar") arabic else french
 private fun categoryLabel(locale: String, category: String) = when (category) { "SENIOR" -> L(locale, "الأكابر", "Seniors"); "U20" -> "U20"; "U17" -> "U17"; "U15" -> "U15"; "ALL" -> L(locale, "الكل", "Tous"); else -> category }
 private fun albumCategory(locale: String, category: String) = when (category) { "MATCHES" -> L(locale, "مباريات", "Matchs"); "TRAINING" -> L(locale, "تدريبات", "Entraînements"); "TEAM" -> L(locale, "الفريق", "Équipe"); "EVENTS" -> L(locale, "فعاليات", "Événements"); else -> L(locale, "النادي", "Club") }
