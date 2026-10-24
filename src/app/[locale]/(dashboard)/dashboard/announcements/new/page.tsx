@@ -3,11 +3,10 @@ import { requirePagePermission } from "@/lib/permissions";
 import { getAuthorizedTeams } from "@/lib/team-context";
 import { createAnnouncementAction } from "../actions";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
 import { DateInput } from "@/components/ui/date-input";
 import { FormSelect } from "@/components/ui/form-select";
-import { Save } from "lucide-react";
+import { AnnouncementCreateWizard } from "@/components/announcements/announcement-create-wizard";
 
 export default async function NewAnnouncementPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -44,7 +43,14 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
         </p>
       </header>
 
-      <form action={action} encType="multipart/form-data" className="space-y-5">
+      <AnnouncementCreateWizard
+        action={action}
+        locale={locale}
+        stepTitles={isAr ? ["المحتوى", "النشر والاستهداف", "الصور والمراجعة"] : ["Contenu", "Publication", "Images et vérification"]}
+        backLabel={isAr ? "السابق" : "Précédent"}
+        nextLabel={isAr ? "التالي" : "Suivant"}
+        saveLabel={tCommon("save")}
+        steps={[
         <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 border-b border-border/70 pb-3">
             <h2 className="text-sm font-bold text-foreground">{isAr ? "محتوى الإعلان" : "Contenu de l’annonce"}</h2>
@@ -81,7 +87,7 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
               </div>
             </div>
           </div>
-        </section>
+        </section>,
 
         <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
           <div className="mb-5 border-b border-border/70 pb-3">
@@ -114,9 +120,13 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
               <span>{t("fields.homepageVisibility")}</span>
             </label>
           </div>
-        </section>
+        </section>,
 
         <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
+          <div className="mb-5 border-b border-border/70 pb-3">
+            <h2 className="text-sm font-bold text-foreground">{isAr ? "صور الإعلان" : "Images de l’annonce"}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{isAr ? "أضف الصور ثم راجع الإعلان قبل نشره." : "Ajoutez les images, puis vérifiez l’annonce avant de la publier."}</p>
+          </div>
           <MultiImageUploader
             name="images"
             locale={locale}
@@ -124,14 +134,8 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
             description={isAr ? "أضف عدة صور، ثم عاينها ورتبها قبل الحفظ." : "Ajoutez plusieurs images, puis prévisualisez-les et organisez-les avant l’enregistrement."}
           />
         </section>
-
-        <div className="flex flex-wrap items-center justify-start gap-3 border-t border-border/70 pt-4">
-          <Button type="submit" className="h-10 gap-2 rounded-xl px-5 font-semibold">
-            <Save className="h-4 w-4" aria-hidden="true" />
-            <span>{tCommon("save")}</span>
-          </Button>
-        </div>
-      </form>
+        ]}
+      />
     </div>
   );
 }
