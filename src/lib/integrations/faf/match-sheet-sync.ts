@@ -119,6 +119,19 @@ function dateKey(value: unknown): string {
   return Number.isNaN(date.valueOf()) ? "" : localDate(date);
 }
 
+function shiftDateKey(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.valueOf())) return value;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function dayDistance(left: string, right: string): number {
+  const a = Date.parse(`${left}T00:00:00.000Z`);
+  const b = Date.parse(`${right}T00:00:00.000Z`);
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.abs(a - b) / 86_400_000 : Number.POSITIVE_INFINITY;
+}
+
 function opponentName(club: any): string {
   const names = extractFafClubNameVariants(club);
   const fallback = String(club?.nomAr || club?.denomination || club?.nomClub || club?.surnomAr || club?.surnom || "").trim();
@@ -486,9 +499,20 @@ async function reconcilePlayerEvents(matchId: string, teamId: string | null, imp
 }
 
 async function resolveLocalMatch(matchId: string, clubCode: string) {
-  const local = await db.match.findUnique({ where: { id: matchId }, include: { team: true } });
+  const local = await db.match.findUnique({ where: { id: matchId }, include: { team: true, competition: true } });
   if (!local) throw new Error("Match not found");
-  const remoteMatches = await getFafEmsClient().history();
+  const client = getFafEmsClient();
+  const localDate = dateKey(local.matchDate);
+  // The EMS history endpoint excludes future fixtures. Search its scheduled
+  // feed around this match too, so a manually entered upcoming match can be
+  // linked without requiring the user to import/create it from that feed.
+  const [historyMatches, scheduledMatches] = await Promise.all([
+    client.history(),
+    client.scheduledMatches(shiftDateKey(localDate, -1), shiftDateKey(localDate, 1))
+  ]);
+  const remoteMatches = [...new Map([...historyMatches, ...scheduledMatches]
+    .filter((remote) => remote?.id != null)
+    .map((remote) => [String(remote.id), remote])).values()];
   const scheduledMappings = await db.integrationState.findMany({
     where: { OR: [
       { key: { startsWith: "faf-ems-scheduled-match:" } },
@@ -520,20 +544,25 @@ async function resolveLocalMatch(matchId: string, clubCode: string) {
     const remoteLocIsOurClub = remoteOrientation(mapped);
     if (remoteLocIsOurClub !== null) return { local, remote: mapped, remoteLocIsOurClub };
   }
-  const localDate = dateKey(local.matchDate);
   const candidates = remoteMatches.filter((remote) => {
-    if (dateKey(remote.dateRencontre) !== localDate) return false;
+    if (dayDistance(dateKey(remote.dateRencontre), localDate) > 1) return false;
     const remoteLocIsOurClub = remoteOrientation(remote);
     if (remoteLocIsOurClub === null) return false;
-    const remoteOpponent = opponentName(remoteLocIsOurClub ? remote.clubVis : remote.clubLoc);
-    return namesMatch(local.homeTeamName, remoteOpponent) || namesMatch(local.awayTeamName, remoteOpponent);
+    const remoteOpponentClub = remoteLocIsOurClub ? remote.clubVis : remote.clubLoc;
+    const remoteNames = extractFafClubNameVariants(remoteOpponentClub);
+    const remoteOpponentNames = [remoteNames.ar, remoteNames.fr, opponentName(remoteOpponentClub)].filter(Boolean);
+    return remoteOpponentNames.some((remoteOpponent) =>
+      namesMatch(local.homeTeamName, remoteOpponent) || namesMatch(local.awayTeamName, remoteOpponent)
+    );
   });
-  if (candidates.length !== 1) {
-    throw new Error(candidates.length
-      ? "وجدت أكثر من مباراة محتملة في EMS في نفس التاريخ؛ لم أستورد أي بيانات لتجنب ربط مباراة خاطئة."
+  const exactDateCandidates = candidates.filter((remote) => dateKey(remote.dateRencontre) === localDate);
+  const bestCandidates = exactDateCandidates.length ? exactDateCandidates : candidates;
+  if (bestCandidates.length !== 1) {
+    throw new Error(bestCandidates.length
+      ? "وجدت أكثر من مباراة محتملة في EMS قرب تاريخ المباراة؛ لم أستورد أي بيانات لتجنب ربط مباراة خاطئة."
       : "حُفظت المباراة في المنصة، لكن تعذّر ربطها بمباراة FAF EMS. تحقق من تاريخ المباراة واسم المنافس أو استورد المباراة المبرمجة أولاً.");
   }
-  return { local, remote: candidates[0], remoteLocIsOurClub: remoteOrientation(candidates[0])! };
+  return { local, remote: bestCandidates[0], remoteLocIsOurClub: remoteOrientation(bestCandidates[0])! };
 }
 
 export async function syncFafMatchDocuments(matchId: string, userId?: string): Promise<FafMatchSyncResult> {
