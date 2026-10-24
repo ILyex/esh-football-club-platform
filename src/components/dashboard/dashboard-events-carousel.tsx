@@ -146,28 +146,27 @@ export function DashboardEventsCarousel({
                   <Link
                     key={m.id}
                     href={`/${locale}/dashboard/matches/${m.id}`}
-                    className="flex items-center justify-between py-2 sm:py-2.5 group hover:bg-muted/30 px-1.5 sm:px-2 rounded-lg transition-colors"
+                    dir={isAr ? "rtl" : "ltr"}
+                    className="group flex min-h-14 items-center gap-2 rounded-xl border border-border/60 bg-background/40 px-2 py-1.5 transition-colors hover:border-club-primary/30 hover:bg-muted/30 sm:gap-2.5 sm:px-2.5"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 p-1">
                       {m.opponentLogo ? (
-                        <OpponentCrest src={m.opponentLogo} className="h-6 w-6 object-contain shrink-0" iconClassName="h-5 w-5 shrink-0 text-muted-foreground" />
+                        <OpponentCrest src={m.opponentLogo} className="h-full w-full object-contain" iconClassName="h-5 w-5 text-muted-foreground" />
                       ) : (
-                        <Trophy className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <Trophy className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       )}
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-foreground group-hover:text-club-primary transition-colors truncate">
-                          {localizedClubName(m.opponentName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Clock className="h-3 w-3" />
-                          <span dir="ltr" className="font-mono tabular-nums">
-                            {formatAlgeriaDateTime(m.matchDate, locale)}
-                          </span>
-                          {m.competitionName && <span className="min-w-0 truncate">• {isAr ? m.competitionName : frenchCompetitionName(m.competitionName)}</span>}
-                        </p>
-                      </div>
                     </div>
-                    <Chevron className="h-3.5 w-3.5 text-muted-foreground group-hover:text-club-primary transition-colors shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-bold leading-4 text-foreground transition-colors group-hover:text-club-primary">
+                          {localizedClubName(m.opponentName, locale, isAr ? "الفريق المنافس" : "Nom du club adverse")}
+                      </p>
+                      <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground">
+                        <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span dir="ltr" className="shrink-0 font-mono tabular-nums">{formatAlgeriaDateTime(m.matchDate, locale)}</span>
+                        {m.competitionName && <span className="truncate">· {isAr ? m.competitionName : frenchCompetitionName(m.competitionName)}</span>}
+                      </p>
+                    </div>
+                    <Chevron className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-club-primary" aria-hidden="true" />
                   </Link>
                 ))}
               </div>
