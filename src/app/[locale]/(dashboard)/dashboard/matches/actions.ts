@@ -1028,13 +1028,16 @@ export async function upsertLineupEntryAction(matchId: string, formData: FormDat
       where: { matchId, selectionStatus: "STARTING", playerId: { not: parsed.playerId } }
     });
     if (currentStarters >= 11) throw new Error("lineupStartingLimit");
-    if (player.position === "GOALKEEPER") {
+    if ((parsed.position || player.position).toUpperCase() === "GOALKEEPER") {
       const otherStartingGoalkeepers = await db.matchLineup.count({
         where: {
           matchId,
           selectionStatus: "STARTING",
           playerId: { not: parsed.playerId },
-          player: { is: { position: "GOALKEEPER" } }
+          OR: [
+            { position: { in: ["GOALKEEPER", "GK"] } },
+            { position: null, player: { is: { position: "GOALKEEPER" } } }
+          ]
         }
       });
       if (otherStartingGoalkeepers > 0) throw new Error("lineupGoalkeeperLimit");

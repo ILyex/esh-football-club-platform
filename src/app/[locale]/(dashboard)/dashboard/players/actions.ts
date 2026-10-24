@@ -372,6 +372,15 @@ export async function updatePlayerAction(playerId: string, formData: FormData) {
       include: { team: true }
     });
 
+    // Keep match lineup snapshots aligned with the player's platform position.
+    // Preserve any match-specific role that differs from the player's old position.
+    if (before.position !== parsed.position) {
+      await tx.matchLineup.updateMany({
+        where: { playerId, position: before.position },
+        data: { position: parsed.position }
+      });
+    }
+
     for (const [translationLocale, biography] of [["ar", parsed.biographyAr], ["fr", parsed.biographyFr]] as const) {
       const normalizedBiography = biography?.trim() ?? "";
       if (normalizedBiography) {

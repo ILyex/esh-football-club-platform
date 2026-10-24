@@ -157,7 +157,7 @@ export function MatchLineupWorkspace({
   const benchPlayers = entries.filter((entry) => entry.selectionStatus === "SUBSTITUTE");
   const playerCount = (status: string) => entries.filter((entry) => entry.selectionStatus === status).length;
 
-  const persistStatus = async (playerId: string, selectionStatus: LineupStatus) => {
+  const persistStatus = async (playerId: string, selectionStatus: LineupStatus, positionOverride?: string) => {
     if (!canEdit || savingPlayerId) return;
     if (autoSuspended.has(playerId) && selectionStatus !== "SUSPENDED") {
       toast.error(isAr ? "هذا اللاعب موقوف تلقائياً بسبب بطاقة حمراء في المباراة السابقة." : "Ce joueur est automatiquement suspendu après un carton rouge au match précédent.");
@@ -175,8 +175,10 @@ export function MatchLineupWorkspace({
       toast.error(isAr ? "لا يمكن أن يتجاوز التشكيل الأساسي 11 لاعباً." : "L’équipe titulaire ne peut pas dépasser 11 joueurs.");
       return;
     }
-    if (selectionStatus === "STARTING" && player.position === "GOALKEEPER" && entries.some((entry) =>
-      entry.playerId !== playerId && entry.selectionStatus === "STARTING" && playerById.get(entry.playerId)?.position === "GOALKEEPER"
+    const nextPosition = positionOverride || current?.position || player.position;
+    if (selectionStatus === "STARTING" && nextPosition.toUpperCase() === "GOALKEEPER" && entries.some((entry) =>
+      entry.playerId !== playerId && entry.selectionStatus === "STARTING" &&
+      (entry.position || playerById.get(entry.playerId)?.position)?.toUpperCase() === "GOALKEEPER"
     )) {
       toast.error(isAr ? "لا يمكن اختيار أكثر من حارس مرمى واحد في التشكيلة الأساسية." : "Un seul gardien peut être titulaire.");
       return;
@@ -186,7 +188,7 @@ export function MatchLineupWorkspace({
       playerId,
       isStarting: selectionStatus === "STARTING",
       selectionStatus,
-      position: current?.position || player.position,
+      position: nextPosition,
       isCaptain: selectionStatus === "STARTING" && Boolean(current?.isCaptain)
     };
     const previousEntries = entries;
@@ -495,7 +497,7 @@ export function MatchLineupWorkspace({
         </div>
 
         <p className="-mt-2 text-center text-[11px] leading-4 text-muted-foreground sm:hidden">
-          {isAr ? "اختر لاعباً من القائمة ثم اضغط على الملعب؛ سيظهر في مركزه المسجل." : "Choisissez un joueur puis touchez le terrain ; il apparaîtra à son poste."}
+          {isAr ? "اختر لاعباً ثم اضغط على خانة المركز المطلوب أو اسحبه إليها." : "Choisissez un joueur puis touchez le poste souhaité ou glissez-le dessus."}
         </p>
 
         <div data-lineup-drop-zone="STARTING" className={`relative rounded-2xl transition-shadow ${touchDrag ? "ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-background" : ""}`}>
@@ -507,13 +509,14 @@ export function MatchLineupWorkspace({
             editable={canEdit}
             selectedPlayerId={selectedPlayerId}
             onDropPlayer={(playerId) => void persistStatus(playerId, "STARTING")}
+            onAssignPosition={(playerId, position) => void persistStatus(playerId, "STARTING", position)}
             onClickField={() => { if (selectedPlayerId) void persistStatus(selectedPlayerId, "STARTING"); }}
             onDragStartPlayer={(playerId, event) => { event.dataTransfer.setData("text/plain", playerId); event.dataTransfer.effectAllowed = "move"; }}
             onClickPlayer={(playerId) => setSelectedPlayerId(playerId)}
           />
           {startingPlayers.length === 0 && (
             <div className="pointer-events-none absolute inset-x-8 top-1/2 z-30 -translate-y-1/2 rounded-xl border border-dashed border-white/30 bg-emerald-950/80 px-4 py-3 text-center text-xs font-semibold text-emerald-50/80">
-              {isAr ? "اسحب لاعباً أو اختره من القائمة ثم اضغط على الملعب؛ سيظهر في مركزه المسجل." : "Glissez un joueur ou sélectionnez-le puis touchez le terrain ; il apparaîtra à son poste."}
+              {isAr ? "اسحب اللاعب إلى المركز المطلوب أو حدده ثم اضغط على خانة المركز." : "Glissez le joueur au poste souhaité ou sélectionnez-le puis touchez la position."}
             </div>
           )}
         </div>

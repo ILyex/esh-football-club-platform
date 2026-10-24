@@ -23,6 +23,7 @@ interface TacticalPitchProps {
   locale?: string;
   editable?: boolean;
   onDropPlayer?: (playerId: string) => void;
+  onAssignPosition?: (playerId: string, position: PositionGroup) => void;
   onClickField?: () => void;
   onDragStartPlayer?: (playerId: string, event: DragEvent<HTMLButtonElement>) => void;
   onClickPlayer?: (playerId: string) => void;
@@ -78,6 +79,7 @@ export function TacticalPitch({
   locale = "ar",
   editable = false,
   onDropPlayer,
+  onAssignPosition,
   onClickField,
   onDragStartPlayer,
   onClickPlayer,
@@ -184,12 +186,25 @@ export function TacticalPitch({
           const nodeClass = cn("group/slot absolute flex w-[14.5%] min-w-[60px] max-w-[100px] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-lg p-0.5 transition-transform", player && editable ? "cursor-grab active:cursor-grabbing hover:scale-105" : !player && editable ? "cursor-pointer hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/70" : "cursor-default", selectedPlayerId === player?.playerId && "z-30 scale-105");
           const style = { left: `${x}%`, top: `${y}%` };
 
+          const onSlotDrop = editable ? (event: DragEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const playerId = event.dataTransfer.getData("text/plain");
+            if (playerId) onAssignPosition?.(playerId, group);
+          } : undefined;
+          const onSlotDragOver = editable ? (event: DragEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "move";
+          } : undefined;
           return player ? <button
             key={player.playerId}
             type="button"
             draggable={editable}
             onDragStart={editable ? (event) => onDragStartPlayer?.(player.playerId, event) : undefined}
-            onClick={editable ? (event) => { event.stopPropagation(); onClickPlayer?.(player.playerId); } : undefined}
+            onDragOver={onSlotDragOver}
+            onDrop={onSlotDrop}
+            onClick={editable ? (event) => { event.stopPropagation(); if (selectedPlayerId) onAssignPosition?.(selectedPlayerId, group); else onClickPlayer?.(player.playerId); } : undefined}
             className={nodeClass}
             style={style}
             aria-label={ariaLabel}
@@ -197,7 +212,9 @@ export function TacticalPitch({
           >{contents}</button> : <button
             key={`${group}-empty-${index}`}
             type="button"
-            onClick={(event) => { event.stopPropagation(); onClickField?.(); }}
+            onDragOver={onSlotDragOver}
+            onDrop={onSlotDrop}
+            onClick={(event) => { event.stopPropagation(); if (selectedPlayerId) onAssignPosition?.(selectedPlayerId, group); else onClickField?.(); }}
             className={nodeClass}
             style={style}
             aria-label={ariaLabel}
