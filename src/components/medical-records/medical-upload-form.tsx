@@ -18,6 +18,12 @@ export function MedicalUploadForm({
   const [error, setError] = useState("");
 
   function validateFile(event: FormEvent<HTMLFormElement>) {
+    const formData = new FormData(event.currentTarget);
+    if (formData.get("type") === "DRUG_TEST_RESULT" && !["FIT", "UNFIT"].includes(String(formData.get("status") || ""))) {
+      event.preventDefault();
+      setError(isArabic ? "اختر نتيجة الفحص: إيجابي أو سلبي." : "Choisissez le résultat : positif ou négatif.");
+      return;
+    }
     const input = event.currentTarget.querySelector<HTMLInputElement>('input[type="file"]');
     const file = input?.files?.[0];
     if (file && file.size > MAX_MEDICAL_UPLOAD_BYTES) {

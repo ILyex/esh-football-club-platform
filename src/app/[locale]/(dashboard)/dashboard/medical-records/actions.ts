@@ -49,7 +49,8 @@ export async function createPlayerMedicalRecordAction(playerId: string, formData
   if (issuedAt && expiresAt && expiresAt < issuedAt) throw new Error("تاريخ الانتهاء يسبق تاريخ الإصدار.");
   const statusValue = String(formData.get("status") || "PENDING");
   if (!Object.values(PlayerMedicalStatus).includes(statusValue as PlayerMedicalStatus)) throw new Error("الحالة الطبية غير صالحة.");
-  const status = type === "MEDICAL_CLEARANCE" ? statusValue as PlayerMedicalStatus : "PENDING";
+  if (type === "DRUG_TEST_RESULT" && !["FIT", "UNFIT"].includes(statusValue)) throw new Error("حدد نتيجة فحص المخدرات: إيجابي أو سلبي.");
+  const status = type === "MEDICAL_CLEARANCE" || type === "DRUG_TEST_RESULT" ? statusValue as PlayerMedicalStatus : "PENDING";
   let consentAuthority: "PLAYER" | "LEGAL_GUARDIAN" | null = null;
   let consentAuthorityName: string | null = null;
   let consentRecordedAt: Date | null = null;
@@ -139,8 +140,9 @@ export async function updatePlayerMedicalRecordAction(recordId: string, locale: 
   if (expiresAt) expiresAt.setUTCHours(23, 59, 59, 999);
   if (issuedAt && expiresAt && expiresAt < issuedAt) throw new Error("تاريخ الانتهاء يسبق تاريخ الإصدار.");
   const statusValue = String(formData.get("status") || record.status);
-  if (!( ["PENDING", "FIT", "TEMPORARILY_UNFIT", "UNFIT", "NOT_APPLICABLE"] as string[]).includes(statusValue)) throw new Error("الحالة الطبية غير صالحة.");
-  const status = record.type === "MEDICAL_CLEARANCE" ? statusValue as PlayerMedicalStatus : "PENDING";
+  const allowedStatuses = record.type === "DRUG_TEST_RESULT" ? ["FIT", "UNFIT"] : ["PENDING", "FIT", "TEMPORARILY_UNFIT", "UNFIT", "NOT_APPLICABLE"];
+  if (!allowedStatuses.includes(statusValue)) throw new Error("الحالة الطبية غير صالحة.");
+  const status = record.type === "MEDICAL_CLEARANCE" || record.type === "DRUG_TEST_RESULT" ? statusValue as PlayerMedicalStatus : "PENDING";
   await db.playerMedicalRecord.update({ where: { id: recordId }, data: { title, provider, issuedAt, expiresAt, status } });
   await writeAuditLog({ userId: user.id, action: "medical_record.updated", entityType: "PlayerMedicalRecord", entityId: recordId, changes: { playerId: record.player.id, title, provider, issuedAt, expiresAt, status } });
   revalidatePath(`/${safeLocale}/dashboard/medical-records/${record.player.id}`);
