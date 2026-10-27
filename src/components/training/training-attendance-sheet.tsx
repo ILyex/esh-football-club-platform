@@ -414,18 +414,18 @@ export function TrainingAttendanceSheet({
         {players.map((p) => {
           const current = records[p.id] ?? "PRESENT";
           return (
-            <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-              <div className="flex items-center gap-2.5">
+            <li key={p.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5 text-sm">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 {p.shirtNumber !== null && (
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted font-mono text-xs font-semibold text-muted-foreground">
+                  <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs font-semibold text-muted-foreground">
                     {p.shirtNumber}
                   </span>
                 )}
-                <div>
-                  <span className="font-medium text-foreground">
+                <div className="flex min-w-0 flex-1 items-center gap-x-2">
+                  <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={getPlayerDisplayName(p, locale)}>
                     {getPlayerDisplayName(p, locale)}
                   </span>
-                  <span className="ms-2 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     {POSITION_LABELS[p.position]?.[isAr ? "ar" : "fr"] || p.position}
                   </span>
                 </div>
