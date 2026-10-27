@@ -13,7 +13,8 @@ export async function GET(request: Request) {
   const records = await db.competition.findMany({
     select: {
       id: true, name: true, organization: true, standingsData: true, bracketData: true,
-      season: { select: { label: true } }, team: { select: { category: true } }
+      type: true, logoUrl: true, status: true,
+      seasonId: true, season: { select: { label: true, isCurrent: true } }, team: { select: { category: true } }
     },
     orderBy: { name: "asc" }
   });
@@ -25,11 +26,33 @@ export async function GET(request: Request) {
       name: locale === "fr" ? frenchCompetitionName(competition.name) : competition.name,
       organization: locale === "fr" ? frenchPublicText(competition.organization, "") : competition.organization,
       seasonLabel: locale === "fr" ? frenchPublicText(competition.season.label, "Saison") : competition.season.label,
+      seasonId: competition.seasonId,
+      isCurrentSeason: competition.season.isCurrent,
+      type: competition.type,
+      status: competition.status,
+      logoUrl: normalizePublicMediaUrl(competition.logoUrl),
       category: competition.team?.category ?? "SENIOR",
       standings: standings.map((row) => ({
         ...row,
         teamLogo: normalizePublicMediaUrl(row.teamLogo) ?? row.teamLogo ?? null,
         teamName: locale === "fr" ? frenchPublicText(row.teamName, row.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : row.teamName
+      })),
+      bracket: display.bracket.rounds.map((round) => ({
+        ...round,
+        label: locale === "fr" ? frenchPublicText(round.labelFr, "Tour") : round.labelAr,
+        matches: round.matches.map((match) => ({
+          ...match,
+          homeTeam: {
+            ...match.homeTeam,
+            name: locale === "fr" ? frenchPublicText(match.homeTeam.name, match.homeTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : match.homeTeam.name,
+            logo: normalizePublicMediaUrl(match.homeTeam.logo)
+          },
+          awayTeam: {
+            ...match.awayTeam,
+            name: locale === "fr" ? frenchPublicText(match.awayTeam.name, match.awayTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : match.awayTeam.name,
+            logo: normalizePublicMediaUrl(match.awayTeam.logo)
+          }
+        }))
       }))
     };
   }));

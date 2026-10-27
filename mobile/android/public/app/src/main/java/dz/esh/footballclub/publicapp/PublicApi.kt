@@ -14,7 +14,23 @@ private const val PUBLIC_API_ORIGIN = "https://esh-platform-vercel-preview.verce
 data class PublicClub(val name: String, val shortName: String, val logo: String?, val hero: String?, val description: String?, val stadium: String?)
 data class PublicTeam(val id: String, val category: String, val name: String, val description: String?, val birthYearFrom: Int?, val birthYearTo: Int?, val playerCount: Int)
 data class PublicStanding(val id: String, val rank: Int, val teamName: String, val teamLogo: String?, val isOurClub: Boolean, val played: Int, val won: Int, val drawn: Int, val lost: Int, val goalsFor: Int, val goalsAgainst: Int, val goalDifference: Int, val points: Int)
-data class PublicCompetition(val id: String, val name: String, val organization: String?, val season: String, val category: String, val standings: List<PublicStanding>)
+data class PublicCupTeam(val name: String, val logo: String?, val score: Int?, val isOurClub: Boolean)
+data class PublicCupMatch(val id: String, val round: String, val home: PublicCupTeam, val away: PublicCupTeam, val status: String, val date: String?, val notes: String?)
+data class PublicCupRound(val key: String, val label: String, val matches: List<PublicCupMatch>)
+data class PublicCompetition(
+    val id: String,
+    val name: String,
+    val organization: String?,
+    val season: String,
+    val category: String,
+    val standings: List<PublicStanding>,
+    val type: String = "LEAGUE",
+    val seasonId: String = "",
+    val isCurrentSeason: Boolean = false,
+    val logo: String? = null,
+    val status: String = "UPCOMING",
+    val bracket: List<PublicCupRound> = emptyList()
+)
 data class PublicMatch(val id: String, val home: String, val away: String, val date: String, val status: String, val homeScore: Int?, val awayScore: Int?, val competition: String, val category: String?, val stadium: String?, val opponentLogo: String?, val isHomeFixture: Boolean = false)
 data class PublicTraining(val id: String, val date: String, val start: String, val end: String, val location: String?, val category: String, val team: String)
 data class PublicNews(val id: String, val slug: String, val title: String, val excerpt: String, val image: String?, val category: String?, val date: String)
@@ -53,16 +69,7 @@ object PublicApi {
         }
 
     fun competitions(locale: String): List<PublicCompetition> = JSONObject(request("/api/public/mobile/competitions?locale=$locale&t=${System.currentTimeMillis()}"))
-        .optJSONArray("competitions").objects().map { item ->
-            PublicCompetition(
-                item.optString("id"), item.optString("name"), item.optNullable("organization"), item.optString("seasonLabel"), item.optString("category"),
-                item.optJSONArray("standings").objects().map { row -> PublicStanding(
-                    row.optString("id"), row.optInt("rank"), row.optString("teamName"), row.url("teamLogo"), row.optBoolean("isOurClub"),
-                    row.optInt("played"), row.optInt("won"), row.optInt("drawn"), row.optInt("lost"), row.optInt("goalsFor"),
-                    row.optInt("goalsAgainst"), row.optInt("goalDifference"), row.optInt("points")
-                ) }
-            )
-        }
+        .optJSONArray("competitions").objects().map(::competition)
 
     fun latestRelease(): PublicRelease? {
         val release = JSONObject(request("/public-android-release.json?t=${System.currentTimeMillis()}"))
@@ -140,22 +147,36 @@ object PublicApi {
             albums = json.optJSONArray("albums").objects().map { item -> PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("samplePhotos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.optString("url"), photo.optNullable("caption")) }) },
             reels = json.optJSONArray("reels").objects().map { item -> PublicReel(item.optString("id"), item.optString("title"), item.optString("url"), item.optString("platform")) },
             teams = json.optJSONArray("teams").objects().map { item -> PublicTeam(item.optString("id"), item.optString("category"), item.optString("name"), item.optNullable("description"), item.intOrNull("birthYearFrom"), item.intOrNull("birthYearTo"), item.optInt("playerCount")) },
-            competitions = json.optJSONArray("competitions").objects().map { item ->
-                PublicCompetition(
-                    item.optString("id"), item.optString("name"), item.optNullable("organization"),
-                    item.optString("seasonLabel"), item.optString("category"),
-                    item.optJSONArray("standings").objects().map { row ->
-                        PublicStanding(
-                            row.optString("id"), row.optInt("rank"), row.optString("teamName"), row.url("teamLogo"),
-                            row.optBoolean("isOurClub"), row.optInt("played"), row.optInt("won"), row.optInt("drawn"),
-                            row.optInt("lost"), row.optInt("goalsFor"), row.optInt("goalsAgainst"),
-                            row.optInt("goalDifference"), row.optInt("points")
-                        )
-                    }
-                )
-            }
+            competitions = json.optJSONArray("competitions").objects().map(::competition)
         )
     }
+
+    private fun competition(item: JSONObject) = PublicCompetition(
+        id = item.optString("id"),
+        name = item.optString("name"),
+        organization = item.optNullable("organization"),
+        season = item.optString("seasonLabel"),
+        category = item.optString("category"),
+        standings = item.optJSONArray("standings").objects().map { row -> PublicStanding(
+            row.optString("id"), row.optInt("rank"), row.optString("teamName"), row.url("teamLogo"), row.optBoolean("isOurClub"),
+            row.optInt("played"), row.optInt("won"), row.optInt("drawn"), row.optInt("lost"), row.optInt("goalsFor"),
+            row.optInt("goalsAgainst"), row.optInt("goalDifference"), row.optInt("points")
+        ) },
+        type = item.optString("type", "LEAGUE"),
+        seasonId = item.optString("seasonId"),
+        isCurrentSeason = item.optBoolean("isCurrentSeason"),
+        logo = item.url("logoUrl"),
+        status = item.optString("status", "UPCOMING"),
+        bracket = item.optJSONArray("bracket").objects().map { round -> PublicCupRound(
+            round.optString("roundKey"), round.optString("label"), round.optJSONArray("matches").objects().map { match ->
+                fun cupTeam(key: String): PublicCupTeam {
+                    val team = match.optJSONObject(key) ?: JSONObject()
+                    return PublicCupTeam(team.optString("name"), team.url("logo"), team.intOrNull("score"), team.optBoolean("isOurClub"))
+                }
+                PublicCupMatch(match.optString("id"), match.optString("round"), cupTeam("homeTeam"), cupTeam("awayTeam"), match.optString("status"), match.optNullable("date"), match.optNullable("notes"))
+            }
+        ) }
+    )
 
     fun matchCenter(id: String, locale: String): PublicMatchCenter {
         val item = JSONObject(request("/api/public/mobile/matches/${encode(id)}?locale=$locale"))

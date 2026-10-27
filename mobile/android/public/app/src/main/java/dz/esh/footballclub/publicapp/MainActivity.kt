@@ -7,6 +7,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -169,6 +174,7 @@ private fun PublicApp() {
     var selectedAlbum by remember { mutableStateOf<PublicAlbum?>(null) }
     var selectedPhoto by remember { mutableStateOf<PublicPhoto?>(null) }
     var selectedVideo by remember { mutableStateOf<String?>(null) }
+    var selectedReel by remember { mutableStateOf<PublicReel?>(null) }
     var alertItems by remember { mutableStateOf(PublicMessagingService.alerts(context)) }
     var updateRelease by remember { mutableStateOf<PublicRelease?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
@@ -310,11 +316,11 @@ private fun PublicApp() {
                     when (page) {
                         PublicTab.HOME -> HomeScreen(data, locale, onMatch = { id ->
                             scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id, locale) } }
-                        }, onArticle = { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }, onTab = { tab = it })
+                        }, onArticle = { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }, onTab = { tab = it }, onReel = { selectedReel = it })
                         PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
                         PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id, locale) } } }
                         PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, competitionsError, locale) { refreshKey++ }
-                        PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id, locale) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
+                        PublicTab.GALLERY -> MediaScreen(data, locale, onReel = { selectedReel = it }, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id, locale) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
                         PublicTab.NEWS -> NewsScreen(data, locale) { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }
                         PublicTab.CLUB -> ClubScreen(data, locale)
                         PublicTab.ALERTS -> AlertsScreen(alertItems, locale, onDismiss = { item -> PublicMessagingService.dismiss(context, item.id); alertItems = PublicMessagingService.alerts(context) })
@@ -338,6 +344,7 @@ private fun PublicApp() {
         }
     } }
     selectedVideo?.let { video -> VideoDialog(video) { selectedVideo = null } }
+    selectedReel?.let { reel -> TikTokReelDialog(reel, locale, { selectedReel = null }, { openUrl(reel.url, context) }) }
 
     updateRelease?.let { release ->
         AlertDialog(
@@ -446,7 +453,7 @@ private fun PublicBottomBar(selected: PublicTab, locale: String, onSelect: (Publ
 }
 
 @Composable
-private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -> Unit, onArticle: (String) -> Unit, onTab: (PublicTab) -> Unit) {
+private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -> Unit, onArticle: (String) -> Unit, onTab: (PublicTab) -> Unit, onReel: (PublicReel) -> Unit) {
     val featured = data.matches.firstOrNull { it.status == "LIVE" } ?: data.nextMatch ?: data.matches.firstOrNull()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(17.dp)) {
         item {
@@ -485,7 +492,13 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
             SectionHeading(L(locale, "آخر الأخبار", "Dernières actualités"), PublicIcons.News, locale, action = { onTab(PublicTab.NEWS) })
             NewsCard(data.news.first(), locale, onClick = { onArticle(data.news.first().slug) })
         }
-        if (data.albums.isNotEmpty() || data.reels.isNotEmpty()) item {
+        if (data.reels.isNotEmpty()) item {
+            SectionHeading(L(locale, "لقطات النادي", "Les vidéos du club"), PublicIcons.Play, locale, action = { onTab(PublicTab.GALLERY) })
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(data.reels.take(6), key = { it.id }) { reel -> ReelCard(reel, locale, Modifier.width(230.dp), onClick = { onReel(reel) }) }
+            }
+        }
+        if (data.albums.isNotEmpty()) item {
             SectionHeading(L(locale, "من ألبوم النادي", "Dans l’album du club"), PublicIcons.Media, locale, action = { onTab(PublicTab.GALLERY) })
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(data.albums.take(5), key = { it.id }) { album -> AlbumTile(album, locale, Modifier.width(210.dp)) { onTab(PublicTab.GALLERY) } }
@@ -518,45 +531,205 @@ private fun TeamsScreen(teams: List<PublicTeam>, isLoading: Boolean, locale: Str
 
 @Composable
 private fun CompetitionsScreen(competitions: List<PublicCompetition>, isLoading: Boolean, hadError: Boolean, locale: String, onRetry: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        item { ScreenHeading(L(locale, "المسابقات", "Compétitions"), L(locale, "الترتيب والنتائج الرسمية", "Classements et résultats officiels"), PublicIcons.Trophy) }
+    val seasons = remember(competitions) {
+        competitions.distinctBy { it.seasonId.ifBlank { it.season } }
+            .sortedWith(compareByDescending<PublicCompetition> { it.isCurrentSeason }.thenByDescending { it.season })
+    }
+    var activeType by remember { mutableStateOf("LEAGUE") }
+    var activeCategory by remember { mutableStateOf("SENIOR") }
+    var activeSeasonId by remember(competitions) {
+        mutableStateOf(seasons.firstOrNull { it.isCurrentSeason }?.seasonId?.takeIf(String::isNotBlank) ?: seasons.firstOrNull()?.seasonId.orEmpty())
+    }
+    val selected = competitions.firstOrNull {
+        it.type == activeType && it.category.equals(activeCategory, true)
+            && (it.seasonId == activeSeasonId || (activeSeasonId.isBlank() && it.season == seasons.firstOrNull()?.season))
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 28.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        item {
+            ScreenHeading(
+                L(locale, "المسابقات والبطولات", "Compétitions & tournois"),
+                L(locale, "ترتيب النادي ومشواره في المنافسات الرسمية", "Classements et parcours du club dans les compétitions officielles"),
+                PublicIcons.Trophy
+            )
+        }
         if (isLoading && competitions.isEmpty()) item { LoadingInline(locale) }
         if (!isLoading && competitions.isEmpty()) item {
             EmptyState(L(locale, if (hadError) "تعذر تحديث المسابقات. تحقق من الاتصال ثم أعد المحاولة." else "لا توجد مسابقات منشورة حالياً.", if (hadError) "Mise à jour impossible. Vérifiez la connexion puis réessayez." else "Aucune compétition publiée pour le moment."))
             if (hadError) itemRetry(onRetry, locale)
         }
-        items(competitions, key = { it.id }) { competition ->
-            Surface(color = Panel, shape = RoundedCornerShape(19.dp), border = BorderStroke(1.dp, Hairline)) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(Accent.copy(alpha = .13f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Trophy, null, Accent, Modifier.size(18.dp)) }
-                        Column(Modifier.weight(1f)) {
-                            Text(competition.name, color = PrimaryText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text("${categoryLabel(locale, competition.category)} · ${competition.season}", color = SecondaryText, fontSize = 9.sp)
+        if (competitions.isNotEmpty()) {
+            item {
+                Surface(color = Panel, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Hairline)) {
+                    Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf("LEAGUE" to L(locale, "الدوري", "Championnat"), "CUP" to L(locale, "كأس الجزائر", "Coupe d’Algérie")).forEach { (type, label) ->
+                            val active = activeType == type
+                            Surface(
+                                onClick = { activeType = type }, modifier = Modifier.weight(1f),
+                                color = if (active) Accent else Color.Transparent,
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                    AppIcon(if (type == "CUP") PublicIcons.Trophy else PublicIcons.Shield, null, if (active) Color.White else SecondaryText, Modifier.size(15.dp))
+                                    Spacer(Modifier.width(7.dp))
+                                    Text(label, color = if (active) Color.White else SecondaryText, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                                }
+                            }
                         }
                     }
-                    if (competition.standings.isEmpty()) EmptyState(L(locale, "لم يُنشر ترتيب لهذه المسابقة بعد", "Le classement n’a pas encore été publié pour cette compétition."))
-                    else {
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(PanelRaised).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("#", color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(22.dp))
-                            Text(L(locale, "الفريق", "Club"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.weight(1f))
-                            Text(L(locale, "لعب", "J"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            Text(L(locale, "+/−", "+/−"), color = SecondaryText, fontSize = 9.sp, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            Text(L(locale, "ن", "Pts"), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                }
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(end = 2.dp)) {
+                    items(listOf("SENIOR", "U20", "U17", "U15")) { category ->
+                        FilterChip(
+                            selected = activeCategory == category,
+                            onClick = { activeCategory = category },
+                            label = { Text(categoryLabel(locale, category), fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            shape = CircleShape,
+                            border = FilterChipDefaults.filterChipBorder(enabled = true, selected = activeCategory == category, borderColor = Hairline, selectedBorderColor = Accent.copy(alpha = .6f)),
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Accent.copy(alpha = .16f), selectedLabelColor = Color(0xFFFF9AA5), containerColor = Panel, labelColor = SecondaryText)
+                        )
+                    }
+                }
+            }
+            if (seasons.isNotEmpty()) item {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(L(locale, "الموسم الرياضي", "Saison sportive"), color = SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(end = 2.dp)) {
+                        items(seasons, key = { it.seasonId.ifBlank { it.season } }) { season ->
+                            val id = season.seasonId.ifBlank { season.season }
+                            FilterChip(
+                                selected = activeSeasonId == id,
+                                onClick = { activeSeasonId = id },
+                                label = { Text(season.season + if (season.isCurrentSeason) " · ${L(locale, "الحالي", "Actuel")}" else "", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                shape = CircleShape,
+                                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = activeSeasonId == id, borderColor = Hairline, selectedBorderColor = Gold.copy(alpha = .6f)),
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Gold.copy(alpha = .13f), selectedLabelColor = Gold, containerColor = Panel, labelColor = SecondaryText)
+                            )
                         }
-                        competition.standings.take(12).forEach { standing ->
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (standing.isOurClub) Accent.copy(alpha = .11f) else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(standing.rank.toString(), color = if (standing.isOurClub) Accent else SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
-                                Text(standing.teamName, color = if (standing.isOurClub) PrimaryText else SecondaryText, fontSize = 10.sp, fontWeight = if (standing.isOurClub) FontWeight.Bold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                Text(standing.played.toString(), color = PrimaryText, fontSize = 10.sp, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                                Text(if (standing.goalDifference > 0) "+${standing.goalDifference}" else standing.goalDifference.toString(), color = SecondaryText, fontSize = 10.sp, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                                Text(standing.points.toString(), color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Black, modifier = Modifier.width(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                    }
+                }
+            }
+            if (selected == null) {
+                item { EmptyState(L(locale, "لا توجد مسابقة مسجلة لهذه الفئة في هذا الموسم.", "Aucune compétition pour cette catégorie et cette saison.")) }
+            } else {
+                item { CompetitionBanner(selected, locale) }
+                if (selected.type == "CUP") {
+                    if (selected.bracket.isEmpty()) item { EmptyState(L(locale, "لم يُنشر مسار الكأس لهذه المسابقة بعد.", "Le tableau de la coupe n’a pas encore été publié.")) }
+                    else item { CupBracketView(selected.bracket, locale) }
+                } else {
+                    if (selected.standings.isEmpty()) item { EmptyState(L(locale, "لم يُنشر ترتيب هذه المسابقة بعد.", "Le classement n’a pas encore été publié.")) }
+                    else item { CompetitionStandingsTable(selected.standings, locale) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompetitionBanner(competition: PublicCompetition, locale: String) {
+    Surface(color = Panel, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, Hairline), shadowElevation = 4.dp) {
+        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Accent.copy(alpha = .12f), Panel, PanelRaised)))) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .07f)).border(1.dp, Hairline, RoundedCornerShape(16.dp)).padding(8.dp), contentAlignment = Alignment.Center) {
+                    if (!competition.logo.isNullOrBlank()) AsyncImage(model = competition.logo, contentDescription = competition.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    else AppIcon(if (competition.type == "CUP") PublicIcons.Trophy else PublicIcons.Shield, null, if (competition.type == "CUP") Gold else Accent, Modifier.size(27.dp))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("${categoryLabel(locale, competition.category)} · ${competition.season}", color = Gold, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(competition.name, color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    competition.organization?.takeIf { it.isNotBlank() }?.let { Text(it, color = SecondaryText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+                Box(Modifier.size(8.dp).clip(CircleShape).background(if (competition.status == "ACTIVE") Mint else Gold))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompetitionStandingsTable(standings: List<PublicStanding>, locale: String) {
+    Surface(color = Panel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Hairline)) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(PanelRaised).padding(horizontal = 8.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("#", color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(L(locale, "النادي / الفريق", "Club / équipe"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                listOf(L(locale, "لعب", "J"), L(locale, "فاز", "G"), L(locale, "تعادل", "N"), L(locale, "خسر", "P")).forEach { label ->
+                    Text(label, color = SecondaryText, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                Text(L(locale, "ن", "Pts"), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Black, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+            standings.forEachIndexed { index, team ->
+                val selected = team.isOurClub
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(if (selected) Accent.copy(alpha = .12f) else if (index % 2 == 1) Color.White.copy(alpha = .018f) else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
+                        Text(team.rank.toString(), color = if (selected) Accent else if (team.rank == 1) Gold else SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                    }
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.size(25.dp).clip(CircleShape).background(Glass).border(1.dp, if (selected) Accent.copy(alpha = .4f) else Hairline, CircleShape).padding(3.dp), contentAlignment = Alignment.Center) {
+                            if (!team.teamLogo.isNullOrBlank()) AsyncImage(model = team.teamLogo, contentDescription = team.teamName, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            else AppIcon(PublicIcons.Shield, null, if (selected) Accent else SecondaryText, Modifier.size(15.dp))
+                        }
+                        Text(team.teamName, color = if (selected) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    listOf(team.played, team.won, team.drawn, team.lost).forEachIndexed { statIndex, value ->
+                        Text(value.toString(), color = if (statIndex == 1) Mint else PrimaryText, fontSize = 9.sp, fontWeight = if (statIndex == 1) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.width(27.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                    Text(team.points.toString(), color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Black, modifier = Modifier.width(34.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                if (index < standings.lastIndex) Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(1.dp).background(Hairline.copy(alpha = .55f)))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) { Box(Modifier.size(7.dp).clip(CircleShape).background(Accent)); Text(L(locale, "فريق الجمعية", "Notre club"), color = SecondaryText, fontSize = 8.sp) }
+                Text(L(locale, "له/عليه وفارق الأهداف متاحة في جدول الموقع العام.", "Les buts pour/contre et la différence sont détaillés sur le site."), color = SecondaryText, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CupBracketView(rounds: List<PublicCupRound>, locale: String) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 3.dp)) {
+        items(rounds, key = { it.key }) { round ->
+            val isFinal = round.key == "FINAL"
+            Surface(Modifier.width(250.dp), color = Panel, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, if (isFinal) Gold.copy(alpha = .38f) else Hairline)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        AppIcon(if (isFinal) PublicIcons.Trophy else PublicIcons.Shield, null, if (isFinal) Gold else Accent, Modifier.size(17.dp))
+                        Text(round.label, color = if (isFinal) Gold else PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                        Spacer(Modifier.weight(1f))
+                        Text(round.matches.size.toString(), color = SecondaryText, fontSize = 9.sp)
+                    }
+                    if (round.matches.isEmpty()) Text(L(locale, "لا توجد مباريات في هذا الدور", "Aucun match pour ce tour"), color = SecondaryText, fontSize = 10.sp, modifier = Modifier.padding(vertical = 8.dp))
+                    round.matches.forEach { match ->
+                        Surface(color = PanelRaised, shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, Hairline)) {
+                            Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                CupBracketTeamRow(match.home, Modifier.fillMaxWidth())
+                                Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+                                CupBracketTeamRow(match.away, Modifier.fillMaxWidth())
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(statusLabel(locale, match.status), color = if (match.status == "FINISHED") Mint else SecondaryText, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.weight(1f))
+                                    match.date?.let { Text(formatDate(it, locale), color = SecondaryText, fontSize = 8.sp) }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CupBracketTeamRow(team: PublicCupTeam, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(Modifier.size(23.dp).clip(CircleShape).background(Glass).padding(3.dp), contentAlignment = Alignment.Center) {
+            if (!team.logo.isNullOrBlank()) AsyncImage(model = team.logo, contentDescription = team.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            else AppIcon(PublicIcons.Shield, null, if (team.isOurClub) Accent else SecondaryText, Modifier.size(15.dp))
+        }
+        Text(team.name, color = if (team.isOurClub) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (team.isOurClub) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        team.score?.let { Text(it.toString(), color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Black) }
     }
 }
 
@@ -641,25 +814,13 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
 }
 
 @Composable
-private fun MediaScreen(data: PublicSnapshot, locale: String, onAlbum: (String) -> Unit, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
-    val context = LocalContext.current
+private fun MediaScreen(data: PublicSnapshot, locale: String, onReel: (PublicReel) -> Unit, onAlbum: (String) -> Unit, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { ScreenHeading(L(locale, "المعرض", "Galerie"), L(locale, "صور وفيديوهات الأمل داخل الملعب وخارجه", "Photos et vidéos d’Espoir, sur et en dehors du terrain"), PublicIcons.Media) }
         if (data.reels.isNotEmpty()) item {
             SectionHeading(L(locale, "لقطات النادي", "Les vidéos du club"), PublicIcons.Play, locale)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(data.reels, key = { it.id }) { reel ->
-                    Surface(Modifier.width(230.dp).height(128.dp).clickable { openUrl(reel.url, context) }, color = Panel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Hairline)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF3B1422), Color(0xFF23262D)))))
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                Box(Modifier.size(46.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Play, null, Color.White, Modifier.size(20.dp)) }
-                                Text(reel.title, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            Text(reel.platform.uppercase(), Modifier.align(Alignment.TopStart).padding(11.dp).clip(CircleShape).background(Color.Black.copy(alpha = .38f)).padding(horizontal = 9.dp, vertical = 4.dp), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                items(data.reels, key = { it.id }) { reel -> ReelCard(reel, locale, Modifier.width(230.dp), onClick = { onReel(reel) }) }
             }
         }
         if (data.albums.isEmpty() && data.reels.isEmpty()) item { EmptyState(L(locale, "لا توجد وسائط منشورة حالياً", "Aucun média publié pour le moment")) }
@@ -668,6 +829,23 @@ private fun MediaScreen(data: PublicSnapshot, locale: String, onAlbum: (String) 
             SectionHeading(L(locale, "صور مختارة", "Sélection photos"), PublicIcons.Media, locale)
             data.albums.firstOrNull()?.photos?.let { photos ->
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) { items(photos, key = { it.id }) { photo -> MediaTile(photo, Modifier.size(width = 150.dp, height = 120.dp), onPhoto, onVideo) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReelCard(reel: PublicReel, locale: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(modifier.height(132.dp).clickable(onClick = onClick), color = Panel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Hairline)) {
+        Box {
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF451721), Color(0xFF25282D), Color(0xFF17191C)))))
+            Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(34.dp).clip(CircleShape).background(Color.Black.copy(alpha = .35f)), contentAlignment = Alignment.Center) {
+                AppIcon(PublicIcons.Play, null, Color.White, Modifier.size(16.dp))
+            }
+            Text(reel.platform.uppercase(), Modifier.align(Alignment.TopStart).padding(10.dp).clip(CircleShape).background(Accent).padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Black)
+            Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .8f)))).padding(horizontal = 12.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(reel.title, color = PrimaryText, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp)
+                Text(L(locale, "اضغط للمشاهدة", "Appuyer pour regarder"), color = Color.White.copy(alpha = .72f), fontSize = 8.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -708,51 +886,57 @@ private fun AlertsScreen(alerts: List<PublicAlert>, locale: String, onDismiss: (
 @Composable
 private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = null, onClick: () -> Unit, featured: Boolean = false) {
     val live = match.status == "LIVE"
-    Surface(Modifier.fillMaxWidth().shadow(if (featured) 10.dp else 3.dp, RoundedCornerShape(23.dp)).clickable(onClick = onClick).animateContentSize(), color = if (live) Color(0xFF211B20) else if (featured) PanelRaised else Panel, shape = RoundedCornerShape(if (featured) 23.dp else 19.dp), border = BorderStroke(1.dp, if (live) Accent.copy(alpha = .5f) else Hairline)) {
-        Column(Modifier.padding(if (featured) 17.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    val finished = match.status == "FINISHED"
+    val homeWon = finished && match.homeScore != null && match.awayScore != null && match.homeScore > match.awayScore
+    val awayWon = finished && match.homeScore != null && match.awayScore != null && match.awayScore > match.homeScore
+    Surface(Modifier.fillMaxWidth().shadow(if (featured || live) 8.dp else 2.dp, RoundedCornerShape(22.dp)).clickable(onClick = onClick).animateContentSize(), color = if (live) Color(0xFF24191D) else if (featured) PanelRaised else Panel, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, if (live) Accent.copy(alpha = .48f) else if (finished) Hairline.copy(alpha = .9f) else Hairline)) {
+        Column(Modifier.padding(if (featured) 16.dp else 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.clip(CircleShape).background(Glass).padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AppIcon(PublicIcons.Shield, null, Gold, Modifier.size(13.dp))
-                    Text(categoryLabel(locale, match.category ?: ""), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                Row(Modifier.clip(CircleShape).background(Glass).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    AppIcon(PublicIcons.Shield, null, Gold, Modifier.size(12.dp))
+                    Text(categoryLabel(locale, match.category ?: ""), color = Gold, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Spacer(Modifier.weight(1f))
-                if (live) LiveBadge(locale) else Text(statusLabel(locale, match.status), color = SecondaryText, fontSize = 9.sp)
+                if (live) LiveBadge(locale) else if (finished) {
+                    Row(Modifier.clip(CircleShape).background(Mint.copy(alpha = .1f)).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Box(Modifier.size(5.dp).clip(CircleShape).background(Mint))
+                        Text(L(locale, "النتيجة النهائية", "Résultat final"), color = Mint, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                } else Text(statusLabel(locale, match.status), color = SecondaryText, fontSize = 9.sp)
             }
-            Row(Modifier.fillMaxWidth().padding(vertical = if (featured) 3.dp else 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TeamBadge(match.home, if (match.isHomeFixture) clubLogo else match.opponentLogo, modifier = Modifier.weight(1f), featured = featured)
+            Row(Modifier.fillMaxWidth().padding(vertical = if (featured) 2.dp else 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                TeamBadge(match.home, if (match.isHomeFixture) clubLogo else match.opponentLogo, modifier = Modifier.weight(1f), featured = featured, isWinner = homeWon)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (match.homeScore != null && match.awayScore != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Text(match.homeScore.toString(), color = PrimaryText, fontSize = if (featured) 30.sp else 24.sp, fontWeight = FontWeight.Black)
-                            Text("–", color = if (live) Color(0xFFFF7182) else SecondaryText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Text(match.awayScore.toString(), color = PrimaryText, fontSize = if (featured) 30.sp else 24.sp, fontWeight = FontWeight.Black)
+                        Row(Modifier.clip(RoundedCornerShape(13.dp)).background(if (finished) Canvas else Glass).padding(horizontal = if (featured) 13.dp else 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(match.homeScore.toString(), color = if (homeWon) Mint else PrimaryText, fontSize = if (featured) 27.sp else 22.sp, fontWeight = FontWeight.Black)
+                            Text("–", color = if (live) Color(0xFFFF7182) else SecondaryText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(match.awayScore.toString(), color = if (awayWon) Mint else PrimaryText, fontSize = if (featured) 27.sp else 22.sp, fontWeight = FontWeight.Black)
                         }
-                    } else Text("VS", color = Mint, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
-                    Text(if (live) L(locale, "مباراة مباشرة", "EN DIRECT") else formatClock(match.date), color = if (live) Color(0xFFFF7182) else SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                    } else Text("VS", color = Mint, fontSize = 13.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                    Text(if (live) L(locale, "مباراة مباشرة", "EN DIRECT") else if (finished) formatDate(match.date, locale) else formatClock(match.date), color = if (live) Color(0xFFFF7182) else SecondaryText, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
-                TeamBadge(match.away, if (match.isHomeFixture) match.opponentLogo else clubLogo, modifier = Modifier.weight(1f), featured = featured)
+                TeamBadge(match.away, if (match.isHomeFixture) match.opponentLogo else clubLogo, modifier = Modifier.weight(1f), featured = featured, isWinner = awayWon)
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AppIcon(PublicIcons.Trophy, null, if (live) Gold else SecondaryText, Modifier.size(14.dp))
+                AppIcon(PublicIcons.Trophy, null, if (live) Gold else SecondaryText, Modifier.size(13.dp))
                 Text(match.competition, color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                if (!live) {
-                    AppIcon(PublicIcons.Calendar, null, SecondaryText, Modifier.size(13.dp))
-                    Text(formatDate(match.date, locale), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
+                if (!live && !finished) Text(formatDate(match.date, locale), color = SecondaryText, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                AppIcon(if (locale == "ar") R.drawable.iconly_arrow_left else R.drawable.iconly_arrow_right, L(locale, "تفاصيل المباراة", "Détails du match"), if (finished) Mint else SecondaryText, Modifier.size(13.dp))
             }
         }
     }
 }
 
 @Composable
-private fun TeamBadge(name: String, logo: String?, modifier: Modifier = Modifier, featured: Boolean = false) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Box(Modifier.size(if (featured) 48.dp else 42.dp).clip(CircleShape).background(Glass).border(1.dp, Hairline, CircleShape).padding(5.dp), contentAlignment = Alignment.Center) {
+private fun TeamBadge(name: String, logo: String?, modifier: Modifier = Modifier, featured: Boolean = false, isWinner: Boolean = false) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(if (featured) 46.dp else 39.dp).clip(CircleShape).background(if (isWinner) Mint.copy(alpha = .12f) else Glass).border(1.dp, if (isWinner) Mint.copy(alpha = .45f) else Hairline, CircleShape).padding(5.dp), contentAlignment = Alignment.Center) {
             if (!logo.isNullOrBlank()) AsyncImage(model = logo, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             else Text(name.take(1).uppercase(), color = Accent, fontSize = 17.sp, fontWeight = FontWeight.Black)
         }
-        Text(name, color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(name, color = if (isWinner) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (isWinner) FontWeight.ExtraBold else FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
@@ -926,6 +1110,79 @@ private fun VideoDialog(url: String, onDismiss: () -> Unit) {
     }
 }
 
+private fun tiktokPlayerUrl(reel: PublicReel): String? {
+    if (!reel.platform.equals("tiktok", ignoreCase = true)) return null
+    val uri = runCatching { Uri.parse(reel.url) }.getOrNull() ?: return null
+    val host = uri.host?.lowercase(Locale.ROOT) ?: return null
+    if (uri.scheme != "https" || !(host == "tiktok.com" || host.endsWith(".tiktok.com"))) return null
+    val id = Regex("/(?:video|photo)/(\\d+)").find(uri.path.orEmpty())?.groupValues?.getOrNull(1)
+        ?: Regex("/player/v1/(\\d+)").find(uri.path.orEmpty())?.groupValues?.getOrNull(1)
+        ?: return null
+    return "https://www.tiktok.com/player/v1/$id?controls=1&description=1&music_info=1&rel=0"
+}
+
+@Composable
+private fun TikTokReelDialog(reel: PublicReel, locale: String, onDismiss: () -> Unit, onOpenExternal: () -> Unit) {
+    val playerUrl = remember(reel) { tiktokPlayerUrl(reel) }
+    var webView by remember(playerUrl) { mutableStateOf<WebView?>(null) }
+    DisposableEffect(webView) {
+        onDispose {
+            webView?.stopLoading()
+            webView?.loadUrl("about:blank")
+            webView?.destroy()
+        }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxWidth().fillMaxHeight(.88f).padding(horizontal = 12.dp, vertical = 8.dp), color = Panel, shape = RoundedCornerShape(24.dp), border = BorderStroke(1.dp, Hairline)) {
+            Column(Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Box(Modifier.size(35.dp).clip(RoundedCornerShape(12.dp)).background(Accent.copy(alpha = .16f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Play, null, Accent, Modifier.size(17.dp)) }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(L(locale, "لقطات النادي", "Les vidéos du club"), color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                        Text(reel.title, color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    TextButton(onClick = onDismiss) { Text(L(locale, "إغلاق", "Fermer"), color = SecondaryText, fontSize = 10.sp) }
+                }
+                Spacer(Modifier.height(8.dp))
+                if (playerUrl != null) {
+                    AndroidView(
+                        modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color.Black),
+                        factory = { viewContext ->
+                            WebView(viewContext).apply {
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.mediaPlaybackRequiresUserGesture = true
+                                settings.allowFileAccess = false
+                                settings.allowContentAccess = false
+                                settings.javaScriptCanOpenWindowsAutomatically = false
+                                settings.setSupportMultipleWindows(false)
+                                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                webChromeClient = WebChromeClient()
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        val target = request?.url ?: return true
+                                        val targetHost = target.host?.lowercase(Locale.ROOT) ?: return true
+                                        return !(target.scheme == "https" && (targetHost == "tiktok.com" || targetHost.endsWith(".tiktok.com")))
+                                    }
+                                }
+                                webView = this
+                                loadUrl(playerUrl)
+                            }
+                        }
+                    )
+                } else {
+                    Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color.Black), contentAlignment = Alignment.Center) {
+                        Text(L(locale, "تعذر فتح المشغل داخل التطبيق. افتح اللقطة في TikTok.", "Le lecteur intégré est indisponible. Ouvrez la vidéo dans TikTok."), Modifier.padding(22.dp), color = SecondaryText, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+                TextButton(onClick = { onDismiss(); onOpenExternal() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(L(locale, "فتح في TikTok", "Ouvrir dans TikTok"), color = Gold, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun LoadingScreen(locale: String) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { CircularProgressIndicator(color = Accent); Text(L(locale, "نجهز لك جديد النادي...", "Chargement des nouvelles du club…"), color = SecondaryText, fontSize = 12.sp) } } }
 
@@ -984,7 +1241,7 @@ private fun categoryMatches(actual: String?, selected: String): Boolean {
     return actual.equals(selected, true)
 }
 private fun albumCategory(locale: String, category: String) = when (category) { "MATCHES" -> L(locale, "مباريات", "Matchs"); "TRAINING" -> L(locale, "تدريبات", "Entraînements"); "TEAM" -> L(locale, "الفريق", "Équipe"); "EVENTS" -> L(locale, "فعاليات", "Événements"); else -> L(locale, "النادي", "Club") }
-private fun statusLabel(locale: String, status: String) = when (status) { "SCHEDULED" -> L(locale, "قادمة", "À venir"); "FINISHED" -> L(locale, "انتهت", "Terminé"); "POSTPONED" -> L(locale, "مؤجلة", "Reporté"); "CANCELLED" -> L(locale, "ملغاة", "Annulé"); else -> status }
+private fun statusLabel(locale: String, status: String) = when (status) { "LIVE" -> L(locale, "مباشرة", "En direct"); "SCHEDULED" -> L(locale, "قادمة", "À venir"); "FINISHED" -> L(locale, "انتهت", "Terminé"); "POSTPONED" -> L(locale, "مؤجلة", "Reporté"); "CANCELLED" -> L(locale, "ملغاة", "Annulé"); else -> status }
 private fun formatDate(value: String, locale: String): String = runCatching {
     val date = if (value.all(Char::isDigit)) {
         val timestamp = value.toLong()
