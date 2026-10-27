@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -345,6 +346,12 @@ private fun PublicApp() {
             }
         ) { padding ->
           Box(Modifier.fillMaxSize().then(if (selectedMatchId == null && selectedArticleSlug == null) Modifier.pullRefresh(pullRefreshState) else Modifier)) {
+            AmbientMood(
+                tab = tab,
+                liveMatch = snapshot?.matches?.any { it.status == "LIVE" } == true,
+                focused = selectedMatchId != null || selectedArticleSlug != null,
+                modifier = Modifier.matchParentSize()
+            )
             Box(Modifier.fillMaxSize().padding(padding)) {
                 val data = snapshot
                 if (selectedArticleSlug != null) {
@@ -451,6 +458,28 @@ private fun PublicApp() {
     selectedVideo?.let { video -> VideoDialog(video) { selectedVideo = null } }
     selectedReel?.let { reel -> SocialReelDialog(reel, locale, { selectedReel = null }, { openUrl(reel.url, context) }) }
 
+}
+
+@Composable
+private fun AmbientMood(tab: PublicTab, liveMatch: Boolean, focused: Boolean, modifier: Modifier = Modifier) {
+    val targetAlpha = when {
+        liveMatch -> .13f
+        focused -> .105f
+        tab == PublicTab.MATCHES -> .09f
+        tab == PublicTab.HOME -> .075f
+        else -> .052f
+    }
+    val glowAlpha by animateFloatAsState(targetValue = targetAlpha, animationSpec = tween(durationMillis = 420), label = "ambient-mood")
+    Box(modifier.background(Canvas)) {
+        Box(
+            Modifier.align(Alignment.TopEnd).offset(x = 100.dp, y = (-120).dp).size(400.dp)
+                .background(Brush.radialGradient(listOf(Accent.copy(alpha = glowAlpha), Accent.copy(alpha = glowAlpha * .22f), Color.Transparent)), CircleShape)
+        )
+        Box(
+            Modifier.align(Alignment.BottomStart).offset(x = (-130).dp, y = 140.dp).size(320.dp)
+                .background(Brush.radialGradient(listOf(Accent.copy(alpha = glowAlpha * .42f), Color.Transparent)), CircleShape)
+        )
+    }
 }
 
 @Composable
