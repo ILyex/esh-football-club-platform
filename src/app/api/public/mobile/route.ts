@@ -48,8 +48,15 @@ export async function GET(request: Request) {
     generatedAt: new Date().toISOString(),
     locale,
     club: {
-      name: localizedClubName(club.name, locale, locale === "ar" ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"),
-      shortName: club.shortName,
+      // The club settings record may contain the historic hybrid Latin form
+      // "E Sidi Hosni". The public French identity is canonical and should
+      // not depend on that legacy database value.
+      name: locale === "fr"
+        ? "Association Sportive Espoir Sidi Hosni de Football"
+        : "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
+      shortName: locale === "fr"
+        ? frenchPublicClubName(club.shortName, "Espoir Sidi Hosni")
+        : club.shortName,
       logoUrl: club.logoUrl,
       heroImageUrl: club.homepageHeroImageUrl,
       primaryColor: club.primaryColor,

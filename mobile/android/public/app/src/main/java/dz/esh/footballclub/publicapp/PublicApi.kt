@@ -46,7 +46,7 @@ data class PublicArticle(val title: String, val content: String, val image: Stri
 
 object PublicApi {
     private const val CACHE_PREFS = "esh_public_content_cache"
-    private const val CACHE_SCHEMA = "v2"
+    private const val CACHE_SCHEMA = "v3"
 
     fun fetch(context: Context, locale: String): PublicSnapshot {
         val response = request("/api/public/mobile?locale=$locale")
