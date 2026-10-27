@@ -66,11 +66,6 @@ export default async function GalleryListPage({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {albums.map((album) => {
-          async function removeAlbum() {
-            "use server";
-            await deleteAlbumAction(album.id);
-          }
-
           return (
           <div
             key={album.id}
@@ -97,7 +92,7 @@ export default async function GalleryListPage({
                       <span>{locale === "ar" ? "تعديل" : "Modifier"}</span>
                     </Link>
                     <ConfirmDialog
-                      onConfirm={removeAlbum}
+                      onConfirm={deleteAlbumAction.bind(null, album.id)}
                       title={locale === "ar" ? "حذف الألبوم؟" : "Supprimer l’album ?"}
                       body={locale === "ar" ? `سيُحذف ألبوم «${album.name}» وجميع الوسائط التابعة له نهائياً.` : `L’album « ${album.name} » et tous ses médias seront supprimés définitivement.`}
                       successMessage={locale === "ar" ? "تم حذف الألبوم" : "Album supprimé"}
