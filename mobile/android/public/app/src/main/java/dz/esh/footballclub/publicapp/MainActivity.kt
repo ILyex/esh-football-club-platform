@@ -110,8 +110,8 @@ private fun Modifier.siteGlass(shape: RoundedCornerShape, accentGlow: Boolean = 
 private object PublicIcons {
     val Home = R.drawable.iconly_home
     val HomeSelected = R.drawable.iconly_home_filled
-    val Match = R.drawable.ic_match_ball
-    val MatchSelected = R.drawable.ic_match_ball_filled
+    val Match = R.drawable.iconly_calendar
+    val MatchSelected = R.drawable.iconly_calendar_filled
     val Calendar = R.drawable.iconly_calendar
     val Media = R.drawable.iconly_camera
     val News = R.drawable.iconly_paper
@@ -569,8 +569,8 @@ private fun HeaderAction(icon: Int, label: String, onClick: () -> Unit, selected
 
 @Composable
 private fun AppIcon(resource: Int, description: String?, tint: Color, modifier: Modifier = Modifier) {
-    val isFootball = resource == R.drawable.ic_match_ball || resource == R.drawable.ic_match_ball_filled
-    Image(painter = painterResource(resource), contentDescription = description, modifier = modifier, colorFilter = if (isFootball) null else ColorFilter.tint(tint))
+    val precolored = resource == R.drawable.iconly_calendar_filled
+    Image(painter = painterResource(resource), contentDescription = description, modifier = modifier, colorFilter = if (precolored) null else ColorFilter.tint(tint))
 }
 
 private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
@@ -594,7 +594,7 @@ private fun PublicBottomBar(selected: PublicTab, locale: String, liveMatch: Bool
                 val active = selected == item
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).noRippleClickable { onSelect(item) }.heightIn(min = 48.dp).padding(horizontal = 2.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-                            AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(if (item == PublicTab.MATCHES) 25.dp else 20.dp))
+                            AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(if (item == PublicTab.MATCHES) 21.dp else 20.dp))
                             if (item == PublicTab.MATCHES && liveMatch) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
                         }
                         if (active) Text(item.label(locale), color = PrimaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)

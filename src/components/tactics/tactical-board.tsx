@@ -97,36 +97,53 @@ function prepareBoard(data: unknown): BoardData | null {
 
 function TacticalBallGraphic({ id, color, selected }: { id: string; color?: string; selected: boolean }) {
   const safeId = id.replace(/[^a-zA-Z0-9_-]/g, "");
-  const surfaceId = `tactics-ball-surface-${safeId}`;
-  const shadowId = `tactics-ball-shadow-${safeId}`;
-  const clipId = `tactics-ball-clip-${safeId}`;
+  const surfaceId = `tactics-ball-3d-surface-${safeId}`;
+  const shadeId = `tactics-ball-3d-shade-${safeId}`;
+  const shineId = `tactics-ball-3d-shine-${safeId}`;
+  const clipId = `tactics-ball-3d-clip-${safeId}`;
 
   return (
     <g>
       <defs>
-        <radialGradient id={surfaceId} cx="29%" cy="23%" r="80%">
+        <radialGradient id={surfaceId} cx="28%" cy="20%" r="82%">
           <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="42%" stopColor="#f8fafc" />
-          <stop offset="78%" stopColor="#dbe2ea" />
-          <stop offset="100%" stopColor="#8b96a5" />
+          <stop offset="42%" stopColor="#f4f5f6" />
+          <stop offset="76%" stopColor="#d2d5d9" />
+          <stop offset="94%" stopColor="#858a91" />
+          <stop offset="100%" stopColor="#41454b" />
         </radialGradient>
-        <radialGradient id={shadowId} cx="36%" cy="28%" r="76%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity=".7" />
+        <radialGradient id={shadeId} cx="35%" cy="27%" r="76%">
+          <stop offset="48%" stopColor="#0b0d10" stopOpacity="0" />
+          <stop offset="100%" stopColor="#07090c" stopOpacity=".62" />
+        </radialGradient>
+        <radialGradient id={shineId} cx="30%" cy="22%" r="66%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity=".82" />
+          <stop offset="48%" stopColor="#ffffff" stopOpacity=".18" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
         <clipPath id={clipId}><circle r="13.5" /></clipPath>
       </defs>
 
-      <ellipse cx="1.5" cy="15" rx="10.5" ry="2.5" fill="#020617" opacity=".42" />
-      <circle r="13.5" fill={`url(#${surfaceId})`} stroke={color ?? "#111827"} strokeWidth={selected ? 2.2 : 1.25} />
+      <ellipse cx="2" cy="15.2" rx="10" ry="2.35" fill="#030405" opacity=".55" />
+      {selected && <circle r="15" fill="none" stroke={color ?? "#dc2626"} strokeOpacity=".2" strokeWidth="2.2" />}
+      <circle r="13.5" fill={`url(#${surfaceId})`} stroke={color ?? "#30343a"} strokeWidth={selected ? 1.8 : 1.05} />
       <g clipPath={`url(#${clipId})`}>
-        <path d="m0-6.2 5.9-1.9 3.7 4.9-2.3 5.9h-6.4l-3.8-4.7z" fill="#111827" />
-        <path d="m0-6.2-.7-8.4M5.9-8.1l7.2-4.3M9.6-3.2l7.1 1.1M7.3 2.7l4.4 7.1M.9 2.7l-2.6 8.1M-2.9-2l-7-2.6M-3.8-7.1l-4.3-6.2" fill="none" stroke="#111827" strokeWidth="2.7" strokeLinejoin="round" />
-        <path d="m0-6.2 5.9-1.9M9.6-3.2l7.1 1.1M7.3 2.7l4.4 7.1M.9 2.7l-2.6 8.1M-2.9-2l-7-2.6M-3.8-7.1l-4.3-6.2" fill="none" stroke="#f8fafc" strokeWidth="1.1" strokeLinejoin="round" opacity=".78" />
-        <circle cx="-5" cy="-7" r="6.5" fill={`url(#${shadowId})`} />
+        {/* Curved red, charcoal and white panels with a shaded sphere finish. */}
+        <path d="M-3.4-12.6 C-.8-13.2 2.1-11.6 3.1-9.2 L1.4-5.4 -2.9-5.7 -5.4-8.7Z" fill="#24282e" />
+        <path d="M3.1-9.2 C6.5-10.3 9.8-8.5 12.1-5.8 L10.8-2.4 6.6-1.1 1.4-5.4Z" fill="#dc2626" />
+        <path d="M10.8-2.4 C13.5-.3 13.7 3.2 11.7 6.1 L8.2 6.9 5.2 3.4 6.6-1.1Z" fill="#282c32" />
+        <path d="M8.2 6.9 C7.4 10.4 4.3 12.3 1.3 12.7 L-1.8 10.1 -.9 5.6 5.2 3.4Z" fill="#dc2626" />
+        <path d="M-1.8 10.1 C-5.2 11.9-8.7 9.9-10.7 7.1 L-9.2 3.3 -.9 5.6Z" fill="#25292f" />
+        <path d="M-10.7 7.1 C-13.4 4.5-13.4 .9-11.8-2 L-8.1-3.1 -5.1 .6 -9.2 3.3Z" fill="#dc2626" />
+        <path d="M-11.8-2 C-10.9-5.7-8.2-8.3-5.4-8.7 L-2.9-5.7 -4.4-1.5 -8.1-3.1Z" fill="#272b31" />
+        <path d="M-2.9-5.7 1.4-5.4 6.6-1.1 5.2 3.4 -.9 5.6 -5.1 .6 -4.4-1.5Z" fill="#f2f3f4" />
+        <path d="M-3.4-12.6 C-.8-13.2 2.1-11.6 3.1-9.2M3.1-9.2 1.4-5.4 6.6-1.1M10.8-2.4 6.6-1.1M8.2 6.9 5.2 3.4M-1.8 10.1-.9 5.6M-10.7 7.1-9.2 3.3M-11.8-2-8.1-3.1" fill="none" stroke="#ffffff" strokeOpacity=".78" strokeWidth=".55" />
+        <circle r="13.5" fill={`url(#${shadeId})`} />
+        <circle r="13.5" fill={`url(#${shineId})`} />
       </g>
-      <ellipse cx="-4.2" cy="-7.3" rx="4.2" ry="1.8" transform="rotate(-38 -4.2 -7.3)" fill="#ffffff" opacity=".58" />
-      <circle cx="-6.9" cy="-9.5" r="1.1" fill="#ffffff" opacity=".85" />
+      <ellipse cx="-4.7" cy="-8.2" rx="4.1" ry="1.45" transform="rotate(-37 -4.7 -8.2)" fill="#ffffff" opacity=".64" />
+      <circle cx="-7.3" cy="-10.1" r=".9" fill="#ffffff" opacity=".9" />
+      <circle r="13.5" fill="none" stroke="#ffffff" strokeOpacity=".48" strokeWidth=".5" />
     </g>
   );
 }
