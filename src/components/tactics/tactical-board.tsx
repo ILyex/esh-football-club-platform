@@ -95,6 +95,42 @@ function prepareBoard(data: unknown): BoardData | null {
   };
 }
 
+function TacticalBallGraphic({ id, color, selected }: { id: string; color?: string; selected: boolean }) {
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, "");
+  const surfaceId = `tactics-ball-surface-${safeId}`;
+  const shadowId = `tactics-ball-shadow-${safeId}`;
+  const clipId = `tactics-ball-clip-${safeId}`;
+
+  return (
+    <g>
+      <defs>
+        <radialGradient id={surfaceId} cx="29%" cy="23%" r="80%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="42%" stopColor="#f8fafc" />
+          <stop offset="78%" stopColor="#dbe2ea" />
+          <stop offset="100%" stopColor="#8b96a5" />
+        </radialGradient>
+        <radialGradient id={shadowId} cx="36%" cy="28%" r="76%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity=".7" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id={clipId}><circle r="13.5" /></clipPath>
+      </defs>
+
+      <ellipse cx="1.5" cy="15" rx="10.5" ry="2.5" fill="#020617" opacity=".42" />
+      <circle r="13.5" fill={`url(#${surfaceId})`} stroke={color ?? "#111827"} strokeWidth={selected ? 2.2 : 1.25} />
+      <g clipPath={`url(#${clipId})`}>
+        <path d="m0-6.2 5.9-1.9 3.7 4.9-2.3 5.9h-6.4l-3.8-4.7z" fill="#111827" />
+        <path d="m0-6.2-.7-8.4M5.9-8.1l7.2-4.3M9.6-3.2l7.1 1.1M7.3 2.7l4.4 7.1M.9 2.7l-2.6 8.1M-2.9-2l-7-2.6M-3.8-7.1l-4.3-6.2" fill="none" stroke="#111827" strokeWidth="2.7" strokeLinejoin="round" />
+        <path d="m0-6.2 5.9-1.9M9.6-3.2l7.1 1.1M7.3 2.7l4.4 7.1M.9 2.7l-2.6 8.1M-2.9-2l-7-2.6M-3.8-7.1l-4.3-6.2" fill="none" stroke="#f8fafc" strokeWidth="1.1" strokeLinejoin="round" opacity=".78" />
+        <circle cx="-5" cy="-7" r="6.5" fill={`url(#${shadowId})`} />
+      </g>
+      <ellipse cx="-4.2" cy="-7.3" rx="4.2" ry="1.8" transform="rotate(-38 -4.2 -7.3)" fill="#ffffff" opacity=".58" />
+      <circle cx="-6.9" cy="-9.5" r="1.1" fill="#ffffff" opacity=".85" />
+    </g>
+  );
+}
+
 function localize(locale: string) {
   const ar = locale === "ar";
   if (locale === "fr") return {
@@ -617,9 +653,7 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
                 {displayItems.map((item) => item.kind === "player" || item.kind === "opponent" ? <g key={item.id} data-tactics-item={item.id} className="tactics-player" transform={`translate(${item.x} ${item.y})`} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
                 <g transform={board.orientation === "vertical" ? "rotate(-90)" : undefined}><circle r="23" fill={item.color} stroke={selected === item.id ? "#fbbf24" : item.kind === "player" ? "#111827" : "#075985"} strokeWidth={selected === item.id ? 4 : 2.5}/><text y="5" textAnchor="middle" fontSize="15" fontWeight="800" fill={item.color === "#f3f4f6" ? "#111827" : "white"}>{item.number}</text>{item.label && <text x={0} y={board.orientation === "vertical" ? -39 : 39} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" paintOrder="stroke" stroke="#14532d" strokeWidth="4" strokeLinejoin="round">{item.label}</text>}</g>
               </g> : item.kind === "ball" ? <g key={item.id} data-tactics-item={item.id} transform={`translate(${item.x} ${item.y})`} className="tactics-player" onPointerDown={(e) => handleItemPointerDown(e, item.id)} onPointerMove={(e) => dragId.current === item.id && onItemMove(e as unknown as ReactPointerEvent<SVGSVGElement>)} onPointerUp={finishMove} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}>
-                <circle r="13" fill="#f8fafc" stroke={item.color ?? "#111827"} strokeWidth="2.5" />
-                <path d="M0-5.5 5.2-1.7 3.2 4.5-3.2 4.5-5.2-1.7Z" fill="#111827" />
-                <path d="M0-5.5V-10M5.2-1.7 10-3.4M3.2 4.5 6.2 8.8M-3.2 4.5-6.2 8.8M-5.2-1.7-10-3.4" fill="none" stroke="#111827" strokeWidth="1.8" strokeLinecap="round" />
+                <TacticalBallGraphic id={item.id} color={item.color} selected={selected === item.id} />
               </g> : item.kind === "zone" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><rect x={Math.min(item.x, item.x2)} y={Math.min(item.y, item.y2)} width={Math.abs(item.x2 - item.x)} height={Math.abs(item.y2 - item.y)} rx="8" fill={item.color} fillOpacity=".2" stroke={item.color} strokeWidth="3" strokeDasharray="8 6"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "path" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><polyline points={(item.points ?? [{ x: item.x, y: item.y }, { x: item.x2, y: item.y2 }]).map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={item.color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" markerEnd="url(#tactics-arrow)"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : item.kind === "arrow" || item.kind === "line" ? <g key={item.id} onPointerDown={(e) => handleItemPointerDown(e, item.id)} onClick={(e) => { e.stopPropagation(); if (tool !== "eraser") setSelected(item.id); }}><line x1={item.x} y1={item.y} x2={item.x2} y2={item.y2} stroke={item.color} strokeWidth={item.kind === "arrow" ? 4 : 3} strokeDasharray={item.kind === "line" ? "12 8" : undefined} markerEnd={item.kind === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>{item.label && <text x={(item.x + item.x2) / 2} y={(item.y + item.y2) / 2 - 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" paintOrder="stroke" stroke="#111827" strokeWidth="4">{item.label}</text>}</g> : null)}
               {pending && pendingCurrent && <g pointerEvents="none" opacity=".78">
                 {tool === "zone" ? <rect x={Math.min(pending.x, pendingCurrent.x)} y={Math.min(pending.y, pendingCurrent.y)} width={Math.abs(pendingCurrent.x - pending.x)} height={Math.abs(pendingCurrent.y - pending.y)} rx="8" fill={color} fillOpacity=".18" stroke={color} strokeWidth="3" strokeDasharray="8 6"/> : <line x1={pending.x} y1={pending.y} x2={pendingCurrent.x} y2={pendingCurrent.y} stroke={color} strokeWidth={tool === "arrow" ? 4 : 3} strokeDasharray={tool === "line" ? "12 8" : undefined} markerEnd={tool === "arrow" ? "url(#tactics-arrow)" : undefined} strokeLinecap="round"/>}
