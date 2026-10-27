@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Image as ImageIcon, Calendar, ChevronRight, ChevronLeft } from "lucide-react";
 import { getPublicAlbumDetail } from "@/lib/public/gallery";
-import { GalleryVideoModal } from "@/components/public/gallery-video-modal";
-import { isVideoUrl } from "@/lib/media-utils";
-import { GalleryImage } from "@/components/public/gallery-image";
+import { PublicGalleryPhotoGrid } from "@/components/public/public-gallery-photo-grid";
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { PublicPageHeading } from "@/components/public/public-page-heading";
 
@@ -69,40 +67,20 @@ export default async function PublicAlbumDetailPage({
       {/* Photos & Videos Grid */}
       <div className="mt-5 sm:mt-8">
         {pagePhotos.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-            {pagePhotos.map((photo) => {
-              const isVideo = isVideoUrl(photo.url);
-              return (
-                <div
-                  key={photo.id}
-                  className="group overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all hover:border-club-primary/50 hover:shadow-md flex flex-col justify-between sm:rounded-2xl"
-                >
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/90 sm:min-h-[180px]">
-                    {isVideo ? (
-                      <GalleryVideoModal
-                        src={photo.url}
-                        title={locale === "ar" ? (photo.caption || albumName) : frenchPublicText(photo.caption, albumName)}
-                        locale={locale}
-                      />
-                    ) : (
-                      <GalleryImage
-                        src={photo.url}
-                        alt={locale === "ar" ? (photo.caption || albumName) : frenchPublicText(photo.caption, albumName)}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    )}
-                  </div>
-                  {(locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")) && (
-                    <div className="p-2.5 bg-card border-t border-border/60 sm:p-3">
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <PublicGalleryPhotoGrid
+            locale={locale}
+            albumName={albumName}
+            photos={pagePhotos.map((photo) => ({
+              id: photo.id,
+              url: photo.url,
+              caption: locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")
+            }))}
+            lightboxPhotos={album.photos.map((photo) => ({
+              id: photo.id,
+              url: photo.url,
+              caption: locale === "ar" ? photo.caption : frenchPublicText(photo.caption, "")
+            }))}
+          />
         ) : (
           <div className="flex h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
             <ImageIcon className="h-10 w-10 text-muted-foreground/40 mb-2" />

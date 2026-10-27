@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   Image as ImageIcon,
   ChevronRight,
@@ -12,6 +11,7 @@ import {
 import { frenchPublicText } from "@/lib/public/locale-text";
 import { isVideoUrl } from "@/lib/media-utils";
 import { useSwipeCarousel } from "@/hooks/use-swipe-carousel";
+import { PublicPhotoLightbox } from "@/components/public/public-photo-lightbox";
 
 export interface ClubPhotoItem {
   id: string;
@@ -35,6 +35,8 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
   const orderedPhotos = photos.slice(0, 8);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const imagePhotos = orderedPhotos.filter((photo) => !isVideoUrl(photo.url));
   useEffect(() => {
     setCurrentIndex((index) => Math.min(index, Math.max(orderedPhotos.length - 1, 0)));
   }, [orderedPhotos.length]);
@@ -91,6 +93,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
     : `/${locale}/gallery`;
 
   return (
+    <>
     <div className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:min-h-[348px]">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border/60 p-4 pb-3 sm:p-6 sm:pb-3">
@@ -105,10 +108,14 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
 
       {/* Main Carousel Stage - Strict Fixed Height (Prevent size jumps) */}
       <div className="relative h-[320px] w-full shrink-0 select-none overflow-hidden overscroll-contain bg-black sm:h-[380px]" {...swipe}>
-        <Link
-          href={albumHref}
-          aria-label={isAr ? "فتح الألبوم" : "Ouvrir l’album"}
-          className="absolute inset-0 z-0 block h-full w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-club-primary"
+        <button
+          type="button"
+          onClick={() => {
+            if (isVideoUrl(currentPhoto.url)) window.location.assign(albumHref);
+            else setLightboxIndex(imagePhotos.findIndex((photo) => photo.id === currentPhoto.id));
+          }}
+          aria-label={isAr ? (isVideoUrl(currentPhoto.url) ? "فتح الألبوم" : "عرض الصورة") : (isVideoUrl(currentPhoto.url) ? "Ouvrir l’album" : "Afficher la photo")}
+          className="absolute inset-0 z-0 block h-full w-full cursor-zoom-in text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-club-primary"
         >
           {isVideoUrl(currentPhoto.url) ? (
             <video
@@ -148,7 +155,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
               {photoCaption || (isAr ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football")}
             </p>
           </div>
-        </Link>
+        </button>
 
         {/* Navigation Arrows */}
         <button
@@ -209,5 +216,14 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
         </a>
       </div>
     </div>
+    {lightboxIndex !== null && lightboxIndex >= 0 && (
+      <PublicPhotoLightbox
+        photos={imagePhotos}
+        initialIndex={lightboxIndex}
+        locale={locale}
+        onClose={() => setLightboxIndex(null)}
+      />
+    )}
+    </>
   );
 }
