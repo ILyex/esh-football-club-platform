@@ -830,7 +830,7 @@ private fun CupBracketView(rounds: List<PublicCupRound>, locale: String) {
                                 Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
                                 CupBracketTeamRow(match.away, Modifier.fillMaxWidth())
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(statusLabel(locale, match.status), color = if (match.status == "FINISHED") Mint else SecondaryText, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                    Text(statusLabel(locale, match.status, match.date), color = statusForeground(match.status), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                     Spacer(Modifier.weight(1f))
                                     match.date?.let { Text(formatDate(it, locale), color = SecondaryText, fontSize = 8.sp) }
                                 }
@@ -1049,12 +1049,7 @@ private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = nu
                     Text(categoryLabel(locale, match.category ?: ""), color = Gold, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Spacer(Modifier.weight(1f))
-                if (live) LiveBadge(locale) else if (finished) {
-                    Row(Modifier.clip(CircleShape).background(Mint.copy(alpha = .1f)).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Box(Modifier.size(5.dp).clip(CircleShape).background(Mint))
-                        Text(L(locale, "النتيجة النهائية", "Résultat final"), color = Mint, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-                } else Text(statusLabel(locale, match.status), color = SecondaryText, fontSize = 9.sp)
+                MatchStatusBadge(locale, match.status, match.date)
             }
             Row(Modifier.fillMaxWidth().padding(vertical = if (featured) 2.dp else 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 TeamBadge(match.home, if (match.isHomeFixture) clubLogo else match.opponentLogo, modifier = Modifier.weight(1f), featured = featured, isWinner = homeWon)
@@ -1093,9 +1088,11 @@ private fun TeamBadge(name: String, logo: String?, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun LiveBadge(locale: String) {
-    Row(Modifier.clip(CircleShape).background(Accent.copy(alpha = .17f)).border(1.dp, Accent.copy(alpha = .28f), CircleShape).padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(Accent)); Text(L(locale, "مباشر", "EN DIRECT"), color = Accent, fontSize = 9.sp, fontWeight = FontWeight.Black)
+private fun MatchStatusBadge(locale: String, status: String, date: String) {
+    val foreground = statusForeground(status)
+    Row(Modifier.clip(CircleShape).background(statusBackground(status)).border(1.dp, foreground.copy(alpha = .22f), CircleShape).padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Box(Modifier.size(5.dp).clip(CircleShape).background(foreground))
+        Text(statusLabel(locale, status, date), color = foreground, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)
     }
 }
 
@@ -1273,7 +1270,7 @@ private fun MatchScoreHero(match: PublicMatch, locale: String, clubLogo: String?
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(match.competition, color = SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text(statusLabel(locale, match.status), Modifier.clip(CircleShape).background(if (live) Accent.copy(alpha = .16f) else Glass).padding(horizontal = 10.dp, vertical = 5.dp), color = if (live) Accent else SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                MatchStatusBadge(locale, match.status, match.date)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 MatchDetailsTeam(match.home, homeLogo, Modifier.weight(1f))
@@ -1281,7 +1278,7 @@ private fun MatchScoreHero(match: PublicMatch, locale: String, clubLogo: String?
                     if (match.homeScore != null && match.awayScore != null) {
                         Text("${match.homeScore}  –  ${match.awayScore}", color = PrimaryText, fontSize = 23.sp, fontWeight = FontWeight.Black, maxLines = 1, softWrap = false)
                     } else Text("VS", color = SecondaryText, fontSize = 15.sp, fontWeight = FontWeight.Black)
-                    Text(if (live) L(locale, "مباشر الآن", "En direct") else if (finished) L(locale, "النتيجة النهائية", "Résultat final") else formatClock(match.date), color = if (live) Accent else SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(if (live || finished) statusLabel(locale, match.status, match.date) else formatClock(match.date), color = statusForeground(match.status), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
                 MatchDetailsTeam(match.away, awayLogo, Modifier.weight(1f))
             }
@@ -1711,7 +1708,36 @@ private fun categoryMatches(actual: String?, selected: String): Boolean {
     return actual.equals(selected, true)
 }
 private fun albumCategory(locale: String, category: String) = when (category) { "MATCHES" -> L(locale, "مباريات", "Matchs"); "TRAINING" -> L(locale, "تدريبات", "Entraînements"); "TEAM" -> L(locale, "الفريق", "Équipe"); "EVENTS" -> L(locale, "فعاليات", "Événements"); else -> L(locale, "النادي", "Club") }
-private fun statusLabel(locale: String, status: String) = when (status.trim().uppercase(Locale.ROOT)) { "LIVE" -> L(locale, "مباشرة", "En direct"); "SCHEDULED", "UPCOMING" -> L(locale, "قادمة", "À venir"); "FINISHED", "COMPLETED" -> L(locale, "انتهت", "Terminé"); "POSTPONED" -> L(locale, "مؤجلة", "Reporté"); "CANCELLED", "CANCELED" -> L(locale, "ملغاة", "Annulé"); else -> if (locale == "fr") "Statut à confirmer" else status }
+private fun statusLabel(locale: String, status: String, date: String? = null): String = when (status.trim().uppercase(Locale.ROOT)) {
+    "LIVE" -> L(locale, "مباشرة", "En direct")
+    "SCHEDULED", "UPCOMING" -> if (date != null && matchStartsSoon(date)) L(locale, "تبدأ قريباً", "Débute bientôt") else L(locale, "مبرمجة", "Programmée")
+    "FINISHED", "COMPLETED" -> L(locale, "منتهية", "Terminée")
+    "POSTPONED" -> L(locale, "مؤجلة", "Reportée")
+    "CANCELLED", "CANCELED" -> L(locale, "ملغاة", "Annulée")
+    else -> if (locale == "fr") "Statut à confirmer" else status
+}
+private fun matchStartsSoon(value: String): Boolean = runCatching {
+    val kickoff = if (value.all(Char::isDigit)) {
+        val raw = value.toLong()
+        if (raw < 10_000_000_000L) raw * 1_000L else raw
+    } else {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+            isLenient = true
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.parse(value.take(19))?.time ?: return false
+    }
+    kickoff >= System.currentTimeMillis() && kickoff - System.currentTimeMillis() <= 60L * 60L * 1_000L
+}.getOrDefault(false)
+private fun statusForeground(status: String): Color = when (status.trim().uppercase(Locale.ROOT)) {
+    "LIVE", "SCHEDULED", "UPCOMING" -> Accent
+    "FINISHED", "COMPLETED", "POSTPONED", "CANCELLED", "CANCELED" -> SecondaryText
+    else -> SecondaryText
+}
+private fun statusBackground(status: String): Color = when (status.trim().uppercase(Locale.ROOT)) {
+    "LIVE" -> Accent.copy(alpha = .15f)
+    "SCHEDULED", "UPCOMING" -> Accent.copy(alpha = .10f)
+    else -> PanelRaised
+}
 private fun frenchEventLabel(type: String, locale: String) = when (type.trim().uppercase(Locale.ROOT)) {
     "GOAL" -> L(locale, "هدف", "But")
     "PENALTY_GOAL" -> L(locale, "هدف من ركلة جزاء", "But sur penalty")
