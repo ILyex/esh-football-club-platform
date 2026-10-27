@@ -1243,3 +1243,72 @@ button:active,
       .tactics-board-fullscreen .tactics-video-controls>div:last-child{margin-top:.35rem;padding-top:.35rem}
       @media(max-width:639px){.tactics-board-fullscreen .tactics-video-controls{inset-inline:8px!important;bottom:max(8px,env(safe-area-inset-bottom))!important;width:calc(100% - 16px);max-height:48dvh;padding:.45rem!important}.tactics-board-fullscreen .tactics-video-control{min-width:0;flex:1 1 calc(50% - .25rem)}.tactics-board-fullscreen .tactics-video-control-compact>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
       @media print{body *{visibility:hidden!important}.tactics-page,.tactics-page *{visibility:visible!important}.tactics-page{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;padding:0!important;background:white!important;color:#111!important}.tactics-page aside,.tactics-page .tactics-field,.tactics-page button,.tactics-page .border-b,.tactics-page .tactics-screen-only{display:none!important}.tactics-page>.tactics-print-header{display:grid!important;grid-template-columns:80px minmax(0,1fr) 80px!important;align-items:center!important;visibility:visible!important;border-color:#d4d4d8!important;padding:0 0 14px!important;margin-bottom:16px!important}.tactics-page>.tactics-print-header *{visibility:visible!important}.tactics-page>header:not(.tactics-print-header){display:none!important}.tactics-page main{width:100%!important}.tactics-page main>section:first-child{display:none!important}.tactics-page main>section.tactics-panel{border:none!important;box-shadow:none!important}.tactics-page main>section.tactics-panel:nth-child(2){break-inside:avoid!important;page-break-inside:avoid!important}.tactics-pitch{max-height:78vh!important}.tactics-pitch-wrap{padding:0!important;background:white!important}}
+
+/* Print the tactics sheet as a balanced landscape page instead of leaving most of a portrait page empty. */
+@page tactics {
+  size: A4 landscape;
+  margin: 9mm;
+}
+
+@media print {
+  .tactics-page {
+    page: tactics;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .tactics-page > .tactics-print-header {
+    grid-template-columns: 56px minmax(0, 1fr) 56px !important;
+    gap: 8mm !important;
+    margin: 0 0 6mm !important;
+    padding: 0 0 4mm !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+  }
+
+  .tactics-page > .tactics-print-header img {
+    width: 14mm !important;
+    height: 14mm !important;
+  }
+
+  .tactics-page > .grid {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .tactics-page main {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .tactics-page main > section.tactics-panel:nth-child(3) {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .tactics-page .tactics-pitch-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .tactics-page .tactics-pitch {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 72vh !important;
+    border-radius: 3mm !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+}

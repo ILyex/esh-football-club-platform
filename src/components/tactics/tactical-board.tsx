@@ -542,13 +542,19 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
     </header>
 
     <header className="tactics-print-header hidden items-center justify-between gap-4 border-b-2 border-zinc-300 pb-4 text-zinc-900" dir="ltr">
-      <NextImage src="/branding/esh-logo-128.png" alt="ESH" width={80} height={80} className="h-20 w-20 object-contain" />
+      <NextImage src="/branding/esh-logo-128.png" alt="ESH" width={64} height={64} className="h-14 w-14 object-contain" />
       <div className="flex-1 text-center" dir={locale === "ar" ? "rtl" : "ltr"}>
-        <h1 className="text-2xl font-black">{title.trim() || t.titlePlaceholder}</h1>
-        <p className="mt-1 text-base font-semibold">{board.coachName?.trim() || t.coach}</p>
-        {teamId && <p className="mt-1 text-sm">{teams.find((team) => team.id === teamId)?.name}</p>}
+        <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-red-700">ESH · {locale === "fr" ? "PLAN TACTIQUE" : locale === "ar" ? "الخطة التكتيكية" : "TACTICAL PLAN"}</p>
+        <h1 className="text-2xl font-black leading-tight">{title.trim() || t.titlePlaceholder}</h1>
+        <p className="mt-1 text-sm font-semibold text-zinc-700">
+          {[board.coachName?.trim(), teamId ? teams.find((team) => team.id === teamId)?.name : null].filter(Boolean).join(" · ")}
+        </p>
+        <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-bold text-zinc-700">
+          <span className="rounded-full border border-zinc-300 px-2.5 py-1">{locale === "fr" ? "Formation" : locale === "ar" ? "الخطة" : "Formation"} · {formation}</span>
+          <span className="rounded-full border border-zinc-300 px-2.5 py-1">{count} {t.players}</span>
+        </div>
       </div>
-      <NextImage src="/branding/esh-logo-128.png" alt="ESH" width={80} height={80} className="h-20 w-20 object-contain" />
+      <NextImage src="/branding/esh-logo-128.png" alt="ESH" width={64} height={64} className="h-14 w-14 object-contain" />
     </header>
 
     <div className="grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_310px]">
