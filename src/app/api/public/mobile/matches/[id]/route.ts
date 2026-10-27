@@ -18,7 +18,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     teamCategory: match.teamCategory ? frenchPublicCategory(match.teamCategory) : null,
     stadium: frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni"),
     refereeName: match.refereeNameFr || frenchPublicText(match.refereeNameAr || match.refereeName, "Arbitre à confirmer"),
-    matchReport: match.matchReport ? frenchPublicText(match.matchReport, "Compte rendu du match") : null,
     events: match.events.map((event) => ({
       ...event,
       playerName: frenchPublicText(event.playerNameFr || event.playerName, "Joueur"),

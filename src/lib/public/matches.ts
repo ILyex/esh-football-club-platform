@@ -68,7 +68,6 @@ export interface PublicMatchDetail extends PublicMatchItem {
   refereeName: string | null;
   refereeNameAr: string | null;
   refereeNameFr: string | null;
-  matchReport: string | null;
   events: PublicMatchEventItem[];
   startingLineup: PublicLineupItem[];
   substitutes: PublicLineupItem[];
@@ -415,7 +414,6 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       secondHalfAddedTime: true,
       extraTimeFirstHalfAddedTime: true,
       extraTimeSecondHalfAddedTime: true,
-      matchReport: true,
       competition: { select: { name: true } },
       team: { select: { category: true, name: true } },
       events: {
@@ -573,7 +571,6 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
     awayPenaltyScore: match.hasPenaltyShootout ? result.awayPenaltyScore : 0,
     winnerSide: result.winnerSide,
     decidedByPenalties: result.decidedByPenalties,
-    matchReport: match.matchReport,
     competitionName: match.competition.name,
     teamCategory: match.team?.category ?? null,
     teamName: match.team?.name ?? null,

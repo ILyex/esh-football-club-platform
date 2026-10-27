@@ -240,18 +240,6 @@ export default async function PublicMatchDetailPage({
         </div>
       </div>
 
-      {/* Match Report Summary */}
-      {(locale === "ar" ? match.matchReport : frenchPublicText(match.matchReport, "")) && (
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-6">
-          <h3 className="text-lg font-bold text-foreground mb-3">
-            {locale === "ar" ? "تقرير المباراة" : "Résumé du match"}
-          </h3>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-            {locale === "ar" ? match.matchReport : frenchPublicText(match.matchReport, "")}
-          </p>
-        </div>
-      )}
-
       <PublicMatchSections
         locale={locale}
         canViewLineup={showOfficialLineup}

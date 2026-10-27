@@ -41,7 +41,7 @@ data class PublicSnapshot(val club: PublicClub, val nextMatch: PublicMatch?, val
 data class PublicAlert(val id: String, val title: String, val body: String, val time: Long, val kind: String)
 data class PublicMatchEvent(val id: String, val minute: Int, val type: String, val side: String, val player: String)
 data class PublicMatchPlayer(val id: String, val name: String, val number: Int?, val position: String?, val photo: String?, val captain: Boolean)
-data class PublicMatchCenter(val match: PublicMatch, val events: List<PublicMatchEvent>, val starting: List<PublicMatchPlayer>, val substitutes: List<PublicMatchPlayer>, val report: String?)
+data class PublicMatchCenter(val match: PublicMatch, val events: List<PublicMatchEvent>, val starting: List<PublicMatchPlayer>, val substitutes: List<PublicMatchPlayer>)
 data class PublicArticle(val title: String, val content: String, val image: String?, val category: String?, val date: String)
 
 object PublicApi {
@@ -139,7 +139,7 @@ object PublicApi {
         }
         val starting = item.optJSONArray("startingLineup").objects().map(localizedPlayer)
         val substitutes = item.optJSONArray("substitutes").objects().map(localizedPlayer)
-        return PublicMatchCenter(match, events, starting, substitutes, item.optNullable("matchReport"))
+        return PublicMatchCenter(match, events, starting, substitutes)
     }
 
     fun article(slug: String, locale: String): PublicArticle {

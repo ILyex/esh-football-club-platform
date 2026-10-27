@@ -18,7 +18,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -968,7 +967,7 @@ private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = nu
     val finished = match.status == "FINISHED"
     val homeWon = finished && match.homeScore != null && match.awayScore != null && match.homeScore > match.awayScore
     val awayWon = finished && match.homeScore != null && match.awayScore != null && match.awayScore > match.homeScore
-    Surface(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(22.dp), accentGlow = live || featured).shadow(if (featured || live) 10.dp else 5.dp, RoundedCornerShape(22.dp)).noRippleClickable(onClick).animateContentSize(), color = Color.Transparent, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, if (live) Accent.copy(alpha = .48f) else if (finished) Hairline.copy(alpha = .9f) else Hairline)) {
+    Surface(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(22.dp), accentGlow = live || featured).noRippleClickable(onClick), color = Color.Transparent, shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, if (live) Accent.copy(alpha = .48f) else if (finished) Hairline.copy(alpha = .9f) else Hairline)) {
         Column(Modifier.padding(if (featured) 16.dp else 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.clip(CircleShape).background(Glass).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -1136,7 +1135,7 @@ private fun ScreenHeading(title: String, subtitle: String, icon: Int) {
     }
 }
 
-private enum class MatchDetailTab { EVENTS, LINEUP, REPORT }
+private enum class MatchDetailTab { EVENTS, LINEUP }
 
 @Composable
 private fun MatchDetailLoading(locale: String) {
@@ -1174,7 +1173,6 @@ private fun MatchDetailsScreen(center: PublicMatchCenter, locale: String, clubLo
                     val label = when (tab) {
                         MatchDetailTab.EVENTS -> L(locale, "الأحداث", "Événements")
                         MatchDetailTab.LINEUP -> L(locale, "التشكيلة", "Composition")
-                        MatchDetailTab.REPORT -> L(locale, "التقرير", "Compte rendu")
                     }
                     Row(Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(if (active) Accent else Color.Transparent).noRippleClickable { section = tab }.padding(horizontal = 4.dp, vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                         Text(label, color = if (active) Color.White else SecondaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
@@ -1186,7 +1184,6 @@ private fun MatchDetailsScreen(center: PublicMatchCenter, locale: String, clubLo
             when (section) {
                 MatchDetailTab.EVENTS -> MatchEventsPanel(center, locale)
                 MatchDetailTab.LINEUP -> MatchLineupPanel(center, locale)
-                MatchDetailTab.REPORT -> MatchReportPanel(center, locale)
             }
         }
     }
@@ -1309,16 +1306,6 @@ private fun MatchPlayerRow(player: PublicMatchPlayer, locale: String) {
             Text(matchPositionLabel(matchPositionGroup(player.position), locale), color = SecondaryText, fontSize = 9.sp)
         }
         if (player.captain) Text("C", Modifier.clip(CircleShape).background(Accent.copy(alpha = .15f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Accent, fontSize = 9.sp, fontWeight = FontWeight.Black)
-    }
-}
-
-@Composable
-private fun MatchReportPanel(center: PublicMatchCenter, locale: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeading(L(locale, "تقرير المباراة", "Compte rendu"), PublicIcons.News, locale)
-        val report = center.report?.takeIf { it.isNotBlank() }
-        if (report == null) EmptyState(L(locale, "لا يوجد تقرير منشور لهذه المباراة.", "Aucun compte rendu n’a été publié pour ce match."))
-        else Text(report, Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Panel).padding(15.dp), color = PrimaryText.copy(alpha = .9f), fontSize = 12.sp, lineHeight = 19.sp)
     }
 }
 
