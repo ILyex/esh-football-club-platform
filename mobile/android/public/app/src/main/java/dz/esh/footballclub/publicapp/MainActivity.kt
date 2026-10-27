@@ -35,8 +35,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -170,7 +168,11 @@ private fun PublicApp() {
     var matchDetailLoading by remember { mutableStateOf(false) }
     var matchDetailError by remember { mutableStateOf(false) }
     var matchDetailRetry by remember { mutableIntStateOf(0) }
+    var selectedArticleSlug by remember { mutableStateOf<String?>(null) }
     var selectedArticle by remember { mutableStateOf<PublicArticle?>(null) }
+    var articleLoading by remember { mutableStateOf(false) }
+    var articleLoadError by remember { mutableStateOf(false) }
+    var articleRetry by remember { mutableIntStateOf(0) }
     var selectedAlbum by remember { mutableStateOf<PublicAlbum?>(null) }
     var selectedPhoto by remember { mutableStateOf<PublicPhoto?>(null) }
     var selectedVideo by remember { mutableStateOf<String?>(null) }
@@ -187,7 +189,12 @@ private fun PublicApp() {
     val scope = rememberCoroutineScope()
     val pullRefreshState = androidx.compose.material.pullrefresh.rememberPullRefreshState(refreshing, { refreshKey++ })
 
-    BackHandler(enabled = selectedMatchId != null) { selectedMatchId = null }
+    BackHandler(enabled = selectedMatchId != null || selectedArticleSlug != null) {
+        if (selectedArticleSlug != null) {
+            selectedArticleSlug = null
+            selectedArticle = null
+        } else selectedMatchId = null
+    }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= 33) {
@@ -246,6 +253,26 @@ private fun PublicApp() {
             matchDetailLoading = false
         }
     }
+    LaunchedEffect(selectedArticleSlug, locale, articleRetry) {
+        val slug = selectedArticleSlug ?: run {
+            selectedArticle = null
+            articleLoading = false
+            articleLoadError = false
+            return@LaunchedEffect
+        }
+        selectedArticle = null
+        articleLoadError = false
+        articleLoading = true
+        try {
+            val result = runCatching { withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } }
+            if (selectedArticleSlug == slug) {
+                selectedArticle = result.getOrNull()
+                articleLoadError = result.isFailure
+            }
+        } finally {
+            articleLoading = false
+        }
+    }
     LaunchedEffect(tab) {
         // Keep the in-app badge live while the app is in use; refresh the
         // notification screen more frequently when its contents are visible.
@@ -288,6 +315,14 @@ private fun PublicApp() {
                         locale = if (locale == "ar") "fr" else "ar"
                         preferences.edit().putString(PublicMessagingService.LOCALE, locale).apply()
                     })
+                } else if (selectedArticleSlug != null) {
+                    ArticleDetailsTopBar(locale, selectedArticle?.title, snapshot?.club, Modifier.statusBarsPadding(), onBack = {
+                        selectedArticleSlug = null
+                        selectedArticle = null
+                    }, onToggleLocale = {
+                        locale = if (locale == "ar") "fr" else "ar"
+                        preferences.edit().putString(PublicMessagingService.LOCALE, locale).apply()
+                    })
                 } else {
                     PublicTopBar(locale, snapshot?.club, modifier = Modifier.statusBarsPadding(), onToggleLocale = {
                         locale = if (locale == "ar") "fr" else "ar"
@@ -296,7 +331,7 @@ private fun PublicApp() {
                 }
             },
             bottomBar = {
-                if (selectedMatchId == null) {
+                if (selectedMatchId == null && selectedArticleSlug == null) {
                     PublicBottomBar(
                         tab,
                         locale,
@@ -308,10 +343,16 @@ private fun PublicApp() {
                 }
             }
         ) { padding ->
-          Box(Modifier.fillMaxSize().then(if (selectedMatchId == null) Modifier.pullRefresh(pullRefreshState) else Modifier)) {
+          Box(Modifier.fillMaxSize().then(if (selectedMatchId == null && selectedArticleSlug == null) Modifier.pullRefresh(pullRefreshState) else Modifier)) {
             Box(Modifier.fillMaxSize().padding(padding)) {
                 val data = snapshot
-                if (selectedMatchId != null) {
+                if (selectedArticleSlug != null) {
+                    when {
+                        articleLoading -> ArticleLoadingScreen(locale)
+                        articleLoadError || selectedArticle == null -> ArticleErrorScreen(locale) { articleRetry++ }
+                        else -> ArticleReaderScreen(selectedArticle!!, locale)
+                    }
+                } else if (selectedMatchId != null) {
                     when {
                         matchDetailLoading -> MatchDetailLoading(locale)
                         matchDetailError || matchCenter == null -> MatchDetailError(locale) { matchDetailRetry++ }
@@ -330,19 +371,19 @@ private fun PublicApp() {
                     when (page) {
                         PublicTab.HOME -> HomeScreen(data, locale, onMatch = { id ->
                             selectedMatchId = id
-                        }, onArticle = { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }, onTab = { tab = it }, onReel = { selectedReel = it })
+                        }, onArticle = { slug -> selectedArticleSlug = slug }, onTab = { tab = it }, onReel = { selectedReel = it })
                         PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
                         PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> selectedMatchId = id }
                         PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, competitionsError, locale) { refreshKey++ }
                         PublicTab.GALLERY -> MediaScreen(data, locale, onReel = { selectedReel = it }, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id, locale) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
-                        PublicTab.NEWS -> NewsScreen(data, locale) { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }
+                        PublicTab.NEWS -> NewsScreen(data, locale) { slug -> selectedArticleSlug = slug }
                         PublicTab.CLUB -> ClubScreen(data, locale)
                         PublicTab.ALERTS -> AlertsScreen(alertItems, locale, onDismiss = { item -> PublicMessagingService.dismiss(context, item.id); alertItems = PublicMessagingService.alerts(context) })
                     }
                 }
-                if (selectedMatchId == null && data != null && error) Text(L(locale, "تعذر تحديث بعض البيانات · نعرض آخر محتوى محمّل", "Mise à jour impossible · affichage des derniers contenus reçus"), Modifier.align(Alignment.BottomCenter).padding(8.dp).clip(CircleShape).background(PanelRaised).padding(horizontal = 12.dp, vertical = 7.dp), color = Gold, fontSize = 10.sp)
+                if (selectedMatchId == null && selectedArticleSlug == null && data != null && error) Text(L(locale, "تعذر تحديث بعض البيانات · نعرض آخر محتوى محمّل", "Mise à jour impossible · affichage des derniers contenus reçus"), Modifier.align(Alignment.BottomCenter).padding(8.dp).clip(CircleShape).background(PanelRaised).padding(horizontal = 12.dp, vertical = 7.dp), color = Gold, fontSize = 10.sp)
             }
-            if (selectedMatchId == null) PullRefreshIndicator(refreshing, pullRefreshState, Modifier.align(Alignment.TopCenter), backgroundColor = Panel, contentColor = Accent)
+            if (selectedMatchId == null && selectedArticleSlug == null) PullRefreshIndicator(refreshing, pullRefreshState, Modifier.align(Alignment.TopCenter), backgroundColor = Panel, contentColor = Accent)
           }
         }
       }
@@ -400,7 +441,6 @@ private fun PublicApp() {
         }
     }
 
-    selectedArticle?.let { ArticleDialog(it, locale) { selectedArticle = null } }
     selectedAlbum?.let { AlbumDialog(it, locale, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it }, onDismiss = { selectedAlbum = null }) }
     selectedPhoto?.let { photo -> Dialog(onDismissRequest = { selectedPhoto = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color.Black).clickable { selectedPhoto = null }, contentAlignment = Alignment.Center) {
@@ -441,6 +481,23 @@ private fun MatchDetailsTopBar(locale: String, club: PublicClub?, modifier: Modi
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(L(locale, "تفاصيل المباراة", "Détails du match"), color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.Black, maxLines = 1)
             Text(club?.shortName ?: "ESH", color = SecondaryText, fontSize = 9.sp, maxLines = 1)
+        }
+        Surface(modifier = Modifier.height(38.dp).siteGlass(RoundedCornerShape(13.dp)).noRippleClickable(onToggleLocale), shape = RoundedCornerShape(13.dp), color = Color.Transparent, border = BorderStroke(1.dp, Accent.copy(alpha = .22f))) {
+            Row(Modifier.padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
+                Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleDetailsTopBar(locale: String, title: String?, club: PublicClub?, modifier: Modifier, onBack: () -> Unit, onToggleLocale: () -> Unit) {
+    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Panel.copy(alpha = .98f), Canvas.copy(alpha = .99f)))).then(modifier).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        HeaderAction(if (locale == "ar") R.drawable.iconly_arrow_right else R.drawable.iconly_arrow_left, L(locale, "رجوع للأخبار", "Retour aux actualités"), onBack)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(L(locale, "قراءة الخبر", "Lecture"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Text(title ?: L(locale, "أخبار النادي", "Actualités du club"), color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Surface(modifier = Modifier.height(38.dp).siteGlass(RoundedCornerShape(13.dp)).noRippleClickable(onToggleLocale), shape = RoundedCornerShape(13.dp), color = Color.Transparent, border = BorderStroke(1.dp, Accent.copy(alpha = .22f))) {
             Row(Modifier.padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -799,49 +856,64 @@ private fun CupBracketTeamRow(team: PublicCupTeam, modifier: Modifier = Modifier
 @Composable
 private fun ClubScreen(data: PublicSnapshot, locale: String) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        item { ScreenHeading(L(locale, "عن النادي", "À propos du club"), L(locale, "الجمعية الرياضية أمل سيدي حسني لكرة القدم", "Association Sportive Espoir Sidi Hosni de Football"), PublicIcons.Club) }
         item {
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(23.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .20f), Panel, PanelRaised)))) {
-                if (data.club.hero != null) AsyncImage(model = data.club.hero, contentDescription = null, modifier = Modifier.fillMaxWidth().height(130.dp), contentScale = ContentScale.Crop, alpha = .22f)
-                Row(Modifier.fillMaxWidth().padding(17.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                    Box(Modifier.size(74.dp).clip(CircleShape).background(Color.White).padding(7.dp), contentAlignment = Alignment.Center) { AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(L(locale, "عن الجمعية", "À PROPOS"), color = Mint, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        Text(data.club.name, color = PrimaryText, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Black, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        Text("ESH  •  2018 — ∞", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(27.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .28f), PanelRaised, Canvas)))) {
+                data.club.hero?.let { hero -> AsyncImage(model = hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .52f) }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Canvas.copy(alpha = .12f), Canvas.copy(alpha = .34f), Canvas.copy(alpha = .97f)))))
+                Box(Modifier.align(Alignment.TopEnd).padding(20.dp).size(118.dp).clip(CircleShape).background(Accent.copy(alpha = .10f)))
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(64.dp).clip(CircleShape).background(Color.White).border(2.dp, Accent.copy(alpha = .8f), CircleShape).padding(6.dp), contentAlignment = Alignment.Center) {
+                            AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("ESH  ·  SIDI HOSNI", color = Color.White.copy(alpha = .82f), fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                            Text(data.club.shortName.ifBlank { "ESH" }, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
+                    Text(data.club.name, color = Color.White.copy(alpha = .92f), fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
         item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(L(locale, "من نحن؟", "Notre histoire"), color = PrimaryText, fontWeight = FontWeight.Black, fontSize = 15.sp)
-                Text(data.club.description?.takeIf { it.isNotBlank() } ?: L(locale, "جمعية رياضية محلية تضع التكوين والعمل الجماعي في قلب مشروعها، وتمثل سيدي حسني بفخر.", "Un club local qui place la formation et l’esprit d’équipe au cœur de son projet, et représente Sidi Hosni avec fierté."), color = SecondaryText, fontSize = 12.sp, lineHeight = 19.sp)
+            Column(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(22.dp)).padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(18.dp)) }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(L(locale, "حكاية النادي", "Le club"), color = PrimaryText, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                        Text(L(locale, "فريق من سيدي حسني، يجمعنا شغف كرة القدم", "Le football et Sidi Hosni nous rassemblent"), color = SecondaryText, fontSize = 10.sp)
+                    }
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+                Text(data.club.description?.takeIf { it.isNotBlank() } ?: L(locale, "الجمعية الرياضية أمل سيدي حسني لكرة القدم. نعمل بروح الفريق ونمثل مدينتنا في الميدان.", "L’Association Sportive Espoir Sidi Hosni fait vivre le football avec l’esprit d’équipe et représente sa ville sur le terrain."), color = PrimaryText.copy(alpha = .84f), fontSize = 13.sp, lineHeight = 22.sp)
             }
         }
-        item { SectionHeading(L(locale, "قيمنا", "Nos engagements"), PublicIcons.Shield, locale) }
         item {
+            SectionHeading(L(locale, "ما يجمعنا", "Nos valeurs"), PublicIcons.Shield, locale)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(end = 2.dp)) {
                 items(listOf(
                     L(locale, "التكوين", "Formation") to L(locale, "تطوير اللاعبين داخل الملعب وخارجه.", "Accompagner chaque joueur sur et en dehors du terrain."),
                     L(locale, "المنافسة", "Compétition") to L(locale, "تمثيل سيدي حسني بفخر في المنافسات.", "Porter les couleurs de Sidi Hosni avec fierté."),
                     L(locale, "روح الفريق", "Esprit d’équipe") to L(locale, "الاحترام والانضباط والعمل الجماعي.", "Cultiver le respect, la discipline et le collectif.")
                 )) { (title, detail) ->
-                    Column(Modifier.width(205.dp).padding(vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        AppIcon(PublicIcons.Shield, null, Accent, Modifier.size(18.dp))
-                        Text(title, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(detail, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Column(Modifier.width(218.dp).siteGlass(RoundedCornerShape(19.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Shield, null, Accent, Modifier.size(17.dp)) }
+                        Text(title, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(detail, color = SecondaryText, fontSize = 10.sp, lineHeight = 16.sp, minLines = 2, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
         }
         data.club.stadium?.takeIf { it.isNotBlank() }?.let { stadium -> item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AppIcon(PublicIcons.Club, null, Accent, Modifier.size(19.dp))
-                Column { Text(L(locale, "الملعب", "Stade"), color = SecondaryText, fontSize = 9.sp); Text(stadium, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            Row(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(18.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+                Box(Modifier.size(39.dp).clip(RoundedCornerShape(13.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(19.dp)) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(L(locale, "ملعبنا", "Notre stade"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(stadium, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 18.sp)
+                }
             }
         } }
-        if (data.trainings.isNotEmpty()) item { SectionHeading(L(locale, "التدريبات القادمة", "Prochains entraînements"), PublicIcons.Training, locale) }
+        if (data.trainings.isNotEmpty()) item { SectionHeading(L(locale, "موعدنا القادم", "Prochains entraînements"), PublicIcons.Training, locale) }
         items(data.trainings, key = { "club-training-${it.id}" }) { TrainingCard(it, locale) }
     }
 }
@@ -1332,45 +1404,80 @@ private fun matchPositionLabel(position: String, locale: String): String {
 }
 
 @Composable
-private fun ArticleDialog(article: PublicArticle, locale: String, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            Modifier.fillMaxWidth().fillMaxHeight(.92f).padding(horizontal = 12.dp).widthIn(max = 620.dp).siteGlass(RoundedCornerShape(28.dp), accentGlow = true),
-            color = Color.Transparent,
-            shape = RoundedCornerShape(28.dp),
-            shadowElevation = 24.dp,
-            border = BorderStroke(1.dp, Hairline)
-        ) {
-            Column {
-                Box(Modifier.fillMaxWidth().height(238.dp).background(Brush.linearGradient(listOf(Accent.copy(alpha = .25f), PanelRaised, Canvas)))) {
-                    if (article.image != null) {
-                        AsyncImage(model = article.image, contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    } else {
-                        Box(Modifier.align(Alignment.CenterEnd).padding(end = 38.dp).size(148.dp).clip(CircleShape).background(Accent.copy(alpha = .09f)))
-                        AppIcon(PublicIcons.News, null, Color.White.copy(alpha = .45f), Modifier.align(Alignment.Center).size(58.dp))
+private fun ArticleLoadingScreen(locale: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CircularProgressIndicator(color = Accent, strokeWidth = 2.dp)
+            Text(L(locale, "جارٍ تجهيز الخبر للقراءة", "Chargement de l’actualité…"), color = SecondaryText, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun ArticleErrorScreen(locale: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Box(Modifier.size(52.dp).clip(CircleShape).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.News, null, Accent, Modifier.size(24.dp)) }
+            Text(L(locale, "تعذر تحميل الخبر", "Impossible de charger l’actualité"), color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(L(locale, "تحقق من الاتصال ثم حاول مرة أخرى.", "Vérifiez votre connexion puis réessayez."), color = SecondaryText, fontSize = 11.sp)
+            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Accent), shape = CircleShape) {
+                Text(L(locale, "إعادة المحاولة", "Réessayer"), color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleReaderScreen(article: PublicArticle, locale: String) {
+    val paragraphs = remember(article.content) { article.content.split(Regex("\\n\\s*\\n")).map(String::trim).filter(String::isNotEmpty) }
+    val minutes = ((article.content.trim().split(Regex("\\s+")).size + 179) / 180).coerceAtLeast(1)
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        item {
+            Box(Modifier.fillMaxWidth().height(252.dp).background(Brush.linearGradient(listOf(Accent.copy(alpha = .24f), PanelRaised, Canvas)))) {
+                if (!article.image.isNullOrBlank()) {
+                    AsyncImage(model = article.image, contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else {
+                    Box(Modifier.align(Alignment.CenterEnd).padding(end = 40.dp).size(170.dp).clip(CircleShape).background(Accent.copy(alpha = .10f)))
+                    AppIcon(PublicIcons.News, null, Accent.copy(alpha = .58f), Modifier.align(Alignment.Center).size(54.dp))
+                }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Canvas.copy(alpha = .06f), Color.Transparent, Canvas.copy(alpha = .96f)))))
+                Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 21.dp, vertical = 17.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Box(Modifier.size(32.dp).clip(CircleShape).background(Panel.copy(alpha = .88f)).padding(5.dp), contentAlignment = Alignment.Center) {
+                        AsyncImage(model = R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     }
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .2f), Color.Transparent, Color.Black.copy(alpha = .7f)))))
-                    Surface(
-                        onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(13.dp).size(39.dp),
-                        color = Color.Black.copy(alpha = .48f),
-                        shape = CircleShape
-                    ) {
-                        Box(contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Close, L(locale, "إغلاق الخبر", "Fermer l’actualité"), Color.White, Modifier.size(18.dp)) }
-                    }
-                    Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 18.dp, vertical = 15.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        article.category?.takeIf { it.isNotBlank() }?.let {
-                            Text(it, Modifier.clip(CircleShape).background(Accent.copy(alpha = .92f)).padding(horizontal = 11.dp, vertical = 6.dp), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        Text(formatDate(article.date, locale), color = Color.White.copy(alpha = .84f), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(L(locale, "أخبار النادي", "ACTUALITÉS DU CLUB"), color = Color.White.copy(alpha = .86f), fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                        Text(formatDate(article.date, locale), color = Color.White.copy(alpha = .72f), fontSize = 10.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(L(locale, "من أخبار النادي", "LA VIE DU CLUB"), color = Mint, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                    Text(article.title, color = PrimaryText, fontSize = 22.sp, lineHeight = 31.sp, fontWeight = FontWeight.Black)
-                    Box(Modifier.width(42.dp).height(3.dp).clip(CircleShape).background(Accent))
-                    Text(article.content, color = PrimaryText.copy(alpha = .88f), fontSize = 14.sp, lineHeight = 25.sp)
+            }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().widthIn(max = 760.dp).padding(horizontal = 22.dp).padding(top = 24.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    article.category?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, Modifier.clip(CircleShape).background(Accent.copy(alpha = .14f)).padding(horizontal = 11.dp, vertical = 6.dp), color = Accent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(L(locale, "$minutes دقائق قراءة", "$minutes min de lecture"), color = SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
+                Text(article.title, color = PrimaryText, fontSize = 27.sp, lineHeight = 37.sp, fontWeight = FontWeight.Black)
+                Box(Modifier.width(48.dp).height(3.dp).clip(CircleShape).background(Accent))
+            }
+        }
+        items(paragraphs.size) { index ->
+            Text(
+                paragraphs[index],
+                Modifier.fillMaxWidth().widthIn(max = 760.dp).padding(horizontal = 22.dp).padding(bottom = 18.dp),
+                color = PrimaryText.copy(alpha = .9f),
+                fontSize = 16.sp,
+                lineHeight = 29.sp
+            )
+        }
+        item {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f).height(1.dp).background(Hairline))
+                Box(Modifier.size(34.dp).clip(CircleShape).background(PanelRaised).padding(6.dp), contentAlignment = Alignment.Center) { AsyncImage(model = R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
+                Box(Modifier.weight(1f).height(1.dp).background(Hairline))
             }
         }
     }
