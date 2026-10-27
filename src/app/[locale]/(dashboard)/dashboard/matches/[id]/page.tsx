@@ -630,7 +630,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
 
           {canReport && (
           <PreMatchSheetUploadGate status={match.status} locale={locale}>
-          <ActionFeedbackForm action={attachSheet} successMessage={locale === "ar" ? "تم رفع ورقة المباراة بنجاح" : "La feuille du match a été téléversée"} errorMessage={locale === "ar" ? "تعذر رفع الوثيقة. تحقق من الملف ثم أعد المحاولة." : "Impossible de téléverser le document. Vérifiez le fichier puis réessayez."} className="grid min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <ActionFeedbackForm action={attachSheet} successMessage={locale === "ar" ? "تم رفع ورقة المباراة بنجاح" : "La feuille du match a été téléversée"} errorMessage={locale === "ar" ? "تعذر رفع الوثيقة. تحقق من الملف ثم أعد المحاولة." : "Impossible de téléverser le document. Vérifiez le fichier puis réessayez."} refreshOnSuccess className="grid min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input type="hidden" name="sheetType" value="PRE_MATCH_SHEET" />
               <input type="hidden" name="locale" value={locale} />
               <DocumentUploadPicker

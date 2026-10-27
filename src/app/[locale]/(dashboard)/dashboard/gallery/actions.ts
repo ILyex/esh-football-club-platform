@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/permissions";
 import { albumSchema } from "@/lib/validations/album";
 import { writeAuditLog } from "@/lib/audit";
-import { validateUploadedMedia, generatePublicStorageKey, uploadPublicFile, deletePublicFile } from "@/lib/storage";
+import { validateUploadedMedia, generatePublicStorageKey, uploadPublicFile, deletePublicFile, FileValidationError } from "@/lib/storage";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { isVideoUrl } from "@/lib/media-utils";
 import { revalidatePath } from "next/cache";
@@ -16,8 +16,6 @@ export async function createAlbumAction(formData: FormData) {
   const parsed = albumSchema.parse(raw);
   assertTeamScope(scopeContext, parsed.teamId || null, "Album");
 
-  const files = formData.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
-
   const album = await db.album.create({
     data: {
       name: parsed.name,
@@ -28,32 +26,6 @@ export async function createAlbumAction(formData: FormData) {
       createdById: user.id
     }
   });
-
-  let firstImageUrl: string | null = null;
-  let firstAnyUrl: string | null = null;
-  let order = 0;
-  for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { mime, ext, isVideo } = await validateUploadedMedia(buffer);
-    const key = generatePublicStorageKey("gallery", ext);
-    const url = await uploadPublicFile({ key, buffer, mimeType: mime });
-    if (!firstAnyUrl) firstAnyUrl = url;
-    if (!firstImageUrl && !isVideo) firstImageUrl = url;
-
-    await db.media.create({
-      data: {
-        albumId: album.id,
-        url,
-        storageKey: key,
-        order: order++
-      }
-    });
-  }
-
-  const coverImageUrl = firstImageUrl || firstAnyUrl;
-  if (coverImageUrl) {
-    await db.album.update({ where: { id: album.id }, data: { coverImageUrl } });
-  }
 
   await writeAuditLog({ userId: user.id, action: "album.create", entityType: "Album", entityId: album.id, changes: { after: parsed } });
   revalidatePath("/[locale]/dashboard/gallery", "page");
@@ -104,13 +76,27 @@ export async function uploadMediaAction(albumId: string, formData: FormData) {
   let order = (currentMax._max.order ?? -1) + 1;
 
   for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { mime, ext, isVideo } = await validateUploadedMedia(buffer);
-    const key = generatePublicStorageKey("gallery", ext);
-    const url = await uploadPublicFile({ key, buffer, mimeType: mime });
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const { mime, ext, isVideo } = await validateUploadedMedia(buffer);
+      const key = generatePublicStorageKey("gallery", ext);
+      const url = await uploadPublicFile({ key, buffer, mimeType: mime });
 
-    const media = await db.media.create({ data: { albumId, url, storageKey: key, caption: caption || undefined, order: order++ } });
-    await writeAuditLog({ userId: user.id, action: "media.upload", entityType: "Media", entityId: media.id });
+      const media = await db.media.create({ data: { albumId, url, storageKey: key, caption: caption || undefined, order: order++ } });
+      await writeAuditLog({ userId: user.id, action: "media.upload", entityType: "Media", entityId: media.id });
+
+      if (!album.coverImageUrl) {
+        await db.album.update({ where: { id: albumId }, data: { coverImageUrl: url } });
+        album.coverImageUrl = url;
+      }
+    } catch (error) {
+      console.error("Gallery media upload failed:", error);
+      return {
+        error: error instanceof FileValidationError
+          ? error.message
+          : "تعذر تخزين الصورة. تحقق من اتصال التخزين وحاول مجددًا."
+      };
+    }
   }
 
   // Use the first uploaded media as the album cover if it doesn't have one yet.

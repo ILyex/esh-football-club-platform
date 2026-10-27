@@ -14,6 +14,7 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
   const [progress, setProgress] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [phase, setPhase] = useState("");
+  const [importWarning, setImportWarning] = useState("");
   const router = useRouter();
   const ar = locale === "ar";
 
@@ -36,6 +37,7 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
 
         if (state.status === "SUCCEEDED") {
           if (state.type === "faf.match_sync" && state.followUpJobId) {
+            if (state.warning) setImportWarning(state.warning);
             setProgress((current) => Math.max(current, 68));
             setPhase(ar ? "جارٍ تحليل التقرير وربط الأحداث" : "Analyse du rapport et liaison des événements");
             setJobId(state.followUpJobId);
@@ -43,10 +45,20 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
             setProgress(100);
             setCompleted(true);
             setJobId(null);
-            toast.success(state.type === "match.referee_report_analysis"
+            const detail = state.type === "match.referee_report_analysis"
+              ? state.analysis?.summary
+              : state.syncSummary;
+            const fallback = state.type === "match.referee_report_analysis"
               ? (ar ? "اكتمل تحليل المباراة" : "Analyse du match terminée")
-              : (ar ? "اكتمل جلب وثائق المباراة" : "Documents du match importés"));
-            if (state.warning) toast.warning(ar ? "اكتمل الجلب مع ملاحظات" : "Import terminé avec des remarques");
+              : (ar ? "اكتمل جلب وثائق المباراة" : "Documents du match importés");
+            const message = detail || fallback;
+            const noVerifiableEvents = state.type === "match.referee_report_analysis"
+              && (state.analysis?.summary || "").startsWith(ar ? "لم يُعثر" : "Aucun événement");
+            if (noVerifiableEvents) toast.warning(message, { duration: 9000 });
+            else toast.success(message, { duration: 9000 });
+            const warning = [importWarning, state.warning].filter(Boolean).join(" ");
+            if (warning) toast.warning(warning, { duration: 10000 });
+            setImportWarning("");
             router.refresh();
             window.setTimeout(() => {
               setCompleted(false);
@@ -74,7 +86,7 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
     };
     void poll();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [jobId, matchId, locale, ar, router]);
+  }, [jobId, matchId, locale, ar, router, importWarning]);
 
   useEffect(() => {
     if (!pending && !jobId) return;
@@ -93,6 +105,7 @@ export function FafEmsSyncButton({ matchId, locale, buttonLabel }: { matchId: st
         setCompleted(false);
         setProgress(8);
         setPhase(ar ? "جارٍ الاتصال بـ FAF EMS" : "Connexion à FAF EMS");
+        setImportWarning("");
         try {
           const result = await syncFAFMatchDocumentsAction(matchId, locale);
           if (!result.success) throw new Error(result.message);

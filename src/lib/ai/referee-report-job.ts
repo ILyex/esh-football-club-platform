@@ -10,6 +10,7 @@ export const refereeReportAnalysisSchema = z.object({
   matchId: z.string(),
   documentId: z.string().optional(),
   reportText: z.string().trim().max(5000).optional(),
+  eventSourceText: z.string().trim().max(20000).optional(),
   reportTextIsSection: z.boolean().optional(),
   preserveExistingMatchData: z.boolean().optional(),
   userId: z.string()
@@ -53,8 +54,9 @@ export function registerRefereeReportAnalysisJob(): void {
     schema: refereeReportAnalysisSchema,
     defaultPriority: "HIGH",
     defaultMaxAttempts: 2,
-    handler: async ({ matchId, documentId, reportText, reportTextIsSection, preserveExistingMatchData, userId }) => {
+    handler: async ({ matchId, documentId, reportText, eventSourceText, reportTextIsSection, preserveExistingMatchData, userId }) => {
       let sourceText = reportText?.trim() || "";
+      let fullEventSourceText = eventSourceText?.trim() || "";
       if (documentId && !reportTextIsSection) {
         const doc = await db.document.findFirst({
           where: { id: documentId, relatedMatchId: matchId, matchDocumentType: "REFEREE_REPORT" },
@@ -67,7 +69,8 @@ export function registerRefereeReportAnalysisJob(): void {
         const buffer = await getPrivateFileBuffer(doc.storageKey);
         const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
         const extractedDocument = (await extractDocumentText(buffer, doc.mimeType || "application/pdf"))?.trim() || "";
-        sourceText = extractFinalMatchReportSection(extractedDocument) || "";
+        fullEventSourceText ||= extractedDocument;
+        sourceText = extractFinalMatchReportSection(extractedDocument) || extractedDocument.slice(0, 5000);
       } else if (sourceText && !reportTextIsSection) {
         const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
         sourceText = extractFinalMatchReportSection(sourceText) || sourceText;
@@ -75,7 +78,7 @@ export function registerRefereeReportAnalysisJob(): void {
       if (!sourceText) throw new Error("Could not find the final match report section in the referee report document");
 
       const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
-      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, preserveExistingMatchData, userId });
+      const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, eventSourceText: fullEventSourceText || undefined, preserveExistingMatchData, userId });
       if (!result.success) throw new Error(result.summary || "Referee report analysis failed");
       return { eventsCreated: result.eventsCreated, provider: result.aiProviderUsed };
     }

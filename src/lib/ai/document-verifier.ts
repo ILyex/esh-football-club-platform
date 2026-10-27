@@ -201,6 +201,38 @@ export async function extractDocumentText(buffer: Buffer, mimeType: string, onAI
   }
 }
 
+/**
+ * Re-read a legible but badly ordered match document through vision OCR.
+ * Text-layer extraction can be readable while still flattening table columns
+ * (starting XI, substitutes, or the event timeline) into the wrong order.
+ * Call this only after the deterministic parser reports low confidence.
+ */
+export async function extractDocumentTextWithVision(buffer: Buffer, mimeType: string, onAIFailure?: (reason: "quota" | "unavailable") => void): Promise<string | null> {
+  const mime = mimeType.toLowerCase();
+  if (mime.startsWith("image/")) return extractTextFromImages([buffer], mime, onAIFailure);
+  if (mime !== "application/pdf" || !isAIConfigured()) return null;
+
+  let dispose: (() => Promise<void>) | undefined;
+  try {
+    const { getDocumentProxy, renderPageAsImage } = await import("unpdf");
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    dispose = () => pdf.cleanup();
+    const images: Buffer[] = [];
+    for (let page = 1; page <= Math.min(pdf.numPages, 4); page++) {
+      const rendered = await renderPageAsImage(pdf, page, { width: 1600, height: 2100, toDataURL: false });
+      images.push(Buffer.from(rendered));
+    }
+    const text = await extractTextFromImages(images, "image/png", onAIFailure);
+    return isReadable(text) ? text : null;
+  } catch (error) {
+    console.warn("[DocumentVerifier] Vision OCR retry failed:", error);
+    reportAIFailure(onAIFailure, error);
+    return null;
+  } finally {
+    await dispose?.().catch(() => {});
+  }
+}
+
 // ---- AI arbiter (only called when needsArbiter=true) -----------------------
 
 async function callAIArbiter(

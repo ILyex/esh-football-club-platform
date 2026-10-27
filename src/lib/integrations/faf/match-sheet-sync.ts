@@ -9,7 +9,7 @@ import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { RetryableError } from "@/lib/jobs/types";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
 import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-section";
-import { extractDocumentText } from "@/lib/ai/document-verifier";
+import { extractDocumentText, extractDocumentTextWithVision } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
 import { combineClubNameVariants } from "@/lib/public/locale-text";
@@ -45,41 +45,70 @@ function samePersonName(left: unknown, right: unknown): boolean {
 }
 
 function remoteArray(match: any, keys: string[]): any[] {
-  // /match-info wraps the actual record in `match`; event arrays can be
-  // attached to either the wrapper or the nested record depending on EMS API
-  // version. Inspect both shapes before concluding that no events exist.
-  const records = [match, match?.match, match?.events, match?.evenements, match?.matchEvents, match?.rencontre, match?.details]
-    .filter((value) => value && typeof value === "object");
+  // EMS has returned the same payload both at the response root and nested
+  // under data/result/match/rencontre over time. Walk bounded wrapper levels
+  // instead of assuming one response shape and silently importing zero events.
+  const records: any[] = [];
+  const queue: Array<{ value: any; depth: number }> = [{ value: match, depth: 0 }];
+  const seen = new Set<object>();
+  while (queue.length && records.length < 500) {
+    const { value, depth } = queue.shift()!;
+    if (!value || typeof value !== "object" || seen.has(value)) continue;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      if (depth < 6) for (const item of value) queue.push({ value: item, depth: depth + 1 });
+      continue;
+    }
+    records.push(value);
+    if (depth >= 6) continue;
+    const children = Object.entries(value)
+      .filter(([key, child]) => child && typeof child === "object"
+        && (/^(data|result|results|match|matchinfo|matchdetails|matchdata|rencontre|info|details|payload|content|items|statistics|statistiques|events|event|evenements|evenement|timeline|actions|goals|buts|buteurs|butteurs|cards|cartons|yellowcards|redcards|cartonsjaunes|cartonsrouges|substitutions|substitution|remplacements|remplacement|faitsmarquants|listeevenements|club|team|equipe|equiperencontre)$/iu.test(key.replace(/[_\-]/gu, ""))
+          || /event|evenement|but|goal|card|carton|substitution|remplacement/iu.test(key)));
+    for (const [, child] of children) queue.push({ value: child, depth: depth + 1 });
+  }
   let emptyArray: any[] | undefined;
   for (const record of records) {
     for (const key of keys) {
-      if (!Array.isArray(record[key])) continue;
-      if (record[key].length) return record[key];
-      emptyArray ??= record[key];
+      const value = record[key];
+      if (Array.isArray(value)) {
+        if (value.length) return value;
+        emptyArray ??= value;
+      } else if (value && typeof value === "object") {
+        const nested = [value.content, value.items, value.data, value.results, value.events, value.evenements]
+          .find((candidate) => Array.isArray(candidate));
+        if (Array.isArray(nested)) {
+          if (nested.length) return nested;
+          emptyArray ??= nested;
+        }
+      }
     }
   }
   return emptyArray ?? [];
 }
 
 function remoteCards(match: any): any[] {
-  const completeCards = remoteArray(match, ["cards", "cartons", "cardEvents"]);
+  const completeCards = remoteArray(match, ["cards", "cartons", "cardEvents", "evenementsCartons", "cartonsMatch"]);
   if (completeCards.length) return completeCards;
   return [
-    ...remoteArray(match, ["yellowCards", "cartonsJaunes"]).map((card) => ({ ...card, cardColor: card.cardColor || "yellow" })),
-    ...remoteArray(match, ["redCards", "cartonsRouges"]).map((card) => ({ ...card, cardColor: card.cardColor || "red" }))
+    ...remoteArray(match, ["yellowCards", "cartonsJaunes", "avertissements"]).map((card) => ({ ...card, cardColor: card.cardColor || "yellow" })),
+    ...remoteArray(match, ["redCards", "cartonsRouges", "expulsions"]).map((card) => ({ ...card, cardColor: card.cardColor || "red" }))
   ];
 }
 
 function remoteEventType(entry: any): ImportedMatchEvent["type"] | null {
-  const value = String(entry?.eventType || entry?.typeEvent || entry?.typeEvenement || entry?.event || entry?.type || entry?.nature || "")
+  if (entry?.outPlayer || entry?.playerOut || entry?.playerSortant || entry?.joueurSortant) return "SUBSTITUTION_OUT";
+  if (entry?.inPlayer || entry?.playerIn || entry?.playerEntrant || entry?.joueurEntrant) return "SUBSTITUTION_IN";
+  const rawType = entry?.eventType || entry?.typeEvent || entry?.typeEvenement || entry?.event || entry?.type || entry?.nature || entry?.libelle || entry?.label || "";
+  const value = String(typeof rawType === "object" ? rawType.libelle || rawType.label || rawType.name || rawType.code || "" : rawType)
     .normalize("NFKC").toLocaleLowerCase("ar").replace(/[ _-]+/g, " ").trim();
-  if (/own goal|contre son camp|but contre|هدف عكسي|هدف ذاتي/.test(value)) return "OWN_GOAL";
+  if (/own goal|contre son camp|but contre|هدف عكسي|هدف ذاتي|but csc/.test(value)) return "OWN_GOAL";
   if (/penalt|penalty|جزاء/.test(value) && /goal|but|هدف|scor/.test(value)) return "PENALTY_GOAL";
   if (/red card|carton rouge|بطاقة حمراء|طرد/.test(value)) return "RED_CARD";
   if (/yellow card|carton jaune|بطاقة صفراء|إنذار/.test(value)) return "YELLOW_CARD";
-  if (/substitution in|entrant|entrée|دخول/.test(value)) return "SUBSTITUTION_IN";
-  if (/substitution out|sortant|sortie|خروج/.test(value)) return "SUBSTITUTION_OUT";
-  if (/goal|but|هدف|scor/.test(value)) return "GOAL";
+  if (/substitution in|entrant|entree|دخول|دخول لاعب/.test(value)) return "SUBSTITUTION_IN";
+  if (/substitution out|sortant|sortie|خروج|خروج لاعب/.test(value)) return "SUBSTITUTION_OUT";
+  if (/goal|but|هدف|scor|تسجيل/.test(value)) return "GOAL";
   return null;
 }
 
@@ -204,7 +233,8 @@ type ImportedMatchEvent = {
 function playerFromRemoteEvent(entry: any): { name: string; nameFr: string; licence: string } {
   const person = entry?.player?.player?.personne || entry?.player?.personne
     || entry?.personne || entry?.person || entry?.player?.person || entry?.joueur?.personne || entry?.joueur?.person
-    || entry?.joueur || entry?.athlete || entry?.player?.player || entry?.player;
+    || entry?.joueurButeur?.personne || entry?.buteur?.personne || entry?.joueurSortant?.personne || entry?.joueurEntrant?.personne
+    || entry?.joueurButeur || entry?.buteur || entry?.joueur || entry?.athlete || entry?.player?.player || entry?.player;
   const arName = [person?.prenomAr || person?.firstNameAr || person?.givenNameAr, person?.nomAr || person?.lastNameAr || person?.familyNameAr]
     .filter((part) => typeof part === "string" && part.trim()).join(" ").trim();
   const frName = [person?.prenomFr || person?.firstNameFr || person?.firstName || person?.prenomArbitre || person?.prenom,
@@ -219,6 +249,7 @@ function playerFromRemoteEvent(entry: any): { name: string; nameFr: string; lice
     || entry?.player?.licenceNumber || entry?.player?.numeroLicence
     || entry?.player?.player?.licenceNumber || entry?.player?.player?.numeroLicence
     || entry?.joueur?.licenceNumber || entry?.joueur?.numeroLicence || entry?.joueur?.numLicence
+    || entry?.buteur?.licenceNumber || entry?.joueurButeur?.licenceNumber
     || person?.licenceNumber || person?.numeroLicence || "";
   return { name, nameFr, licence: String(licence).trim() };
 }
@@ -246,8 +277,8 @@ function eventMinute(value: unknown): number {
 
 function eventMinuteFrom(entry: any): number {
   const values = [entry?.minute, entry?.minuteMatch, entry?.minuteJeu, entry?.minuteEvenement, entry?.minuteBut,
-    entry?.minuteCarton, entry?.minuteRemplacement, entry?.tempsBut, entry?.tempsCarton, entry?.tempsRemplacement,
-    entry?.tempsJeu, entry?.temps, entry?.goalTime, entry?.cardTime, entry?.substitutionTime, entry?.time];
+    entry?.minuteCarton, entry?.minuteRemplacement, entry?.minuteRencontre, entry?.tempsBut, entry?.tempsCarton, entry?.tempsRemplacement,
+    entry?.tempsJeu, entry?.tempsMatch, entry?.temps, entry?.goalTime, entry?.cardTime, entry?.substitutionTime, entry?.time, entry?.chronologie];
   const added = eventMinute(entry?.addedTime ?? entry?.additionalTime ?? entry?.tempsAdditionnel);
   for (const value of values) {
     const minute = eventMinute(value);
@@ -257,8 +288,9 @@ function eventMinuteFrom(entry: any): number {
 }
 
 function remoteLocSideOf(entry: any, match: any, historyMatch: any, clubCode: string, remoteLocIsOurClub: boolean): boolean | null {
-  const eventClubs = [entry?.club, entry?.team, entry?.equipe, entry?.clubEquipe, entry?.player?.club, entry?.player?.team,
-    entry?.joueur?.club, entry?.joueur?.team, entry?.player?.player?.club, entry?.player?.player?.team]
+  const eventClubs = [entry?.club, entry?.team, entry?.equipe, entry?.clubEquipe, entry?.equipeRencontre,
+    entry?.player?.club, entry?.player?.team, entry?.joueur?.club, entry?.joueur?.team,
+    entry?.buteur?.club, entry?.joueurButeur?.club, entry?.player?.player?.club, entry?.player?.player?.team]
     .filter((value) => value && typeof value === "object");
   const eventTeamCode = entry?.clubCode || entry?.fifaId || entry?.teamCode || entry?.codeFifa || entry?.club?.fifaId
     || entry?.team?.fifaId || entry?.equipe?.fifaId || entry?.clubEquipe?.fifaId || entry?.player?.club?.fifaId
@@ -293,7 +325,7 @@ function remoteLocSideOf(entry: any, match: any, historyMatch: any, clubCode: st
     const isVis = visitingNames.some((name) => namesMatch(name, eventClubNameOrCode));
     if (isLoc !== isVis) return isLoc;
   }
-  const side = String(entry?.teamSide || entry?.side || entry?.teamType || "").toLowerCase();
+  const side = String(entry?.teamSide || entry?.side || entry?.teamType || entry?.typeEquipe || entry?.domicileExterieur || "").toLowerCase();
   if (/loc|home|domicile|محلي|مضيف/.test(side)) return true;
   if (/vis|away|extérieur|ضيف/.test(side)) return false;
   if (typeof entry?.isHome === "boolean") return entry.isHome;
@@ -342,13 +374,13 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
     const isLoc = remoteLocSideOf(card, match, historyMatch, clubCode, remoteLocIsOurClub);
     add(card, type, isLoc, type === "RED_CARD" ? "بطاقة حمراء" : "بطاقة صفراء");
   }
-  for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers"])) {
+  for (const goal of remoteArray(match, ["goals", "buts", "goalEvents", "scorers", "buteurs", "butteurs", "evenementsButs"])) {
     const isLoc = remoteLocSideOf(goal, match, historyMatch, clubCode, remoteLocIsOurClub);
     const ownGoal = Boolean(goal.isOwnGoal || goal.ownGoal || /own|contre son camp|ذاتي/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     const penalty = Boolean(goal.isPenalty || goal.penalty || /penalty|penalty_goal|جزاء/.test(String(goal.type || goal.goalType || "").toLowerCase()));
     add(goal, ownGoal ? "OWN_GOAL" : penalty ? "PENALTY_GOAL" : "GOAL", isLoc, ownGoal ? "هدف عكسي" : penalty ? "هدف من ركلة جزاء" : "هدف");
   }
-  for (const [substitutionIndex, substitution] of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements"]).entries()) {
+  for (const [substitutionIndex, substitution] of remoteArray(match, ["substitution", "substitutions", "substitutionEvents", "remplacements", "evenementsRemplacements"]).entries()) {
     const isLoc = remoteLocSideOf(substitution, match, historyMatch, clubCode, remoteLocIsOurClub);
     const outPlayer = substitution.outPlayer || substitution.playerOut || substitution.playerSortant;
     const inPlayer = substitution.inPlayer || substitution.playerIn || substitution.playerEntrant;
@@ -362,19 +394,18 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
       pairEvents.forEach((event) => { event.notes = pairKey; });
     }
   }
-  for (const raw of remoteArray(match, ["events", "evenements", "matchEvents", "timeline", "actions"])) {
+  for (const raw of remoteArray(match, ["events", "evenements", "matchEvents", "eventsMatch", "evenementsMatch", "listeEvenements", "faitsMarquants", "timeline", "actions"])) {
     const type = remoteEventType(raw);
-    if (!type) continue;
     const side = remoteLocSideOf(raw, match, historyMatch, clubCode, remoteLocIsOurClub);
-    const outPlayer = raw.outPlayer || raw.playerOut || raw.playerSortant;
-    const inPlayer = raw.inPlayer || raw.playerIn || raw.playerEntrant;
+    const outPlayer = raw.outPlayer || raw.playerOut || raw.playerSortant || raw.joueurSortant;
+    const inPlayer = raw.inPlayer || raw.playerIn || raw.playerEntrant || raw.joueurEntrant;
     const minute = eventMinuteFrom(raw);
-    if (type === "SUBSTITUTION_IN" || type === "SUBSTITUTION_OUT") {
+    if (outPlayer || inPlayer || type === "SUBSTITUTION_IN" || type === "SUBSTITUTION_OUT") {
       const pairSide = side;
       if (outPlayer) add(outPlayer, "SUBSTITUTION_OUT", remoteLocSideOf(outPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? pairSide, "خروج بالتبديل", undefined, minute);
       if (inPlayer) add(inPlayer, "SUBSTITUTION_IN", remoteLocSideOf(inPlayer, match, historyMatch, clubCode, remoteLocIsOurClub) ?? pairSide, "دخول بالتبديل", undefined, minute);
-      if (!outPlayer && !inPlayer) add(raw, type, side, type === "SUBSTITUTION_IN" ? "دخول بالتبديل" : "خروج بالتبديل", undefined, minute);
-    } else {
+      if (!outPlayer && !inPlayer && type) add(raw, type, side, type === "SUBSTITUTION_IN" ? "دخول بالتبديل" : "خروج بالتبديل", undefined, minute);
+    } else if (type) {
       const label = type === "RED_CARD" ? "بطاقة حمراء" : type === "YELLOW_CARD" ? "بطاقة صفراء" : type === "OWN_GOAL" ? "هدف عكسي" : type === "PENALTY_GOAL" ? "هدف من ركلة جزاء" : "هدف";
       add(raw, type, side, label);
     }
@@ -631,14 +662,15 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   ];
   const warnings: string[] = [];
   let refereeReportText: string | null = null;
+  let refereeReportSourceText: string | null = null;
   const finalReportBytes = documentSpecs.find((item) => item.kind === "REFEREE_REPORT")?.bytes;
   if (finalReportBytes) {
     try {
       const extractedText = await extractDocumentText(finalReportBytes, "application/pdf");
+      refereeReportSourceText = extractedText?.slice(0, 20000) || null;
       refereeReportText = extractedText
         ? extractFinalMatchReportSection(extractedText)?.slice(0, 5000) || null
         : null;
-      if (!refereeReportText) warnings.push("حُفظت الوثيقة، لكن لم يُعثر على قسم «تقرير المباراة» فيها؛ لم يُنسخ محتوى الوثيقة إلى التقرير.");
     } catch (error) {
       console.warn("[FAF EMS] Referee report text extraction failed", error);
       warnings.push("حُفظ التقرير النهائي، لكن تعذر استخراج نصه للتحليل الآلي.");
@@ -721,8 +753,16 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       if (sheetText) {
         lineupSummary = await applyMatchSheetLineup(local.id, local.teamId, sheetText);
         if (!lineupSummary.applied) {
+          const visualSheetText = await extractDocumentTextWithVision(matchSheet.bytes, "application/pdf");
+          if (visualSheetText) {
+            const visualSummary = await applyMatchSheetLineup(local.id, local.teamId, visualSheetText);
+            if (visualSummary.applied) lineupSummary = visualSummary;
+          }
+        }
+        if (!lineupSummary.applied) {
           warnings.push("حُفظت وثيقة المباراة، لكن لم تكن بيانات التشكيلة المقروءة كافية لتعديل قائمة اللاعبين.");
         }
+        warnings.push(...lineupSummary.warnings);
       } else {
         warnings.push("حُفظت وثيقة المباراة، لكن تعذرت قراءة الأسماء تلقائياً؛ لم يتم تغيير قائمة اللاعبين.");
       }
@@ -757,6 +797,10 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   // response root. Keep both shapes available to the event normalizer.
   const officialWithResponseEvents = { ...remote, ...detailsResult.value, ...official };
   const importedEvents = remoteMatchEvents(officialWithResponseEvents, externalId, remoteLocIsOurClub, clubIsHome, remote, config.clubCode, warnings);
+  const scoreForOcrCheck = officialScore(official, remote, importedEvents);
+  const recognizedGoals = importedEvents.filter((event) => ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(event.type)).length;
+  const scoreSuggestsMissingEvents = scoreForOcrCheck !== null && recognizedGoals < scoreForOcrCheck.home + scoreForOcrCheck.away;
+  const hasUnresolvedEventSides = importedEvents.some((event) => event.side === null);
   const importedEventCount = await reconcilePlayerEvents(
     local.id,
     local.teamId,
@@ -765,6 +809,24 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     remoteLocIsOurClub,
     warnings
   );
+  if ((!importedEvents.length || scoreSuggestsMissingEvents || hasUnresolvedEventSides) && finalReportBytes) {
+    try {
+      const visualText = await extractDocumentTextWithVision(finalReportBytes, "application/pdf");
+      if (visualText) {
+        refereeReportSourceText = [refereeReportSourceText, visualText].filter(Boolean).join("\n").slice(0, 20000);
+        refereeReportText ||= extractFinalMatchReportSection(visualText)?.slice(0, 5000) || null;
+      }
+    } catch (error) {
+      console.warn("[FAF EMS] Vision OCR retry for report events failed", error);
+      warnings.push("تعذرت إعادة قراءة جدول الأحداث بصرياً؛ يمكنك مراجعة التقرير وإضافة الأحداث يدوياً.");
+    }
+  }
+  if (finalReportBytes && !refereeReportText) {
+    warnings.push("حُفظ التقرير النهائي، لكن لم يُعثر على قسم السرد النهائي؛ أُبقي نص الوثيقة للتحقق من جداول الأحداث دون نسخه إلى ملخص المباراة.");
+  }
+  if (importedEvents.length === 0 && !finalReportBytes) {
+    warnings.push("لم تُرجع FAF EMS أحداثاً منظمة للمباراة، ولم يتوفر التقرير النهائي لاستخراجها.");
+  }
   // Publish only events whose side was identified from EMS or an unambiguous
   // local player match. Never turn an unresolved event into an opponent event.
   const officialStatus = String(official.status || official.matchStatus || official.etatRencontre || "").toLocaleLowerCase("ar");
@@ -787,7 +849,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   });
   let analysisMessage = "";
-  if (refereeReportDocumentId && refereeReportText) {
+  if (refereeReportDocumentId && (refereeReportText || refereeReportSourceText)) {
     // The report bytes came directly from FAF EMS in this request. Pass the
     // extracted text to the job so analysis does not depend on a cross-function
     // object-storage read immediately after the document was uploaded.
@@ -796,7 +858,8 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     await enqueueRefereeReportAnalysis(db, {
       matchId: local.id,
       documentId: refereeReportDocumentId,
-      reportText: refereeReportText,
+      reportText: refereeReportText || refereeReportSourceText?.slice(0, 5000),
+      eventSourceText: refereeReportSourceText || undefined,
       reportTextIsSection: true,
       preserveExistingMatchData: true,
       userId: actorId
@@ -816,7 +879,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
   revalidatePath("/[locale]", "page");
   await writeAuditLog({ userId: actorId, action: "FAF_MATCH_SYNC_COMPLETED", entityType: "Match", entityId: local.id, changes: { externalId, importedDocuments, eventCount: importedEvents.length, importedEventCount, lineupSummary, warnings } });
   const lineupMessage = lineupSummary?.applied
-    ? ` تم تحديث قائمة المباراة تلقائياً: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مدعو، ${lineupSummary.injured} مصاب يدوياً، ${lineupSummary.suspended} موقوف.`
+    ? ` تم تحديث الأسماء المؤكدة فقط: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مستدعى مذكور صراحة، ${lineupSummary.injured} مصاب، ${lineupSummary.suspended} موقوف، ${lineupSummary.untouched} لاعب تُرك دون تغيير لعدم وضوح حالته.`
     : "";
   return {
     success: true,

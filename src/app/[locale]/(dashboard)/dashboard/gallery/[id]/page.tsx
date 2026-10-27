@@ -5,11 +5,11 @@ import { notFound, redirect } from "next/navigation";
 import { updateAlbumAction, uploadMediaAction, deleteMediaAction, setAlbumCoverAction, deleteAlbumAction } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
 import { FormSelect } from "@/components/ui/form-select";
 import { SafeImage } from "@/components/shared/safe-image";
 import { NoticeToast } from "@/components/shared/notice-toast";
 import { GalleryActionForm } from "@/components/gallery/gallery-action-form";
+import { GalleryMediaUploadForm } from "@/components/gallery/gallery-media-upload-form";
 import { Save, Trash2, Star, Play, Video } from "lucide-react";
 import { isVideoUrl } from "@/lib/media-utils";
 
@@ -117,34 +117,12 @@ export default async function AlbumDetailPage({ params, searchParams }: { params
 
       {/* ── Multi-Image Uploader Form ────────────────────────────── */}
       {canManage && (
-        <GalleryActionForm action={upload} successMessage={isAr ? "تم حفظ الوسائط بنجاح" : "Médias enregistrés avec succès"} errorMessage={isAr ? "تعذر حفظ الوسائط" : "Impossible d’enregistrer les médias"} encType="multipart/form-data" className="space-y-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
-          <div>
-            <h2 className="text-base font-black text-foreground">{t("addImage")}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{isAr ? "أضف صورًا أو فيديوهات جديدة إلى هذا الألبوم ثم احفظها." : "Ajoutez de nouveaux médias à cet album puis enregistrez-les."}</p>
-          </div>
-
-          <MultiImageUploader
-            name="images"
-            locale={locale}
-            label={isAr ? "إضافة دفعات صور جديدة للألبوم" : "Ajouter de nouvelles photos"}
-            description={isAr ? "اختر أو اسحب عدة صور معاً، وستظهر لك للمعاينة والترتيب قبل رفعها للألبوم" : "Glissez-déposez ou sélectionnez plusieurs photos"}
-          />
-
-          <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              name="caption"
-              placeholder={t("fields.caption") || (isAr ? "تعليق أو وصف اختياري للصور..." : "Légende optionnelle...")}
-              className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground shadow-2xs outline-none transition-colors placeholder:text-muted-foreground focus:border-club-primary focus:ring-2 focus:ring-club-primary/20 sm:max-w-sm"
-            />
-            <Button
-              type="submit"
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-club-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-club-primary-hover"
-            >
-              <Save className="h-4 w-4" />
-              <span>{isAr ? "رفع وحفظ الصور المحددة" : "Téléverser les photos"}</span>
-            </Button>
-          </div>
-        </GalleryActionForm>
+        <GalleryMediaUploadForm
+          locale={locale}
+          uploadAction={upload}
+          captionPlaceholder={t("fields.caption") || (isAr ? "تعليق أو وصف اختياري للصور..." : "Légende optionnelle...")}
+          submitLabel={isAr ? "رفع وحفظ الصور المحددة" : "Téléverser les photos"}
+        />
       )}
 
       {/* ── Album Media Gallery (Existing Images) ────────────────── */}

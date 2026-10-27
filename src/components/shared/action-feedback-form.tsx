@@ -64,7 +64,10 @@ export function ActionFeedbackForm({
             : successMessage);
           return;
         }
-        toast.success(successMessage);
+        const resultMessage = result && typeof result === "object" && "message" in result && typeof (result as { message?: unknown }).message === "string"
+          ? (result as { message: string }).message
+          : successMessage;
+        toast.success(resultMessage);
         if (result && typeof result === "object" && "warning" in result && typeof (result as { warning?: unknown }).warning === "string") {
           toast.warning((result as { warning: string }).warning, { duration: 7000 });
         }

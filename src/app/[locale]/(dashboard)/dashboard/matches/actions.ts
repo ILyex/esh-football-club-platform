@@ -1218,22 +1218,29 @@ export async function importSavedFafLineupAction(matchId: string) {
   });
   if (!document) throw new Error("lineupSheetMissing");
 
-  const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
+  const [{ getPrivateFileBuffer }, { extractDocumentText, extractDocumentTextWithVision }] = await Promise.all([
     import("@/lib/storage"),
     import("@/lib/ai/document-verifier")
   ]);
   const bytes = await getPrivateFileBuffer(document.storageKey);
   const text = await extractDocumentText(bytes, document.mimeType);
-  if (!text?.trim()) throw new Error("lineupSheetUnreadable");
-
-  const result = await applyMatchSheetLineup(matchId, match.teamId, text);
+  let result = text?.trim() ? await applyMatchSheetLineup(matchId, match.teamId, text) : null;
+  if (!result?.applied && document.mimeType === "application/pdf") {
+    const visualText = await extractDocumentTextWithVision(bytes, document.mimeType);
+    if (visualText?.trim()) {
+      const visualResult = await applyMatchSheetLineup(matchId, match.teamId, visualText);
+      if (visualResult.applied) result = visualResult;
+      else if (!result) result = visualResult;
+    }
+  }
+  if (!result) throw new Error("lineupSheetUnreadable");
   if (result.applied) {
     await writeAuditLog({
       userId: user.id,
       action: "match.lineup.import_faf_sheet",
       entityType: "Match",
       entityId: matchId,
-      changes: { starters: result.starters, substitutes: result.substitutes, source: "saved_faf_pre_match_sheet" }
+      changes: { ...result, source: "saved_faf_pre_match_sheet" }
     });
     revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");
     revalidatePath(`/[locale]/matches/${matchId}`, "page");
@@ -1336,17 +1343,36 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
 
   let lineupsAdded = 0;
   let lineupSummary: Awaited<ReturnType<typeof applyMatchSheetLineup>> | undefined;
+  let lineupWarnings: string[] = [];
   let aiFallback: "quota" | "unavailable" | undefined;
   let refereeAnalysisWarning: string | undefined;
   const shouldExtractLineup = sheetType === "PRE_MATCH_SHEET" && formData.getAll("autoLineup").includes("true");
   if (shouldExtractLineup && match.teamId) {
     try {
-      const { extractDocumentText } = await import("@/lib/ai/document-verifier");
+      const { extractDocumentText, extractDocumentTextWithVision } = await import("@/lib/ai/document-verifier");
       const extractedText = await extractDocumentText(buffer, validated.mime, (reason) => { aiFallback = reason; });
       if (extractedText) {
         lineupSummary = await applyMatchSheetLineup(match.id, match.teamId, extractedText);
-        lineupsAdded = lineupSummary.applied ? lineupSummary.starters + lineupSummary.substitutes + lineupSummary.notCalled + lineupSummary.injured + lineupSummary.suspended : 0;
       }
+      if (!lineupSummary?.applied && validated.mime === "application/pdf") {
+        const visualText = await extractDocumentTextWithVision(buffer, validated.mime, (reason) => { aiFallback = reason; });
+        if (visualText) {
+          const visualSummary = await applyMatchSheetLineup(match.id, match.teamId, visualText);
+          if (visualSummary.applied) lineupSummary = visualSummary;
+        }
+      }
+      if (lineupSummary) {
+        lineupWarnings = lineupSummary.warnings;
+        lineupsAdded = lineupSummary.applied ? lineupSummary.starters + lineupSummary.substitutes + lineupSummary.notCalled + lineupSummary.injured + lineupSummary.suspended : 0;
+        if (!lineupSummary.applied) lineupWarnings.push("لم تُغيّر حالات اللاعبين لأن الورقة لم تُظهر أقسام الأساسيين والاحتياط بوضوح كافٍ.");
+        await writeAuditLog({
+          userId: user.id,
+          action: "match.lineup.import_faf_sheet",
+          entityType: "Match",
+          entityId: match.id,
+          changes: { ...lineupSummary, source: "uploaded_match_sheet" }
+        });
+      } else lineupWarnings.push("حُفظت الورقة، لكن تعذر استخراج نص أو صورة مقروءة لتشكيل اللاعبين.");
     } catch (error) {
       // Uploading the official sheet must still succeed when OCR/text
       // extraction is unavailable; the user can add the lineup manually.
@@ -1378,11 +1404,17 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
       ? aiFallback === "quota" ? "انتهت حصة الذكاء الاصطناعي؛ استُخدم التحليل الاحتياطي عند الإمكان." : "الذكاء الاصطناعي غير متاح؛ استُخدم التحليل الاحتياطي عند الإمكان."
       : aiFallback === "quota" ? "Quota IA épuisé ; le moteur de secours a été utilisé si possible." : "IA indisponible ; le moteur de secours a été utilisé si possible."
     : undefined;
-  const warning = [refereeAnalysisWarning, aiFallbackWarning].filter(Boolean).join(" ");
+  const warning = [refereeAnalysisWarning, aiFallbackWarning, ...lineupWarnings].filter(Boolean).join(" ");
+  const lineupMessage = lineupSummary?.applied
+    ? locale === "fr"
+      ? `Feuille comprise : ${lineupSummary.starters} titulaire(s), ${lineupSummary.substitutes} remplaçant(s), ${lineupSummary.notCalled} non convoqué(s) explicitement indiqués ; ${lineupSummary.untouched} joueur(s) restent disponibles.`
+      : `قُرئت الورقة: ${lineupSummary.starters} أساسي، ${lineupSummary.substitutes} احتياط، ${lineupSummary.notCalled} غير مستدعى مذكور صراحة؛ وبقي ${lineupSummary.untouched} لاعباً متاحاً.`
+    : undefined;
   return {
     success: true,
     documentId: doc.id,
     lineupsAdded,
+    ...(lineupMessage ? { message: lineupMessage } : {}),
     ...(warning ? { warning } : {})
   };
 }
@@ -1485,6 +1517,7 @@ export async function getMatchBackgroundJobStatusAction(jobId: string, matchId: 
     message: string;
     error?: string;
     warning?: string;
+    syncSummary?: string;
     followUpJobId?: string;
     analysis?: { eventsCreated: number; events: Array<{ playerName: string; type: string; minute: number }>; aiProviderUsed: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE"; aiFallback?: "quota" | "unavailable" | null; summary: string };
   } = {
@@ -1510,8 +1543,20 @@ export async function getMatchBackgroundJobStatusAction(jobId: string, matchId: 
       orderBy: { createdAt: "desc" },
       select: { changes: true }
     });
-    const syncChanges = syncLog?.changes as { warnings?: string[] } | null;
+    const syncChanges = syncLog?.changes as {
+      warnings?: string[];
+      eventCount?: number;
+      importedEventCount?: number;
+      importedDocuments?: number;
+      lineupSummary?: { applied?: boolean; starters?: number; substitutes?: number; notCalled?: number; injured?: number; suspended?: number; untouched?: number };
+    } | null;
     if (syncChanges?.warnings?.length) result.warning = syncChanges.warnings.join(" ").slice(0, 400);
+    if (syncChanges) {
+      const lineup = syncChanges.lineupSummary;
+      result.syncSummary = locale === "fr"
+        ? `${syncChanges.importedEventCount ?? 0} nouvel événement synchronisé (${syncChanges.eventCount ?? 0} reconnu(s) dans EMS). ${lineup?.applied ? `Composition: ${lineup.starters ?? 0} titulaire(s), ${lineup.substitutes ?? 0} remplaçant(s), ${lineup.untouched ?? 0} joueur(s) laissé(s) disponibles.` : "Composition non modifiée car la feuille n’était pas suffisamment lisible."}`
+        : `أضيف ${syncChanges.importedEventCount ?? 0} حدث جديد من ${syncChanges.eventCount ?? 0} حدث تعرفت عليه بيانات EMS. ${lineup?.applied ? `التشكيلة: ${lineup.starters ?? 0} أساسي، ${lineup.substitutes ?? 0} احتياط، و${lineup.untouched ?? 0} متاح دون تغيير.` : "لم تُغيّر التشكيلة لأن قراءة الورقة لم تكن موثوقة بما يكفي."}`;
+    }
 
     const analysisJobs = await db.backgroundJob.findMany({
       where: {
@@ -1541,6 +1586,8 @@ export async function getMatchBackgroundJobStatusAction(jobId: string, matchId: 
     });
     const changes = audit?.changes as {
       eventsCreatedCount?: number;
+      eventsDetectedCount?: number;
+      eventsCorrectedCount?: number;
       aiProviderUsed?: "CLOUDFLARE_WORKERS_AI" | "LOCAL_OLLAMA" | "INTELLIGENT_NLP_ENGINE";
       aiFallback?: "quota" | "unavailable" | null;
       events?: Array<{ playerName?: string | null; type?: string; minute?: number }>;
@@ -1554,9 +1601,13 @@ export async function getMatchBackgroundJobStatusAction(jobId: string, matchId: 
         ? locale === "fr"
           ? `${changes?.eventsCreatedCount} événement(s) ont été ajoutés au match et aux dossiers des joueurs.`
           : `تمت إضافة ${changes?.eventsCreatedCount} حدث إلى المباراة وملفات اللاعبين.`
-        : locale === "fr"
-          ? "L’analyse est terminée. Aucun nouvel événement attribuable n’a été ajouté."
-          : "اكتمل التحليل ولم يُضف حدث جديد منسوب للاعب؛ راجع الأحداث المسجلة لتجنب التكرار."
+        : (changes?.eventsDetectedCount ?? 0) > 0
+          ? locale === "fr"
+            ? `Les ${changes?.eventsDetectedCount} événement(s) détecté(s) sont déjà présents ou ont été rapprochés des événements existants.`
+            : `تم التعرف على ${changes?.eventsDetectedCount} حدثاً، وهي موجودة مسبقاً أو طوبقت مع الأحداث المسجلة.`
+          : locale === "fr"
+            ? "Aucun événement nominatif vérifiable n’a été trouvé dans le rapport. Vérifiez la lisibilité de sa page d’événements."
+            : "لم يُعثر على أحداث قابلة للتحقق من أسماء اللاعبين في التقرير؛ راجع وضوح صفحة الأحداث في الوثيقة."
     };
   }
 
