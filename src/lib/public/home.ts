@@ -28,10 +28,17 @@ export interface PublicHomeData {
   announcements: PublicAnnouncementItem[];
 }
 
+function getAvailableData<T>(result: PromiseSettledResult<T>, fallback: T, section: string): T {
+  if (result.status === "fulfilled") return result.value;
+  const reasonName = result.reason instanceof Error ? result.reason.name : "UnknownError";
+  console.error(`[public-site] ${section} data query failed (${reasonName})`);
+  return fallback;
+}
+
 async function loadPublicHomeSupportingData() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const [scheduledTrainings, totalActivePlayers, clubMedia] = await Promise.all([
+  const [trainingResult, playerResult, mediaResult] = await Promise.allSettled([
     db.trainingSession.findMany({
       where: { date: { gte: today }, status: "SCHEDULED" },
       select: {
@@ -59,7 +66,11 @@ async function loadPublicHomeSupportingData() {
       take: 8
     })
   ]);
-  return { scheduledTrainings, totalActivePlayers, clubMedia };
+  return {
+    scheduledTrainings: getAvailableData(trainingResult, [], "training"),
+    totalActivePlayers: getAvailableData(playerResult, 0, "player count"),
+    clubMedia: getAvailableData(mediaResult, [], "club media")
+  };
 }
 
 export const getPublicHomeSupportingData = unstable_cache(
@@ -71,7 +82,7 @@ export const getPublicHomeSupportingData = unstable_cache(
 async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
   const now = new Date();
 
-  const [club, upcomingMatches, recentResults, newsResult, rawAnnouncements] = await Promise.all([
+  const [clubResult, upcomingResult, resultsResult, newsResult, announcementsResult] = await Promise.allSettled([
     getPublicClubSettings(),
     getPublicUpcomingMatches(6),
     getPublicMatches({ mode: "RESULTS", limit: 3 }),
@@ -95,6 +106,12 @@ async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
       take: 3
     })
   ]);
+
+  const club = getAvailableData(clubResult, await getPublicClubSettings(), "club settings");
+  const upcomingMatches = getAvailableData(upcomingResult, [], "upcoming matches");
+  const recentResults = getAvailableData(resultsResult, [], "recent results");
+  const news = getAvailableData(newsResult, { items: [], totalCount: 0, totalPages: 0 }, "news");
+  const rawAnnouncements = getAvailableData(announcementsResult, [], "announcements");
 
   const announcements: PublicAnnouncementItem[] = [];
   const isInternalAdministrative = (text: string) => {
@@ -134,7 +151,7 @@ async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
     nextMatch: upcomingMatches[0] ?? null,
     upcomingMatches,
     recentResults,
-    latestNews: newsResult.items,
+    latestNews: news.items,
     announcements
   };
 }

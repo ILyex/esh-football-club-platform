@@ -28,44 +28,53 @@ export interface PublicClubSettings {
   defaultLocale: string;
 }
 
+const DEFAULT_PUBLIC_CLUB_SETTINGS: PublicClubSettings = {
+  name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
+  shortName: "ESH",
+  logoUrl: "/branding/esh-logo-128.png",
+  homepageHeroImageUrl: null,
+  websiteImages: {},
+  primaryColor: "#B31B1B",
+  secondaryColor: "#111111",
+  description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
+  stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
+  contactEmail: null,
+  contactPhone: null,
+  address: "الملعب البلدي طاهري حسني – سيدي حسني",
+  socialLinks: null,
+  socialReels: [],
+  defaultLocale: "ar"
+};
+
 async function loadPublicClubSettings(): Promise<PublicClubSettings> {
-  const settings = await db.clubSettings.findUnique({
-    where: { id: "singleton" },
-    select: {
-      name: true,
-      shortName: true,
-      logoUrl: true,
-      homepageHeroImageUrl: true,
-      primaryColor: true,
-      secondaryColor: true,
-      description: true,
-      stadium: true,
-      contactEmail: true,
-      contactPhone: true,
-      address: true,
-      socialLinks: true,
-      defaultLocale: true
-    }
-  });
+  let settings;
+  try {
+    settings = await db.clubSettings.findUnique({
+      where: { id: "singleton" },
+      select: {
+        name: true,
+        shortName: true,
+        logoUrl: true,
+        homepageHeroImageUrl: true,
+        primaryColor: true,
+        secondaryColor: true,
+        description: true,
+        stadium: true,
+        contactEmail: true,
+        contactPhone: true,
+        address: true,
+        socialLinks: true,
+        defaultLocale: true
+      }
+    });
+  } catch (error) {
+    const reasonName = error instanceof Error ? error.name : "UnknownError";
+    console.error(`[public-site] Club settings query failed (${reasonName})`);
+    return DEFAULT_PUBLIC_CLUB_SETTINGS;
+  }
 
   if (!settings) {
-    return {
-      name: "الجمعية الرياضية أمل سيدي حسني لكرة القدم",
-      shortName: "ESH",
-      logoUrl: "/branding/esh-logo-128.png",
-      homepageHeroImageUrl: null,
-      websiteImages: {},
-      primaryColor: "#B31B1B",
-      secondaryColor: "#111111",
-      description: "الجمعية الرياضية أمل سيدي حسني لكرة القدم — تيارت، بلدية سيدي حسني.",
-      stadium: "الملعب البلدي طاهري حسني – سيدي حسني",
-      contactEmail: null,
-      contactPhone: null,
-      address: "الملعب البلدي طاهري حسني – سيدي حسني",
-      socialLinks: null,
-      socialReels: [],
-      defaultLocale: "ar"
-    };
+    return DEFAULT_PUBLIC_CLUB_SETTINGS;
   }
 
   const rawSocialLinks = settings.socialLinks && typeof settings.socialLinks === "object" && !Array.isArray(settings.socialLinks)
