@@ -311,9 +311,19 @@ export async function getPublicMatches(options?: {
   }
 
   if (mode === "UPCOMING") {
-    where.status = { in: ["SCHEDULED", "LIVE"] };
+    const now = new Date();
+    // Old scheduled fixtures are data errors from a visitor's point of view:
+    // they belong in history once their kickoff time has passed. Keep live
+    // games visible regardless of their original kickoff timestamp.
+    where.OR = [
+      { status: "LIVE" },
+      { status: "SCHEDULED", matchDate: { gte: now } }
+    ];
   } else if (mode === "RESULTS") {
-    where.status = { in: ["FINISHED", "POSTPONED", "CANCELLED"] };
+    // The Results tab is for completed fixtures. Postponed and cancelled
+    // games remain available in the complete fixture list without appearing
+    // as if a result had been recorded.
+    where.status = "FINISHED";
   }
 
   const matches = await db.match.findMany({

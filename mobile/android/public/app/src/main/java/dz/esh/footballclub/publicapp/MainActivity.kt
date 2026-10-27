@@ -309,10 +309,10 @@ private fun PublicApp() {
                 else AnimatedContent(targetState = tab, label = "public-tab") { page ->
                     when (page) {
                         PublicTab.HOME -> HomeScreen(data, locale, onMatch = { id ->
-                            scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id) } }
+                            scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id, locale) } }
                         }, onArticle = { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }, onTab = { tab = it })
                         PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
-                        PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id) } } }
+                        PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> scope.launch { selectedMatch = withContext(Dispatchers.IO) { PublicApi.matchCenter(id, locale) } } }
                         PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, competitionsError, locale) { refreshKey++ }
                         PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id -> scope.launch { selectedAlbum = withContext(Dispatchers.IO) { PublicApi.album(id, locale) } } }, onPhoto = { selectedPhoto = it }, onVideo = { selectedVideo = it })
                         PublicTab.NEWS -> NewsScreen(data, locale) { slug -> scope.launch { selectedArticle = withContext(Dispatchers.IO) { PublicApi.article(slug, locale) } } }
@@ -426,7 +426,7 @@ private fun PublicBottomBar(selected: PublicTab, locale: String, onSelect: (Publ
           LazyRow(state = listState, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 5.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             items(tabs) { item ->
                 val active = selected == item
-                Surface(onClick = { onSelect(item) }, shape = RoundedCornerShape(14.dp), color = if (active) Accent.copy(alpha = .16f) else Color.Transparent) {
+                Surface(onClick = { onSelect(item) }, shape = RoundedCornerShape(14.dp), color = Color.Transparent) {
                     Column(Modifier.widthIn(min = 46.dp).padding(horizontal = 8.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(19.dp))
                         if (active) Text(item.label(locale), color = PrimaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)

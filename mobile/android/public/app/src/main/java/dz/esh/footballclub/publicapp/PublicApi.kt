@@ -157,15 +157,18 @@ object PublicApi {
         )
     }
 
-    fun matchCenter(id: String): PublicMatchCenter {
-        val item = JSONObject(request("/api/public/mobile/matches/${encode(id)}"))
+    fun matchCenter(id: String, locale: String): PublicMatchCenter {
+        val item = JSONObject(request("/api/public/mobile/matches/${encode(id)}?locale=$locale"))
         val match = match(item)
         val events = item.optJSONArray("events").objects().map { event ->
-            val name = if (event.optString("playerNameFr").isNotBlank()) event.optString("playerNameFr") else event.optString("playerName")
+            val name = if (locale == "fr" && event.optString("playerNameFr").isNotBlank()) event.optString("playerNameFr") else event.optString("playerName")
             PublicMatchEvent(event.optString("id"), event.optInt("minute"), event.optString("type"), name)
         }
-        val starting = item.optJSONArray("startingLineup").objects().map { it.optString("playerName") }
-        val substitutes = item.optJSONArray("substitutes").objects().map { it.optString("playerName") }
+        val localizedName: (JSONObject) -> String = { player ->
+            if (locale == "fr" && player.optString("playerNameFr").isNotBlank()) player.optString("playerNameFr") else player.optString("playerName")
+        }
+        val starting = item.optJSONArray("startingLineup").objects().map(localizedName)
+        val substitutes = item.optJSONArray("substitutes").objects().map(localizedName)
         return PublicMatchCenter(match, events, starting, substitutes, item.optNullable("matchReport"))
     }
 
