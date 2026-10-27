@@ -4,7 +4,7 @@ import { getPublicHomeData, getPublicHomeSupportingData } from "@/lib/public/hom
 import { getPublicAlbums } from "@/lib/public/gallery";
 import { getPublicMatches } from "@/lib/public/matches";
 import { getPublicNewsList } from "@/lib/public/news";
-import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicCategory, frenchPublicClubName, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,10 +35,10 @@ export async function GET(request: Request) {
     ...match,
     homeTeamName: match.isHomeFixture
       ? (locale === "ar" ? "نادي أمل سيدي حسني" : "Club Espoir Sidi Hosni")
-      : (locale === "fr" ? localizedClubName(match.homeTeamName, locale, "Club adverse") : match.homeTeamName),
+      : (locale === "fr" ? frenchPublicClubName(match.homeTeamName, "Club adverse") : match.homeTeamName),
     awayTeamName: !match.isHomeFixture
       ? (locale === "ar" ? "نادي أمل سيدي حسني" : "Club Espoir Sidi Hosni")
-      : (locale === "fr" ? localizedClubName(match.awayTeamName, locale, "Club adverse") : match.awayTeamName),
+      : (locale === "fr" ? frenchPublicClubName(match.awayTeamName, "Club adverse") : match.awayTeamName),
     competitionName: locale === "fr" ? frenchCompetitionName(match.competitionName) : match.competitionName,
     teamCategory: match.teamCategory ? (locale === "fr" ? frenchPublicCategory(match.teamCategory) : match.teamCategory) : null,
     stadium: locale === "fr" ? frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni") : match.stadium
@@ -72,9 +72,14 @@ export async function GET(request: Request) {
       endTime: training.endTime,
       location: locale === "fr" ? frenchPublicText(training.location, "Lieu à confirmer") : training.location,
       teamCategory: training.team?.category ? (locale === "fr" ? frenchPublicCategory(training.team.category) : training.team.category) : "SENIOR",
-      teamName: locale === "fr" ? frenchPublicText(training.team?.name, "Équipe du club") : (training.team?.name ?? "الفريق")
+      teamName: locale === "fr" ? frenchPublicClubName(training.team?.name, "Équipe du club") : (training.team?.name ?? "الفريق")
     })),
-    news: news.items,
+    news: locale === "fr" ? news.items.map((item) => ({
+      ...item,
+      title: frenchPublicText(item.title, "Actualité du club"),
+      excerpt: frenchPublicText(item.excerpt, "Les dernières nouvelles du club."),
+      category: item.category ? frenchPublicText(item.category, "Club") : null
+    })) : news.items,
     albums: albums.slice(0, 30).map((album) => locale === "fr" ? {
       ...album,
       name: frenchPublicText(album.name, "Album du club"),

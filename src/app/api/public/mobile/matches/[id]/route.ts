@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPublicMatchDetail } from "@/lib/public/matches";
-import { frenchCompetitionName, frenchPublicCategory, frenchPublicText, localizedClubName } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicCategory, frenchPublicClubName, frenchPublicText } from "@/lib/public/locale-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +12,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const locale = new URL(request.url).searchParams.get("locale") === "fr" ? "fr" : "ar";
   const localized = locale === "fr" ? {
     ...match,
-    homeTeamName: match.isHomeFixture ? "Club Espoir Sidi Hosni" : localizedClubName(match.homeTeamName, locale, "Club adverse"),
-    awayTeamName: !match.isHomeFixture ? "Club Espoir Sidi Hosni" : localizedClubName(match.awayTeamName, locale, "Club adverse"),
+    homeTeamName: match.isHomeFixture ? "Club Espoir Sidi Hosni" : frenchPublicClubName(match.homeTeamName, "Club adverse"),
+    awayTeamName: !match.isHomeFixture ? "Club Espoir Sidi Hosni" : frenchPublicClubName(match.awayTeamName, "Club adverse"),
     competitionName: frenchCompetitionName(match.competitionName),
     teamCategory: match.teamCategory ? frenchPublicCategory(match.teamCategory) : null,
     stadium: frenchPublicText(match.stadium, "Stade communal Taheri Hosni – Sidi Hosni"),
@@ -21,12 +21,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     matchReport: match.matchReport ? frenchPublicText(match.matchReport, "Compte rendu du match") : null,
     events: match.events.map((event) => ({
       ...event,
-      playerName: event.playerNameFr || frenchPublicText(event.playerName, "Joueur"),
+      playerName: frenchPublicText(event.playerNameFr || event.playerName, "Joueur"),
       staffName: event.staffNameFr || (event.staffName ? frenchPublicText(event.staffName, "Staff") : null)
     })),
-    startingLineup: match.startingLineup.map((player) => ({ ...player, playerName: player.playerNameFr || player.playerName })),
-    substitutes: match.substitutes.map((player) => ({ ...player, playerName: player.playerNameFr || player.playerName })),
-    shootoutKicks: match.shootoutKicks.map((kick) => ({ ...kick, playerName: kick.playerNameFr || kick.playerName }))
+    startingLineup: match.startingLineup.map((player) => ({ ...player, playerName: frenchPublicText(player.playerNameFr || player.playerName, "Joueur") })),
+    substitutes: match.substitutes.map((player) => ({ ...player, playerName: frenchPublicText(player.playerNameFr || player.playerName, "Joueur") })),
+    shootoutKicks: match.shootoutKicks.map((kick) => ({ ...kick, playerName: frenchPublicText(kick.playerNameFr || kick.playerName, "Joueur") }))
   } : match;
   return NextResponse.json(localized, { headers: { "Cache-Control": "no-store" } });
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCompetitionDisplayData } from "@/lib/competitions";
 import { getLiveCompetitionStandings } from "@/lib/competitions/live-standings";
-import { frenchCompetitionName, frenchPublicText } from "@/lib/public/locale-text";
+import { frenchCompetitionName, frenchPublicClubName, frenchPublicText } from "@/lib/public/locale-text";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       standings: standings.map((row) => ({
         ...row,
         teamLogo: normalizePublicMediaUrl(row.teamLogo) ?? row.teamLogo ?? null,
-        teamName: locale === "fr" ? frenchPublicText(row.teamName, row.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : row.teamName
+        teamName: locale === "fr" ? frenchPublicClubName(row.teamName, row.isOurClub ? "Club Espoir Sidi Hosni" : "Club adverse") : row.teamName
       })),
       bracket: display.bracket.rounds.map((round) => ({
         ...round,
@@ -44,12 +44,12 @@ export async function GET(request: Request) {
           ...match,
           homeTeam: {
             ...match.homeTeam,
-            name: locale === "fr" ? frenchPublicText(match.homeTeam.name, match.homeTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : match.homeTeam.name,
+            name: locale === "fr" ? frenchPublicClubName(match.homeTeam.name, match.homeTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Club adverse") : match.homeTeam.name,
             logo: normalizePublicMediaUrl(match.homeTeam.logo)
           },
           awayTeam: {
             ...match.awayTeam,
-            name: locale === "fr" ? frenchPublicText(match.awayTeam.name, match.awayTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Adversaire") : match.awayTeam.name,
+            name: locale === "fr" ? frenchPublicClubName(match.awayTeam.name, match.awayTeam.isOurClub ? "Club Espoir Sidi Hosni" : "Club adverse") : match.awayTeam.name,
             logo: normalizePublicMediaUrl(match.awayTeam.logo)
           }
         }))

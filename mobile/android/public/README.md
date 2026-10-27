@@ -14,6 +14,8 @@ app without sharing its login or local data.
 - Live match alerts through FCM. The service stores alerts in this app's local
   inbox and never reads the administrator app's notification preferences.
 - Public content is read from the same published-data rules used by the site.
+- App updates are distributed through the official release channel. The app
+  does not request permission to install packages from unknown sources.
 
 ## Build
 

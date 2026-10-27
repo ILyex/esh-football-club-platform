@@ -1,8 +1,7 @@
 package dz.esh.footballclub.publicapp
 
 import android.content.Context
-import java.io.File
-import java.security.MessageDigest
+import androidx.core.text.HtmlCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -40,10 +39,10 @@ data class PublicAlbum(val id: String, val name: String, val description: String
 data class PublicReel(val id: String, val title: String, val url: String, val platform: String)
 data class PublicSnapshot(val club: PublicClub, val nextMatch: PublicMatch?, val matches: List<PublicMatch>, val results: List<PublicMatch>, val trainings: List<PublicTraining>, val news: List<PublicNews>, val announcements: List<PublicAnnouncement>, val albums: List<PublicAlbum>, val reels: List<PublicReel>, val teams: List<PublicTeam>, val competitions: List<PublicCompetition>)
 data class PublicAlert(val id: String, val title: String, val body: String, val time: Long, val kind: String)
-data class PublicMatchEvent(val id: String, val minute: Int, val type: String, val player: String)
-data class PublicMatchCenter(val match: PublicMatch, val events: List<PublicMatchEvent>, val starting: List<String>, val substitutes: List<String>, val report: String?)
+data class PublicMatchEvent(val id: String, val minute: Int, val type: String, val side: String, val player: String)
+data class PublicMatchPlayer(val id: String, val name: String, val number: Int?, val position: String?, val photo: String?, val captain: Boolean)
+data class PublicMatchCenter(val match: PublicMatch, val events: List<PublicMatchEvent>, val starting: List<PublicMatchPlayer>, val substitutes: List<PublicMatchPlayer>, val report: String?)
 data class PublicArticle(val title: String, val content: String, val image: String?, val category: String?, val date: String)
-data class PublicRelease(val version: String, val apkUrl: String, val sha256: String?)
 
 object PublicApi {
     private const val CACHE_PREFS = "esh_public_content_cache"
@@ -70,68 +69,6 @@ object PublicApi {
 
     fun competitions(locale: String): List<PublicCompetition> = JSONObject(request("/api/public/mobile/competitions?locale=$locale&t=${System.currentTimeMillis()}"))
         .optJSONArray("competitions").objects().map(::competition)
-
-    fun latestRelease(): PublicRelease? {
-        val release = JSONObject(request("/public-android-release.json?t=${System.currentTimeMillis()}"))
-        val version = release.optString("version").takeIf { it.isNotBlank() } ?: return null
-        val path = release.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
-        val url = if (path.startsWith("https://")) path else URL(URL(PUBLIC_API_ORIGIN), path.removePrefix("/")).toString()
-        if (!url.startsWith("https://")) return null
-        val checksum = release.optString("sha256").takeIf { it.matches(Regex("(?i)[a-f0-9]{64}")) }
-        return PublicRelease(version, url, checksum)
-    }
-
-    fun downloadApk(context: Context, release: PublicRelease, onProgress: (Int) -> Unit): File {
-        require(release.apkUrl.startsWith("https://"))
-        val updateDirectory = File(context.cacheDir, "updates").apply { mkdirs() }
-        val versionTag = release.version.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        val destination = File(updateDirectory, "esh-update-$versionTag.apk")
-        if (destination.exists()) destination.delete()
-        val connection = URL(release.apkUrl).openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 30_000
-            connection.readTimeout = 120_000
-            connection.instanceFollowRedirects = true
-            connection.useCaches = false
-            connection.setRequestProperty("User-Agent", "ESH-Public-Android-Updater")
-            connection.setRequestProperty("Cache-Control", "no-cache")
-            if (connection.responseCode !in 200..299) error("update_download_failed")
-            val total = connection.contentLengthLong
-            val digest = MessageDigest.getInstance("SHA-256")
-            var received = 0L
-            connection.inputStream.use { input -> destination.outputStream().use { output ->
-                val buffer = ByteArray(24 * 1024)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    output.write(buffer, 0, count)
-                    digest.update(buffer, 0, count)
-                    received += count
-                    if (total > 0) onProgress(((received * 100L) / total).toInt().coerceIn(0, 99))
-                }
-            } }
-            if (destination.length() == 0L) error("update_empty_file")
-            val actual = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
-            if (release.sha256 != null && !release.sha256.equals(actual, ignoreCase = true)) error("update_checksum_mismatch")
-            onProgress(100)
-            return destination
-        } catch (error: Throwable) {
-            destination.delete()
-            throw error
-        } finally { connection.disconnect() }
-    }
-
-    fun isUpdateAvailable(remote: String, installed: String): Boolean {
-        fun parts(value: String) = Regex("\\d+").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
-        val next = parts(remote)
-        val current = parts(installed)
-        if (next.isEmpty() || current.isEmpty()) return remote != installed
-        for (index in 0..2) {
-            val comparison = next.getOrElse(index) { 0 }.compareTo(current.getOrElse(index) { 0 })
-            if (comparison != 0) return comparison > 0
-        }
-        return false
-    }
 
     private fun parse(response: String): PublicSnapshot {
         val json = JSONObject(response)
@@ -182,20 +119,37 @@ object PublicApi {
         val item = JSONObject(request("/api/public/mobile/matches/${encode(id)}?locale=$locale"))
         val match = match(item)
         val events = item.optJSONArray("events").objects().map { event ->
-            val name = if (locale == "fr" && event.optString("playerNameFr").isNotBlank()) event.optString("playerNameFr") else event.optString("playerName")
-            PublicMatchEvent(event.optString("id"), event.optInt("minute"), event.optString("type"), name)
+            val name = event.optString("playerNameFr").takeIf { locale == "fr" && it.isNotBlank() }
+                ?: event.optString("playerName").takeIf { it.isNotBlank() && it != "—" }
+                ?: if (locale == "fr") "Joueur" else "لاعب"
+            PublicMatchEvent(event.optString("id"), event.optInt("minute"), event.optString("type"), event.optString("side"), name)
         }
-        val localizedName: (JSONObject) -> String = { player ->
-            if (locale == "fr" && player.optString("playerNameFr").isNotBlank()) player.optString("playerNameFr") else player.optString("playerName")
+        val localizedPlayer: (JSONObject) -> PublicMatchPlayer = { player ->
+            val name = player.optString("playerNameFr").takeIf { locale == "fr" && it.isNotBlank() }
+                ?: player.optString("playerName").takeIf { it.isNotBlank() }
+                ?: if (locale == "fr") "Joueur" else "لاعب"
+            PublicMatchPlayer(
+                id = player.optString("playerId"),
+                name = name,
+                number = player.intOrNull("shirtNumber"),
+                position = player.optNullable("position"),
+                photo = player.url("photoUrl"),
+                captain = player.optBoolean("isCaptain")
+            )
         }
-        val starting = item.optJSONArray("startingLineup").objects().map(localizedName)
-        val substitutes = item.optJSONArray("substitutes").objects().map(localizedName)
+        val starting = item.optJSONArray("startingLineup").objects().map(localizedPlayer)
+        val substitutes = item.optJSONArray("substitutes").objects().map(localizedPlayer)
         return PublicMatchCenter(match, events, starting, substitutes, item.optNullable("matchReport"))
     }
 
     fun article(slug: String, locale: String): PublicArticle {
         val item = JSONObject(request("/api/public/mobile/news/${encode(slug)}?locale=$locale"))
-        return PublicArticle(item.optString("title"), item.optString("content").replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim(), item.url("featuredImageUrl"), item.optNullable("category"), item.optString("publishedAt"))
+        val plainContent = HtmlCompat.fromHtml(item.optString("content"), HtmlCompat.FROM_HTML_MODE_COMPACT)
+            .toString()
+            .replace(Regex("[ \\t]+"), " ")
+            .replace(Regex("\\n{3,}"), "\\n\\n")
+            .trim()
+        return PublicArticle(item.optString("title"), plainContent, item.url("featuredImageUrl"), item.optNullable("category"), item.optString("publishedAt"))
     }
 
     fun album(id: String, locale: String): PublicAlbum {

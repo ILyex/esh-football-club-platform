@@ -419,9 +419,9 @@ export async function getPublicMatchDetail(id: string): Promise<PublicMatchDetai
       competition: { select: { name: true } },
       team: { select: { category: true, name: true } },
       events: {
-        // Technical staff discipline stays internal; only player events appear
-        // on the public match center.
-        where: { staffId: null, type: { not: "SHOT" } },
+        // Technical staff discipline stays internal; publish every recorded
+        // player event, including shots, on the public match center.
+        where: { staffId: null },
         select: {
           id: true,
           minute: true,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPublicTeams } from "@/lib/public/teams";
-import { frenchPublicCategory, frenchPublicText } from "@/lib/public/locale-text";
+import { frenchPublicCategory, frenchPublicClubName, frenchPublicText } from "@/lib/public/locale-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const teams = await getPublicTeams();
   return NextResponse.json({ teams: teams.map((team) => ({
     ...team,
-    name: locale === "fr" ? frenchPublicText(team.name, frenchPublicCategory(team.category)) : team.name,
+    name: locale === "fr" ? frenchPublicClubName(team.name, frenchPublicCategory(team.category)) : team.name,
     description: locale === "fr" ? frenchPublicText(team.description, "") : team.description
   })) }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -28,6 +28,8 @@ class PublicMessagingService : FirebaseMessagingService() {
         val body = message.data["body"].orEmpty()
         val tag = message.data["tag"] ?: message.messageId ?: System.currentTimeMillis().toString()
         val kind = message.data["kind"] ?: "MATCH_UPDATE"
+        val locale = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(LOCALE, "ar") ?: "ar"
+        val channelId = if (locale == "fr") "${CHANNEL}_fr" else "${CHANNEL}_ar"
         val id = "public-$tag"
         saveAlert(applicationContext, PublicAlert(id, title, body, System.currentTimeMillis(), kind))
         val matchId = message.data["matchId"]
@@ -39,14 +41,18 @@ class PublicMessagingService : FirebaseMessagingService() {
         }
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, "أخبار المباريات", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "أهداف وتحديثات المباريات المباشرة"
+            manager.createNotificationChannel(NotificationChannel(
+                channelId,
+                if (locale == "fr") "Résultats et actualités des matchs" else "أخبار المباريات",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = if (locale == "fr") "Buts et informations des matchs en direct" else "أهداف وتحديثات المباريات المباشرة"
                 enableVibration(true)
                 setShowBadge(true)
             })
         }
         val openApp = PendingIntent.getActivity(this, tag.hashCode(), Intent(this, MainActivity::class.java).putExtra("open_tab", "alerts"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(this, CHANNEL)
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_public)
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, R.drawable.esh_logo))
             .setColor(0xFFD60A35.toInt())

@@ -5,9 +5,34 @@ export function hasArabicScript(value: string | null | undefined): boolean {
 
 export function frenchPublicText(value: string | null | undefined, fallback: string): string {
   if (!value) return fallback;
-  if (/^(?:club\s+)?amal\s+sidi\s+hosni$/iu.test(value.trim())) {
-    return value.replace(/\bAmal\b/iu, "Espoir");
+  const plain = value.trim();
+  const plainLatin = plain.normalize("NFKD").toLocaleLowerCase().replace(/[\u0300-\u036f]/gu, "");
+  // Older records contain phonetic Arabic written with Latin letters. It is
+  // not French and should not leak into the French interface as a word salad.
+  if (/(?:aldjmia|alriadia|alriadiya|sidi\s+hsni|amal\s+sidi\s+hsni|noudjoum|noujoum|chabab|mouloudia|ittihad|alhilal|taraji)/u.test(plainLatin)) {
+    if (/amal\s+sidi\s+hsni/u.test(plainLatin)) return "Espoir Sidi Hosni";
+    if (/sidi\s+hsni/u.test(plainLatin)) return plain.replace(/sidi\s+hsni/iu, "Sidi Hosni");
+    return fallback;
   }
+  if (/^(?:club\s+)?amal\s+sidi\s+hosni$/iu.test(plain)) {
+    return plain.replace(/\bAmal\b/iu, "Espoir");
+  }
+  const knownLabels: Record<string, string> = {
+    club: "Club",
+    news: "Actualités",
+    actualites: "Actualités",
+    matches: "Matchs",
+    match: "Match",
+    training: "Entraînements",
+    trainings: "Entraînements",
+    team: "Équipe",
+    events: "Événements",
+    photos: "Photos",
+    videos: "Vidéos",
+    senior: "Séniors",
+    seniors: "Séniors"
+  };
+  if (!hasArabicScript(plain)) return knownLabels[plainLatin] ?? plain;
   if (!hasArabicScript(value)) return value;
 
   // Some older public records store both languages in one field. Prefer the
@@ -25,46 +50,39 @@ export function frenchPublicText(value: string | null | undefined, fallback: str
 
 const FRENCH_CLUB_NAME_TRANSLATIONS: Record<string, string> = {
   "سريع عين مريم": "Rapide Aïn Meriem",
-  "نجوم تيارت": "Étoile de Tiaret"
+  "نجوم تيارت": "Étoile de Tiaret",
+  "نودجوم تيارت": "Étoile de Tiaret",
+  "نجم تيارت": "Étoile de Tiaret",
+  "نوجوم تيارت": "Étoile de Tiaret"
 };
 
-const ARABIC_CLUB_WORDS: Record<string, string> = {
-  "نادي": "Club",
-  "سريع": "Rapide",
-  "نجوم": "Étoile de",
-  "شبيبة": "Jeunesse sportive",
-  "شباب": "Jeunesse",
-  "مولودية": "Mouloudia",
-  "اتحاد": "Union",
-  "وفاق": "Entente",
-  "أمل": "Espoir",
-  "امل": "Espoir",
-  "هلال": "Croissant",
-  "ترجي": "Espérance",
-  "اولمبي": "Olympique",
-  "أولمبي": "Olympique",
-  "عين": "Aïn",
-  "تيارت": "Tiaret",
-  "مريم": "Meriem",
-  "وهران": "Oran",
-  "الجزائر": "Alger"
+const FRENCH_CLUB_ALIASES: Record<string, string> = {
+  "e sidi hosni": "Espoir Sidi Hosni",
+  "es sidi hosni": "Espoir Sidi Hosni",
+  "amal sidi hosni": "Espoir Sidi Hosni",
+  "amel sidi hosni": "Espoir Sidi Hosni",
+  "csnr tiaret": "CSNR Tiaret",
+  "ag tiaret": "AG Tiaret",
+  "noudjoum tiaret": "Étoile de Tiaret",
+  "noujoum tiaret": "Étoile de Tiaret",
+  "etoile de tiaret": "Étoile de Tiaret",
+  "js frenda": "JS Frenda",
+  "j s frenda": "JS Frenda",
+  "rb sougueur": "RB Sougueur",
+  "awf chellala": "AWF Chellala",
+  "s ain meriem": "S Aïn Meriem",
+  "ab rosfa": "AB Rosfa",
+  "um tiaret": "UM Tiaret",
+  "crb serguine": "CRB Serguine",
+  "irb mechraa sfa": "IRB Mechraa Sfa"
 };
+
+function normalizeLatinName(value: string): string {
+  return value.normalize("NFKD").toLocaleLowerCase().replace(/[\u0300-\u036f]/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
 
 function normalizeArabicClubName(value: string): string {
   return value.normalize("NFKC").replace(/[\u064B-\u065F\u0670\u0640]/gu, "").replace(/[أإآٱ]/gu, "ا").replace(/\s+/gu, " ").trim();
-}
-
-/** Transliterate Arabic-only opponent names for French displays when EMS has no French variant. */
-function frenchClubNameFromArabic(value: string): string {
-  const normalized = normalizeArabicClubName(value);
-  const known = FRENCH_CLUB_NAME_TRANSLATIONS[normalized];
-  if (known) return known;
-
-  const words = normalized.split(/\s+/u).map((word) => ARABIC_CLUB_WORDS[word] ?? word);
-  const transliteration: Record<string, string> = {
-    ا: "a", ب: "b", ت: "t", ث: "th", ج: "dj", ح: "h", خ: "kh", د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "ch", ص: "s", ض: "d", ط: "t", ظ: "dh", ع: "", غ: "gh", ف: "f", ق: "q", ك: "k", ل: "l", م: "m", ن: "n", ه: "h", و: "ou", ي: "i", ى: "a", ة: "a", ء: ""
-  };
-  return words.map((word) => [...word].map((character) => transliteration[character] ?? character).join("")).filter(Boolean).join(" ").replace(/\s+/gu, " ").trim();
 }
 
 /** Translate known competition names stored in Arabic before using a generic fallback. */
@@ -94,11 +112,7 @@ export function localizedClubName(value: string | null | undefined, locale: stri
 
   const parts = name.split(/[\/|]/u).map((part) => part.trim()).filter(Boolean);
   if (locale === "fr") {
-    const frenchName = frenchPublicText(name, fallback);
-    if (frenchName !== fallback) return frenchName;
-    const variants = splitClubNameVariants(name);
-    const arabicName = variants.ar || name;
-    return hasArabicScript(arabicName) ? frenchClubNameFromArabic(arabicName) || fallback : arabicName || fallback;
+    return frenchPublicClubName(name, fallback);
   }
 
   const arabicParenthetical = name.match(/\(([^()]*)\)/u)?.[1]?.trim();
@@ -112,6 +126,34 @@ export function localizedClubName(value: string | null | undefined, locale: stri
   }
   // A Latin-only name has no Arabic translation in the record; prefer the
   // caller's translated category/context label instead of showing two scripts.
+  return fallback;
+}
+
+/** Use official French names when available; never leak Arabic or phonetic hybrids into French UI. */
+export function frenchPublicClubName(value: string | null | undefined, fallback: string): string {
+  if (!value?.trim()) return fallback;
+  const name = value.trim();
+  if (/نادي\s+أ?مل\s+سيدي\s+حسني/u.test(name)) return "Club Espoir Sidi Hosni";
+  if (/أ?مل\s+سيدي\s+حسني/u.test(name)) return "Espoir Sidi Hosni";
+  if (!hasArabicScript(name)) {
+    const normalized = normalizeLatinName(name);
+    const alias = Object.keys(FRENCH_CLUB_ALIASES).find((candidate) => normalized === candidate || normalized.startsWith(`${candidate} `));
+    if (alias) {
+      const suffix = normalized.slice(alias.length).trim();
+      return `${FRENCH_CLUB_ALIASES[alias]}${suffix ? ` ${suffix}` : ""}`;
+    }
+    return frenchPublicText(name, fallback);
+  }
+  const parts = name.split(/[\/|]/u).map((part) => part.trim()).filter(Boolean);
+  const frenchPart = parts.find((part) => !hasArabicScript(part));
+  if (frenchPart) return frenchPublicClubName(frenchPart, fallback);
+  const parenthetical = name.match(/\(([^()]*)\)/u)?.[1]?.trim();
+  if (parenthetical && !hasArabicScript(parenthetical)) return frenchPublicClubName(parenthetical, fallback);
+  const known = FRENCH_CLUB_NAME_TRANSLATIONS[normalizeArabicClubName(name)];
+  if (known) return known;
+
+  // Unknown Arabic names do not have a reliable automatic French translation.
+  // A localized context label is clearer than invented phonetic French.
   return fallback;
 }
 
@@ -149,8 +191,9 @@ export function frenchPublicPersonName(person: {
   lastNameFr?: string | null;
 }, fallback = "Joueur"): string {
   const frenchName = [person.firstNameFr, person.lastNameFr].filter(Boolean).join(" ").trim();
-  if (frenchName) return frenchName;
-  return frenchPublicText([person.firstName, person.lastName].filter(Boolean).join(" ").trim(), fallback);
+  const safeFallback = hasArabicScript(fallback) ? "Joueur" : fallback;
+  if (frenchName) return frenchPublicText(frenchName, safeFallback);
+  return frenchPublicText([person.firstName, person.lastName].filter(Boolean).join(" ").trim(), safeFallback);
 }
 
 /** Translate position categories and common football role abbreviations. */

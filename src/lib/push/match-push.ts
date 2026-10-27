@@ -3,6 +3,7 @@ import type { Prisma, TeamCategory } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { sendNativePush } from "@/lib/push/firebase-native-push";
+import { frenchPublicClubName } from "@/lib/public/locale-text";
 
 type QueueMessage = { kind: "fanout"; outboxId: string } | { kind: "delivery"; outboxId: string; subscriptionId: string };
 type QueueBinding = {
@@ -315,8 +316,8 @@ function buildNotification(outbox: {
   };
   const isAr = locale === "ar";
   const teamLabel = CATEGORY_LABELS[payload.category ?? "SENIOR"]?.[isAr ? "ar" : "fr"] ?? payload.category ?? "";
-  const home = payload.homeTeamName;
-  const away = payload.awayTeamName;
+  const home = isAr ? payload.homeTeamName : frenchPublicClubName(payload.homeTeamName, "Club adverse");
+  const away = isAr ? payload.awayTeamName : frenchPublicClubName(payload.awayTeamName, "Club adverse");
   const score = `${payload.homeScore ?? 0} – ${payload.awayScore ?? 0}`;
   let title: string;
   let body: string;

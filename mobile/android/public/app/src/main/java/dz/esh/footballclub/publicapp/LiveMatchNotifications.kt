@@ -59,16 +59,17 @@ object LiveMatchNotifications {
         val away = data["awayTeamName"].orEmpty()
         val score = "${data["homeScore"]?.toIntOrNull() ?: 0}–${data["awayScore"]?.toIntOrNull() ?: 0}"
         val locale = prefs.getString(PublicMessagingService.LOCALE, "ar") ?: "ar"
+        val channelId = if (locale == "fr") "${CHANNEL}_fr" else "${CHANNEL}_ar"
         val isArabic = locale == "ar"
         val minute = data["minute"]?.takeIf(String::isNotBlank)
         val liveTitle = if (isArabic) "⚽ ESH · مباشر" else "⚽ ESH · EN DIRECT"
         val teams = listOf(home, score, away).filter(String::isNotBlank).joinToString("   ")
         val progress = if (minute != null) {
-            if (isArabic) "الدقيقة $minute′" else "${minute}e minute"
+            if (isArabic) "الدقيقة $minute′" else "${minute}e min"
         } else if (isArabic) "مباراة مباشرة" else "Match en direct"
         val expanded = listOf(teams, progress, eventTitle).filter(String::isNotBlank).joinToString("\n")
 
-        ensureChannel(context)
+        ensureChannel(context, locale, channelId)
         val notificationTag = "esh-live-match-$matchId"
         val notificationId = matchId.hashCode()
         val openIntent = PendingIntent.getActivity(
@@ -86,7 +87,7 @@ object LiveMatchNotifications {
             Intent(context, StopLiveMatchReceiver::class.java).putExtra("match_id", matchId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification_public)
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.esh_logo))
             .setContentTitle(liveTitle)
@@ -122,12 +123,16 @@ object LiveMatchNotifications {
         NotificationManagerCompat.from(context).cancel("esh-live-match-$matchId", matchId.hashCode())
     }
 
-    private fun ensureChannel(context: Context) {
+    private fun ensureChannel(context: Context, locale: String, channelId: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "المباريات المباشرة", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "نتيجة المباراة الجارية وتحديثاتها المباشرة"
+            NotificationChannel(
+                channelId,
+                if (locale == "fr") "Matchs en direct" else "المباريات المباشرة",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = if (locale == "fr") "Score et événements du match en cours" else "نتيجة المباراة الجارية وتحديثاتها المباشرة"
                 setShowBadge(false)
             }
         )
