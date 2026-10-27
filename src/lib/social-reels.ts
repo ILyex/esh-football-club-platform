@@ -31,7 +31,11 @@ export function identifySocialReel(urlValue: string): { platform: SocialReelPlat
 
   let match: RegExpMatchArray | null = null;
   if (getAllowedHost(url.hostname, "tiktok")) {
-    match = url.pathname.match(/\/@[^/]+\/video\/(\d+)/) ?? url.pathname.match(/\/player\/v1\/(\d+)/);
+    // TikTok photo-mode slideshows use /@creator/photo/{postId}; they share
+    // the same post ID and Embed Player as ordinary /video/{postId} posts.
+    match = url.pathname.match(/\/@[^/]+\/(?:video|photo)\/(\d+)/)
+      ?? url.pathname.match(/\/(?:video|photo)\/(\d+)/)
+      ?? url.pathname.match(/\/player\/v1\/(\d+)/);
     if (match) return { platform: "tiktok", id: match[1]! };
   }
   if (getAllowedHost(url.hostname, "instagram")) {

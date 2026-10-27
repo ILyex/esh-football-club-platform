@@ -80,7 +80,7 @@ export async function getSocialReelMetadataAction(value: string): Promise<{
     const metadata = await resolveSocialReelMetadata(submitted.toString(), platform);
     const detected = identifySocialReel(metadata.url);
     if (!detected || detected.platform !== platform) {
-      return { success: false, error: "لم نتمكن من تحديد الفيديو من الرابط. استخدم رابط الريل المباشر." };
+      return { success: false, error: "لم نتمكن من تحديد منشور TikTok. استخدم رابط الفيديو أو عرض الصور المباشر." };
     }
     return { success: true, ...metadata, id: `${platform}-${detected.id}`, platform };
   } catch (error) {
@@ -150,7 +150,7 @@ export async function updateWebsiteSocialReelsAction(formData: FormData): Promis
       return { success: false, error: error instanceof Error ? error.message : "تعذر التحقق من رابط Facebook." };
     }
     const detected = identifySocialReel(normalizedUrl);
-    if (!detected) return { success: false, error: "الرابط غير مدعوم. أضف رابط فيديو من TikTok أو Instagram أو Facebook." };
+    if (!detected) return { success: false, error: "الرابط غير مدعوم. أضف رابط فيديو أو عرض صور من TikTok، أو رابط ريل من Instagram أو Facebook." };
     reels.push({ ...item, id: `${detected.platform}-${detected.id}`, url: normalizedUrl, platform: detected.platform, createdAt: new Date().toISOString() });
   }
 

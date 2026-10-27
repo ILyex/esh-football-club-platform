@@ -161,7 +161,7 @@ export async function resolveSocialReelMetadata(
   let page: { url: string; html: string };
   page = await fetchPublicPage(url, platform);
   const title = platform === "tiktok"
-    ? await fetchTikTokTitle(page.url) ?? readHtmlTitle(page.html) ?? readCaption(page.html)
+    ? await fetchTikTokTitle(page.url).catch(() => null) ?? readHtmlTitle(page.html) ?? readCaption(page.html)
     : readHtmlTitle(page.html) ?? readCaption(page.html)
       ?? await fetchMetaEmbedTitle(page.url, platform).catch(() => null);
   if (!title) throw new Error("تعذر جلب عنوان الفيديو. تأكد أن المنشور عام وأن رابطه مباشر.");

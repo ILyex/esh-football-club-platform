@@ -220,7 +220,7 @@ export function WebsiteSocialReelsManager({ locale, reels: initialReels, action,
       <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="block min-w-0">
           <span className="mb-1.5 block text-xs font-bold text-muted-foreground">{ar ? "رابط الريل" : "Lien du Reel"}</span>
-          <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://www.tiktok.com/@.../video/..." className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://www.tiktok.com/@.../video/... أو /photo/..." className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </label>
         <button type="button" onClick={addReel} disabled={resolvingTitle || pending} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-white disabled:cursor-wait disabled:opacity-60">{resolvingTitle ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}{resolvingTitle ? (ar ? "جلب العنوان…" : "Récupération…") : (ar ? "إضافة" : "Ajouter")}</button>
       </div>
