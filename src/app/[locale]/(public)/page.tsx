@@ -260,14 +260,14 @@ export default async function HomePage({
               </div>
 
               {latestNews.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {latestNews.slice(0, 4).map((item) => (
                     <Link
                       key={item.id}
                       href={`/${locale}/news/${encodeURIComponent(item.id)}`}
-                      className="group flex min-w-0 items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-muted/50 sm:gap-3 sm:rounded-xl sm:p-2"
+                      className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-border/70 bg-background/45 p-2 transition-[border-color,background-color,box-shadow] hover:border-club-primary/40 hover:bg-club-primary/[0.035] hover:shadow-sm motion-reduce:transition-none sm:gap-3 sm:p-2.5"
                     >
-                      <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-muted sm:h-16 sm:w-20 sm:rounded-lg">
+                      <div className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted sm:h-[72px] sm:w-[88px] sm:rounded-xl">
                         {item.featuredImageUrl ? (
                           <SafeImage
                             src={item.featuredImageUrl}
@@ -282,22 +282,27 @@ export default async function HomePage({
                             <Newspaper className="h-5 w-5" />
                           </div>
                         )}
+                        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/[0.04]" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="mb-0.5 flex min-w-0 items-center gap-1.5 sm:mb-1 sm:gap-2">
-                          <span className="max-w-[7rem] truncate rounded bg-club-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-foreground">
+                        <div className="mb-1 flex min-w-0 items-center gap-1.5 sm:mb-1.5 sm:gap-2">
+                          <span className="max-w-[7rem] truncate rounded-md border border-club-primary/20 bg-club-primary/10 px-2 py-0.5 text-[10px] font-extrabold text-club-primary sm:text-[11px]">
                             {item.category || (locale === "ar" ? "النادي" : "Club")}
                           </span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                          <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+                            <Calendar className="h-3 w-3 opacity-75" aria-hidden="true" />
                             {new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" }).format(
                               item.publishedAt
                             )}
                           </span>
                         </div>
-                        <h4 className="line-clamp-2 text-[11px] font-bold leading-snug text-foreground transition-colors group-hover:text-club-primary sm:text-xs">
+                        <h4 className="line-clamp-2 text-xs font-extrabold leading-relaxed text-foreground transition-colors group-hover:text-club-primary sm:text-sm sm:leading-snug">
                           {item.title}
                         </h4>
                       </div>
+                      <span aria-hidden="true" className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground transition-[color,border-color,background-color,transform] group-hover:translate-x-0.5 group-hover:border-club-primary/30 group-hover:bg-club-primary/10 group-hover:text-club-primary sm:flex">
+                        <Arrow className="h-3.5 w-3.5" />
+                      </span>
                     </Link>
                   ))}
                 </div>
