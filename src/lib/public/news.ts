@@ -34,6 +34,13 @@ export interface PublicNewsArticle {
   alternateLocaleSlug: string | null;
 }
 
+function safePublishedAt(value: Date | null | undefined, fallback: Date): Date {
+  // Legacy records can contain malformed/zero dates that the database client
+  // materializes as an Invalid Date. Keep one bad publication timestamp from
+  // taking down the entire public homepage or news page during formatting.
+  return value instanceof Date && Number.isFinite(value.getTime()) ? value : fallback;
+}
+
 /** Fetches paginated list of published news articles for the requested locale. */
 export async function getPublicNewsList(
   locale: string,
@@ -98,7 +105,7 @@ export async function getPublicNewsList(
       excerpt,
       featuredImageUrl: normalizePublicMediaUrl(article.featuredImageUrl),
       category: locale === "ar" ? article.category : frenchPublicText(article.category, "Club"),
-      publishedAt: article.publishedAt || now,
+      publishedAt: safePublishedAt(article.publishedAt, now),
       locale: translation.locale
     }];
   });
@@ -160,7 +167,7 @@ export async function getPublicNewsArticle(slug: string, locale: string): Promis
     featuredImageUrl: normalizePublicMediaUrl(translation.news.featuredImageUrl),
     imageUrls: (translation.news.imageUrls || []).map((url) => normalizePublicMediaUrl(url)).filter((url): url is string => Boolean(url)),
     category: locale === "ar" ? translation.news.category : frenchPublicText(translation.news.category, "Club"),
-    publishedAt: translation.news.publishedAt || now,
+    publishedAt: safePublishedAt(translation.news.publishedAt, now),
     locale: translation.locale,
     alternateLocaleSlug: alternateTrans?.slug ?? null
   };
