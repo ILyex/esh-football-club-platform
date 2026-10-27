@@ -49,10 +49,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -101,7 +103,8 @@ private fun Modifier.siteGlass(shape: RoundedCornerShape, accentGlow: Boolean = 
                     Panel.copy(alpha = .98f),
                     if (accentGlow) Accent.copy(alpha = .075f) else Color.White.copy(alpha = .025f)
                 )
-            )
+            ),
+            shape
         )
 
 private object PublicIcons {
@@ -470,16 +473,35 @@ private fun AmbientMood(tab: PublicTab, liveMatch: Boolean, focused: Boolean, mo
         else -> .052f
     }
     val glowAlpha by animateFloatAsState(targetValue = targetAlpha, animationSpec = tween(durationMillis = 420), label = "ambient-mood")
-    Box(modifier.background(Canvas)) {
-        Box(
-            Modifier.align(Alignment.TopEnd).offset(x = 100.dp, y = (-120).dp).size(400.dp)
-                .background(Brush.radialGradient(listOf(Accent.copy(alpha = glowAlpha), Accent.copy(alpha = glowAlpha * .22f), Color.Transparent)), CircleShape)
+    Box(modifier.drawBehind {
+        drawRect(Canvas)
+
+        // Draw glows directly into the screen canvas. Layered background boxes
+        // can leave rectangular compositing patches on some Android GPUs.
+        val topCenter = Offset(size.width - 100.dp.toPx(), 80.dp.toPx())
+        val topRadius = 200.dp.toPx()
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Accent.copy(alpha = glowAlpha), Accent.copy(alpha = glowAlpha * .22f), Color.Transparent),
+                center = topCenter,
+                radius = topRadius
+            ),
+            radius = topRadius,
+            center = topCenter
         )
-        Box(
-            Modifier.align(Alignment.BottomStart).offset(x = (-130).dp, y = 140.dp).size(320.dp)
-                .background(Brush.radialGradient(listOf(Accent.copy(alpha = glowAlpha * .42f), Color.Transparent)), CircleShape)
+
+        val bottomCenter = Offset(30.dp.toPx(), size.height - 20.dp.toPx())
+        val bottomRadius = 160.dp.toPx()
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Accent.copy(alpha = glowAlpha * .42f), Color.Transparent),
+                center = bottomCenter,
+                radius = bottomRadius
+            ),
+            radius = bottomRadius,
+            center = bottomCenter
         )
-    }
+    })
 }
 
 @Composable
