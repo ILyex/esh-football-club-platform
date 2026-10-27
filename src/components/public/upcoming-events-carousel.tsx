@@ -1,6 +1,6 @@
 "use client";
 
-import { formatAlgeriaTime } from "@/lib/dates/algeria";
+import { combineAlgeriaDateAndTime, formatAlgeriaTime } from "@/lib/dates/algeria";
 import { matchStadium } from "@/lib/matches/stadium";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -88,9 +88,8 @@ function getTrainingPeriod(date: Date | string, startTime: string, endTime?: str
   const month = Number(part("month"));
   const day = Number(part("day"));
   const toAlgiersTime = (time: string) => {
-    const [hour = "0", minute = "0"] = time.split(":");
-    // Algeria uses UTC+1; convert the local training schedule to an absolute instant.
-    return new Date(Date.UTC(year, month - 1, day, Number(hour), Number(minute)) - 60 * 60 * 1000);
+    const localDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return combineAlgeriaDateAndTime(localDate, time);
   };
   const startsAt = toAlgiersTime(startTime);
   let endsAt = toAlgiersTime(endTime || startTime);

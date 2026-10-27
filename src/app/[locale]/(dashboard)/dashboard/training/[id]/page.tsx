@@ -14,8 +14,9 @@ import { DateInput } from "@/components/ui/date-input";
 import { TrainingTimeFields } from "@/components/training/training-time-fields";
 import { Save, Calendar, Users, MapPin, Clock, Trash2, ClipboardCheck } from "lucide-react";
 import { ActionFeedbackForm } from "@/components/shared/action-feedback-form";
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 
-const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+const hhmm = (d: Date, locale: string) => formatAlgeriaTime(d, locale);
 
 export default async function TrainingDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<{ view?: string }> }) {
   const { locale, id } = await params;
@@ -112,7 +113,7 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
           <div>
             <h1 className="text-xl font-bold text-foreground">{isAr ? "كشف الحضور" : "Feuille de présence"}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {teamLabel} · {new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(session.date)} · {hhmm(session.startTime)}–{hhmm(session.endTime)}
+              {teamLabel} · {new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: "UTC" }).format(session.date)} · {hhmm(session.startTime, locale)}–{hhmm(session.endTime, locale)}
             </p>
           </div>
           <Link href={`/${locale}/dashboard/training/${id}`} className="text-sm font-semibold text-club-primary hover:underline">
@@ -138,7 +139,7 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              {hhmm(session.startTime)} - {hhmm(session.endTime)}
+              {hhmm(session.startTime, locale)} - {hhmm(session.endTime, locale)}
             </span>
             {session.location && (
               <span className="flex items-center gap-1">
@@ -204,8 +205,8 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
               locale={locale}
               startLabel={t("fields.startTime")}
               endLabel={t("fields.endTime")}
-              defaultStart={hhmm(session.startTime)}
-              defaultEnd={hhmm(session.endTime)}
+              defaultStart={hhmm(session.startTime, locale)}
+              defaultEnd={hhmm(session.endTime, locale)}
               disabled={!canManage}
             />
 

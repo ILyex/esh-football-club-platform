@@ -6,6 +6,7 @@ import { Printer, X, CheckSquare } from "lucide-react";
 import { OfficialDocumentHeader } from "@/components/documents/official-document-header";
 import { getPlayerDisplayName } from "@/lib/utils";
 import { ESH_DOCUMENT_FONT_FAMILY, ESH_WATERMARK_CSS_URL } from "@/lib/documents/watermark";
+import { formatAlgeriaTime } from "@/lib/dates/algeria";
 
 export interface AttendanceSheetPlayerData {
   id: string;
@@ -42,11 +43,6 @@ const POSITION_LABELS: Record<string, { ar: string; fr: string }> = {
   DEFENDER: { ar: "مدافع", fr: "Défenseur" },
   MIDFIELDER: { ar: "وسط ميدان", fr: "Milieu" },
   FORWARD: { ar: "مهاجم", fr: "Attaquant" }
-};
-
-const formatHHMM = (d: Date | string) => {
-  const date = new Date(d);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 };
 
 export function OfficialAttendanceSheetModal({
@@ -208,7 +204,7 @@ export function OfficialAttendanceSheetModal({
                     {isAr ? "التاريخ والتوقيت:" : "Date & Créneau :"}
                   </span>
                   <span className="font-bold text-black text-[18px]">
-                    {formatHHMM(session.startTime)} - {formatHHMM(session.endTime)}
+                    {formatAlgeriaTime(session.startTime, locale)} - {formatAlgeriaTime(session.endTime, locale)}
                   </span>
                 </div>
               </div>

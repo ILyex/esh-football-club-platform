@@ -201,7 +201,7 @@ export function DashboardEventsCarousel({
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {formatAlgeriaDateTimeLocalized(new Date(t.date), locale, { dateStyle: "short", timeStyle: "short" })}
+                            {formatAlgeriaDateTimeLocalized(new Date(t.startTime), locale, { dateStyle: "short", timeStyle: "short" })}
                           </span>
                           {t.location && <span className="min-w-0 truncate">• {t.location}</span>}
                         </p>

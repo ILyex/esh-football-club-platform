@@ -6,6 +6,7 @@ import { trainingSessionSchema, attendanceSchema, bulkAttendanceSchema } from "@
 import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { revalidatePath } from "next/cache";
+import { combineAlgeriaDateAndTime } from "@/lib/dates/algeria";
 
 import {
   validateUploadedFile,
@@ -23,15 +24,6 @@ async function syncCalendarEvent(trainingId: string, title: string, start: Date,
   });
 }
 
-function combineDateAndTime(date: Date, hhmm: string): Date {
-  const [hoursStr, minutesStr] = hhmm.split(":");
-  const hours = Number(hoursStr ?? 0);
-  const minutes = Number(minutesStr ?? 0);
-  const combined = new Date(date);
-  combined.setHours(hours, minutes, 0, 0);
-  return combined;
-}
-
 export async function createTrainingSessionAction(formData: FormData) {
   const user = await requirePermission("training.manage");
   const scopeContext = await getMutationScopeContext();
@@ -40,8 +32,8 @@ export async function createTrainingSessionAction(formData: FormData) {
   const parsed = trainingSessionSchema.parse(raw);
   assertTeamScope(scopeContext, parsed.teamId, "TrainingSession");
 
-  const start = combineDateAndTime(parsed.date, parsed.startTime);
-  const end = combineDateAndTime(parsed.date, parsed.endTime);
+  const start = combineAlgeriaDateAndTime(parsed.date, parsed.startTime);
+  const end = combineAlgeriaDateAndTime(parsed.date, parsed.endTime);
 
   const session = await db.trainingSession.create({
     data: {
@@ -80,8 +72,8 @@ export async function updateTrainingSessionAction(sessionId: string, formData: F
   const parsed = trainingSessionSchema.parse(raw);
   assertDualTeamScope(scopeContext, before.teamId, parsed.teamId, "TrainingSession");
 
-  const start = combineDateAndTime(parsed.date, parsed.startTime);
-  const end = combineDateAndTime(parsed.date, parsed.endTime);
+  const start = combineAlgeriaDateAndTime(parsed.date, parsed.startTime);
+  const end = combineAlgeriaDateAndTime(parsed.date, parsed.endTime);
 
   const session = await db.trainingSession.update({
     where: { id: sessionId },

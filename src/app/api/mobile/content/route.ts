@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { combineAlgeriaDateAndTime } from "@/lib/dates/algeria";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getNativePrincipal } from "@/lib/native-session";
@@ -108,12 +109,11 @@ export async function POST(request: Request) {
       if (!coach) return NextResponse.json({ error: "coach_not_assigned_to_team" }, { status: 400 });
     }
 
-    // Club operations are in Africa/Algiers (UTC+1); persist absolute instants
-    // so the mobile and web calendars render the same session time.
-    const start = new Date(`${training.data.date}T${training.data.startTime}:00+01:00`);
-    const end = new Date(`${training.data.date}T${training.data.endTime}:00+01:00`);
+    // Persist absolute instants based on the club's timezone, not the host server timezone.
+    const start = combineAlgeriaDateAndTime(training.data.date, training.data.startTime);
+    const end = combineAlgeriaDateAndTime(training.data.date, training.data.endTime);
     if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) return NextResponse.json({ error: "invalid_training_time" }, { status: 400 });
-    const date = new Date(`${training.data.date}T00:00:00+01:00`);
+    const date = combineAlgeriaDateAndTime(training.data.date, "00:00");
     const session = await db.$transaction(async (tx) => {
       const created = await tx.trainingSession.create({ data: { date, teamId: team.id, coachId, startTime: start, endTime: end, location: training.data.location || null, notes: training.data.notes || null, status: "SCHEDULED" } });
       await tx.calendarEvent.create({ data: { title: `Training · ${team.name}`, type: "TRAINING", startDateTime: start, endDateTime: end, location: training.data.location || null, teamId: team.id, relatedTrainingId: created.id } });
