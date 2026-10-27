@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
 
@@ -180,8 +180,7 @@ export async function getOpponentLogo(name: string): Promise<string | null> {
 }
 
 /** Compatibility map used by public match and competition logo resolvers. */
-export async function getOpponentsMap(): Promise<Record<string, OpponentClub>> {
-  await importLegacyOpponentCache();
+async function loadOpponentsMap(): Promise<Record<string, OpponentClub>> {
   const opponents = await db.opponentClub.findMany({ include: { aliases: true } });
   const entries: Array<[string, OpponentClub]> = [];
   for (const opponent of opponents) {
@@ -197,6 +196,20 @@ export async function getOpponentsMap(): Promise<Record<string, OpponentClub>> {
     }
   }
   return Object.fromEntries(entries);
+}
+
+// Public pages often resolve several match lists in parallel. Cache the shared
+// opponent registry so a cold homepage render does not query this table once
+// for the next fixture, again for the carousel, and again for recent results.
+const getCachedOpponentsMap = unstable_cache(
+  loadOpponentsMap,
+  ["opponent-clubs-map-v1"],
+  { revalidate: 60, tags: ["opponent-clubs", "public-home"] }
+);
+
+export async function getOpponentsMap(): Promise<Record<string, OpponentClub>> {
+  await importLegacyOpponentCache();
+  return getCachedOpponentsMap();
 }
 
 /** Saves or replaces an opponent crest for reuse in all later fixtures. */
@@ -242,6 +255,7 @@ export async function saveOpponentClub(name: string, logoUrl: string, stadium?: 
   // that cache when a crest changes so the calendar, platform and homepage all
   // read the same updated opponent registry immediately.
   try {
+    revalidateTag("opponent-clubs");
     revalidateTag("public-home");
   } catch {
     // Some background import callers do not have a Next.js request context.

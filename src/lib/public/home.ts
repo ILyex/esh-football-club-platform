@@ -2,7 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { getPublicClubSettings, PublicClubSettings } from "./club";
-import { getPublicNextMatch, getPublicMatches, getPublicUpcomingMatches, PublicMatchItem } from "./matches";
+import { getPublicMatches, getPublicUpcomingMatches, PublicMatchItem } from "./matches";
 import { getPublicNewsList, PublicNewsItem } from "./news";
 
 // ============================================================================
@@ -71,9 +71,8 @@ export const getPublicHomeSupportingData = unstable_cache(
 async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
   const now = new Date();
 
-  const [club, nextMatch, upcomingMatches, recentResults, newsResult, rawAnnouncements] = await Promise.all([
+  const [club, upcomingMatches, recentResults, newsResult, rawAnnouncements] = await Promise.all([
     getPublicClubSettings(),
-    getPublicNextMatch(),
     getPublicUpcomingMatches(6),
     getPublicMatches({ mode: "RESULTS", limit: 3 }),
     getPublicNewsList(locale, { pageSize: 4 }),
@@ -130,7 +129,9 @@ async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
 
   return {
     club,
-    nextMatch,
+    // The next fixture is the first item in the same live/upcoming list. Reuse
+    // it instead of issuing a second match query on every cache refresh.
+    nextMatch: upcomingMatches[0] ?? null,
     upcomingMatches,
     recentResults,
     latestNews: newsResult.items,
