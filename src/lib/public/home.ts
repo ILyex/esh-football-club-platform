@@ -35,6 +35,12 @@ function getAvailableData<T>(result: PromiseSettledResult<T>, fallback: T, secti
   return fallback;
 }
 
+function hasValidTimestamp(value: Date | string | null | undefined): boolean {
+  if (value == null) return false;
+  const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(timestamp);
+}
+
 async function loadPublicHomeSupportingData() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -66,8 +72,16 @@ async function loadPublicHomeSupportingData() {
       take: 8
     })
   ]);
+  const scheduledTrainings = getAvailableData(trainingResult, [], "training");
+  const validScheduledTrainings = scheduledTrainings.filter((session) =>
+    hasValidTimestamp(session.date) && hasValidTimestamp(session.startTime) && hasValidTimestamp(session.endTime)
+  );
+  if (validScheduledTrainings.length !== scheduledTrainings.length) {
+    console.error(`[public-site] Ignored ${scheduledTrainings.length - validScheduledTrainings.length} training session(s) with invalid dates`);
+  }
+
   return {
-    scheduledTrainings: getAvailableData(trainingResult, [], "training"),
+    scheduledTrainings: validScheduledTrainings,
     totalActivePlayers: getAvailableData(playerResult, 0, "player count"),
     clubMedia: getAvailableData(mediaResult, [], "club media")
   };
@@ -75,7 +89,7 @@ async function loadPublicHomeSupportingData() {
 
 export const getPublicHomeSupportingData = unstable_cache(
   loadPublicHomeSupportingData,
-  ["public-home-supporting-data-v1"],
+  ["public-home-supporting-data-v2"],
   { revalidate: 15, tags: ["public-home"] }
 );
 
@@ -161,6 +175,6 @@ async function loadPublicHomeData(locale: string): Promise<PublicHomeData> {
 // for more than a few seconds.
 export const getPublicHomeData = unstable_cache(
   loadPublicHomeData,
-  ["public-home-data-v1"],
+  ["public-home-data-v2"],
   { revalidate: 15, tags: ["public-home"] }
 );

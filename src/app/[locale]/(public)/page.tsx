@@ -31,6 +31,16 @@ import { ClubIntroVideo } from "@/components/public/club-intro-video";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 import { getAnnouncementPriorityStyle } from "@/lib/announcement-priority-style";
 
+function parsePublicDate(value: Date | string | null | undefined): Date | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function safePublicDate(value: Date | string | null | undefined): Date {
+  return parsePublicDate(value) ?? new Date();
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
@@ -65,7 +75,9 @@ export default async function HomePage({
         ? [recentResults.find((match) => match.status === "FINISHED")!]
         : []);
 
-  const trainingsForCarousel = scheduledTrainings.map((session) => ({
+  const trainingsForCarousel = scheduledTrainings.filter((session) =>
+    [session.date, session.startTime, session.endTime].every((value) => parsePublicDate(value) !== null)
+  ).map((session) => ({
     id: session.id,
     teamCategory: session.team?.category ?? "SENIOR",
     teamName: locale === "ar"
@@ -292,7 +304,7 @@ export default async function HomePage({
                           <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
                             <Calendar className="h-3 w-3 opacity-75" aria-hidden="true" />
                             {new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" }).format(
-                              item.publishedAt
+                              safePublicDate(item.publishedAt)
                             )}
                           </span>
                         </div>
