@@ -102,7 +102,7 @@ export async function createPlayerMedicalRecordAction(playerId: string, formData
     });
     recordId = record.id;
     const checkJob = await enqueueMedicalDocumentCheck(db, record.id, user.id);
-    processQueuedJobAfterResponse(checkJob.type);
+    processQueuedJobAfterResponse(checkJob.type, { jobId: checkJob.id });
     await writeAuditLog({
       userId: user.id,
       action: "medical_record.created",

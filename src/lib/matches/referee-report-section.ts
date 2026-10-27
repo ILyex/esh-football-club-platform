@@ -1,4 +1,4 @@
-const REPORT_HEADING = /تقرير\s+(?:المباراة|الحكم(?:\s+النهائي)?)|rapport\s+(?:du\s+match|de\s+l['’]arbitre)/giu;
+const REPORT_HEADING = /تقرير\s+(?:المباراة|الحكم(?:\s+النهائي)?|اللقاء)|rapport\s+(?:du\s+match|de\s+match|de\s+l['’]arbitre|d['’]arbitrage)(?:\s+(?:final|officiel))?|compte\s+rendu\s+(?:du\s+match|de\s+la\s+rencontre)|match\s+report/giu;
 
 /**
  * FAF's final report PDF contains match metadata and event tables before its

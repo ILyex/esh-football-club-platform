@@ -1404,7 +1404,13 @@ export async function syncFAFMatchDocumentsAction(matchId: string, locale = "ar"
     priority: "HIGH",
     maxAttempts: 2
   });
-  processQueuedJobAfterResponse("faf.match_sync");
+  // A match sync queues a second job for report parsing. Process that child
+  // in the same after-response worker window so imported documents do not
+  // remain visible while events and the report stay pending for the cron.
+  processQueuedJobAfterResponse("faf.match_sync", {
+    jobId: job.id,
+    followUp: { type: "match.referee_report_analysis", matchId }
+  });
   return {
     success: true,
     matchId,
@@ -1440,7 +1446,7 @@ export async function analyzeRefereeReportWithAIAction(matchId: string, formData
     ...(reportText ? { reportText } : { documentId: reportDocument!.id }),
     userId: user.id
   }, { allowRerun: true });
-  processQueuedJobAfterResponse("match.referee_report_analysis");
+  processQueuedJobAfterResponse("match.referee_report_analysis", { jobId: job.id });
   return {
     success: true,
     jobId: job.id,

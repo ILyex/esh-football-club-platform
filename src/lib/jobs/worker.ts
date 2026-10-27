@@ -178,6 +178,7 @@ export async function processJobBatch(options?: {
   workerId?: string;
   maxJobs?: number;
   types?: string[];
+  jobIds?: string[];
   leaseDurationMs?: number;
 }): Promise<BatchResult> {
   const workerId = options?.workerId ?? `worker-${nanoid(8)}`;
@@ -188,7 +189,8 @@ export async function processJobBatch(options?: {
     const job = await claimNextJob({
       workerId,
       leaseDurationMs: options?.leaseDurationMs,
-      types: options?.types
+      types: options?.types,
+      jobIds: options?.jobIds
     });
 
     if (!job) {

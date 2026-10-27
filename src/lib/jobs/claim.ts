@@ -21,6 +21,7 @@ export interface ClaimOptions {
   workerId: string;
   leaseDurationMs?: number;
   types?: string[];
+  jobIds?: string[];
 }
 
 /**
@@ -45,7 +46,7 @@ export async function claimNextJob(
     });
   }
 
-  const { workerId, leaseDurationMs = DEFAULT_LEASE_DURATION_MS, types } = options;
+  const { workerId, leaseDurationMs = DEFAULT_LEASE_DURATION_MS, types, jobIds } = options;
   const now = new Date();
   const leaseUntil = new Date(now.getTime() + leaseDurationMs);
 
@@ -53,6 +54,7 @@ export async function claimNextJob(
   if (typeof (client as any).$queryRaw === "function") {
     try {
       const typeFilter = types && types.length > 0 ? types : null;
+      const idFilter = jobIds && jobIds.length > 0 ? jobIds : null;
       const candidates: Array<{ id: string; status: string; attempts: number; maxAttempts: number }> =
         await (client as any).$queryRaw`
           SELECT id, status, attempts, "maxAttempts"
@@ -63,6 +65,7 @@ export async function claimNextJob(
             OR ("status" = 'RUNNING' AND "lockedUntil" IS NOT NULL AND "lockedUntil" < ${now})
           )
           AND (${typeFilter}::text[] IS NULL OR "type" = ANY(${typeFilter}))
+          AND (${idFilter}::text[] IS NULL OR id = ANY(${idFilter}))
           ORDER BY
             CASE "priority"
               WHEN 'CRITICAL' THEN 4
@@ -115,11 +118,13 @@ export async function claimNextJob(
 
   // 2. ORM-level fallback claiming logic
   const typeCondition = types && types.length > 0 ? { in: types } : undefined;
+  const idCondition = jobIds && jobIds.length > 0 ? { in: jobIds } : undefined;
 
   const candidate = await client.backgroundJob.findFirst({
     where: {
       AND: [
         typeCondition ? { type: typeCondition } : {},
+        idCondition ? { id: idCondition } : {},
         {
           OR: [
             { status: "QUEUED", scheduledAt: { lte: now } },

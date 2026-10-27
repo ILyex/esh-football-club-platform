@@ -45,7 +45,10 @@ function samePersonName(left: unknown, right: unknown): boolean {
 }
 
 function remoteArray(match: any, keys: string[]): any[] {
-  const records = [match, match?.events, match?.evenements, match?.matchEvents, match?.rencontre, match?.details]
+  // /match-info wraps the actual record in `match`; event arrays can be
+  // attached to either the wrapper or the nested record depending on EMS API
+  // version. Inspect both shapes before concluding that no events exist.
+  const records = [match, match?.match, match?.events, match?.evenements, match?.matchEvents, match?.rencontre, match?.details]
     .filter((value) => value && typeof value === "object");
   let emptyArray: any[] | undefined;
   for (const record of records) {
@@ -797,7 +800,7 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       reportTextIsSection: true,
       preserveExistingMatchData: true,
       userId: actorId
-    });
+    }, { allowRerun: true });
     analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";
   }
   await db.integrationState.upsert({
