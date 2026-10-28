@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image as ImageIcon,
   ChevronRight,
@@ -34,6 +34,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
   const orderedPhotos = photos.slice(0, 8);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const lastWheelNavigation = useRef(0);
   useEffect(() => {
     setCurrentIndex((index) => Math.min(index, Math.max(orderedPhotos.length - 1, 0)));
   }, [orderedPhotos.length]);
@@ -41,6 +42,28 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
     () => setCurrentIndex((prev) => (prev + 1) % orderedPhotos.length),
     () => setCurrentIndex((prev) => (prev === 0 ? orderedPhotos.length - 1 : prev - 1))
   );
+
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    // Trackpad horizontal scrolling and Shift + mouse wheel navigate photos.
+    // Plain vertical wheel input stays native so the page never gets trapped.
+    const horizontalDelta = event.shiftKey
+      ? event.deltaY
+      : Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : 0;
+    if (Math.abs(horizontalDelta) < 24) return;
+
+    if (event.shiftKey) event.preventDefault();
+    const now = performance.now();
+    if (now - lastWheelNavigation.current < 320) return;
+    lastWheelNavigation.current = now;
+
+    if (horizontalDelta < 0) {
+      setCurrentIndex((prev) => (prev + 1) % orderedPhotos.length);
+    } else {
+      setCurrentIndex((prev) => (prev === 0 ? orderedPhotos.length - 1 : prev - 1));
+    }
+  };
 
   if (orderedPhotos.length === 0) {
     return (
@@ -104,7 +127,7 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
       </div>
 
       {/* Main Carousel Stage - Strict Fixed Height (Prevent size jumps) */}
-      <div className="relative h-[clamp(250px,50svh,360px)] w-full shrink-0 select-none overflow-hidden bg-black touch-pan-y sm:h-[380px]" {...swipe}>
+      <div className="relative h-[clamp(250px,50svh,360px)] w-full shrink-0 select-none overflow-hidden bg-black touch-pan-y sm:h-[380px]" {...swipe} onWheel={handleWheel}>
         <a
           href={albumHref}
           aria-label={isAr ? "فتح الألبوم" : "Ouvrir l’album"}
@@ -156,7 +179,8 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
           onClick={() =>
             setCurrentIndex((prev) => (prev === 0 ? orderedPhotos.length - 1 : prev - 1))
           }
-          className="absolute start-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white opacity-100 shadow-md backdrop-blur-md transition-all hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
+          title={isAr ? "الصورة السابقة" : "Image précédente"}
+          className="absolute start-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-md transition-colors hover:bg-black/90"
           aria-label={isAr ? "الصورة السابقة" : "Image précédente"}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -167,7 +191,8 @@ export function ClubPhotosCarousel({ photos, locale = "ar" }: ClubPhotosCarousel
           onClick={() =>
             setCurrentIndex((prev) => (prev + 1) % orderedPhotos.length)
           }
-          className="absolute end-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white opacity-100 shadow-md backdrop-blur-md transition-all hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
+          title={isAr ? "الصورة التالية" : "Image suivante"}
+          className="absolute end-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-md transition-colors hover:bg-black/90"
           aria-label={isAr ? "الصورة التالية" : "Image suivante"}
         >
           <ChevronRight className="h-4 w-4" />
