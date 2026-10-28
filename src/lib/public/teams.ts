@@ -294,12 +294,18 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
       },
       matchLineups: {
         select: {
+          isStarting: true,
+          selectionStatus: true,
           match: {
             select: {
               homeScore: true,
               awayScore: true,
               isHomeFixture: true,
-              status: true
+              status: true,
+              events: {
+                where: { type: "SUBSTITUTION_IN" },
+                select: { playerId: true }
+              }
             }
           }
         }
@@ -313,10 +319,17 @@ export async function getPublicPlayerBySlug(slug: string, locale: string): Promi
   const biography = player.translations[0]?.biography || player.biography;
 
   const cleanSheets = player.position === "GOALKEEPER"
-    ? player.matchLineups.filter(({ match }) =>
+    ? player.matchLineups.filter(({ match, isStarting, selectionStatus }) => {
+        // Every squad member can have a lineup row, including unused
+        // substitutes and players marked not called. Credit a clean sheet
+        // only when the goalkeeper started or entered the match as a sub.
+        const participated = selectionStatus === "STARTING"
+          || match.events.some((event) => event.playerId === player.id)
+          || (selectionStatus == null && isStarting);
+        return participated &&
         match.status === "FINISHED" &&
-        (match.isHomeFixture ? match.awayScore === 0 : match.homeScore === 0)
-      ).length
+        (match.isHomeFixture ? match.awayScore === 0 : match.homeScore === 0);
+      }).length
     : 0;
 
   return {
