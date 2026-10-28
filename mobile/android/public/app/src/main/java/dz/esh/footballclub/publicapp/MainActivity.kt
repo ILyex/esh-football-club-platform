@@ -414,7 +414,7 @@ private fun PublicApp() {
                 Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 22.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Text(L(locale, "اكتشف النادي", "Explorer le club"), color = PrimaryText, fontSize = 19.sp, fontWeight = FontWeight.Black)
+                Text(L(locale, "اكتشف الجمعية", "Découvrir l’association"), color = PrimaryText, fontSize = 19.sp, fontWeight = FontWeight.Black)
                 Text(L(locale, "كل أخبار الفريق ومحتواه في مكان واحد", "Toutes les actualités et contenus du club au même endroit"), color = SecondaryText, fontSize = 11.sp)
                 listOf(PublicTab.TEAM, PublicTab.NEWS, PublicTab.ALERTS).forEach { destination ->
                     val selected = tab == destination
@@ -943,66 +943,89 @@ private fun CupBracketTeamRow(team: PublicCupTeam, modifier: Modifier = Modifier
 
 @Composable
 private fun ClubScreen(data: PublicSnapshot, locale: String) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    val associationValues = listOf(
+        Triple(PublicIcons.Team, L(locale, "تكوين الأجيال", "Former les générations"), L(locale, "نرافق اللاعبين في تطورهم الرياضي ونبني مستقبلهم داخل الملعب وخارجه.", "Accompagner les joueurs dans leur progression et construire leur avenir, sur le terrain comme en dehors.")),
+        Triple(PublicIcons.Shield, L(locale, "الانتماء لسيدي حسني", "Fiers de Sidi Hosni"), L(locale, "نمثل مدينتنا ونحمل ألوانها بكل فخر في كل منافسة.", "Représenter notre ville et porter ses couleurs avec fierté à chaque compétition.")),
+        Triple(PublicIcons.Training, L(locale, "روح الفريق", "L’esprit collectif"), L(locale, "الاحترام والانضباط والعمل الجماعي أساس كل خطوة.", "Le respect, la discipline et le collectif guident chaque étape."))
+    )
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(27.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .28f), PanelRaised, Canvas)))) {
-                data.club.hero?.let { hero -> AsyncImage(model = hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .52f) }
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Canvas.copy(alpha = .12f), Canvas.copy(alpha = .34f), Canvas.copy(alpha = .97f)))))
-                Box(Modifier.align(Alignment.TopEnd).padding(20.dp).size(118.dp).clip(CircleShape).background(Accent.copy(alpha = .10f)))
-                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            ScreenHeading(
+                L(locale, "عن الجمعية", "L’association"),
+                L(locale, "هويتنا ورسالتنا في سيدي حسني", "Notre identité et notre engagement à Sidi Hosni"),
+                PublicIcons.Club
+            )
+        }
+        item {
+            Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(27.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .30f), PanelRaised, Canvas))).border(1.dp, Hairline, RoundedCornerShape(27.dp))) {
+                data.club.hero?.let { hero -> AsyncImage(model = hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .46f) }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Canvas.copy(alpha = .18f), Canvas.copy(alpha = .48f), Canvas.copy(alpha = .98f)))))
+                Box(Modifier.align(Alignment.TopEnd).padding(20.dp).size(142.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Accent.copy(alpha = .20f), Color.Transparent))))
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(64.dp).clip(CircleShape).background(Color.White).border(2.dp, Accent.copy(alpha = .8f), CircleShape).padding(6.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(62.dp).clip(CircleShape).background(Color.White).border(2.dp, Accent.copy(alpha = .9f), CircleShape).padding(6.dp), contentAlignment = Alignment.Center) {
                             AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("ESH  ·  SIDI HOSNI", color = Color.White.copy(alpha = .82f), fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
-                            Text(data.club.shortName.ifBlank { "ESH" }, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(L(locale, "الجمعية الرياضية", "ASSOCIATION SPORTIVE"), color = Accent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            Text(data.club.shortName.ifBlank { "ESH" }, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(L(locale, "سيدي حسني · كرة القدم", "Sidi Hosni · Football"), color = Color.White.copy(alpha = .78f), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    Text(data.club.name, color = Color.White.copy(alpha = .92f), fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(data.club.name, color = Color.White.copy(alpha = .94f), fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
         item {
-            Column(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(22.dp)).padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AboutMetric(data.teams.size.toString(), L(locale, "فئات الجمعية", "Catégories"), Modifier.weight(1f))
+                AboutMetric(data.albums.size.toString(), L(locale, "ألبومات الصور", "Albums photos"), Modifier.weight(1f))
+            }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(23.dp), accentGlow = true).padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(18.dp)) }
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(Accent.copy(alpha = .14f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(19.dp)) }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(L(locale, "حكاية النادي", "Le club"), color = PrimaryText, fontWeight = FontWeight.Black, fontSize = 15.sp)
-                        Text(L(locale, "فريق من سيدي حسني، يجمعنا شغف كرة القدم", "Le football et Sidi Hosni nous rassemblent"), color = SecondaryText, fontSize = 10.sp)
+                        Text(L(locale, "رسالتنا", "Notre engagement"), color = PrimaryText, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                        Text(L(locale, "رياضة تجمع أبناء المدينة", "Le sport rassemble notre ville"), color = SecondaryText, fontSize = 10.sp)
                     }
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
-                Text(data.club.description?.takeIf { it.isNotBlank() } ?: L(locale, "الجمعية الرياضية أمل سيدي حسني لكرة القدم. نعمل بروح الفريق ونمثل مدينتنا في الميدان.", "L’Association Sportive Espoir Sidi Hosni fait vivre le football avec l’esprit d’équipe et représente sa ville sur le terrain."), color = PrimaryText.copy(alpha = .84f), fontSize = 13.sp, lineHeight = 22.sp)
+                Text(data.club.description?.takeIf { it.isNotBlank() } ?: L(locale, "الجمعية الرياضية أمل سيدي حسني لكرة القدم. نعمل بروح الفريق ونمثل مدينتنا في الميدان.", "L’Association Sportive Espoir Sidi Hosni fait vivre le football avec l’esprit d’équipe et représente sa ville sur le terrain."), color = PrimaryText.copy(alpha = .88f), fontSize = 13.sp, lineHeight = 23.sp)
             }
         }
-        item {
-            SectionHeading(L(locale, "ما يجمعنا", "Nos valeurs"), PublicIcons.Shield, locale)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(end = 2.dp)) {
-                items(listOf(
-                    L(locale, "التكوين", "Formation") to L(locale, "تطوير اللاعبين داخل الملعب وخارجه.", "Accompagner chaque joueur sur et en dehors du terrain."),
-                    L(locale, "المنافسة", "Compétition") to L(locale, "تمثيل سيدي حسني بفخر في المنافسات.", "Porter les couleurs de Sidi Hosni avec fierté."),
-                    L(locale, "روح الفريق", "Esprit d’équipe") to L(locale, "الاحترام والانضباط والعمل الجماعي.", "Cultiver le respect, la discipline et le collectif.")
-                )) { (title, detail) ->
-                    Column(Modifier.width(218.dp).siteGlass(RoundedCornerShape(19.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Shield, null, Accent, Modifier.size(17.dp)) }
-                        Text(title, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(detail, color = SecondaryText, fontSize = 10.sp, lineHeight = 16.sp, minLines = 2, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        item { SectionHeading(L(locale, "قيم الجمعية", "Nos valeurs"), PublicIcons.Shield, locale) }
+        items(associationValues, key = { it.second }) { (icon, title, detail) ->
+            Row(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(19.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(icon, null, Accent, Modifier.size(20.dp)) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(title, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(detail, color = SecondaryText, fontSize = 10.sp, lineHeight = 16.sp)
+                }
+            }
+        }
+        data.club.stadium?.takeIf { it.isNotBlank() }?.let { stadium ->
+            item {
+                Row(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(19.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(19.dp)) }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(L(locale, "مقر الجمعية", "Notre stade"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(stadium, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 18.sp)
                     }
                 }
             }
         }
-        data.club.stadium?.takeIf { it.isNotBlank() }?.let { stadium -> item {
-            Row(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(18.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                Box(Modifier.size(39.dp).clip(RoundedCornerShape(13.dp)).background(Accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Club, null, Accent, Modifier.size(19.dp)) }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(L(locale, "ملعبنا", "Notre stade"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text(stadium, color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 18.sp)
-                }
-            }
-        } }
-        if (data.trainings.isNotEmpty()) item { SectionHeading(L(locale, "موعدنا القادم", "Prochains entraînements"), PublicIcons.Training, locale) }
-        items(data.trainings, key = { "club-training-${it.id}" }) { TrainingCard(it, locale) }
+        if (data.trainings.isNotEmpty()) item { SectionHeading(L(locale, "أنشطة الجمعية", "Activités de l’association"), PublicIcons.Training, locale) }
+        items(data.trainings, key = { "association-training-${it.id}" }) { TrainingCard(it, locale) }
+    }
+}
+
+@Composable
+private fun AboutMetric(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier.siteGlass(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(value, color = Accent, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        Text(label, color = SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1793,7 +1816,7 @@ private fun PublicTab.label(locale: String) = when (this) {
     PublicTab.COMPETITIONS -> L(locale, "المسابقات", "Compétitions")
     PublicTab.NEWS -> L(locale, "الأخبار", "Actualités")
     PublicTab.GALLERY -> L(locale, "المعرض", "Galerie")
-    PublicTab.CLUB -> L(locale, "النادي", "Club")
+    PublicTab.CLUB -> L(locale, "الجمعية", "Association")
     PublicTab.ALERTS -> L(locale, "التنبيهات", "Notifications")
 }
 private fun L(locale: String, arabic: String, french: String) = if (locale == "ar") arabic else french
