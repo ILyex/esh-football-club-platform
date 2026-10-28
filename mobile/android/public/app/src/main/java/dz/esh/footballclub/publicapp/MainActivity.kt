@@ -1246,13 +1246,15 @@ private fun SectionHeading(title: String, icon: Int, locale: String, action: (()
 
 @Composable
 private fun ScreenHeading(title: String, subtitle: String, icon: Int) {
-    Surface(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(21.dp), accentGlow = true).padding(bottom = 3.dp), color = Color.Transparent, shape = RoundedCornerShape(21.dp), shadowElevation = 6.dp) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppIcon(icon, null, Accent, Modifier.size(23.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(subtitle, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
+    Row(
+        Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 4.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        AppIcon(icon, null, Accent, Modifier.size(22.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
