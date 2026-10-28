@@ -81,7 +81,7 @@ object PublicApi {
             trainings = json.optJSONArray("trainings").objects().map { item -> PublicTraining(item.optString("id"), item.optString("date"), item.optString("startTime"), item.optString("endTime"), item.optNullable("location"), item.optString("teamCategory", "SENIOR"), item.optString("teamName")) },
             news = json.optJSONArray("news").objects().map { item -> PublicNews(item.optString("id"), item.optString("slug"), item.optString("title"), item.optString("excerpt"), item.url("featuredImageUrl"), item.optNullable("category"), item.optString("publishedAt")) },
             announcements = json.optJSONArray("announcements").objects().map { item -> PublicAnnouncement(item.optString("id"), item.optString("title"), item.optString("content"), item.optString("priority")) },
-            albums = json.optJSONArray("albums").objects().map { item -> PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("samplePhotos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.optString("url"), photo.optNullable("caption")) }) },
+            albums = json.optJSONArray("albums").objects().map { item -> PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("samplePhotos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.url("url") ?: "", photo.optNullable("caption")) }) },
             reels = json.optJSONArray("reels").objects().map { item -> PublicReel(item.optString("id"), item.optString("title"), item.optString("url"), item.optString("platform")) },
             teams = json.optJSONArray("teams").objects().map { item -> PublicTeam(item.optString("id"), item.optString("category"), item.optString("name"), item.optNullable("description"), item.intOrNull("birthYearFrom"), item.intOrNull("birthYearTo"), item.optInt("playerCount")) },
             competitions = json.optJSONArray("competitions").objects().map(::competition)
@@ -154,7 +154,7 @@ object PublicApi {
 
     fun album(id: String, locale: String): PublicAlbum {
         val item = JSONObject(request("/api/public/mobile/gallery/${encode(id)}?locale=$locale"))
-        return PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("photos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.optString("url"), photo.optNullable("caption")) })
+        return PublicAlbum(item.optString("id"), item.optString("name"), item.optNullable("description"), item.url("coverImageUrl"), item.optInt("photoCount"), item.optString("category"), item.optJSONArray("photos").objects().map { photo -> PublicPhoto(photo.optString("id"), photo.url("url") ?: "", photo.optNullable("caption")) })
     }
 
     fun registerDevice(token: String, locale: String) {
@@ -199,6 +199,10 @@ object PublicApi {
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
     private fun JSONArray?.objects(): List<JSONObject> = this?.let { array -> (0 until array.length()).mapNotNull { array.optJSONObject(it) } }.orEmpty()
     private fun JSONObject.optNullable(key: String): String? = optString(key).takeIf { it.isNotBlank() && it != "null" }
-    private fun JSONObject.url(key: String): String? = optNullable(key)?.let { if (it.startsWith("/")) PUBLIC_API_ORIGIN + it else it }
+    private fun JSONObject.url(key: String): String? = optNullable(key)?.let { value ->
+        if (value.startsWith("https://") || value.startsWith("http://")) value
+        else if (value.startsWith("//")) "https:$value"
+        else "$PUBLIC_API_ORIGIN/${value.trimStart('/')}"
+    }
     private fun JSONObject.intOrNull(key: String): Int? = if (!has(key) || isNull(key)) null else optInt(key)
 }

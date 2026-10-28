@@ -24,22 +24,6 @@ object LiveMatchNotifications {
 
     fun isTracking(context: Context, matchId: String): Boolean = matchId in trackedMatches(context)
 
-    /** Start tracking only after the supporter explicitly asks to follow a live match. */
-    fun follow(context: Context, match: PublicMatch) {
-        if (match.status != "LIVE") return
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) + match.id).apply()
-        val isArabic = prefs.getString(PublicMessagingService.LOCALE, "ar") == "ar"
-        update(context, mapOf(
-            "matchId" to match.id,
-            "kind" to "FOLLOW_STARTED",
-            "homeTeamName" to match.home,
-            "awayTeamName" to match.away,
-            "homeScore" to (match.homeScore ?: 0).toString(),
-            "awayScore" to (match.awayScore ?: 0).toString()
-        ), if (isArabic) "تم تفعيل متابعة المباراة" else "Suivi du match activé")
-    }
-
     /** Reconciles active notifications when the public feed is first loaded or refreshed. */
     fun sync(context: Context, matches: List<PublicMatch>) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -48,7 +32,11 @@ object LiveMatchNotifications {
         val allMatches = matches.associateBy { it.id }
         tracked.filter { id -> allMatches[id]?.status?.let { it != "LIVE" } == true }
             .forEach { finish(context, it) }
-        val active = matches.filter { it.status == "LIVE" && it.id in trackedMatches(context) }.associateBy { it.id }
+        val activeMatches = matches.filter { it.status == "LIVE" }.associateBy { it.id }
+        if (activeMatches.isNotEmpty()) {
+            prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) + activeMatches.keys).apply()
+        }
+        val active = activeMatches
         val next = JSONObject()
 
         active.values.forEach { match ->
@@ -73,7 +61,11 @@ object LiveMatchNotifications {
     fun update(context: Context, data: Map<String, String>, eventTitle: String) {
         val matchId = data["matchId"]?.takeIf(String::isNotBlank) ?: return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (matchId !in trackedMatches(context)) return
+        if (matchId !in trackedMatches(context)) {
+            val kind = data["kind"]
+            if (kind !in setOf("MATCH_STARTED", "MATCH_REOPENED", "GOAL")) return
+            prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) + matchId).apply()
+        }
 
         val home = data["homeTeamName"].orEmpty()
         val away = data["awayTeamName"].orEmpty()
@@ -132,7 +124,12 @@ object LiveMatchNotifications {
 
     fun finish(context: Context, matchId: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) - matchId).apply()
+        val states = runCatching { JSONObject(prefs.getString(LIVE_STATES, "{}") ?: "{}") }.getOrDefault(JSONObject())
+        states.remove(matchId)
+        prefs.edit()
+            .putStringSet(TRACKED_MATCHES, trackedMatches(context) - matchId)
+            .putString(LIVE_STATES, states.toString())
+            .apply()
         cancelNotification(context, matchId)
     }
 
