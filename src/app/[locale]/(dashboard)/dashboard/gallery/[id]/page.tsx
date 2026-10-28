@@ -12,6 +12,7 @@ import { GalleryActionForm } from "@/components/gallery/gallery-action-form";
 import { GalleryMediaUploadForm } from "@/components/gallery/gallery-media-upload-form";
 import { Save, Trash2, Star, Play, Video } from "lucide-react";
 import { isVideoUrl } from "@/lib/media-utils";
+import { getMutationScopeContext } from "@/lib/mutation-guards";
 
 const CATEGORIES = ["MATCHES", "TRAINING", "TEAM", "EVENTS", "CLUB"] as const;
 
@@ -24,6 +25,7 @@ export default async function AlbumDetailPage({ params, searchParams }: { params
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
   const canManage = hasPermission(user, "gallery.manage");
+  const scope = canManage ? await getMutationScopeContext() : null;
 
   const [album, teams] = await Promise.all([
     db.album.findUnique({ where: { id }, include: { media: { orderBy: { order: "asc" } } } }),
@@ -31,9 +33,12 @@ export default async function AlbumDetailPage({ params, searchParams }: { params
   ]);
   if (!album) notFound();
   const categoryOptions = CATEGORIES.map((category) => ({ value: category, label: t(`categories.${category}` as any) }));
+  const availableTeams = !scope || scope.isUnrestricted
+    ? teams
+    : teams.filter((team) => scope.authorizedTeamIds.includes(team.id));
   const teamOptions = [
     { value: "", label: isAr ? "بدون فريق" : "Sans équipe" },
-    ...teams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))
+    ...availableTeams.map((team) => ({ value: team.id, label: tTeams(`categories.${team.category}` as any) }))
   ];
 
   async function update(formData: FormData) {
@@ -54,7 +59,7 @@ export default async function AlbumDetailPage({ params, searchParams }: { params
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <NoticeToast notice={sp.notice} />
       {/* ── Album Metadata Form ──────────────────────────────────── */}
-      <GalleryActionForm action={update} successMessage={isAr ? "تم حفظ الألبوم بنجاح" : "Album enregistré avec succès"} errorMessage={isAr ? "تعذر حفظ الألبوم" : "Impossible d’enregistrer l’album"} className="grid grid-cols-1 gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+      <GalleryActionForm action={update} locale={locale} successMessage={isAr ? "تم حفظ الألبوم بنجاح" : "Album enregistré avec succès"} errorMessage={isAr ? "تعذر حفظ الألبوم" : "Impossible d’enregistrer l’album"} className="grid grid-cols-1 gap-5 rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6">
         <div className="sm:col-span-2 flex items-center justify-between border-b border-border/70 pb-4">
           <h1 className="text-xl font-black tracking-tight text-foreground">{album.name}</h1>
           <span className="text-xs text-muted-foreground">

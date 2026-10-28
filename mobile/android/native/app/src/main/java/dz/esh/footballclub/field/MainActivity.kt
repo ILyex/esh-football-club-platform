@@ -2003,8 +2003,10 @@ private fun MatchCard(
     var eventToDelete by remember(match.id) { mutableStateOf<NativeEvent?>(null) }
     val clubSide = if (match.isHomeFixture) "HOME" else "AWAY"
     val displayedScore = if (match.isHomeFixture) "${match.clubScore ?: 0} : ${match.opponentScore ?: 0}" else "${match.opponentScore ?: 0} : ${match.clubScore ?: 0}"
-    val currentClubScore = if (match.isHomeFixture) clubScore else opponentScore
-    val currentOpponentScore = if (match.isHomeFixture) opponentScore else clubScore
+    // API values are always from the club/opponent perspective. Only the
+    // scoreboard display and the final home/away payload should be flipped.
+    val currentClubScore = clubScore
+    val currentOpponentScore = opponentScore
     val statusAccent = when (match.status) { "LIVE" -> Red; "FINISHED" -> Mint; "POSTPONED" -> Color(0xFFF0A52B); else -> Muted }
     val shape = RoundedCornerShape(22.dp)
     Column(Modifier.fillMaxWidth().animateContentSize().clip(shape).background(Brush.linearGradient(listOf(CardStart, CardEnd))).border(1.dp, GlassBorder, shape)) {
@@ -2060,13 +2062,13 @@ private fun MatchCard(
                     Text(L(locale, "تعديل النتيجة وحالة المباراة", "Score et état du match"), color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Glass).border(1.dp, GlassBorder, RoundedCornerShape(16.dp)).padding(horizontal = 10.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ScoreStepper(L(locale, "فريق النادي", "Notre équipe"), currentClubScore, enabled = !saving, modifier = Modifier.weight(1f)) { value ->
-                            if (!saving && value >= 0) { clubScore = value; onUpdate(match, if (match.isHomeFixture) value else currentOpponentScore, if (match.isHomeFixture) currentOpponentScore else value, null) }
+                            if (!saving && value >= 0) { clubScore = value; onUpdate(match, value, currentOpponentScore, null) }
                         }
                         Box(Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(CardEnd), contentAlignment = Alignment.Center) {
                             Text(":", color = Muted, fontSize = 18.sp, fontWeight = FontWeight.Black)
                         }
                         ScoreStepper(L(locale, "الخصم", "Adversaire"), currentOpponentScore, enabled = !saving, modifier = Modifier.weight(1f)) { value ->
-                            if (!saving && value >= 0) { opponentScore = value; onUpdate(match, if (match.isHomeFixture) currentClubScore else value, if (match.isHomeFixture) value else currentClubScore, null) }
+                            if (!saving && value >= 0) { opponentScore = value; onUpdate(match, currentClubScore, value, null) }
                         }
                     }
                     val statusActions = when (match.status) {
@@ -2407,26 +2409,28 @@ private fun LegacyMatchCard(
 private fun ScoreStepper(label: String, score: Int, enabled: Boolean = true, modifier: Modifier = Modifier, onChange: (Int) -> Unit) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+          Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             Surface(
                 onClick = { if (score > 0) onChange(score - 1) },
                 enabled = enabled && score > 0,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(32.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = if (enabled && score > 0) CardEnd else CardEnd.copy(alpha = .45f),
                 border = BorderStroke(1.dp, GlassBorder)
             ) { Box(contentAlignment = Alignment.Center) { Text("−", color = if (enabled && score > 0) AppText else Muted, fontSize = 20.sp, fontWeight = FontWeight.Medium) } }
-            Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(12.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .22f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Text(score.toString(), color = AppText, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Box(Modifier.weight(1f).widthIn(min = 28.dp).height(34.dp).clip(RoundedCornerShape(11.dp)).background(RedGlow).border(1.dp, Red.copy(alpha = .22f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                Text(score.toString(), color = AppText, fontSize = 18.sp, fontWeight = FontWeight.Black)
             }
             Surface(
                 onClick = { onChange(score + 1) },
                 enabled = enabled,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(32.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = Red.copy(alpha = .14f),
                 border = BorderStroke(1.dp, Red.copy(alpha = .25f))
             ) { Box(contentAlignment = Alignment.Center) { Text("+", color = Red, fontSize = 20.sp, fontWeight = FontWeight.Bold) } }
+          }
         }
     }
 }

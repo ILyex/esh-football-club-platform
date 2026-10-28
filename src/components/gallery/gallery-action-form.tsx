@@ -8,6 +8,7 @@ export function GalleryActionForm({
   action,
   successMessage,
   errorMessage,
+  locale,
   redirectTo,
   children,
   ...props
@@ -15,6 +16,7 @@ export function GalleryActionForm({
   action: (formData: FormData) => Promise<unknown>;
   successMessage: string;
   errorMessage: string;
+  locale?: string;
   redirectTo?: string;
   children: ReactNode;
 } & Omit<FormHTMLAttributes<HTMLFormElement>, "action">) {
@@ -25,7 +27,11 @@ export function GalleryActionForm({
       {...props}
       action={async (formData) => {
         try {
-          await action(formData);
+          const result = await action(formData) as { error?: string } | undefined;
+          if (result?.error === "team_required") {
+            toast.error(locale === "fr" ? "Choisissez une équipe que vous gérez pour enregistrer l’album." : "اختر الفريق الذي تدير فئته لحفظ الألبوم.");
+            return;
+          }
           toast.success(successMessage);
           if (redirectTo) router.push(redirectTo);
           else router.refresh();

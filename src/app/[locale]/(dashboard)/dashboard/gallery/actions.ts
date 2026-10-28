@@ -14,20 +14,43 @@ export async function createAlbumAction(formData: FormData) {
   const scopeContext = await getMutationScopeContext();
   const raw = Object.fromEntries(formData.entries());
   const parsed = albumSchema.parse(raw);
-  assertTeamScope(scopeContext, parsed.teamId || null, "Album");
+  const teamId = parsed.teamId || (!scopeContext.isUnrestricted && scopeContext.authorizedTeamIds.length === 1
+    ? scopeContext.authorizedTeamIds[0]
+    : null);
+  if (!scopeContext.isUnrestricted && !teamId) return { error: "team_required" as const };
+  assertTeamScope(scopeContext, teamId, "Album");
 
-  const album = await db.album.create({
-    data: {
-      name: parsed.name,
-      description: parsed.description,
-      category: parsed.category,
-      teamId: parsed.teamId || null,
-      published: parsed.published,
-      createdById: user.id
-    }
+  const album = await db.$transaction(async (tx) => {
+    const created = await tx.album.create({
+      data: {
+        name: parsed.name,
+        description: parsed.description,
+        category: parsed.category,
+        teamId,
+        published: parsed.published,
+        createdById: user.id
+      }
+    });
+
+    // Keep the mutation and its audit record atomic. Normalize optional values
+    // to null so Prisma's JSON serializer never receives `undefined`.
+    await writeAuditLog({
+      userId: user.id,
+      action: "album.create",
+      entityType: "Album",
+      entityId: created.id,
+      changes: {
+        after: {
+          name: parsed.name,
+          description: parsed.description ?? null,
+          category: parsed.category,
+          teamId,
+          published: parsed.published
+        }
+      }
+    }, tx);
+    return created;
   });
-
-  await writeAuditLog({ userId: user.id, action: "album.create", entityType: "Album", entityId: album.id, changes: { after: parsed } });
   revalidatePath("/[locale]/dashboard/gallery", "page");
   revalidatePath("/[locale]/gallery", "page");
   revalidatePath("/[locale]", "page");
@@ -41,20 +64,41 @@ export async function updateAlbumAction(albumId: string, formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = albumSchema.parse(raw);
+  if (!scopeContext.isUnrestricted && !parsed.teamId) return { error: "team_required" as const };
   assertDualTeamScope(scopeContext, before.teamId, parsed.teamId || null, "Album");
 
-  const album = await db.album.update({
-    where: { id: albumId },
-    data: {
-      name: parsed.name,
-      description: parsed.description,
-      category: parsed.category,
-      teamId: parsed.teamId || null,
-      published: parsed.published
-    }
-  });
+  const updateData = {
+    name: parsed.name,
+    description: parsed.description,
+    category: parsed.category,
+    teamId: parsed.teamId || null,
+    published: parsed.published
+  };
+  const auditAfter = { ...updateData, description: parsed.description ?? before.description ?? null };
+  const album = await db.$transaction(async (tx) => {
+    const updated = await tx.album.update({
+      where: { id: albumId },
+      data: updateData
+    });
 
-  await writeAuditLog({ userId: user.id, action: "album.update", entityType: "Album", entityId: album.id, changes: { before, after: parsed } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "album.update",
+      entityType: "Album",
+      entityId: updated.id,
+      changes: {
+        before: {
+          name: before.name,
+          description: before.description,
+          category: before.category,
+          teamId: before.teamId,
+          published: before.published
+        },
+        after: auditAfter
+      }
+    }, tx);
+    return updated;
+  });
   revalidatePath("/[locale]/dashboard/gallery", "page");
   revalidatePath(`/[locale]/dashboard/gallery/${albumId}`, "page");
   revalidatePath("/[locale]/gallery", "page");

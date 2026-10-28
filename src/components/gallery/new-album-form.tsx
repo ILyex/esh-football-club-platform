@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
 import { MultiImageUploader } from "@/components/shared/multi-image-uploader";
 
-type ActionResult = { id: string };
+type ActionResult = { id?: string; error?: string };
 type CreateAction = (formData: FormData) => Promise<ActionResult>;
 type UploadAction = (albumId: string, formData: FormData) => Promise<unknown>;
 
@@ -44,6 +44,8 @@ export function NewAlbumForm({
   locale,
   categoryOptions,
   teamOptions,
+  defaultTeamId,
+  teamRequired,
   saveLabel,
   createAction,
   uploadAction
@@ -51,6 +53,8 @@ export function NewAlbumForm({
   locale: string;
   categoryOptions: { value: string; label: string }[];
   teamOptions: { value: string; label: string }[];
+  defaultTeamId: string;
+  teamRequired: boolean;
   saveLabel: string;
   createAction: CreateAction;
   uploadAction: UploadAction;
@@ -72,7 +76,17 @@ export function NewAlbumForm({
       const files = formData.getAll("images").filter((entry): entry is File => entry instanceof File && entry.size > 0);
       formData.delete("images");
 
+      if (teamRequired && !String(formData.get("teamId") ?? defaultTeamId).trim()) {
+        throw new Error(isAr ? "اختر الفريق الذي تدير فئته لحفظ الألبوم." : "Choisissez une équipe que vous gérez pour enregistrer l’album.");
+      }
+
+      if (formData.get("teamId") === null) formData.set("teamId", defaultTeamId);
+
       const album = await createAction(formData);
+      if (album.error === "team_required") {
+        throw new Error(isAr ? "اختر الفريق الذي تدير فئته لحفظ الألبوم." : "Choisissez une équipe que vous gérez pour enregistrer l’album.");
+      }
+      if (!album.id) throw new Error(isAr ? "تعذر إنشاء الألبوم. أعد المحاولة." : "Impossible de créer l’album. Réessayez.");
       createdAlbumId = album.id;
       let uploaded = 0;
       for (const [index, original] of files.entries()) {
@@ -80,7 +94,7 @@ export function NewAlbumForm({
         const file = await prepareGalleryImage(original);
         const mediaData = new FormData();
         mediaData.append("images", file, file.name);
-        const result = await uploadAction(album.id, mediaData) as { error?: string } | undefined;
+      const result = await uploadAction(album.id, mediaData) as { error?: string } | undefined;
         if (result?.error) throw new Error(result.error);
         uploaded += 1;
       }
@@ -114,7 +128,7 @@ export function NewAlbumForm({
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-bold text-foreground">{isAr ? "الفريق" : "Équipe"}</label>
-        <FormSelect name="teamId" locale={locale} options={teamOptions} ariaLabel={isAr ? "الفريق" : "Équipe"} />
+        <FormSelect name="teamId" defaultValue={defaultTeamId} locale={locale} options={teamOptions} ariaLabel={isAr ? "الفريق" : "Équipe"} />
       </div>
       <label className="group sm:col-span-2 inline-flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3.5 text-xs font-semibold text-foreground">
         <input type="hidden" name="published" value="false" />

@@ -4,24 +4,29 @@ import { requirePagePermission } from "@/lib/permissions";
 import { createAlbumAction } from "../actions";
 import { NewAlbumForm } from "@/components/gallery/new-album-form";
 import { uploadMediaAction } from "../actions";
+import { getMutationScopeContext } from "@/lib/mutation-guards";
 
 const CATEGORIES = ["MATCHES", "TRAINING", "TEAM", "EVENTS", "CLUB"] as const;
 
 export default async function NewAlbumPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   await requirePagePermission("gallery.manage", locale);
+  const scope = await getMutationScopeContext();
   const t = await getTranslations("gallery");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");
 
   const teams = await db.team.findMany({ orderBy: { category: "asc" } });
+  const availableTeams = scope.isUnrestricted
+    ? teams
+    : teams.filter((team) => scope.authorizedTeamIds.includes(team.id));
   const categoryOptions = CATEGORIES.map((category) => ({
     value: category,
     label: t(`categories.${category}` as any)
   }));
   const teamOptions = [
     { value: "", label: locale === "ar" ? "بدون فريق" : "Sans équipe" },
-    ...teams.map((team) => ({
+    ...availableTeams.map((team) => ({
       value: team.id,
       label: tTeams(`categories.${team.category}` as any)
     }))
@@ -48,6 +53,8 @@ export default async function NewAlbumPage({ params }: { params: Promise<{ local
         locale={locale}
         categoryOptions={categoryOptions}
         teamOptions={teamOptions}
+        defaultTeamId={!scope.isUnrestricted && scope.authorizedTeamIds.length === 1 ? scope.authorizedTeamIds[0] ?? "" : ""}
+        teamRequired={!scope.isUnrestricted}
         saveLabel={tCommon("save")}
         createAction={create}
         uploadAction={upload}

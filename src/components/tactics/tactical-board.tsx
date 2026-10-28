@@ -649,7 +649,26 @@ export function TacticalBoard({ locale, canEdit, teams, coaches, plans: initialP
                 <label htmlFor="tactics-animation-duration" className="shrink-0 text-[11px] font-semibold text-muted-foreground">{t.seconds}</label>
                 <input id="tactics-animation-duration" aria-label={t.seconds} title="2–60" type="number" min={2} max={60} step={1} value={durationDraft} disabled={!canEditActive || playing} onChange={(event) => setDurationDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); applyAnimationDuration(); } }} onBlur={applyAnimationDuration} className="tactics-duration h-8 w-16 text-center tabular-nums" />
               </div>
-              <label className={`tactics-video-control flex min-w-0 items-end gap-2 rounded-xl border border-border bg-background p-2.5 ${expanded ? "tactics-video-control-compact" : ""}`}><span className="mb-2 flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><Gauge size={14}/>{t.playbackSpeed}</span><select aria-label={t.playbackSpeed} value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} className="tactics-duration tactics-speed-select h-9 min-w-20"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+              <div className={`tactics-video-control flex min-w-0 items-center gap-2 rounded-xl border border-border bg-background p-2.5 ${expanded ? "tactics-video-control-compact" : ""}`}>
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><Gauge size={14}/>{t.playbackSpeed}</span>
+                <div className="w-[5.25rem] shrink-0">
+                  <FormSelect
+                    name="playbackRate"
+                    ariaLabel={t.playbackSpeed}
+                    locale={locale}
+                    compact
+                    value={String(playbackRate)}
+                    onValueChange={(value) => setPlaybackRate(Number(value))}
+                    options={[
+                      { value: "0.5", label: "0.5×" },
+                      { value: "1", label: "1×" },
+                      { value: "1.5", label: "1.5×" },
+                      { value: "2", label: "2×" }
+                    ]}
+                    triggerClassName="h-9 min-h-9 rounded-lg border-border/80 bg-card px-2.5 text-xs font-bold tabular-nums shadow-sm"
+                  />
+                </div>
+              </div>
               <button type="button" aria-pressed={loopPlayback} title={t.loop} onClick={() => setLoopPlayback((value) => !value)} className={`tactics-video-control flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${expanded ? "tactics-video-control-compact" : ""} ${loopPlayback ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}><Repeat2 size={16}/><span>{t.loop}</span><span className={`ms-auto rounded-full px-2 py-0.5 text-[10px] ${loopPlayback ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{loopPlayback ? (locale === "ar" ? "مفعّل" : "Activé") : (locale === "ar" ? "متوقف" : "Arrêté")}</span></button>
               <button type="button" title={t.deleteFrame} aria-label={t.deleteFrame} disabled={!canEditActive || currentKeyframeIndex < 0 || playing} onClick={deleteCurrentKeyframe} className={`tactics-video-control flex min-w-0 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 ${expanded ? "tactics-video-control-compact" : ""}`}><Trash size={15}/><span>{t.deleteFrame}</span></button>
             </div>

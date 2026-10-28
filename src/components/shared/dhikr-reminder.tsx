@@ -14,7 +14,7 @@ const DHIKR = [
   { ar: "لا حول ولا قوة إلا بالله", fr: "Il n’y a de force ni de puissance qu’en Allah." }
 ] as const;
 
-const INTERVAL_MS = 5 * 60 * 1_000;
+const INTERVAL_MS = 3 * 60 * 1_000;
 const DISPLAY_MS = 20 * 1_000;
 
 export function DhikrReminder({ locale }: { locale: string }) {
@@ -31,7 +31,7 @@ export function DhikrReminder({ locale }: { locale: string }) {
       if (dismissTimer !== undefined) window.clearTimeout(dismissTimer);
     };
 
-    const schedule = () => {
+    const schedule = (delayMs = INTERVAL_MS) => {
       if (document.hidden) return;
       showTimer = window.setTimeout(() => {
         if (document.hidden) {
@@ -42,9 +42,11 @@ export function DhikrReminder({ locale }: { locale: string }) {
         index += 1;
         dismissTimer = window.setTimeout(() => {
           setActiveIndex(null);
-          schedule();
+          // Keep reminder appearances on a three-minute cadence, including
+          // the time the current message stays visible.
+          schedule(Math.max(0, INTERVAL_MS - DISPLAY_MS));
         }, DISPLAY_MS);
-      }, INTERVAL_MS);
+      }, delayMs);
     };
 
     const onVisibilityChange = () => {
