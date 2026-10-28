@@ -103,14 +103,16 @@ export function PublicHeader({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group/nav relative inline-flex min-h-11 min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-club-primary/5 2xl:gap-1.5 2xl:px-2 2xl:text-sm after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 hover:after:scale-x-100 motion-reduce:after:transition-none ${
+                className={`group/nav relative inline-flex min-h-11 min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1.5 text-xs font-medium text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary/45 motion-reduce:transition-none 2xl:gap-1.5 2xl:px-2 2xl:text-sm ${
                   active
-                    ? "bg-club-primary/10 font-semibold text-foreground shadow-2xs after:scale-x-100"
-                      : "text-foreground hover:bg-club-primary/5"
+                    ? "font-semibold text-foreground"
+                    : "text-foreground hover:text-club-primary"
                 }`}
               >
-                <item.icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover/nav:scale-105 motion-reduce:transition-none" aria-hidden="true" />
-                {item.label}
+                <item.icon className={`h-3.5 w-3.5 shrink-0 transition-[color,transform] duration-150 group-hover/nav:scale-105 motion-reduce:transition-none ${active ? "text-club-primary" : "text-muted-foreground group-hover/nav:text-club-primary"}`} aria-hidden="true" />
+                <span className={`relative inline-block py-1 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-center after:rounded-full after:bg-club-primary after:transition-transform after:duration-200 motion-reduce:after:transition-none ${active ? "after:scale-x-100" : "after:scale-x-0 group-hover/nav:after:scale-x-100"}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
