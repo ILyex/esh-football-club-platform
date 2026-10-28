@@ -9,11 +9,11 @@ $secretFile = Join-Path $toolsRoot "signing-password.dpapi"
 $project = Join-Path $PSScriptRoot "public"
 $signingProperties = Join-Path $env:TEMP "esh-public-signing-$PID.properties"
 
-foreach ($requiredPath in @($jdk, $androidSdk, $keystore, $secretFile, (Join-Path $project "gradlew.bat"))) {
+foreach ($requiredPath in @($jdk, $androidSdk, (Join-Path $project "gradlew.bat"))) {
   if (-not (Test-Path -LiteralPath $requiredPath)) { throw "Required Android build file or tool is missing: $requiredPath" }
 }
 
-$securePassword = if (Test-Path -LiteralPath $secretFile) {
+$securePassword = if ((Test-Path -LiteralPath $secretFile) -and (Test-Path -LiteralPath $keystore)) {
   ConvertTo-SecureString -String (Get-Content -LiteralPath $secretFile -Raw).Trim()
 } else {
   Read-Host -Prompt "Enter the release signing password (input is hidden)" -AsSecureString

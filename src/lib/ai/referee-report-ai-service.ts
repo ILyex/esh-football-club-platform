@@ -15,6 +15,7 @@ export interface ParsedEventItem {
   minute: number;
   notes?: string;
   matchedPlayerName?: string;
+  substitutionPairKey?: string;
 }
 
 export interface RefereeReportAnalysisResult {
@@ -121,8 +122,8 @@ function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: S
     ASSIST: /تمريرة\s*حاسمة|صنع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
     YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|carton\s+jaune|avertissement|\byellow\b/iu,
     RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|carton\s+rouge|expulsion|\bred\s+card\b/iu,
-    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|remplaçant\s+entrant|entr[eé]\s+en\s+jeu|substitut\s+entrant/iu,
-    SUBSTITUTION_OUT: /خروج|خرج|استبدل|rempla[cç]ant\s+sortant|sorti\s+du\s+terrain|substitu[eé]\s+out/iu
+    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
+    SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
   };
 
   const player = squad.find((candidate) => candidate.id === event.playerId);
@@ -148,15 +149,12 @@ function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: S
     const timeTokens = line.match(/\d{1,3}(?:\s*\+\s*\d{1,2})?/gu) ?? [];
     return timeTokens.some((token) => parseEventMinute(token) === event.minute);
   };
-  const hasTypeEvidence = lines.some((line) => eventPattern[event.type].test(line));
-
   // PDF table extraction often places the event heading, player and minute on
   // adjacent lines instead of one sentence. Accept a compact row window while
   // still requiring both the exact player and exact minute in that window.
-  return lines.some((line, index) => {
-    if (!lineHasName(line)) return false;
+  return lines.some((_line, index) => {
     const row = lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 3)).join(" ");
-    return lineHasMinute(row) && (eventPattern[event.type].test(row) || hasTypeEvidence);
+    return lineHasName(row) && lineHasMinute(row) && eventPattern[event.type].test(row);
   });
 }
 
@@ -170,6 +168,12 @@ function parseReportDeterministically(
 ): { events: ParsedEventItem[]; detectedScore?: { home: number; away: number } | null } {
   const events: ParsedEventItem[] = [];
   const lines = text.split(/[\r\n;.]+/);
+
+  // FAF and scanned referee sheets commonly put the two players in separate
+  // columns/lines. Recover explicit in/out roles from a small row window and
+  // emit a paired pair-key so the timeline links the correct players.
+  const substitutionEvents = parseSubstitutionsFromReport(text, squad);
+  events.push(...substitutionEvents);
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -263,7 +267,93 @@ function parseReportDeterministically(
   const scoreMatch = text.match(/(\d+)\s*[-–:]\s*(\d+)/);
   const detectedScore = scoreMatch ? { home: parseInt(scoreMatch[1]!, 10), away: parseInt(scoreMatch[2]!, 10) } : null;
 
-  return { events, detectedScore };
+  const uniqueEvents = events.filter((event, index) => events.findIndex((candidate) =>
+    candidate.type === event.type && candidate.playerId === event.playerId && candidate.minute === event.minute
+  ) === index);
+  return { events: uniqueEvents, detectedScore };
+}
+
+function parseSubstitutionsFromReport(text: string, squad: SquadPlayer[]): ParsedEventItem[] {
+  const lines = text.split(/\r?\n|[;]+/u).map((line) => line.trim()).filter(Boolean);
+  const substitutionSignal = /تبديل|تغييرات|تغيير|استبدال|دخل|دخول|الداخل|البديل|خرج|خروج|الخارج|المستبدل|بدلا\s+من|شارك\s+بدلا|remplacement|substitution|joueur\s+entrant|joueur\s+sortant|entrant|sortant|entr[eé]e|sortie|remplace|\bsub\b/iu;
+  const incomingCue = /دخول|دخل|الداخل|بديل|شارك|joueur\s+entrant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|\bin\b/iu;
+  const outgoingCue = /خروج|خرج|الخارج|المستبدل|استبدل|بدلا\s+من|مكان|joueur\s+sortant|sortant|sortie|sorti|remplac[eé]|\bout\b/iu;
+  const mentionedPlayers = (window: string) => {
+    const normalized = ` ${normalizeName(window)} `;
+    return squad.flatMap((player) => {
+      const variants = [
+        [player.firstName, player.lastName], [player.lastName, player.firstName],
+        [player.firstNameFr, player.lastNameFr], [player.lastNameFr, player.firstNameFr]
+      ].map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean).join(" "))
+        .filter((name) => name.split(" ").length >= 2);
+      const matching = variants.find((name) => normalized.includes(` ${name} `));
+      return matching ? [{ player, matching }] : [];
+    });
+  };
+  const roleDistance = (window: string, name: string, cue: RegExp) => {
+    const normalizedWindow = normalizeName(window);
+    const normalizedName = normalizeName(name);
+    const nameStart = normalizedWindow.indexOf(normalizedName);
+    if (nameStart < 0) return Number.POSITIVE_INFINITY;
+    const nameEnd = nameStart + normalizedName.length;
+    const flags = cue.flags.includes("g") ? cue.flags : `${cue.flags}g`;
+    const globalCue = new RegExp(cue.source, flags);
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const match of normalizedWindow.matchAll(globalCue)) {
+      const start = match.index ?? 0;
+      const end = start + (match[0]?.length ?? 0);
+      const distance = end < nameStart ? nameStart - end : start > nameEnd ? start - nameEnd : 0;
+      nearest = Math.min(nearest, distance);
+    }
+    return nearest;
+  };
+
+  const output: ParsedEventItem[] = [];
+  for (let index = 0; index < lines.length; index++) {
+    if (!substitutionSignal.test(lines[index]!)) continue;
+    substitutionSignal.lastIndex = 0;
+    const start = Math.max(0, index - 2);
+    const end = Math.min(lines.length, index + 3);
+    const window = lines.slice(start, end).join(" ");
+    const minute = eventMinuteFromReportLine(window);
+    if (!minute) continue;
+
+    const players = mentionedPlayers(window);
+    if (players.length < 1 || players.length > 2) continue;
+    const incoming = players.filter(({ matching }) => roleDistance(window, matching, incomingCue) <= 18);
+    const outgoing = players.filter(({ matching }) => roleDistance(window, matching, outgoingCue) <= 18);
+    const pairKey = `report-${minute}-${start}-${end}`;
+    const add = (entry: (typeof players)[number], type: "SUBSTITUTION_IN" | "SUBSTITUTION_OUT") => {
+      const { player } = entry;
+      const fullName = `${player.firstName} ${player.lastName}`;
+      output.push({
+        playerId: player.id,
+        playerName: fullName,
+        playerNameFr: [player.firstNameFr, player.lastNameFr].filter(Boolean).join(" ") || undefined,
+        shirtNumber: player.shirtNumber,
+        type,
+        minute,
+        notes: type === "SUBSTITUTION_IN" ? "دخول بالتبديل من تقرير الحكم" : "خروج بالتبديل من تقرير الحكم",
+        matchedPlayerName: fullName,
+        substitutionPairKey: pairKey
+      });
+    };
+
+    if (players.length === 2) {
+      const inPlayer = incoming.find((candidate) => !outgoing.includes(candidate)) ?? (incoming.length === 1 ? incoming[0] : undefined);
+      const outPlayer = outgoing.find((candidate) => !incoming.includes(candidate)) ?? (outgoing.length === 1 ? outgoing[0] : undefined);
+      if (inPlayer && outPlayer && inPlayer.player.id !== outPlayer.player.id) {
+        add(inPlayer, "SUBSTITUTION_IN");
+        add(outPlayer, "SUBSTITUTION_OUT");
+      }
+    } else if (players.length === 1) {
+      if (incoming.length === 1 && outgoing.length === 0) add(players[0]!, "SUBSTITUTION_IN");
+      else if (outgoing.length === 1 && incoming.length === 0) add(players[0]!, "SUBSTITUTION_OUT");
+    }
+  }
+  return output.filter((event, index) => output.findIndex((candidate) =>
+    candidate.type === event.type && candidate.playerId === event.playerId && candidate.minute === event.minute
+  ) === index);
 }
 
 /**
@@ -436,20 +526,43 @@ ${squadRoster}
     }
   }
 
-  // If AI output exists but none of it can be verified against the official
-  // text, try the rule-based parser before declaring the report event-free.
+  // Always run the deterministic parser as a second pass. AI often returns the
+  // goals correctly while omitting the two player rows for a substitution.
   const hasVerifiableAiEvent = parsedEvents.some((event) =>
     event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
   );
-  if (parsedEvents.length === 0 || !hasVerifiableAiEvent) {
-    const fallback = parseReportDeterministically(eventEvidenceText, squad);
-    const fallbackHasVerifiableEvent = fallback.events.some((event) =>
-      event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
+  const fallback = parseReportDeterministically(eventEvidenceText, squad);
+  const fallbackHasVerifiableEvent = fallback.events.some((event) =>
+    event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
+  );
+  for (const event of fallback.events) {
+    const duplicateIndex = parsedEvents.findIndex((candidate) =>
+      candidate.type === event.type && candidate.playerId === event.playerId && candidate.minute === event.minute
     );
-    if (fallbackHasVerifiableEvent || parsedEvents.length === 0) parsedEvents = fallback.events;
-    if (fallback.detectedScore) detectedScore = fallback.detectedScore;
-    if (fallbackHasVerifiableEvent || parsedEvents.length === 0) aiProviderUsed = "INTELLIGENT_NLP_ENGINE";
+    if (duplicateIndex < 0) parsedEvents.push(event);
+    else if (event.substitutionPairKey && !parsedEvents[duplicateIndex]!.substitutionPairKey) {
+      parsedEvents[duplicateIndex] = event;
+    }
   }
+  const substitutionMinutes = new Set(parsedEvents
+    .filter((event) => event.type === "SUBSTITUTION_IN" || event.type === "SUBSTITUTION_OUT")
+    .map((event) => event.minute));
+  for (const minute of substitutionMinutes) {
+    const incoming = parsedEvents.filter((event) => event.minute === minute && event.type === "SUBSTITUTION_IN");
+    const outgoing = parsedEvents.filter((event) => event.minute === minute && event.type === "SUBSTITUTION_OUT");
+    const usedOutgoing = new Set<ParsedEventItem>();
+    for (const entered of incoming) {
+      const matchedOut = outgoing.find((left) => !usedOutgoing.has(left) && entered.substitutionPairKey && entered.substitutionPairKey === left.substitutionPairKey)
+        ?? outgoing.find((left) => !usedOutgoing.has(left));
+      if (!matchedOut) continue;
+      usedOutgoing.add(matchedOut);
+      const pairKey = entered.substitutionPairKey || matchedOut.substitutionPairKey || `parsed-${match.id}-${minute}-${usedOutgoing.size}`;
+      entered.substitutionPairKey = pairKey;
+      matchedOut.substitutionPairKey = pairKey;
+    }
+  }
+  if (fallback.detectedScore && !detectedScore) detectedScore = fallback.detectedScore;
+  if ((!hasVerifiableAiEvent && fallbackHasVerifiableEvent) || (!parsedEvents.length && !hasVerifiableAiEvent)) aiProviderUsed = "INTELLIGENT_NLP_ENGINE";
 
   // Only persist events that can be verified in the source report itself.
   // This prevents model guesses or broad mentions in the narrative from
@@ -536,7 +649,9 @@ ${squadRoster}
         minute: item.minute,
         playerName: item.playerName,
         playerNameFr: item.playerNameFr || null,
-        notes: item.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي"
+        notes: item.substitutionPairKey
+          ? `__SUBSTITUTION_PAIR__:${item.substitutionPairKey}`
+          : item.notes || "أُضيف من تقرير الحكم باستخدام المساعد الذكي"
       }
     });
   }
@@ -627,10 +742,10 @@ ${squadRoster}
 
   const summary =
     newEventsToCreate.length > 0 || eventsCorrected > 0
-      ? `تم التعرف على ${newEventsToCreate.length} حدث رسمي وربط ${assistsLinked} تمريرة حاسمة بالأهداف المطابقة.`
+      ? `تم التعرف على ${newEventsToCreate.length} حدث رسمي، بما فيها التبديلات المرتبطة باللاعب الداخل والخارج، وربط ${assistsLinked} تمريرة حاسمة بالأهداف المطابقة.`
       : validEvents.length > 0
-      ? `تمت مطابقة الأحداث مع السجلات الحالية؛ الأحداث مسجلة مسبقاً بالفعل في ملفات اللاعبين.`
-      : `تم فحص التقرير بنجاح ولكن لم يتم العثور على أهداف أو بطاقات منسوبة للاعبي الفريق.`;
+      ? `تمت مطابقة الأحداث مع السجلات الحالية؛ الأهداف والبطاقات والتبديلات مسجلة مسبقاً في ملفات اللاعبين.`
+      : `تم فحص التقرير بنجاح ولكن لم يتم العثور على أهداف أو بطاقات أو تبديلات منسوبة للاعبي الفريق.`;
 
   return {
     success: true,

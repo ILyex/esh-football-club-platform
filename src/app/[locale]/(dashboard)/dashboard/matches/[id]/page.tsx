@@ -218,54 +218,95 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
         ? [matchDataTab, documentsTab, lineupTab, eventsTab, ...(match.hasPenaltyShootout ? [shootoutTab] : [])]
         : [matchDataTab, lineupTab, documentsTab, eventsTab, ...(match.hasPenaltyShootout ? [shootoutTab] : [])];
 
+  const homeLogoUrl = match.isHomeFixture ? "/branding/esh-logo-128.png" : opponentLogo;
+  const awayLogoUrl = match.isHomeFixture ? opponentLogo : "/branding/esh-logo-128.png";
+  const matchStatusLabel = match.status === "LIVE" ? t("statuses.LIVE")
+    : match.status === "FINISHED" ? t("statuses.FINISHED")
+      : match.status === "POSTPONED" ? t("statuses.POSTPONED")
+        : match.status === "CANCELLED" ? t("statuses.CANCELLED")
+          : t("statuses.SCHEDULED");
+
   return (
     <div className="mx-auto w-full max-w-screen-2xl space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-club-primary/[0.07] to-transparent" aria-hidden="true" />
-        <div className="relative px-4 py-6 sm:px-7 sm:py-8">
-          <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.16em] text-club-primary">
-            {t("manage")}
-          </p>
-          <div className="mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 text-center sm:gap-x-6">
-            <h1 className="min-w-0 break-words text-lg font-black leading-snug tracking-tight text-foreground sm:text-2xl">
-              {homeTeamName}
-            </h1>
-            <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-club-primary/20 bg-club-primary/10 px-2.5 text-[11px] font-black uppercase tracking-wider text-club-primary shadow-sm">
-              {locale === "ar" ? "ضد" : "VS"}
-            </span>
-            <h1 className="min-w-0 break-words text-lg font-black leading-snug tracking-tight text-foreground sm:text-2xl">
-              {awayTeamName}
-            </h1>
-          </div>
-
-          <div className={`mx-auto mt-5 grid w-full max-w-3xl grid-cols-1 items-center gap-2 sm:gap-3 ${match.status === "LIVE" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-            <div className="flex min-w-0 justify-center sm:justify-self-center">
-              <p className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-xs">
-                <Trophy className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
-                <span className="truncate">{locale === "ar" ? match.competition.name : frenchCompetitionName(match.competition.name)}</span>
+      <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-gradient-to-b from-club-primary/[0.07] to-transparent" aria-hidden="true" />
+        <div className="space-y-5 p-4 sm:p-6">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[11px] font-bold text-club-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-club-primary" aria-hidden="true" />
+                {t("manage")}
+              </p>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {locale === "ar" ? match.competition.name : frenchCompetitionName(match.competition.name)}
+                {matchTeamCategory && <span> · {locale === "ar" ? ({ SENIOR: "الأكابر", U20: "U20", U17: "U17", U15: "U15" } as Record<string, string>)[matchTeamCategory] : matchTeamCategory}</span>}
               </p>
             </div>
-            {match.status === "LIVE" && (
-              <div className="flex min-w-0 justify-center sm:justify-self-center">
-                <MatchLiveClock matchDate={match.matchDate} hasExtraTime={match.hasExtraTime} hasPenaltyShootout={match.hasPenaltyShootout} homeScore={match.homeScore} awayScore={match.awayScore} addedTime={addedTime} locale={locale} />
+            <Badge className={`shrink-0 border px-3 py-1 text-[11px] font-bold ${match.status === "LIVE" ? "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400" : match.status === "FINISHED" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-border bg-muted/60 text-muted-foreground"}`}>
+              {matchStatusLabel}
+            </Badge>
+          </header>
+
+          <div dir="ltr" className="mx-auto grid w-full max-w-5xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-8">
+            <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex min-w-0 items-center justify-center gap-2.5 text-center sm:gap-3">
+              <div className="min-w-0">
+                <h1 className="break-words text-sm font-black leading-snug text-foreground sm:text-xl lg:text-2xl">{homeTeamName}</h1>
+                {match.isHomeFixture && <span className="mt-1 inline-flex rounded-full bg-club-primary/10 px-2 py-0.5 text-[9px] font-bold text-club-primary">{locale === "ar" ? "نادينا" : "Notre club"}</span>}
               </div>
-            )}
-            <div className="flex min-w-0 justify-center sm:justify-self-center">
-              {refereeNames.length > 0 && (
-                <div className="flex max-w-full flex-wrap justify-center gap-2">
-                  {refereeNames.map((name, index) => (
-                    <p key={`${index}-${name}`} className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
-                      <UserCheck className="h-3.5 w-3.5 shrink-0 text-club-primary" aria-hidden="true" />
-                      <span className="shrink-0 text-muted-foreground">{getRefereeRoleLabel(index, locale)}:</span>
-                      <span className="truncate">{name}</span>
-                    </p>
-                  ))}
-                </div>
-              )}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background/70 p-1 sm:h-11 sm:w-11">
+                {homeLogoUrl ? <OpponentCrest src={homeLogoUrl} alt="" className="h-full w-full object-contain" iconClassName="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
+              </div>
+            </div>
+            <div className="col-start-2 row-start-1 flex min-w-[66px] flex-col items-center justify-center rounded-xl border border-border bg-muted/40 px-2.5 py-2 sm:min-w-[92px] sm:px-4 sm:py-3">
+              <span dir="ltr" className="whitespace-nowrap font-mono text-base font-black tabular-nums text-foreground sm:text-2xl">
+                {match.homeScore != null && match.awayScore != null ? `${match.homeScore} – ${match.awayScore}` : locale === "ar" ? "ضد" : "VS"}
+              </span>
+              {match.status === "LIVE" && <MatchLiveClock matchDate={match.matchDate} hasExtraTime={match.hasExtraTime} hasPenaltyShootout={match.hasPenaltyShootout} homeScore={match.homeScore} awayScore={match.awayScore} addedTime={addedTime} locale={locale} />}
+              {match.status !== "LIVE" && <span className="mt-0.5 text-[9px] font-semibold text-muted-foreground">{new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : "fr-FR", { hour: "2-digit", minute: "2-digit" }).format(match.matchDate)}</span>}
+            </div>
+            <div dir={locale === "ar" ? "rtl" : "ltr"} className="flex min-w-0 items-center justify-center gap-2.5 text-center sm:gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background/70 p-1 sm:h-11 sm:w-11">
+                {awayLogoUrl ? <OpponentCrest src={awayLogoUrl} alt="" className="h-full w-full object-contain" iconClassName="h-5 w-5 text-muted-foreground" /> : <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
+              </div>
+              <div className="min-w-0">
+                <h1 className="break-words text-sm font-black leading-snug text-foreground sm:text-xl lg:text-2xl">{awayTeamName}</h1>
+                {!match.isHomeFixture && <span className="mt-1 inline-flex rounded-full bg-club-primary/10 px-2 py-0.5 text-[9px] font-bold text-club-primary">{locale === "ar" ? "نادينا" : "Notre club"}</span>}
+              </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 gap-2 border-t border-border/70 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl bg-muted/25 px-3 py-2.5 text-xs text-muted-foreground">
+              <CalendarDays className="h-4 w-4 shrink-0 text-club-primary" aria-hidden="true" />
+              <span className="truncate">{new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : "fr-FR", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(match.matchDate)}</span>
+            </div>
+            <div className="flex min-w-0 items-center gap-2 rounded-xl bg-muted/25 px-3 py-2.5 text-xs text-muted-foreground">
+              <Trophy className="h-4 w-4 shrink-0 text-club-primary" aria-hidden="true" />
+              <span className="truncate">{locale === "ar" ? match.competition.name : frenchCompetitionName(match.competition.name)}</span>
+            </div>
+            <div className="flex min-w-0 items-center gap-2 rounded-xl bg-muted/25 px-3 py-2.5 text-xs text-muted-foreground sm:col-span-2 lg:col-span-1">
+              <MapPin className="h-4 w-4 shrink-0 text-club-primary" aria-hidden="true" />
+              <span className="truncate">{match.stadium || (locale === "ar" ? "الملعب غير محدد" : "Stade non défini")}</span>
+            </div>
+          </div>
+
+          {refereeNames.length > 0 && (
+            <div className="space-y-2 border-t border-border/70 pt-4">
+              <p className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground"><UserCheck className="h-4 w-4 text-club-primary" aria-hidden="true" />{locale === "ar" ? "طاقم التحكيم" : "Équipe arbitrale"}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {refereeNames.map((name, index) => (
+                  <div key={`${index}-${name}`} className="flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-background/50 px-3 py-2.5 text-xs">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-club-primary/10 text-[10px] font-black text-club-primary">{index + 1}</span>
+                    <span className="shrink-0 text-muted-foreground">{getRefereeRoleLabel(index, locale)}</span>
+                    <span className="min-w-0 truncate font-semibold text-foreground">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {(winnerName || resultNeedsShootout || matchIsDraw) && (
-            <div className={`mx-auto mt-4 flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold ${winnerName ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
+            <div className={`flex flex-wrap items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold ${winnerName ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
               <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{winnerName
                 ? `${locale === "ar" ? "الفائز" : "Vainqueur"}: ${winnerName}`

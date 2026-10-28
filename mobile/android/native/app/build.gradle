@@ -16,8 +16,8 @@ android {
         applicationId 'dz.esh.footballclub.field'
         minSdk 24
         targetSdk 35
-        versionCode 96
-        versionName '3.9.49'
+        versionCode 97
+        versionName '3.9.50'
     }
 
     buildFeatures { compose true }

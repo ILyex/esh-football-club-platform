@@ -514,12 +514,7 @@ private fun PublicTopBar(locale: String, club: PublicClub?, modifier: Modifier =
             Text(club?.shortName ?: "ESH", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp, maxLines = 1)
             Text(club?.name ?: L(locale, "الجمعية الرياضية أمل سيدي حسني", "Association Sportive Espoir Sidi Hosni"), color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Surface(onClick = onToggleLocale, shape = RoundedCornerShape(13.dp), color = Color.Transparent, border = BorderStroke(1.dp, Accent.copy(alpha = .22f)), modifier = Modifier.siteGlass(RoundedCornerShape(13.dp))) {
-            Row(Modifier.height(38.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
-                Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-            }
-        }
+        LanguageToggle(locale, onToggleLocale)
     }
 }
 
@@ -534,12 +529,7 @@ private fun MatchDetailsTopBar(locale: String, club: PublicClub?, modifier: Modi
             Text(L(locale, "تفاصيل المباراة", "Détails du match"), color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.Black, maxLines = 1)
             Text(club?.shortName ?: "ESH", color = SecondaryText, fontSize = 9.sp, maxLines = 1)
         }
-        Surface(modifier = Modifier.height(38.dp).siteGlass(RoundedCornerShape(13.dp)).noRippleClickable(onToggleLocale), shape = RoundedCornerShape(13.dp), color = Color.Transparent, border = BorderStroke(1.dp, Accent.copy(alpha = .22f))) {
-            Row(Modifier.padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
-                Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-            }
-        }
+        LanguageToggle(locale, onToggleLocale)
     }
 }
 
@@ -551,11 +541,27 @@ private fun ArticleDetailsTopBar(locale: String, title: String?, club: PublicClu
             Text(L(locale, "قراءة الخبر", "Lecture"), color = SecondaryText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             Text(title ?: L(locale, "أخبار النادي", "Actualités du club"), color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Surface(modifier = Modifier.height(38.dp).siteGlass(RoundedCornerShape(13.dp)).noRippleClickable(onToggleLocale), shape = RoundedCornerShape(13.dp), color = Color.Transparent, border = BorderStroke(1.dp, Accent.copy(alpha = .22f))) {
-            Row(Modifier.padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
-                Text(if (locale == "ar") "FR" else "ع", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-            }
+        LanguageToggle(locale, onToggleLocale)
+    }
+}
+
+@Composable
+private fun LanguageToggle(locale: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(40.dp).widthIn(min = 62.dp).siteGlass(shape),
+        shape = shape,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, Hairline)
+    ) {
+        Row(
+            Modifier.padding(horizontal = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            AppIcon(PublicIcons.Language, null, Accent, Modifier.size(17.dp))
+            Text(if (locale == "ar") "FR" else "عربي", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
         }
     }
 }
@@ -583,29 +589,41 @@ private fun PublicBottomBar(selected: PublicTab, locale: String, liveMatch: Bool
     val tabs = remember { listOf(PublicTab.HOME, PublicTab.MATCHES, PublicTab.COMPETITIONS, PublicTab.GALLERY, PublicTab.CLUB) }
     val moreSelected = selected == PublicTab.TEAM || selected == PublicTab.NEWS || selected == PublicTab.ALERTS
     Surface(
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 13.dp, vertical = 7.dp).siteGlass(RoundedCornerShape(24.dp), accentGlow = selected == PublicTab.HOME),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 13.dp, vertical = 7.dp).siteGlass(RoundedCornerShape(24.dp)),
         color = Color.Transparent,
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(1.dp, Hairline),
         shadowElevation = 18.dp
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             tabs.forEach { item ->
                 val active = selected == item
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).noRippleClickable { onSelect(item) }.heightIn(min = 48.dp).padding(horizontal = 2.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-                            AppIcon(item.icon(active), item.label(locale), if (active) Mint else SecondaryText, Modifier.size(if (item == PublicTab.MATCHES) 21.dp else 20.dp))
-                            if (item == PublicTab.MATCHES && liveMatch) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
-                        }
-                        if (active) Text(item.label(locale), color = PrimaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)
+                Column(
+                    Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(15.dp)).noRippleClickable { onSelect(item) }.padding(horizontal = 1.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Box(Modifier.size(25.dp), contentAlignment = Alignment.Center) {
+                        AppIcon(item.icon(active), item.label(locale), if (active) Accent else SecondaryText, Modifier.size(21.dp))
+                        if (item == PublicTab.MATCHES && liveMatch) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
                     }
+                    Box(Modifier.height(12.dp), contentAlignment = Alignment.Center) {
+                        if (active) Text(item.label(locale), color = PrimaryText, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)
+                    }
+                }
             }
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).noRippleClickable(onMore).heightIn(min = 48.dp).padding(horizontal = 2.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
-                        AppIcon(PublicIcons.More, L(locale, "المزيد", "Plus"), if (moreSelected) Mint else SecondaryText, Modifier.size(20.dp))
-                        if (pendingAlerts > 0) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
-                    }
-                    if (moreSelected) Text(L(locale, "المزيد", "Plus"), color = PrimaryText, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            Column(
+                Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(15.dp)).noRippleClickable(onMore).padding(horizontal = 1.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Box(Modifier.size(25.dp), contentAlignment = Alignment.Center) {
+                    AppIcon(PublicIcons.More, L(locale, "المزيد", "Plus"), if (moreSelected) Accent else SecondaryText, Modifier.size(21.dp))
+                    if (pendingAlerts > 0) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
+                }
+                Box(Modifier.height(12.dp), contentAlignment = Alignment.Center) {
+                    if (moreSelected) Text(L(locale, "المزيد", "Plus"), color = PrimaryText, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                }
             }
         }
     }
@@ -642,7 +660,17 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
                         }
                     }
                 }
-                Box(Modifier.align(Alignment.BottomEnd).padding(16.dp).size(53.dp).shadow(12.dp, CircleShape).clip(CircleShape).background(Color.White).padding(6.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                        .size(50.dp)
+                        .shadow(10.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(Accent.copy(alpha = .18f), PanelRaised)))
+                        .border(1.dp, Accent.copy(alpha = .34f), CircleShape)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 }
             }
