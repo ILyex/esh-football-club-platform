@@ -134,9 +134,15 @@ private object PublicIcons {
 private enum class PublicTab { HOME, TEAM, MATCHES, COMPETITIONS, NEWS, GALLERY, CLUB, ALERTS }
 
 class MainActivity : ComponentActivity() {
+    var openedMatchId by mutableStateOf<String?>(null)
+        private set
+    var openedMatchCompact by mutableStateOf(false)
+        private set
+
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        readMatchIntent(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
@@ -147,12 +153,29 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         setContent { PublicApp() }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        readMatchIntent(intent)
+    }
+
+    private fun readMatchIntent(intent: Intent?) {
+        openedMatchId = intent?.getStringExtra("match_id")
+        openedMatchCompact = intent?.getBooleanExtra("compact_live_match", false) == true
+    }
+
+    fun consumeMatchIntent() {
+        openedMatchId = null
+        openedMatchCompact = false
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 private fun PublicApp() {
     val context = LocalContext.current
+    val hostActivity = context as? MainActivity
     val preferences = remember { context.getSharedPreferences(PublicMessagingService.PREFS, 0) }
     var locale by remember { mutableStateOf(preferences.getString(PublicMessagingService.LOCALE, "ar") ?: "ar") }
     var tab by remember {
@@ -168,7 +191,9 @@ private fun PublicApp() {
     var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
-    var selectedMatchId by remember { mutableStateOf<String?>(null) }
+    var selectedMatchId by remember { mutableStateOf(hostActivity?.openedMatchId) }
+    var compactLiveMatch by remember { mutableStateOf(hostActivity?.openedMatchCompact == true) }
+    var trackedLiveMatchIds by remember { mutableStateOf(LiveMatchNotifications.trackedMatches(context)) }
     var matchCenter by remember { mutableStateOf<PublicMatchCenter?>(null) }
     var matchDetailLoading by remember { mutableStateOf(false) }
     var matchDetailError by remember { mutableStateOf(false) }
@@ -198,7 +223,18 @@ private fun PublicApp() {
         if (selectedArticleSlug != null) {
             selectedArticleSlug = null
             selectedArticle = null
-        } else selectedMatchId = null
+        } else {
+            selectedMatchId = null
+            compactLiveMatch = false
+        }
+    }
+
+    LaunchedEffect(hostActivity?.openedMatchId, hostActivity?.openedMatchCompact) {
+        val matchId = hostActivity?.openedMatchId ?: return@LaunchedEffect
+        selectedMatchId = matchId
+        compactLiveMatch = hostActivity.openedMatchCompact
+        tab = PublicTab.MATCHES
+        hostActivity.consumeMatchIntent()
     }
 
     LaunchedEffect(Unit) {
@@ -225,7 +261,8 @@ private fun PublicApp() {
                 if (result.isSuccess) {
                     snapshot = result.getOrThrow()
                     snapshotLocale = locale
-                    LiveMatchNotifications.sync(context, snapshot!!.matches)
+                    LiveMatchNotifications.sync(context, snapshot!!.matches + snapshot!!.results)
+                    trackedLiveMatchIds = LiveMatchNotifications.trackedMatches(context)
                     error = false
                     break
                 }
@@ -283,6 +320,7 @@ private fun PublicApp() {
         // notification screen more frequently when its contents are visible.
         while (true) {
             alertItems = PublicMessagingService.alerts(context)
+            trackedLiveMatchIds = LiveMatchNotifications.trackedMatches(context)
             delay(if (tab == PublicTab.ALERTS) 1_500L else 5_000L)
         }
     }
@@ -367,7 +405,19 @@ private fun PublicApp() {
                     when {
                         matchDetailLoading -> MatchDetailLoading(locale)
                         matchDetailError || matchCenter == null -> MatchDetailError(locale) { matchDetailRetry++ }
-                        else -> MatchDetailsScreen(matchCenter!!, locale, data?.club?.logo)
+                        compactLiveMatch -> MatchLivePeekScreen(matchCenter!!, locale, data?.club?.logo) { compactLiveMatch = false }
+                        else -> MatchDetailsScreen(
+                            matchCenter!!,
+                            locale,
+                            data?.club?.logo,
+                            isFollowingLiveMatch = matchCenter!!.match.id in trackedLiveMatchIds,
+                            onToggleLiveFollow = {
+                                val match = matchCenter!!.match
+                                if (match.id in trackedLiveMatchIds) LiveMatchNotifications.stop(context, match.id)
+                                else LiveMatchNotifications.follow(context, match)
+                                trackedLiveMatchIds = LiveMatchNotifications.trackedMatches(context)
+                            }
+                        )
                     }
                 } else if (data == null && loading) LoadingScreen(locale)
                 else if (data == null) ErrorScreen(locale, error) { refreshKey++ }
@@ -1352,10 +1402,54 @@ private fun MatchDetailError(locale: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun MatchDetailsScreen(center: PublicMatchCenter, locale: String, clubLogo: String?) {
+private fun MatchLivePeekScreen(center: PublicMatchCenter, locale: String, clubLogo: String?, onOpenDetails: () -> Unit) {
+    val latestEvents = center.events.sortedByDescending { it.minute }.take(3).sortedBy { it.minute }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            ScreenHeading(
+                L(locale, "متابعة المباراة", "Suivi du match"),
+                L(locale, "النتيجة وأحدث أحداث اللقاء", "Score et dernières actions du match"),
+                PublicIcons.Match
+            )
+        }
+        item { MatchScoreHero(center.match, locale, clubLogo) }
+        item {
+            SectionHeading(L(locale, "آخر الأحداث", "Dernières actions"), PublicIcons.Trophy, locale)
+            if (latestEvents.isEmpty()) {
+                EmptyState(L(locale, "ستظهر الأحداث هنا عند تسجيلها.", "Les actions apparaîtront ici dès qu’elles seront enregistrées."))
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    latestEvents.forEach { event -> MatchEventRow(event, center.match, locale) }
+                }
+            }
+        }
+        item {
+            Button(
+                onClick = onOpenDetails,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                shape = RoundedCornerShape(15.dp)
+            ) {
+                Text(L(locale, "فتح تفاصيل المباراة", "Ouvrir les détails du match"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MatchDetailsScreen(
+    center: PublicMatchCenter,
+    locale: String,
+    clubLogo: String?,
+    isFollowingLiveMatch: Boolean,
+    onToggleLiveFollow: () -> Unit
+) {
     var section by remember(center.match.id) { mutableStateOf(MatchDetailTab.EVENTS) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 26.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { MatchScoreHero(center.match, locale, clubLogo) }
+        if (center.match.status == "LIVE") item {
+            LiveMatchFollowCard(isFollowingLiveMatch, locale, onToggleLiveFollow)
+        }
         item {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(PanelRaised).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 MatchDetailTab.values().forEach { tab ->
@@ -1375,6 +1469,50 @@ private fun MatchDetailsScreen(center: PublicMatchCenter, locale: String, clubLo
                 MatchDetailTab.EVENTS -> MatchEventsPanel(center, locale)
                 MatchDetailTab.LINEUP -> MatchLineupPanel(center, locale)
             }
+        }
+    }
+}
+
+@Composable
+private fun LiveMatchFollowCard(isFollowing: Boolean, locale: String, onToggle: () -> Unit) {
+    Surface(
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(19.dp),
+        border = BorderStroke(1.dp, if (isFollowing) Accent.copy(alpha = .38f) else Hairline)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(19.dp), accentGlow = isFollowing).padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Accent.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
+                AppIcon(PublicIcons.Match, null, Accent, Modifier.size(20.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    L(locale, if (isFollowing) "متابعة النتيجة مفعّلة" else "تابع النتيجة في شريط الحالة", if (isFollowing) "Suivi du score activé" else "Suivre le score dans la barre d’état"),
+                    color = PrimaryText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    L(locale, if (isFollowing) "اضغط لإيقاف المتابعة" else "تصل التحديثات عند تغيّر نتيجة المباراة", if (isFollowing) "Touchez pour arrêter le suivi" else "Le score se met à jour au fil du match"),
+                    color = SecondaryText,
+                    fontSize = 9.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                L(locale, if (isFollowing) "إيقاف" else "متابعة", if (isFollowing) "Arrêter" else "Suivre"),
+                color = if (isFollowing) SecondaryText else Accent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black
+            )
         }
     }
 }

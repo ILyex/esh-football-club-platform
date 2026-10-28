@@ -15,14 +15,40 @@ import org.json.JSONObject
 object LiveMatchNotifications {
     private const val CHANNEL = "esh_public_live_updates_v2"
     private const val PREFS = "esh_public_supporters"
-    private const val STOPPED_MATCHES = "stopped_live_matches"
+    private const val TRACKED_MATCHES = "tracked_live_matches"
     private const val LIVE_STATES = "live_match_states"
+
+    fun trackedMatches(context: Context): Set<String> =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getStringSet(TRACKED_MATCHES, emptySet())?.toSet().orEmpty()
+
+    fun isTracking(context: Context, matchId: String): Boolean = matchId in trackedMatches(context)
+
+    /** Start tracking only after the supporter explicitly asks to follow a live match. */
+    fun follow(context: Context, match: PublicMatch) {
+        if (match.status != "LIVE") return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) + match.id).apply()
+        val isArabic = prefs.getString(PublicMessagingService.LOCALE, "ar") == "ar"
+        update(context, mapOf(
+            "matchId" to match.id,
+            "kind" to "FOLLOW_STARTED",
+            "homeTeamName" to match.home,
+            "awayTeamName" to match.away,
+            "homeScore" to (match.homeScore ?: 0).toString(),
+            "awayScore" to (match.awayScore ?: 0).toString()
+        ), if (isArabic) "تم تفعيل متابعة المباراة" else "Suivi du match activé")
+    }
 
     /** Reconciles active notifications when the public feed is first loaded or refreshed. */
     fun sync(context: Context, matches: List<PublicMatch>) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val previous = runCatching { JSONObject(prefs.getString(LIVE_STATES, "{}") ?: "{}") }.getOrDefault(JSONObject())
-        val active = matches.filter { it.status == "LIVE" }.associateBy { it.id }
+        val tracked = trackedMatches(context)
+        val allMatches = matches.associateBy { it.id }
+        tracked.filter { id -> allMatches[id]?.status?.let { it != "LIVE" } == true }
+            .forEach { finish(context, it) }
+        val active = matches.filter { it.status == "LIVE" && it.id in trackedMatches(context) }.associateBy { it.id }
         val next = JSONObject()
 
         active.values.forEach { match ->
@@ -40,20 +66,14 @@ object LiveMatchNotifications {
                 ), title)
             }
         }
-        previous.keys().asSequence().filterNot { it in active }.forEach { finish(context, it) }
+        previous.keys().asSequence().filterNot { it in active }.forEach { cancelNotification(context, it) }
         prefs.edit().putString(LIVE_STATES, next.toString()).apply()
     }
 
     fun update(context: Context, data: Map<String, String>, eventTitle: String) {
         val matchId = data["matchId"]?.takeIf(String::isNotBlank) ?: return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val kind = data["kind"].orEmpty()
-        val stopped = prefs.getStringSet(STOPPED_MATCHES, emptySet()).orEmpty()
-        if (kind == "MATCH_STARTED" || kind == "MATCH_REOPENED") {
-            prefs.edit().putStringSet(STOPPED_MATCHES, stopped - matchId).apply()
-        } else if (matchId in stopped) {
-            return
-        }
+        if (matchId !in trackedMatches(context)) return
 
         val home = data["homeTeamName"].orEmpty()
         val away = data["awayTeamName"].orEmpty()
@@ -76,9 +96,10 @@ object LiveMatchNotifications {
             context,
             notificationId,
             Intent(context, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra("open_tab", "matches")
-                .putExtra("match_id", matchId),
+                .putExtra("match_id", matchId)
+                .putExtra("compact_live_match", true),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val stopIntent = PendingIntent.getBroadcast(
@@ -110,16 +131,16 @@ object LiveMatchNotifications {
     }
 
     fun finish(context: Context, matchId: String) {
-        NotificationManagerCompat.from(context).cancel("esh-live-match-$matchId", matchId.hashCode())
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val stopped = prefs.getStringSet(STOPPED_MATCHES, emptySet()).orEmpty()
-        prefs.edit().putStringSet(STOPPED_MATCHES, stopped - matchId).apply()
+        prefs.edit().putStringSet(TRACKED_MATCHES, trackedMatches(context) - matchId).apply()
+        cancelNotification(context, matchId)
     }
 
     fun stop(context: Context, matchId: String) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val stopped = prefs.getStringSet(STOPPED_MATCHES, emptySet()).orEmpty() + matchId
-        prefs.edit().putStringSet(STOPPED_MATCHES, stopped).apply()
+        finish(context, matchId)
+    }
+
+    private fun cancelNotification(context: Context, matchId: String) {
         NotificationManagerCompat.from(context).cancel("esh-live-match-$matchId", matchId.hashCode())
     }
 
