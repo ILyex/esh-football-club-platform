@@ -634,40 +634,47 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
     val featured = data.matches.firstOrNull { it.status == "LIVE" } ?: data.nextMatch ?: data.matches.firstOrNull()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(17.dp)) {
         item {
-            Box(Modifier.fillMaxWidth().height(214.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .22f), PanelRaised, Canvas))).border(1.dp, Accent.copy(alpha = .25f), RoundedCornerShape(28.dp))) {
-                if (data.club.hero != null) AsyncImage(model = data.club.hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .32f)
-                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF0111315), Color(0xA0111315), Color.Transparent))))
-                Box(Modifier.align(Alignment.TopEnd).padding(22.dp).size(132.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Accent.copy(alpha = .22f), Color.Transparent))))
-                Column(Modifier.align(Alignment.CenterStart).padding(horizontal = 21.dp, vertical = 17.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.fillMaxWidth().height(224.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(PanelRaised, Panel, Canvas))).border(1.dp, Hairline, RoundedCornerShape(28.dp))) {
+                if (data.club.hero != null) AsyncImage(model = data.club.hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .38f)
+                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF20C0D0E), Color(0xD90C0D0E), Color(0x660C0D0E)))))
+                Box(Modifier.align(Alignment.TopEnd).padding(14.dp).size(148.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Accent.copy(alpha = .18f), Color.Transparent))))
+                Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(.80f).padding(start = 19.dp, end = 12.dp, top = 15.dp, bottom = 15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(Mint))
-                        Text(L(locale, "من قلب سيدي حسني", "AU CŒUR DE SIDI HOSNI"), color = Mint, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .8.sp)
+                        if (featured?.status == "LIVE") {
+                            Box(Modifier.size(7.dp).clip(CircleShape).background(Accent))
+                            Text(L(locale, "مباشر الآن", "EN DIRECT"), color = Accent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
+                        } else {
+                            Box(Modifier.size(7.dp).clip(CircleShape).background(Accent.copy(alpha = .8f)))
+                            Text(L(locale, "من قلب سيدي حسني", "AU CŒUR DE SIDI HOSNI"), color = PrimaryText.copy(alpha = .78f), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .8.sp)
+                        }
                     }
-                    Text(data.club.name, color = PrimaryText, fontSize = 21.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(L(locale, "قريبون من الفريق، في كل لحظة", "Au plus près de l’équipe, à chaque instant"), color = PrimaryText.copy(alpha = .78f), fontSize = 11.sp)
+                    Text(data.club.name, color = PrimaryText, fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(L(locale, "قريبون من الفريق، في كل لحظة", "Au plus près de l’équipe, à chaque instant"), color = SecondaryText, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Surface(
-                        modifier = Modifier.clip(CircleShape).noRippleClickable { featured?.let { onMatch(it.id) } ?: onTab(PublicTab.MATCHES) },
+                        onClick = { featured?.let { onMatch(it.id) } ?: onTab(PublicTab.MATCHES) },
+                        modifier = Modifier.padding(top = 2.dp),
                         color = Accent,
-                        shape = CircleShape
+                        shape = RoundedCornerShape(13.dp),
+                        shadowElevation = 5.dp
                     ) {
-                        Row(Modifier.padding(horizontal = 11.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            AppIcon(PublicIcons.Match, null, Color.White, Modifier.size(14.dp))
+                        Row(Modifier.heightIn(min = 38.dp).padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            AppIcon(if (featured?.status == "LIVE") PublicIcons.Play else PublicIcons.Match, null, Color.White, Modifier.size(15.dp))
                             Text(
                                 L(locale, if (featured?.status == "LIVE") "تابع المباراة الآن" else "المباريات والنتائج", if (featured?.status == "LIVE") "Suivre le match en direct" else "Matchs et résultats"),
-                                color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1
+                                color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false
                             )
-                            AppIcon(if (locale == "ar") R.drawable.iconly_arrow_left else R.drawable.iconly_arrow_right, null, Color.White, Modifier.size(12.dp))
+                            AppIcon(if (locale == "ar") R.drawable.iconly_arrow_left else R.drawable.iconly_arrow_right, null, Color.White, Modifier.size(13.dp))
                         }
                     }
                 }
                 Box(
                     Modifier.align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                        .size(50.dp)
-                        .shadow(10.dp, CircleShape)
+                        .padding(15.dp)
+                        .size(48.dp)
+                        .shadow(8.dp, CircleShape)
                         .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(Accent.copy(alpha = .18f), PanelRaised)))
-                        .border(1.dp, Accent.copy(alpha = .34f), CircleShape)
+                        .background(PanelRaised.copy(alpha = .92f))
+                        .border(1.dp, Accent.copy(alpha = .28f), CircleShape)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1267,8 +1274,13 @@ private fun AnnouncementStrip(item: PublicAnnouncement, locale: String) {
 private fun SectionHeading(title: String, icon: Int, locale: String, action: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         AppIcon(icon, null, Accent, Modifier.size(18.dp))
-        Text(title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (action != null) Text(L(locale, "عرض الكل", "Tout voir"), Modifier.clip(CircleShape).clickable(onClick = action).padding(horizontal = 9.dp, vertical = 6.dp), color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Box(Modifier.width(25.dp).height(2.dp).clip(CircleShape).background(Accent.copy(alpha = .82f)))
+        }
+        if (action != null) Surface(onClick = action, color = Color.Transparent, shape = CircleShape) {
+            Text(L(locale, "عرض الكل", "Tout voir"), Modifier.padding(horizontal = 9.dp, vertical = 7.dp), color = SecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
     }
 }
 
@@ -1279,10 +1291,13 @@ private fun ScreenHeading(title: String, subtitle: String, icon: Int) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        AppIcon(icon, null, Accent, Modifier.size(22.dp))
+        Box(Modifier.size(38.dp).clip(CircleShape).background(Accent.copy(alpha = .10f)).border(1.dp, Accent.copy(alpha = .22f), CircleShape), contentAlignment = Alignment.Center) {
+            AppIcon(icon, null, Accent, Modifier.size(19.dp))
+        }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Box(Modifier.padding(top = 3.dp).width(30.dp).height(2.dp).clip(CircleShape).background(Accent.copy(alpha = .82f)))
         }
     }
 }
