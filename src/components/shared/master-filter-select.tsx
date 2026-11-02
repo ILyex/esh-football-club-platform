@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useId } from "react";
 import { ChevronDown, Check, Layers, type LucideIcon } from "lucide-react";
-import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
+import { useFixedPopover } from "@/hooks/use-fixed-popover";
+import { createPortal } from "react-dom";
 
 export interface MasterFilterOption {
   id: string;
@@ -62,7 +63,9 @@ export function MasterFilterSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  const placement = useAutoPopoverPlacement(isOpen, containerRef, panelRef, 320);
+  const popover = useFixedPopover(isOpen, containerRef, panelRef, 320);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => setSelectedValue(value), [value]);
 
@@ -72,9 +75,9 @@ export function MasterFilterSelect({
   // Close dropdown on click outside or escape key
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setIsOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -140,16 +143,14 @@ export function MasterFilterSelect({
       </button>
 
       {/* Floating Dropdown Menu */}
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <div
           id={menuId}
           role="menu"
           aria-orientation="vertical"
           ref={panelRef}
-          style={popoverPlacementStyle(placement, "0.375rem")}
-          className={`absolute z-50 w-[min(18rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1.5 text-foreground shadow-xl animate-in fade-in zoom-in-95 duration-150 ${
-            align === "end" ? "end-0" : "start-0"
-          }`}
+          style={{ ...popover.style, minWidth: 200, maxWidth: "calc(100vw - 1rem)" }}
+          className="overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1.5 text-foreground shadow-xl animate-in fade-in zoom-in-95 duration-150"
         >
           {headerTitle && (
             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1">
@@ -197,7 +198,8 @@ export function MasterFilterSelect({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
+import { useFixedPopover } from "@/hooks/use-fixed-popover";
 
 interface FormSelectProps {
   id?: string;
@@ -39,12 +40,17 @@ export function FormSelect({
   const isAr = locale === "ar";
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const selectedValue = value ?? internalValue;
   const selected = options.find((option) => option.value === selectedValue);
-  const placement = useAutoPopoverPlacement(open, rootRef, panelRef, 256);
+  // Portal + fixed coordinates: the list must not be clipped by a card/scroll
+  // container, and must never cover the field it was opened from.
+  const popover = useFixedPopover(open, rootRef, panelRef, 256);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (value === undefined) setInternalValue(defaultValue);
@@ -52,7 +58,9 @@ export function FormSelect({
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -90,8 +98,16 @@ export function FormSelect({
           <span>{selected.warning}</span>
         </p>
       )}
-      {open && !disabled && (
-        <div ref={panelRef} id={menuId} role="listbox" aria-label={ariaLabel ?? (isAr ? "الخيارات" : "Options")} style={popoverPlacementStyle(placement, "0.375rem")} className={cn("absolute start-0 z-[70] w-full min-w-0 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card text-foreground shadow-xl ring-1 ring-black/5", compact ? "p-1" : "p-1.5")}>
+      {open && !disabled && mounted && createPortal(
+        <div
+          ref={panelRef}
+          id={menuId}
+          role="listbox"
+          dir={isAr ? "rtl" : "ltr"}
+          aria-label={ariaLabel ?? (isAr ? "الخيارات" : "Options")}
+          style={popover.style}
+          className={cn("overflow-y-auto overscroll-contain rounded-xl border border-border bg-card text-foreground shadow-xl ring-1 ring-black/5", compact ? "p-1" : "p-1.5")}
+        >
           {options.map((option) => {
             const isSelected = selectedValue === option.value;
             return (
@@ -116,7 +132,8 @@ export function FormSelect({
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { popoverPlacementStyle, useAutoPopoverPlacement } from "@/hooks/use-auto-popover-placement";
+import { useFixedPopover } from "@/hooks/use-fixed-popover";
 
 type Option = { value: string; label: string };
 type SelectTone = "default" | "emerald" | "amber";
@@ -22,11 +23,14 @@ export function StyledSelect({
   tone?: SelectTone;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState(defaultValue);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
-  const placement = useAutoPopoverPlacement(open, ref, panelRef, 320);
+  // Fixed-position panel rendered in a portal: an ancestor with overflow hidden
+  // used to clip the list and paint it over the field itself.
+  const popover = useFixedPopover(open, ref, panelRef, 320);
   const toneStyles = {
     default: {
       button: "border-border hover:border-club-primary/60 focus:ring-club-primary/25",
@@ -48,12 +52,23 @@ export function StyledSelect({
     }
   }[tone];
 
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     const close = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   return (
@@ -70,11 +85,16 @@ export function StyledSelect({
           open && cn("ring-2", toneStyles.open)
         )}
       >
-        <span>{selected?.label}</span>
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <span className="truncate">{selected?.label}</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
-      {open && (
-        <div ref={panelRef} role="listbox" style={popoverPlacementStyle(placement, "0.35rem")} className={cn("absolute inset-x-0 z-50 overflow-y-auto overscroll-contain rounded-lg border bg-card p-1 shadow-xl shadow-black/25", toneStyles.menu)}>
+      {open && mounted && createPortal(
+        <div
+          ref={panelRef}
+          role="listbox"
+          style={popover.style}
+          className={cn("overflow-y-auto overscroll-contain rounded-lg border bg-card p-1 shadow-xl shadow-black/25", toneStyles.menu)}
+        >
           {options.map((option) => {
             const active = option.value === value;
             return (
@@ -88,16 +108,17 @@ export function StyledSelect({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-sm text-foreground transition-colors",
+                  "flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors",
                   active ? toneStyles.active : "hover:bg-muted"
                 )}
               >
-                <span>{option.label}</span>
-                {active && <Check className="h-4 w-4" />}
+                <span className="truncate">{option.label}</span>
+                {active && <Check className="h-4 w-4 shrink-0" />}
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
