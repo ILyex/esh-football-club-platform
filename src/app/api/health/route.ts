@@ -61,6 +61,23 @@ export async function GET(req: NextRequest) {
 
   const statusCode = isHealthy ? 200 : 503;
 
+  // Environment validation is reported here (Node runtime only) instead of at
+  // instrumentation time, where a failure used to break middleware for every
+  // request. Problems stay visible to operations without taking the site down.
+  let configStatus: "valid" | "invalid" = "valid";
+  let configIssues: string[] = [];
+  if (probeType === "readiness" || probeType === "full") {
+    try {
+      const { validateEnvironment } = await import("@/lib/env");
+      const config = validateEnvironment();
+      configStatus = config.ok ? "valid" : "invalid";
+      configIssues = config.issues;
+    } catch {
+      configStatus = "invalid";
+      configIssues = ["environment validation failed to run"];
+    }
+  }
+
   return NextResponse.json(
     {
       status: isHealthy ? "healthy" : "unhealthy",
@@ -70,6 +87,10 @@ export async function GET(req: NextRequest) {
       services: {
         process: "healthy",
         database: dbStatus
+      },
+      configuration: {
+        status: configStatus,
+        issues: configIssues
       }
     },
     {

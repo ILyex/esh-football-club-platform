@@ -33,33 +33,18 @@ denoRuntime?.cron?.(
   }
 );
 
+/**
+ * Instrumentation MUST stay inert.
+ *
+ * `register()` executes in the middleware/edge runtime as well as in Node.
+ * A previous version validated the production environment here and threw on a
+ * deployment whose optional variables were absent — every request, including
+ * /api/health, then failed with MIDDLEWARE_INVOCATION_FAILED.
+ *
+ * Environment validation now runs from the Node-only health route
+ * (`/api/health?type=readiness`), where a misconfiguration is reported without
+ * being able to take the whole site down.
+ */
 export async function register() {
-  // The cron definition above is registered at module initialization so Deno
-  // Deploy can discover it in the Next.js runtime module graph.
-  //
-  // PRODUCTION-SAFE VALIDATION.
-  // register() runs in the SAME runtime as middleware, so throwing here turns
-  // every request — including /api/health — into MIDDLEWARE_INVOCATION_FAILED.
-  // A first version of this check did exactly that on a deployment whose env
-  // was missing optional storage variables. The check therefore:
-  //   1. never runs in the edge runtime (middleware's runtime),
-  //   2. reports problems loudly but does NOT stop the server by default,
-  //   3. only fails the boot when ENV_VALIDATION_STRICT=true is set on purpose.
-  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
-
-  try {
-    const { validateEnvironment } = await import("@/lib/env");
-    const result = validateEnvironment();
-    for (const warning of result.warnings) console.warn(`[env] ${warning}`);
-    if (result.ok) return;
-
-    const detail = result.issues.map((issue) => ` - ${issue}`).join("\n");
-    const strict = process.env.ENV_VALIDATION_STRICT === "true";
-    const message = `[env] invalid production configuration${strict ? "" : " (server continues)"}:\n${detail}`;
-    if (strict) throw new Error(message);
-    console.error(message);
-  } catch (error) {
-    if (process.env.ENV_VALIDATION_STRICT === "true") throw error;
-    console.error("[env] environment validation could not run", error instanceof Error ? error.message : error);
-  }
+  // Intentionally empty: see the comment above.
 }
