@@ -37,28 +37,29 @@ export async function register() {
   // The cron definition above is registered at module initialization so Deno
   // Deploy can discover it in the Next.js runtime module graph.
   //
-  // Fail-fast environment validation. It existed but was never called, so a
-  // production deployment with a placeholder AUTH_SECRET or a missing
-  // CRON_SECRET started happily. Warnings are always logged; hard issues stop
-  // the boot unless ENV_VALIDATION_WARN_ONLY=true is set for a temporary
-  // migration window.
+  // PRODUCTION-SAFE VALIDATION.
+  // register() runs in the SAME runtime as middleware, so throwing here turns
+  // every request — including /api/health — into MIDDLEWARE_INVOCATION_FAILED.
+  // A first version of this check did exactly that on a deployment whose env
+  // was missing optional storage variables. The check therefore:
+  //   1. never runs in the edge runtime (middleware's runtime),
+  //   2. reports problems loudly but does NOT stop the server by default,
+  //   3. only fails the boot when ENV_VALIDATION_STRICT=true is set on purpose.
+  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
+
   try {
-    const { validateEnvironment, assertProductionEnvironment } = await import("@/lib/env");
+    const { validateEnvironment } = await import("@/lib/env");
     const result = validateEnvironment();
     for (const warning of result.warnings) console.warn(`[env] ${warning}`);
-    if (!result.ok) {
-      const detail = result.issues.map((issue) => ` - ${issue}`).join("\n");
-      if (process.env.ENV_VALIDATION_WARN_ONLY === "true") {
-        console.error(`[env] INVALID PRODUCTION CONFIGURATION (warn-only mode):\n${detail}`);
-      } else {
-        assertProductionEnvironment();
-      }
-    }
+    if (result.ok) return;
+
+    const detail = result.issues.map((issue) => ` - ${issue}`).join("\n");
+    const strict = process.env.ENV_VALIDATION_STRICT === "true";
+    const message = `[env] invalid production configuration${strict ? "" : " (server continues)"}:\n${detail}`;
+    if (strict) throw new Error(message);
+    console.error(message);
   } catch (error) {
-    if (process.env.ENV_VALIDATION_WARN_ONLY === "true") {
-      console.error("[env] environment validation failed", error instanceof Error ? error.message : error);
-      return;
-    }
-    throw error;
+    if (process.env.ENV_VALIDATION_STRICT === "true") throw error;
+    console.error("[env] environment validation could not run", error instanceof Error ? error.message : error);
   }
 }
