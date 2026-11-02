@@ -45,9 +45,23 @@ export function isAIConfigured(): boolean {
 /**
  * Probes the reachability and model health of the active provider.
  * Bound to a short network timeout; safe to call without crashing.
+ *
+ * Cached for 60 seconds: the same probe was issued before every AI feature
+ * call (referee report, document check, coach assistant), doubling the latency
+ * of every AI action on a slow provider. A short TTL keeps the signal fresh
+ * while removing the redundant round-trip.
  */
-export async function checkAIAvailability(): Promise<AIAvailabilityResult> {
-  return activeProvider.checkAvailability();
+let availabilityCache: { at: number; result: AIAvailabilityResult } | null = null;
+const AVAILABILITY_TTL_MS = 60_000;
+
+export async function checkAIAvailability(options?: { force?: boolean }): Promise<AIAvailabilityResult> {
+  const now = Date.now();
+  if (!options?.force && availabilityCache && now - availabilityCache.at < AVAILABILITY_TTL_MS) {
+    return availabilityCache.result;
+  }
+  const result = await activeProvider.checkAvailability();
+  availabilityCache = { at: now, result };
+  return result;
 }
 
 /**
@@ -62,13 +76,27 @@ export async function runAICompletion(params: {
   images?: string[];
   model?: string;
 }): Promise<string> {
-  const result = await activeProvider.generateText({
+  const request = {
     system: params.system,
     prompt: params.input,
     maxTokens: params.maxTokens,
     timeoutMs: params.timeoutMs,
     images: params.images,
     model: params.model
-  });
-  return result.text;
+  };
+
+  // One retry for transient provider failures (network blip, 5xx, cold start).
+  // Quota exhaustion and disabled AI are not retried: they will fail the same
+  // way and would double the user's wait for nothing.
+  try {
+    const result = await activeProvider.generateText(request);
+    return result.text;
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code ?? "";
+    const retryable = code === "AI_UNAVAILABLE" || code === "AI_TIMEOUT";
+    if (!retryable) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const retry = await activeProvider.generateText(request);
+    return retry.text;
+  }
 }

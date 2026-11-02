@@ -31,7 +31,7 @@ export interface RefereeReportAnalysisResult {
 /**
  * Normalizes Arabic and Latin player names for robust fuzzy matching.
  */
-function normalizeName(str: string): string {
+export function normalizeName(str: string): string {
   if (!str) return "";
   return str
     .normalize("NFKC")
@@ -46,7 +46,7 @@ function normalizeName(str: string): string {
     .replace(/\s+/g, " ");
 }
 
-type SquadPlayer = {
+export type SquadPlayer = {
   id: string;
   firstName: string;
   lastName: string;
@@ -78,7 +78,7 @@ function eventMinuteFromReportLine(line: string): number | null {
 /**
  * Attempts to match a name or shirt number against a squad of players.
  */
-function findBestPlayerMatch(
+export function findBestPlayerMatch(
   queryName: string,
   queryNumber: number | null | undefined,
   squad: SquadPlayer[]
@@ -116,7 +116,7 @@ function findBestPlayerMatch(
   return ranked[0]!.player;
 }
 
-function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: SquadPlayer[]): boolean {
+export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: SquadPlayer[]): boolean {
   const eventPattern: Record<ParsedEventItem["type"], RegExp> = {
     GOAL: /هدف|سجل|أهداف|\bbut\b|\bgoal\b|marqu/iu,
     ASSIST: /تمريرة\s*حاسمة|صنع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
@@ -162,7 +162,7 @@ function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: S
  * Deterministic NLP rule-based fallback if Ollama is offline or unavailable.
  * Identifies Arabic and French phrases for goals, cards, and penalties.
  */
-function parseReportDeterministically(
+export function parseReportDeterministically(
   text: string,
   squad: SquadPlayer[]
 ): { events: ParsedEventItem[]; detectedScore?: { home: number; away: number } | null } {
@@ -273,7 +273,7 @@ function parseReportDeterministically(
   return { events: uniqueEvents, detectedScore };
 }
 
-function parseSubstitutionsFromReport(text: string, squad: SquadPlayer[]): ParsedEventItem[] {
+export function parseSubstitutionsFromReport(text: string, squad: SquadPlayer[]): ParsedEventItem[] {
   const lines = text.split(/\r?\n|[;]+/u).map((line) => line.trim()).filter(Boolean);
   const substitutionSignal = /تبديل|تغييرات|تغيير|استبدال|دخل|دخول|الداخل|البديل|خرج|خروج|الخارج|المستبدل|بدلا\s+من|شارك\s+بدلا|remplacement|substitution|joueur\s+entrant|joueur\s+sortant|entrant|sortant|entr[eé]e|sortie|remplace|\bsub\b/iu;
   const incomingCue = /دخول|دخل|الداخل|بديل|شارك|joueur\s+entrant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|\bin\b/iu;
@@ -340,11 +340,32 @@ function parseSubstitutionsFromReport(text: string, squad: SquadPlayer[]): Parse
     };
 
     if (players.length === 2) {
-      const inPlayer = incoming.find((candidate) => !outgoing.includes(candidate)) ?? (incoming.length === 1 ? incoming[0] : undefined);
-      const outPlayer = outgoing.find((candidate) => !incoming.includes(candidate)) ?? (outgoing.length === 1 ? outgoing[0] : undefined);
-      if (inPlayer && outPlayer && inPlayer.player.id !== outPlayer.player.id) {
-        add(inPlayer, "SUBSTITUTION_IN");
-        add(outPlayer, "SUBSTITUTION_OUT");
+      // Prefer the cue that is NEAREST to each name: a one-line row such as
+      // "دخل سفيان حمدي و خرج كريم بن علي" puts both cue words within the same
+      // 18-character window, so a pure distance threshold marked both players
+      // as "incoming" and dropped the whole substitution.
+      const scored = players.map((entry) => ({
+        entry,
+        inDistance: roleDistance(window, entry.matching, incomingCue),
+        outDistance: roleDistance(window, entry.matching, outgoingCue)
+      }));
+      const closestIn = scored
+        .filter((candidate) => candidate.inDistance <= 18 && candidate.inDistance < candidate.outDistance)
+        .sort((left, right) => left.inDistance - right.inDistance)[0];
+      const closestOut = scored
+        .filter((candidate) => candidate.outDistance <= 18 && candidate.outDistance < candidate.inDistance)
+        .sort((left, right) => left.outDistance - right.outDistance)[0];
+
+      if (closestIn && closestOut && closestIn.entry.player.id !== closestOut.entry.player.id) {
+        add(closestIn.entry, "SUBSTITUTION_IN");
+        add(closestOut.entry, "SUBSTITUTION_OUT");
+      } else {
+        const inPlayer = incoming.find((candidate) => !outgoing.includes(candidate)) ?? (incoming.length === 1 ? incoming[0] : undefined);
+        const outPlayer = outgoing.find((candidate) => !incoming.includes(candidate)) ?? (outgoing.length === 1 ? outgoing[0] : undefined);
+        if (inPlayer && outPlayer && inPlayer.player.id !== outPlayer.player.id) {
+          add(inPlayer, "SUBSTITUTION_IN");
+          add(outPlayer, "SUBSTITUTION_OUT");
+        }
       }
     } else if (players.length === 1) {
       if (incoming.length === 1 && outgoing.length === 0) add(players[0]!, "SUBSTITUTION_IN");
@@ -366,9 +387,15 @@ export async function parseAndApplyRefereeReportWithAI(params: {
   /** Full official document text, including event tables before the narrative report. */
   eventSourceText?: string;
   preserveExistingMatchData?: boolean;
+  /**
+   * Fast path used right after a FAF sync: run only the deterministic parser
+   * (no network, no AI quota) so the events and the report are visible
+   * immediately, then let the queued AI pass enrich them in the background.
+   */
+  deterministicOnly?: boolean;
   userId: string;
 }): Promise<RefereeReportAnalysisResult> {
-  const { matchId, reportText, eventSourceText, preserveExistingMatchData = false, userId } = params;
+  const { matchId, reportText, eventSourceText, preserveExistingMatchData = false, deterministicOnly = false, userId } = params;
 
   // 1. Fetch match, team, and squad players
   const match = await db.match.findUniqueOrThrow({
@@ -477,9 +504,11 @@ ${squadRoster}
   "summary": "ملخص تحليلي للأحداث"
 }`;
 
-  const availability = await checkAIAvailability();
-  if (!availability.available) aiFallback = "unavailable";
-  if (availability.available) {
+  const availability = deterministicOnly
+    ? { available: false, provider: "none" as const }
+    : await checkAIAvailability();
+  if (!deterministicOnly && !availability.available) aiFallback = "unavailable";
+  if (!deterministicOnly && availability.available) {
     try {
       const aiResponse = await runAICompletion({
         system: systemPrompt,
@@ -704,11 +733,16 @@ ${squadRoster}
     }
   }
 
-  // Update match report and status if not set
+  // Update match report and status if not set.
+  // The report is now written even when the caller asked to preserve existing
+  // match data, as long as the field is still EMPTY — otherwise a FAF sync that
+  // failed to isolate the "final report" section left the report blank forever.
+  const reportToStore = suppliedReportSection || suppliedReportText;
+  const shouldWriteReport = Boolean(reportToStore) && (!preserveExistingMatchData || !match.matchReport?.trim());
   await db.match.update({
     where: { id: matchId },
     data: {
-      ...(!preserveExistingMatchData && (suppliedReportSection || suppliedReportText) ? { matchReport: suppliedReportSection || suppliedReportText } : {}),
+      ...(shouldWriteReport ? { matchReport: reportToStore } : {}),
       ...(!preserveExistingMatchData && detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });

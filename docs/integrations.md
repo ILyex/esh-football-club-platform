@@ -41,3 +41,45 @@ The EMS routes are application endpoints rather than a published developer
 contract, so changes made by FAF to its web application may require an adapter
 update. Keep the integration read-only on the EMS side and never expose club
 credentials, session cookies, or downloaded documents in client logs.
+
+### What happens to an imported document (sync → events → report)
+
+A sync is not just "save the PDF". For each fixture the importer performs, in
+this order:
+
+1. **Fetch** the official match info plus the first sheet (`first-report-ar`)
+   and final report (`final-report-ar`).
+2. **Store** both documents privately and de-duplicate by exact bytes, so a
+   re-sync does not create new versions.
+3. **Read the sheet** to confirm the lineup (starters, substitutes, absences)
+   and match the names against the squad.
+4. **Read the final report** and, when the narrative heading is missing, keep a
+   readable excerpt so the report field is never blank.
+5. **Fill events immediately** with the deterministic parser (no network):
+   goals, assists, yellow/red cards and substitutions, each only when the
+   official text names the player and the minute. Unverifiable lines are
+   discarded rather than guessed.
+6. **Enrich in the background** with the AI pass (Cloudflare Workers AI on
+   Vercel, Ollama locally). Substitutions are always re-checked by the
+   deterministic parser because models tend to return only the incoming player.
+
+Steps 5–6 exist because the AI job alone left the timeline empty whenever the
+background worker was not running. The queue is still the source of truth: the
+after-response processor runs the job immediately on serverless, and the
+`/api/cron/process-jobs` schedule is the safety net.
+
+### Background jobs on Vercel
+
+`vercel.json` schedules two crons: the daily FAF import and a daily
+`/api/cron/process-jobs` sweep. Vercel Cron calls the route with
+`Authorization: Bearer $CRON_SECRET`, which is why the route accepts both `GET`
+and `POST`. Raise the frequency of the sweep on a paid plan if queued work
+(notifications, referee analysis) must be retried faster than daily.
+
+### AI availability
+
+`checkAIAvailability()` caches its probe for 60 seconds and `runAICompletion()`
+retries once on a transient provider failure (`AI_UNAVAILABLE` / `AI_TIMEOUT`).
+Quota exhaustion and a disabled provider are never retried. `/api/health?type=readiness`
+reports `ai.configured` and `ai.provider` so an operator can tell whether the
+document analysis has any chance of running before blaming the parser.

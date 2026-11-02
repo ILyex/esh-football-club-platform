@@ -676,6 +676,16 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       warnings.push("حُفظ التقرير النهائي، لكن تعذر استخراج نصه للتحليل الآلي.");
     }
   }
+  // The report field used to stay EMPTY whenever the "final report" heading was
+  // not found verbatim (scanned sheets, different federation layout). Keep a
+  // readable excerpt of the official text instead of publishing a blank report.
+  if (!refereeReportText && refereeReportSourceText) {
+    const readableExcerpt = refereeReportSourceText.replace(/\s+/g, " ").trim().slice(0, 5000);
+    if (readableExcerpt) {
+      refereeReportText = readableExcerpt;
+      warnings.push("لم يُعثر على عنوان قسم السرد النهائي؛ حُفظ نص التقرير الرسمي كما ورد لملء خانة التقرير.");
+    }
+  }
   if (firstReportResult.status === "rejected") warnings.push(`تعذر جلب وثيقة بداية المباراة: ${firstReportResult.reason instanceof Error ? firstReportResult.reason.message : "خطأ غير معروف"}`);
   if (finalReportResult.status === "rejected") warnings.push(`تعذر جلب التقرير النهائي: ${finalReportResult.reason instanceof Error ? finalReportResult.reason.message : "خطأ غير معروف"}`);
   const hasDocumentsToImport = documentSpecs.some((item) => item.bytes);
@@ -849,13 +859,40 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   });
   let analysisMessage = "";
+  let inlineAnalysisCreated = 0;
+  // STEP 1 — fill the match IMMEDIATELY, without waiting for any worker.
+  // Vercel has no always-on worker: the queued AI job used to sit in QUEUED
+  // forever, so the operator saw the document attached but an empty events
+  // timeline and an empty report. The deterministic parser runs here, inside
+  // the request, in milliseconds, and persists whatever the official text
+  // actually states.
+  if (refereeReportText || refereeReportSourceText) {
+    try {
+      const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
+      const inline = await parseAndApplyRefereeReportWithAI({
+        matchId: local.id,
+        reportText: refereeReportText || undefined,
+        eventSourceText: refereeReportSourceText || undefined,
+        preserveExistingMatchData: true,
+        deterministicOnly: true,
+        userId: actorId
+      });
+      if (inline.success) inlineAnalysisCreated = inline.eventsCreated;
+    } catch (error) {
+      console.warn("[FAF EMS] Inline deterministic report parsing failed", error);
+      warnings.push("تعذر التحليل الفوري للتقرير؛ ستتم إعادة المحاولة تلقائياً في الخلفية.");
+    }
+  }
+
+  // STEP 2 — queue the AI enrichment pass and give it an immediate execution
+  // slot after the response (serverless-safe), with the durable queue as fallback.
   if (refereeReportDocumentId && (refereeReportText || refereeReportSourceText)) {
     // The report bytes came directly from FAF EMS in this request. Pass the
     // extracted text to the job so analysis does not depend on a cross-function
     // object-storage read immediately after the document was uploaded.
     // Queue only after imported player events exist, so duplicate detection
     // sees this reconciliation pass before it creates events.
-    await enqueueRefereeReportAnalysis(db, {
+    const analysisJob = await enqueueRefereeReportAnalysis(db, {
       matchId: local.id,
       documentId: refereeReportDocumentId,
       reportText: refereeReportText || refereeReportSourceText?.slice(0, 5000),
@@ -864,7 +901,14 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       preserveExistingMatchData: true,
       userId: actorId
     }, { allowRerun: true });
-    analysisMessage = " أُضيف تحليل أحداث التقرير إلى قائمة المهام الخلفية.";
+    analysisMessage = inlineAnalysisCreated > 0
+      ? ` أُضيف ${inlineAnalysisCreated} حدثًا من التقرير فورًا، ويُستكمل التحليل الذكي في الخلفية.`
+      : " حُدِّث التقرير فورًا، ويُستكمل التحليل الذكي للأحداث في الخلفية.";
+    // Fire-and-forget: runs after the HTTP response is flushed.
+    const { processQueuedJobAfterResponse } = await import("@/lib/jobs/after-response");
+    processQueuedJobAfterResponse(analysisJob.type, { jobId: analysisJob.id });
+  } else if (refereeReportText) {
+    analysisMessage = " حُدِّث نص التقرير، لكن لم يتوفر مستند تقرير لتحليل الأحداث آلياً.";
   }
   await db.integrationState.upsert({
     where: { key: `faf-ems-match-${externalId}` },

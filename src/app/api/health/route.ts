@@ -78,6 +78,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // AI capability is reported from configuration only (no network probe): it
+  // tells operators whether the document/referee analysis can run at all,
+  // without making the health check depend on a third-party provider.
+  let aiConfigured = false;
+  let aiProvider = "none";
+  try {
+    const { isAIConfigured } = await import("@/lib/ai/provider");
+    aiConfigured = isAIConfigured();
+    aiProvider = process.env.AI_PROVIDER?.trim() || (process.env.VERCEL ? "cloudflare" : "ollama");
+  } catch {
+    aiConfigured = false;
+  }
+
   return NextResponse.json(
     {
       status: isHealthy ? "healthy" : "unhealthy",
@@ -91,6 +104,10 @@ export async function GET(req: NextRequest) {
       configuration: {
         status: configStatus,
         issues: configIssues
+      },
+      ai: {
+        configured: aiConfigured,
+        provider: aiProvider
       }
     },
     {
