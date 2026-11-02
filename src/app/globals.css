@@ -1384,3 +1384,110 @@ button:active,
     border-collapse: collapse;
   }
 }
+
+/* ============================================================================
+   A4 PAGINATION (long documents)
+   ----------------------------------------------------------------------------
+   A roster or statement taller than one sheet used to be cut at the first A4
+   height: Chrome does not fragment flex/overflow containers, so everything
+   after the first page disappeared from print and from the saved PDF.
+
+   .esh-a4-pages holds the real page boxes produced by <A4Pager>. On screen it
+   replaces the continuous sheet; in print it is hidden again so the existing
+   print window (which clones the authored document) keeps its own, correct
+   pagination.
+   ========================================================================== */
+.esh-a4-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10mm;
+  width: 100%;
+}
+
+.esh-a4-page {
+  position: relative;
+  box-sizing: border-box;
+  width: min(210mm, 100%);
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+}
+
+.esh-a4-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.esh-a4-page-body {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Tables cloned into a page must keep the printable table algorithm, not the
+   screen one, or columns widen and overflow the sheet. */
+.esh-a4-page table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.esh-a4-page table th,
+.esh-a4-page table td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media screen {
+  /* The authored document stays in the DOM (print clones it) but the reader
+     sees the paginated pages instead. */
+  .esh-paginated-source {
+    display: none !important;
+  }
+
+  .esh-a4-pages[data-paginated="false"] {
+    display: none;
+  }
+
+  .esh-a4-pages[data-paginated="false"] + .esh-paginated-source,
+  .esh-paginated-source:only-child {
+    display: block !important;
+  }
+}
+
+@media print {
+  .esh-a4-pages {
+    display: none !important;
+  }
+
+  .esh-paginated-source {
+    display: block !important;
+  }
+
+  /* Fragmentation safety net: any flex/grid/overflow ancestor prevents Chrome
+     from splitting a long document across pages. Documents are plain blocks on
+     paper. */
+  .printable-document,
+  .printable-document-container,
+  #official-inventory-document,
+  #official-inventory-preview-document {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .printable-document > *,
+  .printable-document div,
+  .printable-document section {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

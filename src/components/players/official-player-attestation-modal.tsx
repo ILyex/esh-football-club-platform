@@ -1,4 +1,5 @@
 "use client";
+import { A4Pager } from "@/components/shared/a4-pager";
 
 import { useState } from "react";
 import { FileBadge, Printer, X } from "lucide-react";
@@ -139,6 +140,7 @@ export function OfficialPlayerAttestationModal({
 
             {/* Document preview container */}
             <div className="relative flex-1 overflow-auto bg-[#525659] p-4 sm:p-8">
+              <A4Pager targetId={elementId} />
               <div
                 id={elementId}
                 className="printable-document esh-attestation-document esh-security-watermark relative mx-auto flex min-h-[297mm] w-[210mm] shrink-0 flex-col justify-between border border-zinc-200 bg-white p-[14mm] text-black shadow-2xl"

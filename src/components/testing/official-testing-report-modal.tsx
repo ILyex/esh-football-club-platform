@@ -1,4 +1,5 @@
 "use client";
+import { A4Pager } from "@/components/shared/a4-pager";
 
 import { printDocumentElement } from "@/lib/documents/print-helper";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,7 @@ export function OfficialTestingReportModal({
         {/* Scrollable Document Container */}
         <div className="flex flex-col items-center min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/80 dark:bg-zinc-950/80">
           {/* Official Document Sheet */}
+          <A4Pager targetId={docId} />
           <div
             id={docId}
             className="printable-document official-testing-report esh-security-watermark relative w-full max-w-[210mm] bg-white text-black p-6 sm:p-10 shadow-xl border border-zinc-200 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none"

@@ -1,4 +1,5 @@
 "use client";
+import { A4Pager } from "@/components/shared/a4-pager";
 
 import { useState } from "react";
 import { Printer, X, Users, Eye } from "lucide-react";
@@ -107,8 +108,9 @@ export function PlayerPrintListModal({
 
             {/* Modal Body / Scrollable Document Preview */}
             <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex items-start justify-center">
+              <A4Pager targetId={elementId} />
               <div
-                id={elementId}
+              id={elementId}
                 className="printable-document player-list-document mx-auto flex w-[210mm] shrink-0 flex-col gap-6 text-start text-zinc-900"
                 style={{
                   fontFamily: ESH_DOCUMENT_FONT_FAMILY,

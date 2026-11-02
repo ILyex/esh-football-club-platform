@@ -1,4 +1,5 @@
 "use client";
+import { A4Pager } from "@/components/shared/a4-pager";
 
 import { useState } from "react";
 import { Printer, Eye, X, Shield } from "lucide-react";
@@ -83,6 +84,7 @@ export function InsuranceListPreviewModal({ groups, locale = "ar" }: InsuranceLi
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/50 dark:bg-zinc-950/50 flex justify-center">
               {/* A4: 210mm wide, min 297mm tall */}
+              <A4Pager targetId={elementId} />
               <div
                 id={elementId}
                 className="printable-document insurance-list-document esh-security-watermark relative mx-auto w-[210mm] min-h-[297mm] shrink-0 bg-white text-black p-[10mm] shadow-xl border border-zinc-200 text-start flex flex-col"

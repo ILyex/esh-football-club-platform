@@ -1,4 +1,5 @@
 "use client";
+import { A4Pager } from "@/components/shared/a4-pager";
 
 import { useState } from "react";
 import { Printer, X, FileBarChart, Eye } from "lucide-react";
@@ -74,6 +75,7 @@ export function ReportPrintModal({ report, locale = "ar" }: ReportPrintModalProp
 
             {/* Document Content */}
             <div className="flex-1 overflow-auto p-4 sm:p-6 bg-zinc-950/20 flex justify-center">
+              <A4Pager targetId={elementId} />
               <div
                 id={elementId}
                 className="printable-document esh-security-watermark relative flex min-h-[297mm] w-full max-w-[210mm] flex-col justify-between border border-zinc-200 bg-white p-5 text-start text-zinc-900 shadow-xl sm:p-12"
