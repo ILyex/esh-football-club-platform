@@ -4,9 +4,10 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
-if (file('google-services.json').exists()) {
-    apply plugin: 'com.google.gms.google-services'
+if (!file('google-services.json').exists()) {
+    throw new GradleException('FCM is not configured for ESH Public. Register dz.esh.footballclub.publicapp in Firebase and add google-services.json before building a release.')
 }
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace 'dz.esh.footballclub.publicapp'
@@ -14,9 +15,9 @@ android {
     defaultConfig {
         applicationId 'dz.esh.footballclub.publicapp'
         minSdk 24
-        targetSdk 35
-        versionCode 26
-        versionName '1.3.4'
+        targetSdk 36
+        versionCode 36
+        versionName '1.4.4'
     }
     buildFeatures { compose true }
     compileOptions {

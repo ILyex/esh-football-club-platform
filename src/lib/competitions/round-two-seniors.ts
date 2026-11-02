@@ -14,9 +14,7 @@ export function getOfficialRoundTwoSeniorStandings(baselineAt = OFFICIAL_ROUND_T
     ["awf-chellala", "AWF Chellala", false, 2, 1, 0, 1, 3, 5, 3, 0],
     ["s-ain-meriem", "S Ain Meriem", false, 2, 1, 0, 1, 2, 7, 3, 0],
     ["ab-rosfa", "AB Rosfa", false, 1, 0, 1, 0, 1, 1, 1, 0],
-    ["um-tiaret", "UM Tiaret", false, 2, 0, 0, 2, 1, 3, 0, 0],
-    ["crb-serguine", "CRB Serguine", false, 2, 0, 0, 2, 0, 6, -3, -3],
-    ["irb-mechraa-sfa", "IRB Mechraâ Sfa", false, 2, 0, 0, 2, 0, 6, -3, -3]
+    ["um-tiaret", "UM Tiaret", false, 2, 0, 0, 2, 1, 3, 0, 0]
   ];
 
   return rows.map(([id, teamName, isOurClub, played, won, drawn, lost, goalsFor, goalsAgainst, points, pointsAdjustment]) => ({

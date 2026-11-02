@@ -89,7 +89,7 @@ export function PublicHeader({
               {clubShortName || clubName}
             </span>
             {/* Hallmark waiver: keep the established institutional line “ESH • 2018 — ∞” verbatim. */}
-            <span dir="ltr" className="block w-fit max-w-full self-start whitespace-nowrap text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
+            <span dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }} className="block w-fit max-w-full self-start whitespace-nowrap text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
               ESH • 2018 — ∞
             </span>
           </div>

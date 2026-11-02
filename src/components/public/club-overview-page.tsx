@@ -36,7 +36,7 @@ export function ClubOverviewPage({ locale, phone, email }: ClubOverviewPageProps
           <span className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300"><Landmark className="h-4 w-4" />{ar ? "عن الجمعية" : "À propos du club"}</span>
           <h1 className="club-name mt-5 text-3xl font-black tracking-tight sm:text-5xl">{ar ? "الجمعية الرياضية أمل سيدي حسني لكرة القدم" : "Association Sportive Espoir Sidi Hosni de Football"}</h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">{ar ? "مسار رياضي محلي، يبدأ من التكوين ويكبر بالطموح والانتماء." : "Un projet sportif local qui grandit par la formation, l’ambition et l’appartenance."}</p>
-          <div className="mt-7 flex flex-wrap justify-center gap-2 text-xs font-bold text-zinc-300"><span className="rounded-lg bg-white/10 px-3 py-2">ESH • 2018 — ∞</span><span className="rounded-lg bg-white/10 px-3 py-2">{ar ? "سيدي حسني، تيارت" : "Sidi Hosni, Tiaret"}</span></div>
+          <div className="mt-7 flex flex-wrap justify-center gap-2 text-xs font-bold text-zinc-300"><span dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }} className="rounded-lg bg-white/10 px-3 py-2">ESH • 2018 — ∞</span><span className="rounded-lg bg-white/10 px-3 py-2">{ar ? "سيدي حسني، تيارت" : "Sidi Hosni, Tiaret"}</span></div>
         </div>
       </section>
 

@@ -413,7 +413,7 @@ private fun MatchdayApp() {
     var playerStatsLoading by remember { mutableStateOf(false) }
     var playerStatsError by remember { mutableStateOf<String?>(null) }
     var section by remember { mutableStateOf(Section.HOME) }
-    var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("matches", "meetings", "training", "updates")) }
+    var notificationRoutePending by remember { mutableStateOf((context as? Activity)?.intent?.getStringExtra("notification_section") in setOf("meetings", "training", "updates")) }
     var locale by remember { mutableStateOf(preferences.getString("locale", "ar") ?: "ar") }
     var lightMode by remember {
         val saved = preferences.getBoolean("light_mode", false)
@@ -2166,6 +2166,7 @@ private fun NativeMatchEventComposer(match: NativeMatch, saving: Boolean, locale
     val eventTypes = listOf(
         "GOAL" to L(locale, "هدف", "But"), "SHOT" to L(locale, "تسديدة", "Tir"),
         "PENALTY_GOAL" to L(locale, "هدف جزاء", "But sur penalty"), "PENALTY_MISSED" to L(locale, "جزاء ضائع", "Penalty manqué"),
+        "PENALTY_AWARDED" to L(locale, "ركلة جزاء", "Penalty accordé"),
         "OWN_GOAL" to L(locale, "هدف عكسي", "But contre son camp"), "YELLOW_CARD" to L(locale, "بطاقة صفراء", "Carton jaune"),
         "RED_CARD" to L(locale, "بطاقة حمراء", "Carton rouge"), "SUBSTITUTION_IN" to L(locale, "تبديل", "Remplacement")
     )
@@ -2448,6 +2449,7 @@ private fun eventLabel(type: String, locale: String): String = when (type) {
     "OWN_GOAL" -> L(locale, "هدف عكسي", "But contre son camp")
     "SHOT" -> L(locale, "تسديدة", "Tir")
     "PENALTY_MISSED" -> L(locale, "جزاء ضائع", "Penalty manqué")
+    "PENALTY_AWARDED" -> L(locale, "ركلة جزاء", "Penalty accordé")
     "ASSIST" -> L(locale, "تمريرة حاسمة", "Passe décisive")
     "YELLOW_CARD" -> L(locale, "إنذار", "Carton jaune")
     "RED_CARD" -> L(locale, "طرد", "Carton rouge")

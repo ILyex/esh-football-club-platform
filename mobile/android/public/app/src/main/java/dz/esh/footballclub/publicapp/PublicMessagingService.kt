@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.FirebaseApp
@@ -19,15 +20,22 @@ import kotlin.concurrent.thread
 class PublicMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         val locale = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(LOCALE, "ar") ?: "ar"
-        thread(name = "esh-public-fcm-register") { runCatching { PublicApi.registerDevice(token, locale) } }
+        registerToken(applicationContext, token, locale)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        if (message.data["section"] != "matches") return
-        val title = message.data["title"] ?: return
+        if (message.data["section"] != "matches") {
+            Log.w("ESH-FCM", "Discarded a message with an unknown section")
+            return
+        }
+        val title = message.data["title"] ?: run {
+            Log.w("ESH-FCM", "Discarded a match message without a title")
+            return
+        }
         val body = message.data["body"].orEmpty()
         val tag = message.data["tag"] ?: message.messageId ?: System.currentTimeMillis().toString()
         val kind = message.data["kind"] ?: "MATCH_UPDATE"
+        Log.i("ESH-FCM", "Received match update kind=$kind")
         val locale = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(LOCALE, "ar") ?: "ar"
         val channelId = if (locale == "fr") "${CHANNEL}_fr" else "${CHANNEL}_ar"
         val id = "public-$tag"
@@ -35,10 +43,13 @@ class PublicMessagingService : FirebaseMessagingService() {
         val matchId = message.data["matchId"]
         if (matchId != null) {
             when (kind) {
-                "MATCH_STARTED", "MATCH_REOPENED", "GOAL" -> LiveMatchNotifications.update(this, message.data, title)
+                "MATCH_STARTED", "MATCH_REOPENED", "GOAL" -> LiveMatchNotifications.update(this, message.data)
                 "MATCH_FINISHED" -> LiveMatchNotifications.finish(this, matchId)
             }
         }
+        // The persistent Live Update already announces kickoff/resumption.
+        // Keep a separate alert only for goals and the final whistle.
+        if (kind == "MATCH_STARTED" || kind == "MATCH_REOPENED") return
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(
@@ -53,16 +64,19 @@ class PublicMessagingService : FirebaseMessagingService() {
         }
         val openApp = PendingIntent.getActivity(this, tag.hashCode(), Intent(this, MainActivity::class.java).putExtra("open_tab", "alerts"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification_public)
+            .setSmallIcon(R.drawable.esh_notification_logo)
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, R.drawable.esh_logo))
             .setColor(0xFFD60A35.toInt())
             .setContentTitle(title)
             .setContentText(body)
+            .setSubText(if (locale == "fr") "ESH · MATCH EN DIRECT" else "ESH · مباراة مباشرة")
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(openApp)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(false)
             .build()
         runCatching { NotificationManagerCompat.from(this).notify(tag, tag.hashCode(), notification) }
     }
@@ -86,9 +100,37 @@ class PublicMessagingService : FirebaseMessagingService() {
 
         fun registerIfConfigured(context: Context, locale: String) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(LOCALE, locale).apply()
-            if (runCatching { FirebaseApp.initializeApp(context) }.getOrNull() == null) return
-            runCatching { FirebaseMessaging.getInstance() }.getOrNull()?.token?.addOnSuccessListener { token ->
-                thread(name = "esh-public-fcm-register") { runCatching { PublicApi.registerDevice(token, locale) } }
+            val firebase = runCatching { FirebaseApp.initializeApp(context) }.getOrNull()
+            if (firebase == null) {
+                Log.e("ESH-FCM", "Firebase is not initialized; match alerts cannot be registered")
+                return
+            }
+            val messaging = runCatching { FirebaseMessaging.getInstance() }.getOrNull()
+            if (messaging == null) {
+                Log.e("ESH-FCM", "Firebase Messaging is unavailable")
+                return
+            }
+            messaging.token.addOnSuccessListener { token ->
+                registerToken(context.applicationContext, token, locale)
+            }.addOnFailureListener { error ->
+                Log.e("ESH-FCM", "Could not obtain the FCM registration token", error)
+            }
+        }
+
+        private fun registerToken(context: Context, token: String, locale: String) {
+            thread(name = "esh-public-fcm-register") {
+                var lastError: Throwable? = null
+                repeat(3) { attempt ->
+                    try {
+                        PublicApi.registerDevice(token, locale)
+                        Log.i("ESH-FCM", "Device token registered for match updates")
+                        return@thread
+                    } catch (error: Throwable) {
+                        lastError = error
+                        if (attempt < 2) Thread.sleep(1_000L shl attempt)
+                    }
+                }
+                Log.e("ESH-FCM", "Could not register this device for match updates", lastError)
             }
         }
 

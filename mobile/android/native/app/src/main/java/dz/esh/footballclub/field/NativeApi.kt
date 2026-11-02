@@ -227,18 +227,16 @@ object NativeApi {
         val meetings = json.getJSONArray("meetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), item.optString("status")) }
         val upcoming = json.getJSONArray("upcomingMeetings").objects().map { item -> NativeMeeting(item.getString("id"), item.optString("title"), item.optString("date"), item.optNullableString("location"), "UPCOMING") }
         val calendarItems = json.optJSONArray("calendarItems")?.objects()?.map { item -> NativeCalendarItem(item.optString("id"), item.optString("type", "OTHER"), item.optString("title"), item.optString("startDateTime"), item.optString("endDateTime"), item.optNullableString("location"), item.optNullableString("team"), if (item.has("isHomeFixture") && !item.isNull("isHomeFixture")) item.optBoolean("isHomeFixture") else null, item.optNullableString("opponentLogo")) }.orEmpty()
-        val storedAlerts = json.getJSONArray("notifications").objects().map { item ->
+        val storedAlerts = json.getJSONArray("notifications").objects().filter { item ->
+            item.optString("type") !in setOf("UPCOMING_MATCH", "MATCH_REPORT_MISSING", "MATCH_MISSING_INFO")
+        }.map { item ->
             NativeAlert(item.getString("id"), item.optString("title"), item.optNullableString("message"), item.optBoolean("isRead"), item.optString("type", "MATCH"))
         }
         val calendarAlerts = calendarItems.asSequence()
-            .filter { it.type in setOf("MATCH", "MEETING", "TRAINING") }
+            .filter { it.type in setOf("MEETING", "TRAINING") }
             .take(30)
             .map { event ->
-                val kind = when (event.type) {
-                    "MATCH" -> "UPCOMING_MATCH"
-                    "MEETING" -> "MEETING"
-                    else -> "TRAINING"
-                }
+                val kind = if (event.type == "MEETING") "MEETING" else "TRAINING"
                 val details = listOf(event.startDateTime.replace('T', ' ').take(16), event.team, event.location)
                     .filterNot { it.isNullOrBlank() }.joinToString(" · ")
                 NativeAlert("calendar-${event.id}", event.title, details.ifBlank { null }, false, kind)

@@ -75,6 +75,7 @@ export default async function PublicMatchDetailPage({
     return tPublic(`eventTypes.${type}`) || type;
   };
   const eventTypeTone = (type: string) => {
+    if (type === "PENALTY_AWARDED") return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
     if (type === "PENALTY_MISSED") return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
     if (type === "GOAL" || type === "PENALTY_GOAL" || type === "OWN_GOAL") return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
     if (type === "YELLOW_CARD") return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
@@ -82,6 +83,7 @@ export default async function PublicMatchDetailPage({
     return "border-border bg-muted text-muted-foreground";
   };
   const eventTypeIcon = (type: string) => {
+    if (type === "PENALTY_AWARDED") return <Target className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "PENALTY_GOAL") return <Target className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "PENALTY_MISSED") return <CircleX className="h-3.5 w-3.5" aria-hidden="true" />;
     if (type === "GOAL" || type === "OWN_GOAL") return <Target className="h-3.5 w-3.5" aria-hidden="true" />;

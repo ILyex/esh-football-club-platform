@@ -38,7 +38,7 @@ export function PublicFooter({ locale, club, clubDisplayName, labels }: PublicFo
                 <h3 className={`club-name text-[14px] font-extrabold leading-snug tracking-tight text-foreground transition-colors sm:text-sm ${locale === "fr" ? "line-clamp-2 whitespace-normal break-words sm:line-clamp-none sm:whitespace-nowrap" : "whitespace-nowrap"}`}>
                   {clubDisplayName}
                 </h3>
-                <span dir="ltr" className="block w-fit max-w-full self-start whitespace-nowrap text-[11px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
+                <span dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }} className="block w-fit max-w-full self-start whitespace-nowrap text-[11px] font-medium leading-tight text-muted-foreground sm:text-[11px]">
                   ESH • 2018 — ∞
                 </span>
                 <div className="mt-2 flex items-start gap-1.5 text-start text-[11px] leading-5 text-muted-foreground sm:text-xs">

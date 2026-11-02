@@ -6,7 +6,7 @@ import { getNativePrincipal } from "@/lib/native-session";
 import { hasPermission } from "@/lib/permissions";
 import { resolveTeamScope, scopeIncludesTeam } from "@/lib/authz/policy";
 import { writeAuditLog } from "@/lib/audit";
-import { createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
+import { createLiveScoreGoalOutboxes, createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
@@ -29,13 +29,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!match) return NextResponse.json({ error: "match_not_found" }, { status: 404 });
   const scope = await resolveTeamScope(db, user);
   if (!scopeIncludesTeam(scope, match.teamId)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const { updated, outbox } = await db.$transaction(async (tx) => {
+  const { updated, outboxes } = await db.$transaction(async (tx) => {
     const updated = await tx.match.update({ where: { id }, data: parsed.data });
     const status = parsed.data.status;
     const pushKind = status ? getMatchPushKind(match.status, status) : null;
     const shouldNotify = pushKind && match.team?.category;
-    const outbox = shouldNotify
-      ? await createMatchPushOutbox(tx, {
+    const outboxes = [];
+    if (shouldNotify) {
+      outboxes.push(await createMatchPushOutbox(tx, {
           // A fixture can be reopened after it has ended. Include the mutation
           // timestamp so each real status transition gets its own notification,
           // while retries that do not change status still produce no duplicate.
@@ -51,11 +52,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             homeScore: updated.homeScore,
             awayScore: updated.awayScore
           }
-        })
-      : null;
-    return { updated, outbox };
+        }));
+    }
+    outboxes.push(...await createLiveScoreGoalOutboxes(tx, {
+      matchId: updated.id,
+      teamId: updated.teamId,
+      category: match.team?.category ?? null,
+      status: updated.status,
+      mutationId: updated.updatedAt.getTime(),
+      homeTeamName: updated.homeTeamName,
+      awayTeamName: updated.awayTeamName,
+      previousHomeScore: match.homeScore,
+      previousAwayScore: match.awayScore,
+      homeScore: updated.homeScore,
+      awayScore: updated.awayScore
+    }));
+    return { updated, outboxes };
   });
-  if (outbox) await enqueueMatchPushOutbox(outbox.id);
+  await Promise.all(outboxes.map((outbox) => enqueueMatchPushOutbox(outbox.id)));
   await writeAuditLog({
     userId: user.id,
     action: "match.mobile_score.update",

@@ -19,8 +19,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -38,6 +42,10 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -56,7 +64,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -206,7 +213,6 @@ private fun PublicApp() {
     var albumLoadError by remember { mutableStateOf(false) }
     var selectedPhotoIndex by remember { mutableIntStateOf(-1) }
     var selectedVideo by remember { mutableStateOf<String?>(null) }
-    var selectedReel by remember { mutableStateOf<PublicReel?>(null) }
     var showMoreSections by remember { mutableStateOf(false) }
     var alertItems by remember { mutableStateOf(PublicMessagingService.alerts(context)) }
     var publicTeams by remember(locale) { mutableStateOf<List<PublicTeam>>(emptyList()) }
@@ -430,11 +436,11 @@ private fun PublicApp() {
                     when (page) {
                         PublicTab.HOME -> HomeScreen(data, locale, onMatch = { id ->
                             selectedMatchId = id
-                        }, onArticle = { slug -> selectedArticleSlug = slug }, onTab = { tab = it }, onReel = { selectedReel = it })
+                        }, onArticle = { slug -> selectedArticleSlug = slug }, onTab = { tab = it })
                         PublicTab.TEAM -> TeamsScreen(publicTeams, teamsLoading, locale)
                         PublicTab.MATCHES -> MatchesScreen(data, locale) { id -> selectedMatchId = id }
                         PublicTab.COMPETITIONS -> CompetitionsScreen(publicCompetitions, competitionsLoading, competitionsError, locale) { refreshKey++ }
-                    PublicTab.GALLERY -> MediaScreen(data, locale, onReel = { selectedReel = it }, onAlbum = { id ->
+                    PublicTab.GALLERY -> MediaScreen(data, locale, onAlbum = { id ->
                         selectedAlbumId = id
                         selectedAlbum = null
                         selectedPhotoIndex = -1
@@ -558,8 +564,6 @@ private fun PublicApp() {
     }
 
     selectedVideo?.let { video -> VideoDialog(video) { selectedVideo = null } }
-    selectedReel?.let { reel -> SocialReelDialog(reel, locale, { selectedReel = null }, { openUrl(reel.url, context) }) }
-
 }
 
 @Composable
@@ -575,46 +579,54 @@ private fun AmbientMood(tab: PublicTab, liveMatch: Boolean, focused: Boolean, mo
     Box(modifier.drawBehind {
         drawRect(Canvas)
 
-        // Draw glows directly into the screen canvas. Layered background boxes
-        // can leave rectangular compositing patches on some Android GPUs.
-        val topCenter = Offset(size.width - 100.dp.toPx(), 80.dp.toPx())
-        val topRadius = 200.dp.toPx()
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Accent.copy(alpha = glowAlpha), Accent.copy(alpha = glowAlpha * .22f), Color.Transparent),
-                center = topCenter,
-                radius = topRadius
-            ),
-            radius = topRadius,
-            center = topCenter
-        )
-
-        val bottomCenter = Offset(30.dp.toPx(), size.height - 20.dp.toPx())
-        val bottomRadius = 160.dp.toPx()
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Accent.copy(alpha = glowAlpha * .42f), Color.Transparent),
-                center = bottomCenter,
-                radius = bottomRadius
-            ),
-            radius = bottomRadius,
-            center = bottomCenter
+        // Keep the ambient tint on one viewport-sized canvas. Separate radial
+        // layers can leave rectangular GPU compositing seams on some devices.
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Accent.copy(alpha = glowAlpha * .18f),
+                    Color.Transparent,
+                    Accent.copy(alpha = glowAlpha * .08f)
+                ),
+                startY = 0f,
+                endY = size.height
+            )
         )
     })
 }
 
 @Composable
 private fun PublicTopBar(locale: String, club: PublicClub?, modifier: Modifier = Modifier, onToggleLocale: () -> Unit) {
-    val shape = RoundedCornerShape(21.dp)
-    Row(Modifier.fillMaxWidth().then(modifier).padding(horizontal = 14.dp, vertical = 8.dp).siteGlass(shape, accentGlow = true).border(1.dp, Hairline, shape).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(45.dp).clip(CircleShape).background(Glass).border(1.dp, Accent.copy(alpha = .34f), CircleShape).padding(5.dp), contentAlignment = Alignment.Center) {
-            AsyncImage(model = club?.logo ?: R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+    val shape = RoundedCornerShape(23.dp)
+    Box(Modifier.fillMaxWidth().then(modifier).padding(horizontal = 14.dp, vertical = 7.dp)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 68.dp)
+                .siteGlass(shape, accentGlow = true)
+                .border(1.dp, Brush.horizontalGradient(listOf(Accent.copy(alpha = .28f), Hairline, Hairline)), shape)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Box(
+                Modifier.size(48.dp).clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(Accent.copy(alpha = .17f), Glass)))
+                    .border(1.dp, Accent.copy(alpha = .42f), CircleShape).padding(4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(Modifier.fillMaxSize().clip(CircleShape).background(Canvas).padding(2.dp), contentAlignment = Alignment.Center) {
+                    AsyncImage(model = PublicApi.optimizedImageUrl(club?.logo, 256) ?: R.drawable.esh_logo, contentDescription = club?.shortName ?: "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(club?.shortName?.takeIf(String::isNotBlank) ?: "ESH", color = PrimaryText, fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black, letterSpacing = .25.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    club?.name?.takeIf(String::isNotBlank) ?: L(locale, "الجمعية الرياضية أمل سيدي حسني", "Association Sportive Espoir Sidi Hosni"),
+                    color = SecondaryText.copy(alpha = .88f), fontSize = 9.sp, lineHeight = 13.sp,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
+            }
+            LanguageToggle(locale, onToggleLocale)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(club?.shortName ?: "ESH", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp, maxLines = 1)
-            Text(club?.name ?: L(locale, "الجمعية الرياضية أمل سيدي حسني", "Association Sportive Espoir Sidi Hosni"), color = SecondaryText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        LanguageToggle(locale, onToggleLocale)
     }
 }
 
@@ -624,7 +636,7 @@ private fun MatchDetailsTopBar(locale: String, club: PublicClub?, modifier: Modi
     Row(Modifier.fillMaxWidth().then(modifier).padding(horizontal = 14.dp, vertical = 7.dp).siteGlass(shape).border(1.dp, Hairline, shape).padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         HeaderAction(if (locale == "ar") R.drawable.iconly_arrow_right else R.drawable.iconly_arrow_left, L(locale, "رجوع", "Retour"), onBack)
         Box(Modifier.size(39.dp).clip(CircleShape).background(Glass).border(1.dp, Hairline, CircleShape).padding(4.dp), contentAlignment = Alignment.Center) {
-            AsyncImage(model = club?.logo ?: R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            AsyncImage(model = PublicApi.optimizedImageUrl(club?.logo, 256) ?: R.drawable.esh_logo, contentDescription = "ESH", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(L(locale, "تفاصيل المباراة", "Détails du match"), color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.Black, maxLines = 1)
@@ -671,18 +683,18 @@ private fun LanguageToggle(locale: String, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     Surface(
         onClick = onClick,
-        modifier = Modifier.height(40.dp).widthIn(min = 62.dp).siteGlass(shape),
+        modifier = Modifier.height(42.dp).widthIn(min = 68.dp),
         shape = shape,
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, Hairline)
+        color = PanelRaised,
+        border = BorderStroke(1.dp, Accent.copy(alpha = .26f))
     ) {
         Row(
-            Modifier.padding(horizontal = 11.dp),
+            Modifier.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AppIcon(PublicIcons.Language, null, Accent, Modifier.size(17.dp))
-            Text(if (locale == "ar") "FR" else "عربي", color = PrimaryText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            AppIcon(PublicIcons.Language, null, Accent, Modifier.size(16.dp))
+            Text(if (locale == "ar") "FR" else "AR", color = PrimaryText, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
         }
     }
 }
@@ -716,34 +728,42 @@ private fun BoxScope.PublicBottomBar(selected: PublicTab, locale: String, liveMa
         border = BorderStroke(1.dp, Hairline),
         shadowElevation = 18.dp
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().animateContentSize().padding(horizontal = 7.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             tabs.forEach { item ->
                 val active = selected == item
                 Column(
-                    Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(15.dp)).noRippleClickable { onSelect(item) }.padding(horizontal = 2.dp, vertical = 3.dp),
+                    Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).noRippleClickable { onSelect(item) }.padding(horizontal = 2.dp, vertical = 3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Box(Modifier.size(27.dp), contentAlignment = Alignment.Center) {
                         AppIcon(item.icon(active), item.label(locale), if (active) Accent else SecondaryText, Modifier.size(22.dp))
                         if (item == PublicTab.MATCHES && liveMatch) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
                     }
-                    Box(Modifier.fillMaxWidth().height(14.dp), contentAlignment = Alignment.Center) {
-                        if (active) Text(item.label(locale), color = Accent, fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false)
+                    AnimatedVisibility(
+                        visible = active,
+                        enter = fadeIn(tween(140)) + expandVertically(tween(160), expandFrom = Alignment.Top),
+                        exit = fadeOut(tween(100)) + shrinkVertically(tween(120), shrinkTowards = Alignment.Top)
+                    ) {
+                        Text(item.label(locale), color = Accent, fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false)
                     }
                 }
             }
             Column(
-                Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(15.dp)).noRippleClickable(onMore).padding(horizontal = 2.dp, vertical = 3.dp),
+                Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).noRippleClickable(onMore).padding(horizontal = 2.dp, vertical = 3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(1.dp)
+                verticalArrangement = Arrangement.Center
             ) {
                 Box(Modifier.size(27.dp), contentAlignment = Alignment.Center) {
                     AppIcon(PublicIcons.More, L(locale, "المزيد", "Plus"), if (moreSelected) Accent else SecondaryText, Modifier.size(22.dp))
                     if (pendingAlerts > 0) Box(Modifier.align(Alignment.TopEnd).size(7.dp).clip(CircleShape).background(Accent).border(1.dp, PanelRaised, CircleShape))
                 }
-                Box(Modifier.fillMaxWidth().height(14.dp), contentAlignment = Alignment.Center) {
-                    if (moreSelected) Text(L(locale, "المزيد", "Plus"), color = Accent, fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false)
+                AnimatedVisibility(
+                    visible = moreSelected,
+                    enter = fadeIn(tween(140)) + expandVertically(tween(160), expandFrom = Alignment.Top),
+                    exit = fadeOut(tween(100)) + shrinkVertically(tween(120), shrinkTowards = Alignment.Top)
+                ) {
+                    Text(L(locale, "المزيد", "Plus"), color = Accent, fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false)
                 }
             }
         }
@@ -751,12 +771,12 @@ private fun BoxScope.PublicBottomBar(selected: PublicTab, locale: String, liveMa
 }
 
 @Composable
-private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -> Unit, onArticle: (String) -> Unit, onTab: (PublicTab) -> Unit, onReel: (PublicReel) -> Unit) {
+private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -> Unit, onArticle: (String) -> Unit, onTab: (PublicTab) -> Unit) {
     val featured = data.matches.firstOrNull { it.status == "LIVE" } ?: data.nextMatch ?: data.matches.firstOrNull()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(17.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(224.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(PanelRaised, Panel, Canvas))).border(1.dp, Hairline, RoundedCornerShape(28.dp))) {
-                if (data.club.hero != null) AsyncImage(model = data.club.hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .38f)
+                if (data.club.hero != null) AsyncImage(model = PublicApi.optimizedImageUrl(data.club.hero, 1280), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .38f)
                 Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF20C0D0E), Color(0xD90C0D0E), Color(0x660C0D0E)))))
                 Box(Modifier.align(Alignment.TopEnd).padding(14.dp).size(148.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Accent.copy(alpha = .18f), Color.Transparent))))
                 Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(.80f).padding(start = 19.dp, end = 12.dp, top = 15.dp, bottom = 15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -799,7 +819,7 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    AsyncImage(model = PublicApi.optimizedImageUrl(data.club.logo, 256) ?: R.drawable.esh_logo, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 }
             }
         }
@@ -820,12 +840,6 @@ private fun HomeScreen(data: PublicSnapshot, locale: String, onMatch: (String) -
         if (data.news.isNotEmpty()) item {
             SectionHeading(L(locale, "آخر الأخبار", "Dernières actualités"), PublicIcons.News, locale, action = { onTab(PublicTab.NEWS) })
             NewsCard(data.news.first(), locale, onClick = { onArticle(data.news.first().slug) })
-        }
-        if (data.reels.isNotEmpty()) item {
-            SectionHeading(L(locale, "لقطات النادي", "Les vidéos du club"), PublicIcons.Play, locale, action = { onTab(PublicTab.GALLERY) })
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(data.reels.take(6), key = { it.id }) { reel -> ReelCard(reel, locale, Modifier.width(154.dp), onClick = { onReel(reel) }) }
-            }
         }
         if (data.albums.isNotEmpty()) item {
             SectionHeading(L(locale, "من ألبوم النادي", "Dans l’album du club"), PublicIcons.Media, locale, action = { onTab(PublicTab.GALLERY) })
@@ -962,7 +976,7 @@ private fun CompetitionBanner(competition: PublicCompetition, locale: String) {
         Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Accent.copy(alpha = .12f), Panel, PanelRaised)))) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
                 Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .07f)).border(1.dp, Hairline, RoundedCornerShape(16.dp)).padding(8.dp), contentAlignment = Alignment.Center) {
-                    if (!competition.logo.isNullOrBlank()) AsyncImage(model = competition.logo, contentDescription = competition.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    if (!competition.logo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(competition.logo, 256), contentDescription = competition.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     else AppIcon(if (competition.type == "CUP") PublicIcons.Trophy else PublicIcons.Shield, null, if (competition.type == "CUP") Gold else Accent, Modifier.size(27.dp))
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -996,7 +1010,7 @@ private fun CompetitionStandingsTable(standings: List<PublicStanding>, locale: S
                     }
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(25.dp).clip(CircleShape).background(Glass).border(1.dp, if (selected) Accent.copy(alpha = .4f) else Hairline, CircleShape).padding(3.dp), contentAlignment = Alignment.Center) {
-                            if (!team.teamLogo.isNullOrBlank()) AsyncImage(model = team.teamLogo, contentDescription = team.teamName, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            if (!team.teamLogo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(team.teamLogo, 256), contentDescription = team.teamName, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                             else AppIcon(PublicIcons.Shield, null, if (selected) Accent else SecondaryText, Modifier.size(15.dp))
                         }
                         Text(team.teamName, color = if (selected) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1054,7 +1068,7 @@ private fun CupBracketView(rounds: List<PublicCupRound>, locale: String) {
 private fun CupBracketTeamRow(team: PublicCupTeam, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         Box(Modifier.size(23.dp).clip(CircleShape).background(Glass).padding(3.dp), contentAlignment = Alignment.Center) {
-            if (!team.logo.isNullOrBlank()) AsyncImage(model = team.logo, contentDescription = team.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            if (!team.logo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(team.logo, 256), contentDescription = team.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             else AppIcon(PublicIcons.Shield, null, if (team.isOurClub) Accent else SecondaryText, Modifier.size(15.dp))
         }
         Text(team.name, color = if (team.isOurClub) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (team.isOurClub) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -1079,13 +1093,13 @@ private fun ClubScreen(data: PublicSnapshot, locale: String) {
         }
         item {
             Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(27.dp)).background(Brush.linearGradient(listOf(Accent.copy(alpha = .30f), PanelRaised, Canvas))).border(1.dp, Hairline, RoundedCornerShape(27.dp))) {
-                data.club.hero?.let { hero -> AsyncImage(model = hero, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .46f) }
+                data.club.hero?.let { hero -> AsyncImage(model = PublicApi.optimizedImageUrl(hero, 1280), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .46f) }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Canvas.copy(alpha = .18f), Canvas.copy(alpha = .48f), Canvas.copy(alpha = .98f)))))
                 Box(Modifier.align(Alignment.TopEnd).padding(20.dp).size(142.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Accent.copy(alpha = .20f), Color.Transparent))))
                 Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.size(62.dp).clip(CircleShape).background(Color.White).border(2.dp, Accent.copy(alpha = .9f), CircleShape).padding(6.dp), contentAlignment = Alignment.Center) {
-                            AsyncImage(model = data.club.logo ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            AsyncImage(model = PublicApi.optimizedImageUrl(data.club.logo, 256) ?: R.drawable.esh_logo, contentDescription = data.club.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(L(locale, "الجمعية الرياضية", "ASSOCIATION SPORTIVE"), color = Accent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
@@ -1175,16 +1189,10 @@ private fun MatchesScreen(data: PublicSnapshot, locale: String, onMatch: (String
 }
 
 @Composable
-private fun MediaScreen(data: PublicSnapshot, locale: String, onReel: (PublicReel) -> Unit, onAlbum: (String) -> Unit, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
+private fun MediaScreen(data: PublicSnapshot, locale: String, onAlbum: (String) -> Unit, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 10.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { ScreenHeading(L(locale, "المعرض", "Galerie"), L(locale, "صور وفيديوهات الأمل داخل الملعب وخارجه", "Photos et vidéos d’Espoir, sur et en dehors du terrain"), PublicIcons.Media) }
-        if (data.reels.isNotEmpty()) item {
-            SectionHeading(L(locale, "لقطات النادي", "Les vidéos du club"), PublicIcons.Play, locale)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(data.reels, key = { it.id }) { reel -> ReelCard(reel, locale, Modifier.width(154.dp), onClick = { onReel(reel) }) }
-            }
-        }
-        if (data.albums.isEmpty() && data.reels.isEmpty()) item { EmptyState(L(locale, "لا توجد وسائط منشورة حالياً", "Aucun média publié pour le moment")) }
+        item { ScreenHeading(L(locale, "المعرض", "Galerie"), L(locale, "ألبومات وصور النادي", "Albums et photos du club"), PublicIcons.Media) }
+        if (data.albums.isEmpty()) item { EmptyState(L(locale, "لا توجد ألبومات منشورة حالياً", "Aucun album publié pour le moment")) }
         items(data.albums, key = { it.id }) { album -> AlbumTile(album, locale, Modifier.fillMaxWidth()) { onAlbum(album.id) } }
         if (data.albums.isNotEmpty()) item {
             SectionHeading(L(locale, "صور مختارة", "Sélection photos"), PublicIcons.Media, locale)
@@ -1310,7 +1318,7 @@ private fun MatchCard(match: PublicMatch, locale: String, clubLogo: String? = nu
 private fun TeamBadge(name: String, logo: String?, modifier: Modifier = Modifier, featured: Boolean = false, isWinner: Boolean = false) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(Modifier.size(if (featured) 46.dp else 39.dp).clip(CircleShape).background(if (isWinner) Mint.copy(alpha = .12f) else Glass).border(1.dp, if (isWinner) Mint.copy(alpha = .45f) else Hairline, CircleShape).padding(5.dp), contentAlignment = Alignment.Center) {
-            if (!logo.isNullOrBlank()) AsyncImage(model = logo, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            if (!logo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(logo, 256), contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             else Text(name.take(1).uppercase(), color = Accent, fontSize = 17.sp, fontWeight = FontWeight.Black)
         }
         Text(name, color = if (isWinner) PrimaryText else SecondaryText, fontSize = 9.sp, fontWeight = if (isWinner) FontWeight.ExtraBold else FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -1342,11 +1350,13 @@ private fun TrainingCard(training: PublicTraining, locale: String) {
 
 @Composable
 private fun NewsCard(article: PublicNews, locale: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(24.dp), accentGlow = true), color = Color.Transparent, shape = RoundedCornerShape(24.dp), shadowElevation = 12.dp, border = BorderStroke(1.dp, Hairline)) {
+    // Keep this as one opaque, clipped surface. Layering siteGlass + a transparent
+    // clickable Surface caused rectangular compositing seams around card content.
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), color = Panel, shape = RoundedCornerShape(24.dp), shadowElevation = 0.dp, border = BorderStroke(1.dp, Hairline)) {
         Column {
             Box(Modifier.fillMaxWidth().height(176.dp).background(Brush.linearGradient(listOf(Accent.copy(alpha = .30f), PanelRaised, Canvas)))) {
                 if (article.image != null) {
-                    AsyncImage(model = article.image, contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    AsyncImage(model = PublicApi.optimizedImageUrl(article.image, 1080), contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
                     Box(Modifier.align(Alignment.CenterEnd).padding(end = 24.dp).size(100.dp).clip(CircleShape).background(Accent.copy(alpha = .09f)))
                     AppIcon(PublicIcons.News, null, Color.White.copy(alpha = .52f), Modifier.align(Alignment.Center).size(42.dp))
@@ -1378,11 +1388,13 @@ private fun NewsCard(article: PublicNews, locale: String, onClick: () -> Unit) {
 
 @Composable
 private fun AlbumTile(album: PublicAlbum, locale: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = modifier.siteGlass(RoundedCornerShape(19.dp)), color = Color.Transparent, shape = RoundedCornerShape(19.dp), shadowElevation = 8.dp, border = BorderStroke(1.dp, Hairline)) {
+    // A single opaque Surface prevents the image and caption from being composited
+    // against a second rectangular glass layer on devices with different GPUs.
+    Surface(onClick = onClick, modifier = modifier, color = Panel, shape = RoundedCornerShape(19.dp), shadowElevation = 0.dp, border = BorderStroke(1.dp, Hairline)) {
         Column {
             Box(Modifier.fillMaxWidth().height(142.dp).background(PanelRaised)) {
                 val cover = album.cover ?: album.photos.firstOrNull()?.url
-                if (cover != null && !isVideo(cover)) AsyncImage(model = cover, contentDescription = album.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(R.drawable.esh_logo))
+                if (cover != null && !isVideo(cover)) AsyncImage(model = PublicApi.optimizedImageUrl(cover, 640), contentDescription = album.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(R.drawable.esh_logo))
                 else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Accent.copy(alpha = .20f), PanelRaised))), contentAlignment = Alignment.Center) { AppIcon(if (cover != null) PublicIcons.Play else PublicIcons.Media, null, Color.White, Modifier.size(31.dp)) }
                 Text(mediaCountLabel(locale, album.count), Modifier.align(Alignment.BottomEnd).padding(9.dp).clip(CircleShape).background(Color.Black.copy(alpha = .58f)).padding(horizontal = 9.dp, vertical = 5.dp), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
@@ -1398,7 +1410,7 @@ private fun AlbumTile(album: PublicAlbum, locale: String, modifier: Modifier = M
 private fun MediaTile(photo: PublicPhoto, modifier: Modifier, onPhoto: (PublicPhoto) -> Unit, onVideo: (String) -> Unit) {
     val video = isVideo(photo.url)
     Box(modifier.clip(RoundedCornerShape(16.dp)).background(PanelRaised).clickable { if (video) onVideo(photo.url) else onPhoto(photo) }) {
-        if (!video) AsyncImage(model = photo.url, contentDescription = photo.caption.orEmpty(), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(R.drawable.esh_logo))
+        if (!video) AsyncImage(model = PublicApi.optimizedImageUrl(photo.url, 640), contentDescription = photo.caption.orEmpty(), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(R.drawable.esh_logo))
         else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Accent.copy(alpha = .20f), PanelRaised))), contentAlignment = Alignment.Center) { Box(Modifier.size(52.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) { AppIcon(PublicIcons.Play, null, Color.White, Modifier.size(22.dp)) } }
     }
 }
@@ -1592,7 +1604,7 @@ private fun MatchScoreHero(match: PublicMatch, locale: String, clubLogo: String?
 private fun MatchDetailsTeam(name: String, logo: String?, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Box(Modifier.size(54.dp).clip(CircleShape).background(Color.White).padding(5.dp), contentAlignment = Alignment.Center) {
-            if (!logo.isNullOrBlank()) AsyncImage(model = logo, contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            if (!logo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(logo, 256), contentDescription = name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             else AppIcon(PublicIcons.Shield, null, Accent, Modifier.size(25.dp))
         }
         Text(name, color = PrimaryText, fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -1663,7 +1675,7 @@ private fun MatchLineupPanel(center: PublicMatchCenter, locale: String) {
 private fun MatchPlayerRow(player: PublicMatchPlayer, locale: String) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(Modifier.size(34.dp).clip(CircleShape).background(PanelRaised), contentAlignment = Alignment.Center) {
-            if (!player.photo.isNullOrBlank()) AsyncImage(model = player.photo, contentDescription = player.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            if (!player.photo.isNullOrBlank()) AsyncImage(model = PublicApi.optimizedImageUrl(player.photo, 384), contentDescription = player.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Text(player.name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "–", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Black)
         }
         Text(player.number?.toString() ?: "–", Modifier.clip(RoundedCornerShape(8.dp)).background(Accent.copy(alpha = .1f)).padding(horizontal = 8.dp, vertical = 6.dp), color = Accent, fontSize = 10.sp, fontWeight = FontWeight.Black)
@@ -1729,7 +1741,7 @@ private fun ArticleReaderScreen(article: PublicArticle, locale: String) {
         item {
             Box(Modifier.fillMaxWidth().height(252.dp).background(Brush.linearGradient(listOf(Accent.copy(alpha = .24f), PanelRaised, Canvas)))) {
                 if (!article.image.isNullOrBlank()) {
-                    AsyncImage(model = article.image, contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    AsyncImage(model = PublicApi.optimizedImageUrl(article.image, 1080), contentDescription = article.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
                     Box(Modifier.align(Alignment.CenterEnd).padding(end = 40.dp).size(170.dp).clip(CircleShape).background(Accent.copy(alpha = .10f)))
                     AppIcon(PublicIcons.News, null, Accent.copy(alpha = .58f), Modifier.align(Alignment.Center).size(54.dp))
@@ -1767,6 +1779,18 @@ private fun ArticleReaderScreen(article: PublicArticle, locale: String) {
                 lineHeight = 29.sp
             )
         }
+        if (article.images.isNotEmpty()) item {
+            Text(L(locale, "صور إضافية", "Photos supplémentaires"), Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), color = PrimaryText, fontSize = 17.sp, fontWeight = FontWeight.Black)
+        }
+        items(article.images, key = { "article-image-$it" }) { image ->
+            AsyncImage(
+                model = PublicApi.optimizedImageUrl(image, 1080),
+                contentDescription = article.title,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(230.dp)
+                    .clip(RoundedCornerShape(20.dp)).border(1.dp, Hairline, RoundedCornerShape(20.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f).height(1.dp).background(Hairline))
@@ -1782,29 +1806,30 @@ private fun AlbumPageScreen(album: PublicAlbum, locale: String, onPhoto: (Int) -
     val imageIndexById = remember(album.id, album.photos) {
         album.photos.filterNot { isVideo(it.url) }.mapIndexed { index, photo -> photo.id to index }.toMap()
     }
-    LazyColumn(
-        Modifier.fillMaxSize(),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 148.dp),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Column(Modifier.fillMaxWidth().siteGlass(RoundedCornerShape(19.dp)).border(1.dp, Hairline, RoundedCornerShape(19.dp)).padding(15.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(album.name, color = PrimaryText, fontSize = 17.sp, fontWeight = FontWeight.Black)
                 Text(album.description ?: albumCategory(locale, album.category), color = SecondaryText, fontSize = 11.sp, lineHeight = 17.sp)
                 Text(mediaCountLabel(locale, album.count), color = Accent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
             }
         }
-        if (album.photos.isEmpty()) item { EmptyState(L(locale, "لا توجد صور في هذا الألبوم حالياً", "Cet album ne contient pas encore de photos")) }
+        if (album.photos.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { EmptyState(L(locale, "لا توجد صور في هذا الألبوم حالياً", "Cet album ne contient pas encore de photos")) }
         items(album.photos, key = { it.id }) { photo ->
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val imageIndex = imageIndexById[photo.id] ?: -1
                 MediaTile(
                     photo,
-                    Modifier.fillMaxWidth().height(218.dp),
+                    Modifier.fillMaxWidth().aspectRatio(1.12f),
                     onPhoto = { if (imageIndex >= 0) onPhoto(imageIndex) },
                     onVideo = onVideo
                 )
-                photo.caption?.takeIf { it.isNotBlank() }?.let { Text(it, Modifier.padding(horizontal = 3.dp), color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp) }
+                photo.caption?.takeIf { it.isNotBlank() }?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 3.dp), color = SecondaryText, fontSize = 10.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
@@ -1836,7 +1861,7 @@ private fun PhotoViewerScreen(album: PublicAlbum, index: Int, locale: String, on
             contentAlignment = Alignment.Center
         ) {
             AsyncImage(
-                model = photo.url,
+                model = PublicApi.optimizedImageUrl(photo.url, 1080),
                 contentDescription = photo.caption ?: album.name,
                 modifier = Modifier.fillMaxSize().padding(6.dp),
                 contentScale = ContentScale.Fit,

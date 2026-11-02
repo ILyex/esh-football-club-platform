@@ -42,11 +42,22 @@ data class PublicAlert(val id: String, val title: String, val body: String, val 
 data class PublicMatchEvent(val id: String, val minute: Int, val type: String, val side: String, val player: String)
 data class PublicMatchPlayer(val id: String, val name: String, val number: Int?, val position: String?, val photo: String?, val captain: Boolean)
 data class PublicMatchCenter(val match: PublicMatch, val events: List<PublicMatchEvent>, val starting: List<PublicMatchPlayer>, val substitutes: List<PublicMatchPlayer>)
-data class PublicArticle(val title: String, val content: String, val image: String?, val category: String?, val date: String)
+data class PublicArticle(val title: String, val content: String, val image: String?, val images: List<String>, val category: String?, val date: String)
 
 object PublicApi {
     private const val CACHE_PREFS = "esh_public_content_cache"
     private const val CACHE_SCHEMA = "v3"
+
+    /** Serve app images through Next's cached optimizer so full camera uploads
+     * are never downloaded at original resolution for small mobile cards. */
+    fun optimizedImageUrl(value: String?, width: Int = 640): String? {
+        val source = value?.trim()?.takeIf(String::isNotEmpty) ?: return null
+        if (!source.startsWith(PUBLIC_API_ORIGIN)) return source
+        val path = source.removePrefix(PUBLIC_API_ORIGIN)
+        if (!path.startsWith("/api/storage/public-file?key=")) return source
+        val encodedPath = URLEncoder.encode(path, "UTF-8").replace("+", "%20")
+        return "$PUBLIC_API_ORIGIN/_next/image?url=$encodedPath&w=${width.coerceIn(64, 1920)}&q=75"
+    }
 
     fun fetch(context: Context, locale: String): PublicSnapshot {
         val response = request("/api/public/mobile?locale=$locale")
@@ -144,12 +155,27 @@ object PublicApi {
 
     fun article(slug: String, locale: String): PublicArticle {
         val item = JSONObject(request("/api/public/mobile/news/${encode(slug)}?locale=$locale"))
-        val plainContent = HtmlCompat.fromHtml(item.optString("content"), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        val rawContent = item.optString("content")
+        val plainContent = HtmlCompat.fromHtml(rawContent, HtmlCompat.FROM_HTML_MODE_COMPACT)
             .toString()
             .replace(Regex("[ \\t]+"), " ")
             .replace(Regex("\\n{3,}"), "\\n\\n")
             .trim()
-        return PublicArticle(item.optString("title"), plainContent, item.url("featuredImageUrl"), item.optNullable("category"), item.optString("publishedAt"))
+        val storedImages = item.optJSONArray("imageUrls")?.let { array ->
+            (0 until array.length()).mapNotNull { index ->
+                JSONObject().put("image", array.optString(index)).url("image")
+            }
+        }.orEmpty()
+        val inlineImages = Regex("""<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))""", RegexOption.IGNORE_CASE)
+            .findAll(rawContent)
+            .mapNotNull { match ->
+                val source = match.groupValues.drop(1).firstOrNull(String::isNotBlank) ?: return@mapNotNull null
+                JSONObject().put("image", source).url("image")
+            }
+            .toList()
+        val featuredImage = item.url("featuredImageUrl")
+        val additionalImages = (storedImages + inlineImages).distinct().filterNot { it == featuredImage }
+        return PublicArticle(item.optString("title"), plainContent, featuredImage, additionalImages, item.optNullable("category"), item.optString("publishedAt"))
     }
 
     fun album(id: String, locale: String): PublicAlbum {

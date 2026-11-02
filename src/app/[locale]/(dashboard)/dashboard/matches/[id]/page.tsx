@@ -51,7 +51,7 @@ import { getMatchFormError } from "@/lib/matches/form-error";
 import { resolveMatchResult } from "@/lib/matches/result";
 import { groupSubstitutionEvents } from "@/lib/matches/group-substitution-events";
 
-const EVENT_TYPES = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
+const EVENT_TYPES = ["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "PENALTY_AWARDED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"] as const;
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;

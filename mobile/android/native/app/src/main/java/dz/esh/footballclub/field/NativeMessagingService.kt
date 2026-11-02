@@ -31,7 +31,9 @@ class NativeMessagingService : FirebaseMessagingService() {
         // General platform notifications must not be mirrored to the native app.
         // Only app-owned sports and club events are accepted here.
         val section = message.data["section"] ?: return
-        if (section !in setOf("matches", "meetings", "training", "updates")) return
+        // Match alerts belong to the supporter app; keep admin push focused on club operations.
+        if (section == "matches") return
+        if (section !in setOf("meetings", "training", "updates")) return
         val title = message.notification?.title ?: message.data["title"] ?: "تنبيه · أمل سيدي حسني"
         val body = message.notification?.body ?: message.data["body"].orEmpty()
         val kind = message.data["kind"] ?: when (section) {
@@ -100,6 +102,7 @@ class NativeMessagingService : FirebaseMessagingService() {
             val alerts = JSONArray(context.getSharedPreferences(PUSH_PREFS, Context.MODE_PRIVATE).getString(APP_INBOX_KEY, "[]"))
             (0 until alerts.length()).mapNotNull { index ->
                 val item = alerts.optJSONObject(index) ?: return@mapNotNull null
+                if (item.optString("kind") in setOf("MATCH_UPDATE", "UPCOMING_MATCH", "GOAL")) return@mapNotNull null
                 NativeAlert(item.optString("id"), item.optString("title"), item.optString("message").takeIf(String::isNotBlank), false, item.optString("kind", "MATCH_UPDATE"))
             }
         }.getOrDefault(emptyList())

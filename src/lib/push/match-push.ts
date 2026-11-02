@@ -67,6 +67,49 @@ export async function createMatchPushOutbox(
   });
 }
 
+/** Creates a goal alert when a live match's score is changed directly from the operator score controls. */
+export async function createLiveScoreGoalOutboxes(
+  tx: Pick<Prisma.TransactionClient, "matchPushOutbox">,
+  input: {
+    matchId: string;
+    teamId: string | null;
+    category: TeamCategory | null;
+    status: string;
+    mutationId: string | number;
+    homeTeamName: string;
+    awayTeamName: string;
+    previousHomeScore: number | null;
+    previousAwayScore: number | null;
+    homeScore: number | null;
+    awayScore: number | null;
+  }
+) {
+  if (input.status !== "LIVE" || !input.category || !input.teamId) return [];
+  const homeDelta = Math.max(0, (input.homeScore ?? 0) - (input.previousHomeScore ?? 0));
+  const awayDelta = Math.max(0, (input.awayScore ?? 0) - (input.previousAwayScore ?? 0));
+  const outboxes = [];
+  for (const [side, goalsAdded] of [["HOME", homeDelta], ["AWAY", awayDelta]] as const) {
+    if (!goalsAdded) continue;
+    outboxes.push(await createMatchPushOutbox(tx, {
+      dedupKey: `SCORE_GOAL:${input.matchId}:${input.mutationId}:${side}`,
+      matchId: input.matchId,
+      kind: "GOAL",
+      payload: {
+        matchId: input.matchId,
+        teamId: input.teamId,
+        category: input.category,
+        homeTeamName: input.homeTeamName,
+        awayTeamName: input.awayTeamName,
+        homeScore: input.homeScore,
+        awayScore: input.awayScore,
+        side,
+        goalsAdded
+      }
+    }));
+  }
+  return outboxes;
+}
+
 async function queueOutbox(outboxId: string, force = false): Promise<boolean> {
   const env = await getPushRuntimeEnv();
   if (!env.GOAL_PUSH_QUEUE) return false;
@@ -222,43 +265,12 @@ export async function fanoutMatchPush(outboxId: string): Promise<void> {
     select: { id: true }
   });
 
-  // Native app devices are independent of Web Push subscriptions. Restrict
-  // alerts to active match operators and enforce team-scoped role assignments.
-  const devices = await db.nativePushDevice.findMany({
-    where: {
-      user: {
-        isActive: true,
-        deletedAt: null,
-        role: {
-          key: { in: ["super_admin", "president", "developer", "director", "sporting_director", "team_manager"] },
-          OR: [
-            { permissions: { some: { permission: { key: "*" } } } },
-            {
-              AND: [
-                { permissions: { some: { permission: { key: "matches.view" } } } },
-                { permissions: { some: { permission: { key: { in: ["matches.update", "matches.report"] } } } } }
-              ]
-            }
-          ]
-        }
-      }
-    },
-    select: {
-      fcmToken: true,
-      locale: true,
-      user: { select: { role: { select: { teamScoped: true, key: true } }, teamAssignments: { select: { teamId: true } } } }
-    }
-  });
-  const nativeMessages = devices.flatMap((device) => {
-    const role = device.user.role;
-    const canAccessTeam = role.key === "super_admin" || !role.teamScoped || Boolean(payload.teamId && device.user.teamAssignments.some((assignment) => assignment.teamId === payload.teamId));
-    if (!canAccessTeam) return [];
-    const localized = buildNotification(outbox, device.locale);
-    return [{ token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind, ...liveMatchData }];
-  }).concat(publicDevices.map((device) => {
+  // Match alerts are delivered to public-app subscribers only. The admin app
+  // stays focused on operational notices and does not receive match pushes.
+  const nativeMessages = publicDevices.map((device) => {
     const localized = buildNotification(outbox, device.locale);
     return { token: device.fcmToken, title: localized.title, body: localized.body, section: "matches", tag: localized.tag, kind: outbox.kind, ...liveMatchData };
-  }));
+  });
   if (nativeMessages.length) {
     const nativeResult = await sendNativePush(nativeMessages);
     if (!nativeResult.configured) {
@@ -313,6 +325,7 @@ function buildNotification(outbox: {
     category?: string;
     playerName?: string | null;
     playerNameFr?: string | null;
+    goalsAdded?: number;
   };
   const isAr = locale === "ar";
   const teamLabel = CATEGORY_LABELS[payload.category ?? "SENIOR"]?.[isAr ? "ar" : "fr"] ?? payload.category ?? "";
@@ -333,8 +346,11 @@ function buildNotification(outbox: {
     body = `${home}  ${score}  ${away}`;
   } else {
     const scoringTeam = payload.side === "HOME" ? home : away;
+    const goalsAdded = Math.max(1, payload.goalsAdded ?? 1);
     const scorer = isAr ? payload.playerName : (payload.playerNameFr || payload.playerName);
-    title = isAr ? `⚽ هدف لـ ${scoringTeam}` : `⚽ But pour ${scoringTeam}`;
+    title = isAr
+      ? `${goalsAdded > 1 ? `⚽ ${goalsAdded} أهداف` : "⚽ هدف"} لـ ${scoringTeam}`
+      : `${goalsAdded > 1 ? `⚽ ${goalsAdded} buts` : "⚽ But"} pour ${scoringTeam}`;
     const moment = payload.minute != null ? (isAr ? `${payload.minute}′` : `${payload.minute}e`) : "";
     const scorerLine = [scorer, moment].filter(Boolean).join(" · ");
     body = `${scorerLine ? `${scorerLine}\n` : ""}${home}  ${score}  ${away} · ${teamLabel}`;

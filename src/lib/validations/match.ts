@@ -51,7 +51,7 @@ export const matchEventSchema = z.object({
   staffId: z.string().optional().or(z.literal("")),
   entityType: z.enum(["PLAYER", "STAFF"]).default("PLAYER"),
   side: z.enum(["HOME", "AWAY"]).default("HOME"),
-  type: z.enum(["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"]),
+  type: z.enum(["GOAL", "SHOT", "PENALTY_GOAL", "PENALTY_MISSED", "PENALTY_AWARDED", "OWN_GOAL", "ASSIST", "YELLOW_CARD", "RED_CARD", "SUBSTITUTION_IN", "SUBSTITUTION_OUT"]),
   minute: z.coerce.number().int().min(0).max(130),
   notes: z.string().max(500).optional(),
   assistPlayerId: z.string().optional().or(z.literal("")),
@@ -62,7 +62,7 @@ export const matchEventSchema = z.object({
   shotX: z.preprocess((value) => value === "" || value === undefined || value === null ? undefined : value, z.coerce.number().min(0).max(100).optional()),
   shotY: z.preprocess((value) => value === "" || value === undefined || value === null ? undefined : value, z.coerce.number().min(0).max(100).optional())
 }).superRefine((value, ctx) => {
-  if (value.type === "YELLOW_CARD" || value.type === "RED_CARD" || value.type === "GOAL" || value.type === "SHOT" || value.type === "PENALTY_GOAL" || value.type === "PENALTY_MISSED" || value.type === "OWN_GOAL" || value.type === "ASSIST") {
+  if (value.type === "YELLOW_CARD" || value.type === "RED_CARD" || value.type === "GOAL" || value.type === "SHOT" || value.type === "PENALTY_GOAL" || value.type === "PENALTY_MISSED" || value.type === "PENALTY_AWARDED" || value.type === "OWN_GOAL" || value.type === "ASSIST") {
     if (value.entityType === "STAFF" && !value.staffId && !value.playerName && !value.playerNameFr) ctx.addIssue({ code: "custom", path: ["staffId"], message: "Staff member is required" });
     if (value.entityType === "PLAYER" && !value.playerId && !value.playerName && !value.playerNameFr) {
       ctx.addIssue({ code: "custom", path: ["playerName"], message: "Player is required" });

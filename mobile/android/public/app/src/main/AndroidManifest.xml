@@ -26,6 +26,5 @@
         <service android:name=".PublicMessagingService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
-        <receiver android:name=".StopLiveMatchReceiver" android:exported="false" />
     </application>
 </manifest>
