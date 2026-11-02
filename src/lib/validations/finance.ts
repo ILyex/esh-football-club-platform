@@ -44,6 +44,18 @@ export const treasuryAccountSchema = z.object({
 });
 export type TreasuryAccountInput = z.infer<typeof treasuryAccountSchema>;
 
+/**
+ * Correcting an account's opening balance. Validated here — not in the action —
+ * so a negative or fractional value can never reach the ledger seed, and so the
+ * correction carries a mandatory audit reason.
+ */
+export const openingBalanceUpdateSchema = z.object({
+  accountId: z.string().min(1),
+  openingBalance: z.coerce.number().int().min(0),
+  reason: z.string().max(300).optional()
+});
+export type OpeningBalanceUpdateInput = z.infer<typeof openingBalanceUpdateSchema>;
+
 export const treasuryMovementSchema = z.object({
   treasuryAccountId: z.string().min(1),
   amount: positiveAmount,

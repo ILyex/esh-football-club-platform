@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { playerSchema } from "@/lib/validations/player";
-import { parseDMYToISO, parseISOToDMY } from "@/lib/documents/insurance-helper";
+import { parseDMYToISO, parseISOToDMY } from "@/lib/date-utils";
 import { checkPlayerDocument, matchPlayerName } from "@/lib/documents/verification-rules";
 
 test("playerSchema validates licenceNumber correctly", () => {

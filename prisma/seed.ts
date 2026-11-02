@@ -78,6 +78,11 @@ const PERMISSIONS: { key: string; group: string; description: string }[] = [
   { key: "finance.budgets", group: "finance", description: "Manage annual budgets, team allocations, and expense tracking" },
   { key: "finance.vouchers", group: "finance", description: "Preview and print official stamped vouchers and expense invoices" },
   { key: "finance.subsidies", group: "finance", description: "Modify club subsidies and treasury opening balance (Programmer/Admin)" },
+  // Engineering-only capability: correcting an already-posted ledger row or an
+  // opening balance. Deliberately NOT part of ALL_VIEW_PERMS and never granted
+  // to business roles — only the DEV role (which receives every permission) and
+  // the immutable super-admin wildcard hold it.
+  { key: "finance.programmer", group: "finance", description: "Correct or delete posted financial records (system programmer only)" },
 
   { key: "contracts.view", group: "contracts", description: "View contracts" },
   { key: "contracts.manage", group: "contracts", description: "Manage contracts" },

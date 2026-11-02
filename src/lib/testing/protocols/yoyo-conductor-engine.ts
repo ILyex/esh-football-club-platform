@@ -9,7 +9,7 @@
 import { YOYO_IR1_LEVELS, calculateYoYoDistance } from "./yoyo-ir1";
 
 export interface ScheduledShuttle {
-  shuttleIndex: number; // 1 to 91
+  shuttleIndex: number; // 1 to 92
   level: number;
   shuttleInLevel: number;
   totalShuttlesInLevel: number;
@@ -48,7 +48,7 @@ export const COUNTDOWN_DURATION_SEC = 5.0; // 5-second preparation countdown
 export const RECOVERY_DURATION_SEC = 10.0; // 10-second active recovery
 
 /**
- * Pre-computes the deterministic timeline of all 91 shuttles.
+ * Pre-computes the deterministic timeline of all 92 shuttles (3,680 m).
  */
 function buildFullSchedule(): ScheduledShuttle[] {
   const schedule: ScheduledShuttle[] = [];
@@ -58,7 +58,7 @@ function buildFullSchedule(): ScheduledShuttle[] {
   for (const lvl of YOYO_IR1_LEVELS) {
     const speed = lvl.speedKmh;
     // Keep full floating-point timing internally so rounding each shuttle does
-    // not accumulate drift across the full 91-shuttle IR1 protocol.
+    // not accumulate drift across the full 92-shuttle IR1 protocol.
     const shuttleDurationSec = 144 / speed;
     const halfwaySec = shuttleDurationSec / 2;
 

@@ -1,18 +1,21 @@
 import "server-only";
 
 // ============================================================================
-// AUTHZ POLICY FOUNDATION — P1 (Phase 0 / Sub-phase 0D)
+// AUTHZ POLICY — TEAM SCOPE
 // ----------------------------------------------------------------------------
-// STATUS: foundation only. Nothing in this file is imported by any page,
-// Server Action, or Route Handler yet. It exists so later phases (P4+) have a
-// single, typed place to define how each resource's team scope is computed
-// and enforced — see the approved architecture (Phase 0C decision sheet).
+// STATUS: WIRED (P4+). This module IS used, contrary to the original P1 comment
+// that described it as an unused foundation:
+//   - src/lib/mutation-guards.ts   (every dashboard write path)
+//   - src/lib/team-context.ts      (effective team for reads)
+//   - src/lib/search/search-service.ts, src/lib/commands/attention-service.ts
+//   - src/app/api/mobile/**        (native app reads/writes)
+//   - src/lib/integrations/faf/**  (scheduled import jobs)
+// The compiled-in guard is tests/rbac/unit/policy.test.ts: policy.ts must be
+// imported by server code and never by a Client Component.
 //
-// What this file deliberately does NOT do, on purpose, in P1:
-//   - it does not define policies for any real resource (no Player, Match,
-//     Contract, ... entries) — that is resource-enforcement work for later
-//     phases, explicitly out of scope here;
-//   - it is not called from src/lib/permissions.ts, any page, or any action;
+// What this file deliberately does NOT do:
+//   - it does not define per-resource policies (a resource's team column is
+//     resolved by its caller through teamIdWhere/scopeIncludesTeam);
 //   - it does not read the Team Switcher cookie (that remains a pure UI
 //     convenience per the approved architecture — see team-context.ts);
 //   - it does not touch the JWT/session — team scope is always resolved by
@@ -22,7 +25,7 @@ import "server-only";
 // Two concerns stay separate everywhere in this file:
 //   - Permission  ("can this role do X at all")   — src/lib/permissions.ts,
 //     unchanged, still the only source of that answer.
-//   - Team scope  ("on which teams")               — this file, new.
+//   - Team scope  ("on which teams")               — this file.
 // A resource decision always needs both; this file only ever answers the
 // second question.
 // ============================================================================

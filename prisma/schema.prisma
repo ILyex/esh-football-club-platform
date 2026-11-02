@@ -547,6 +547,9 @@ model Document {
   @@index([relatedPlayerId])
   @@index([teamId])
   @@index([relatedMatchId, matchDocumentType])
+  @@index([ownerId])
+  @@index([uploadedById])
+  @@index([relatedStaffId])
 }
 
 enum PlayerMedicalRecordType {
@@ -605,6 +608,7 @@ model PlayerMedicalRecord {
 
   @@index([playerId, type, expiresAt])
   @@index([type, status])
+  @@index([createdById])
 }
 
 // ----------------------------------------------------------------------------
@@ -658,6 +662,9 @@ model Correspondence {
   @@index([teamId])
   @@index([status])
   @@index([type])
+  @@index([responsibleUserId])
+  @@index([relatedPlayerId])
+  @@index([relatedMatchId])
 }
 
 model CorrespondenceAttachment {
@@ -806,6 +813,7 @@ model Match {
   @@index([status])
   @@index([teamId])
   @@index([teamId, status, competitionId])
+  @@index([competitionId])
 }
 
 /// Public opponent club crests cached for reuse across future fixtures.
@@ -838,6 +846,7 @@ enum MatchEventType {
   SHOT
   PENALTY_GOAL
   PENALTY_MISSED
+  PENALTY_AWARDED
   OWN_GOAL
   ASSIST
   YELLOW_CARD
@@ -1116,6 +1125,8 @@ model TrainingSession {
   expenses      Expense[]
 
   @@index([teamId])
+  @@index([coachId])
+  @@index([date])
 }
 
 model TrainingAttendance {
@@ -1126,6 +1137,7 @@ model TrainingAttendance {
   status     AttendanceStatus @default(PRESENT)
 
   @@id([trainingId, playerId])
+  @@index([playerId])
 }
 
 // Spec section 13: attendance must be one of these four states, not a
@@ -1652,12 +1664,21 @@ model TreasuryTransaction {
   reversalOfTransactionId String?                 @unique
   reversalOfTransaction   TreasuryTransaction?    @relation("Reversal", fields: [reversalOfTransactionId], references: [id])
   reversedBy              TreasuryTransaction?    @relation("Reversal")
+  // A bank withdrawal that funds the cash box is stored as TWO rows (the bank
+  // withdrawal and its cash counterpart). This link is what makes the pair a
+  // single financial event: reversal and deletion must always act on both,
+  // otherwise undoing the withdrawal would create money (bank restored, cash
+  // kept). At most one mirror per transaction.
+  parentTransactionId     String?                 @unique
+  parentTransaction       TreasuryTransaction?    @relation("TreasuryMirror", fields: [parentTransactionId], references: [id])
+  mirrorTransaction       TreasuryTransaction?    @relation("TreasuryMirror")
   createdById             String
   createdBy               User                    @relation(fields: [createdById], references: [id])
   createdAt               DateTime                @default(now())
 
   @@index([treasuryAccountId, transactionDate])
   @@index([type])
+  @@index([parentTransactionId])
 }
 
 model AuditLog {

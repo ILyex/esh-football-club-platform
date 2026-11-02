@@ -18,6 +18,15 @@ export default async function EditInventoryItemPage({
 }) {
   const { locale, id } = await params;
   const user = await getSessionOrThrow();
+  // Same server-side gate as the list page: readability follows the domain
+  // permission, never the mere presence of a session.
+  if (
+    !hasPermission(user, "inventory.manage") &&
+    !hasPermission(user, "training.view") &&
+    !hasPermission(user, "teams.manage")
+  ) {
+    redirect(`/${locale === "fr" ? "fr" : "ar"}/access-denied?code=403`);
+  }
   const t = await getTranslations("inventory");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

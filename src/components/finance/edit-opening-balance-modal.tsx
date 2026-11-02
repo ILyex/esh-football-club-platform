@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Edit3, Check, X, Loader2, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateOpeningBalanceAction } from "@/app/[locale]/(dashboard)/dashboard/finance/treasury/actions";
+import { financeErrorMessage, financeErrorCode } from "@/lib/finance/error-text";
 import { toast } from "sonner";
 
 interface EditOpeningBalanceModalProps {
@@ -38,8 +39,10 @@ export function EditOpeningBalanceModal({
       toast.success(isAr ? "تم حفظ الإعانة وتحديث الرصيد" : "Subvention enregistrée et solde mis à jour");
       setIsOpen(false);
     } catch (err) {
-      console.error("Failed to update opening balance:", err);
-      toast.error(isAr ? "تعذر حفظ الإعانة. أعد المحاولة أو تحقق من صلاحيتك." : "Impossible d’enregistrer la subvention. Réessayez ou vérifiez vos droits.");
+      toast.error(
+        financeErrorMessage(financeErrorCode(err), locale) ||
+          (isAr ? "تعذر حفظ الإعانة. أعد المحاولة أو تحقق من صلاحيتك." : "Impossible d’enregistrer la subvention. Réessayez ou vérifiez vos droits.")
+      );
     } finally {
       setLoading(false);
     }

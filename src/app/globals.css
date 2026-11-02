@@ -1312,3 +1312,75 @@ button:active,
     -webkit-print-color-adjust: exact !important;
   }
 }
+
+/* ============================================================================
+   A4 DOCUMENT SHEET — screen preview
+   ----------------------------------------------------------------------------
+   Official documents (vouchers, statements, attestations, inventory and testing
+   reports) were previewed as a full-width white panel, so what the operator saw
+   on screen had no relation to the printed sheet: line breaks, table widths and
+   page breaks all disagreed.
+
+   On screen the document is now a real A4 sheet (210 × 297 mm) with a 10 mm
+   printable margin, centred on a neutral desk, exactly the box the print
+   pipeline targets (190 mm content width at A4 with 10 mm margins). The @media
+   print block above still strips this presentation entirely.
+   ========================================================================== */
+@media screen {
+  .printable-document,
+  #official-inventory-document,
+  #official-inventory-preview-document {
+    width: min(210mm, 100%);
+    min-height: 297mm;
+    margin-inline: auto;
+    padding: 12mm 10mm !important;
+    background-color: #ffffff;
+    color: #111111;
+    border-radius: 2px;
+    box-shadow:
+      0 18px 40px -18px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 180ms ease;
+  }
+
+  .printable-document .print-preview-sheet,
+  #official-inventory-document .print-preview-sheet,
+  #official-inventory-preview-document .print-preview-sheet {
+    width: min(210mm, 100%);
+    min-height: 297mm;
+    margin-inline: auto;
+  }
+
+  /* A subtle paper edge between multi-page documents. */
+  .printable-document .print-preview-sheet + .print-preview-sheet {
+    margin-block-start: 8mm;
+    box-shadow: 0 10px 24px -16px rgba(0, 0, 0, 0.5);
+  }
+
+  @media (max-width: 900px) {
+    .printable-document,
+    #official-inventory-document,
+    #official-inventory-preview-document {
+      padding: 8mm 5mm !important;
+      min-height: auto;
+      box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.45);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .printable-document {
+    transition: none;
+  }
+}
+@media screen {
+  /* Match the print table algorithm exactly, so column widths seen in the
+     preview are the column widths that reach paper. */
+  .printable-document table,
+  #official-inventory-document table,
+  #official-inventory-preview-document table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+}

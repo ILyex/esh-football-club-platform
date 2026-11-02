@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { requirePermission, hasPermission } from "@/lib/permissions";
-import { treasuryAccountSchema, treasuryMovementSchema } from "@/lib/validations/finance";
+import { requirePermission, hasPermission, isFinanceProgrammer } from "@/lib/permissions";
+import { treasuryAccountSchema, treasuryMovementSchema, openingBalanceUpdateSchema } from "@/lib/validations/finance";
 import { postTreasuryMovement, reverseTreasuryTransaction, FinanceError } from "@/lib/finance/treasury-service";
 import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
@@ -169,38 +169,40 @@ export async function reverseTransactionAction(transactionId: string, accountId:
   }
 }
 
-export async function updateOpeningBalanceAction(accountId: string, newBalance: number) {
+export async function updateOpeningBalanceAction(accountId: string, newBalance: number, reason?: string) {
   const user = await requirePermission("finance.manage");
   const scopeContext = await getMutationScopeContext();
   assertTeamScope(scopeContext, null, "TreasuryAccount");
 
-  // Strictly restricted to system programmer / developer / super_admin or finance.subsidies permission
-  const isProgrammer =
-    user.permissions.includes("*") ||
-    user.roleKey === "super_admin" ||
-    user.email === "admin@esh.dz" ||
-    user.email.includes("dev") ||
-    user.roleKey === "developer" ||
-    hasPermission(user, "finance.subsidies");
+  // Opening balance is the seed every later derived balance is built on, so it
+  // is validated like any other money field (whole DZD, non-negative) instead
+  // of trusting whatever number the caller sends.
+  const parsed = openingBalanceUpdateSchema.parse({ accountId, openingBalance: newBalance, reason });
 
-  if (!isProgrammer) {
-    throw new Error("خاصية تعديل الرصيد الافتتاحي مقيدة حصرياً بالمبرمج المسؤول للنظام أو حاملي صلاحية تعديل الإعانة");
-  }
+  // Restricted to the system programmer / developer / super_admin, or an
+  // explicit finance.subsidies holder. The old `email.includes("dev")` test is
+  // gone on purpose — see isFinanceProgrammer().
+  const allowed = isFinanceProgrammer(user) || hasPermission(user, "finance.subsidies");
+  if (!allowed) throw new Error("FORBIDDEN_PROGRAMMER");
 
-  const before = await db.treasuryAccount.findUniqueOrThrow({ where: { id: accountId } });
+  const before = await db.treasuryAccount.findUniqueOrThrow({ where: { id: parsed.accountId } });
 
   const updated = await db.$transaction(async (tx) => {
     const res = await tx.treasuryAccount.update({
-      where: { id: accountId },
-      data: { openingBalance: Number(newBalance) }
+      where: { id: parsed.accountId },
+      data: { openingBalance: parsed.openingBalance }
     });
     await writeAuditLog(
       {
         userId: user.id,
         action: "treasuryAccount.openingBalance.update",
         entityType: "TreasuryAccount",
-        entityId: accountId,
-        changes: { before: before.openingBalance, after: Number(newBalance) }
+        entityId: parsed.accountId,
+        changes: {
+          before: { openingBalance: before.openingBalance },
+          after: { openingBalance: res.openingBalance },
+          reason: parsed.reason ?? null
+        }
       },
       tx
     );
@@ -226,17 +228,7 @@ export async function programmerUpdateTransactionAction(params: {
   treasuryAccountId: string;
 }) {
   const user = await requirePermission("finance.manage");
-
-  const isProgrammer =
-    user.permissions.includes("*") ||
-    user.roleKey === "super_admin" ||
-    user.roleKey === "developer" ||
-    user.email === "admin@esh.dz" ||
-    user.email.includes("dev");
-
-  if (!isProgrammer) {
-    throw new Error("403 Forbidden: تعديل العملية المالية متاح حصرياً للمبرمج المسؤول للنظام");
-  }
+  if (!isFinanceProgrammer(user)) throw new Error("FORBIDDEN_PROGRAMMER");
 
   const { updateTreasuryTransaction } = await import("@/lib/finance/treasury-service");
   const updated = await updateTreasuryTransaction({
@@ -262,17 +254,7 @@ export async function programmerUpdateTransactionAction(params: {
  */
 export async function programmerDeleteTransactionAction(params: { transactionId: string }) {
   const user = await requirePermission("finance.manage");
-
-  const isProgrammer =
-    user.permissions.includes("*") ||
-    user.roleKey === "super_admin" ||
-    user.roleKey === "developer" ||
-    user.email === "admin@esh.dz" ||
-    user.email.includes("dev");
-
-  if (!isProgrammer) {
-    throw new Error("403 Forbidden: حذف العملية المالية متاح حصرياً للمبرمج المسؤول للنظام");
-  }
+  if (!isFinanceProgrammer(user)) throw new Error("FORBIDDEN_PROGRAMMER");
 
   const { deleteTreasuryTransaction } = await import("@/lib/finance/treasury-service");
   const result = await deleteTreasuryTransaction({

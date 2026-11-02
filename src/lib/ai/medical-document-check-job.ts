@@ -9,6 +9,22 @@ import { isAIConfigured, runAICompletion } from "@/lib/ai/provider";
 import { dispatchNotification } from "@/lib/notifications/service";
 
 const medicalCheckPayload = z.object({ recordId: z.string(), userId: z.string() });
+
+/**
+ * Medical documents are special-category personal data. Sending their text —
+ * together with the player's name and date of birth — to a third-party model
+ * provider is a data transfer that needs an explicit, documented opt-in, not
+ * just "AI is enabled". Local inference (Ollama) is always allowed; a hosted
+ * provider is refused unless MEDICAL_AI_EXTERNAL_ENABLED=true is set by the
+ * club's data controller.
+ */
+export function isMedicalAiTransferAllowed(): boolean {
+  const provider = (process.env.AI_PROVIDER ?? "").trim().toLowerCase();
+  const isExternalProvider = provider === "cloudflare" || provider === "openai" || Boolean(process.env.VERCEL);
+  if (!isExternalProvider) return true;
+  return process.env.MEDICAL_AI_EXTERNAL_ENABLED === "true";
+}
+
 const checkResultSchema = z.object({
   documentTypeMatches: z.boolean().nullable(),
   playerIdentityMatches: z.boolean().nullable(),
@@ -58,6 +74,12 @@ export function registerMedicalDocumentCheckJob(): void {
         } else if (!text) {
           status = aiFailure ? "UNAVAILABLE" : "NEEDS_REVIEW";
           findings = ["UNREADABLE"];
+        } else if (!isMedicalAiTransferAllowed()) {
+          // Text was extracted locally but the club has not authorised sending
+          // medical data to a hosted model: flag for a human instead of
+          // transferring it silently.
+          status = "NEEDS_REVIEW";
+          findings = ["TYPE_UNCLEAR", "IDENTITY_UNCLEAR"];
         } else {
           const typeLabels: Record<string, string> = {
             MEDICAL_CLEARANCE: "medical fitness or eligibility certificate",

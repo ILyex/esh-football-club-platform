@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { getSessionOrThrow, hasPermission } from "@/lib/permissions";
@@ -32,6 +33,16 @@ export default async function InventoryListPage({
   const { locale } = await params;
   const sp = await searchParams;
   const user = await getSessionOrThrow();
+  // Inventory is part of the equipment/training domain: the sidebar hid the
+  // link from other roles, but the page itself let ANY authenticated user read
+  // stock levels, locations and values by typing the URL.
+  if (
+    !hasPermission(user, "inventory.manage") &&
+    !hasPermission(user, "training.view") &&
+    !hasPermission(user, "teams.manage")
+  ) {
+    redirect(`/${locale === "fr" ? "fr" : "ar"}/access-denied?code=403`);
+  }
   const t = await getTranslations("inventory");
   const tTeams = await getTranslations("teams");
   const tCommon = await getTranslations("common");

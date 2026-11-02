@@ -26,25 +26,40 @@ export interface YoYoLevelInfo {
   levelTotalDistanceMeters: number;
 }
 
+/**
+ * Authoritative Bangsbo Yo-Yo IR1 level table.
+ *
+ * Cumulative distance is the sum of every completed 40 m shuttle up to and
+ * including the shuttle in that level. The previous table started level 5 with
+ * ONE shuttle (40 m) instead of the two the published protocol prescribes, so
+ * every cumulative distance from level 9 onward was 40 m short, the test capped
+ * at 3,640 m instead of 3,680 m, and the derived VO2max was biased low.
+ * Verified against the published level/speed/distance table:
+ *   5→80, 9→120, 11→200, 12→320, 13→480, 14→800, 15→1120, 16→1440,
+ *   17→1760, 18→2080, 19→2400, 20→2720, 21→3040, 22→3360, 23→3680 m.
+ */
 export const YOYO_IR1_LEVELS: readonly YoYoLevelInfo[] = [
-  { level: 5, speedKmh: 10.0, shuttlesInLevel: 1, priorDistanceMeters: 0, levelTotalDistanceMeters: 40 },
-  { level: 9, speedKmh: 12.0, shuttlesInLevel: 1, priorDistanceMeters: 40, levelTotalDistanceMeters: 40 },
-  { level: 11, speedKmh: 13.0, shuttlesInLevel: 2, priorDistanceMeters: 80, levelTotalDistanceMeters: 80 },
-  { level: 12, speedKmh: 13.5, shuttlesInLevel: 3, priorDistanceMeters: 160, levelTotalDistanceMeters: 120 },
-  { level: 13, speedKmh: 14.0, shuttlesInLevel: 4, priorDistanceMeters: 280, levelTotalDistanceMeters: 160 },
-  { level: 14, speedKmh: 14.5, shuttlesInLevel: 8, priorDistanceMeters: 440, levelTotalDistanceMeters: 320 },
-  { level: 15, speedKmh: 15.0, shuttlesInLevel: 8, priorDistanceMeters: 760, levelTotalDistanceMeters: 320 },
-  { level: 16, speedKmh: 15.5, shuttlesInLevel: 8, priorDistanceMeters: 1080, levelTotalDistanceMeters: 320 },
-  { level: 17, speedKmh: 16.0, shuttlesInLevel: 8, priorDistanceMeters: 1400, levelTotalDistanceMeters: 320 },
-  { level: 18, speedKmh: 16.5, shuttlesInLevel: 8, priorDistanceMeters: 1720, levelTotalDistanceMeters: 320 },
-  { level: 19, speedKmh: 17.0, shuttlesInLevel: 8, priorDistanceMeters: 2040, levelTotalDistanceMeters: 320 },
-  { level: 20, speedKmh: 17.5, shuttlesInLevel: 8, priorDistanceMeters: 2360, levelTotalDistanceMeters: 320 },
-  { level: 21, speedKmh: 18.0, shuttlesInLevel: 8, priorDistanceMeters: 2680, levelTotalDistanceMeters: 320 },
-  { level: 22, speedKmh: 18.5, shuttlesInLevel: 8, priorDistanceMeters: 3000, levelTotalDistanceMeters: 320 },
-  { level: 23, speedKmh: 19.0, shuttlesInLevel: 8, priorDistanceMeters: 3320, levelTotalDistanceMeters: 320 },
+  { level: 5, speedKmh: 10.0, shuttlesInLevel: 2, priorDistanceMeters: 0, levelTotalDistanceMeters: 80 },
+  { level: 9, speedKmh: 12.0, shuttlesInLevel: 1, priorDistanceMeters: 80, levelTotalDistanceMeters: 40 },
+  { level: 11, speedKmh: 13.0, shuttlesInLevel: 2, priorDistanceMeters: 120, levelTotalDistanceMeters: 80 },
+  { level: 12, speedKmh: 13.5, shuttlesInLevel: 3, priorDistanceMeters: 200, levelTotalDistanceMeters: 120 },
+  { level: 13, speedKmh: 14.0, shuttlesInLevel: 4, priorDistanceMeters: 320, levelTotalDistanceMeters: 160 },
+  { level: 14, speedKmh: 14.5, shuttlesInLevel: 8, priorDistanceMeters: 480, levelTotalDistanceMeters: 320 },
+  { level: 15, speedKmh: 15.0, shuttlesInLevel: 8, priorDistanceMeters: 800, levelTotalDistanceMeters: 320 },
+  { level: 16, speedKmh: 15.5, shuttlesInLevel: 8, priorDistanceMeters: 1120, levelTotalDistanceMeters: 320 },
+  { level: 17, speedKmh: 16.0, shuttlesInLevel: 8, priorDistanceMeters: 1440, levelTotalDistanceMeters: 320 },
+  { level: 18, speedKmh: 16.5, shuttlesInLevel: 8, priorDistanceMeters: 1760, levelTotalDistanceMeters: 320 },
+  { level: 19, speedKmh: 17.0, shuttlesInLevel: 8, priorDistanceMeters: 2080, levelTotalDistanceMeters: 320 },
+  { level: 20, speedKmh: 17.5, shuttlesInLevel: 8, priorDistanceMeters: 2400, levelTotalDistanceMeters: 320 },
+  { level: 21, speedKmh: 18.0, shuttlesInLevel: 8, priorDistanceMeters: 2720, levelTotalDistanceMeters: 320 },
+  { level: 22, speedKmh: 18.5, shuttlesInLevel: 8, priorDistanceMeters: 3040, levelTotalDistanceMeters: 320 },
+  { level: 23, speedKmh: 19.0, shuttlesInLevel: 8, priorDistanceMeters: 3360, levelTotalDistanceMeters: 320 },
 ] as const;
 
 export const SHUTTLE_DISTANCE_METERS = 40;
+
+/** Highest distance the protocol can produce: level 23, shuttle 8 → 3,680 m. */
+export const YOYO_IR1_MAX_DISTANCE_METERS = 3680;
 
 /**
  * Calculates total cumulative distance (in meters) from level and completed shuttle.
@@ -67,8 +82,8 @@ export function calculateYoYoDistance(level: number, shuttle: number): number {
  * Derives level and shuttle from total meters completed in Yo-Yo IR1.
  */
 export function deriveYoYoLevelAndShuttle(distanceMeters: number): { level: number; shuttle: number } {
-  if (!Number.isInteger(distanceMeters) || distanceMeters < SHUTTLE_DISTANCE_METERS || distanceMeters > 3640 || distanceMeters % SHUTTLE_DISTANCE_METERS !== 0) {
-    throw new Error("Yo-Yo IR1 distance must be a completed 40m shuttle between 40m and 3640m.");
+  if (!Number.isInteger(distanceMeters) || distanceMeters < SHUTTLE_DISTANCE_METERS || distanceMeters > 3680 || distanceMeters % SHUTTLE_DISTANCE_METERS !== 0) {
+    throw new Error("Yo-Yo IR1 distance must be a completed 40m shuttle between 40m and 3680m.");
   }
   for (let i = YOYO_IR1_LEVELS.length - 1; i >= 0; i--) {
     const info = YOYO_IR1_LEVELS[i];
@@ -129,8 +144,8 @@ export const YoYoIR1Calculator: TestCalculator = {
 
     if (distM) {
       const distance = Number(distM.numericValue ?? distM.value);
-      if (!Number.isInteger(distance) || distance < 40 || distance > 3640 || distance % 40 !== 0) {
-        return { valid: false, error: "Distance must be a completed 40m shuttle between 40m and 3640m." };
+      if (!Number.isInteger(distance) || distance < 40 || distance > 3680 || distance % 40 !== 0) {
+        return { valid: false, error: "Distance must be a completed 40m shuttle between 40m and 3680m." };
       }
       return { valid: true };
     }

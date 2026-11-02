@@ -40,3 +40,20 @@ Thumbs.db
 .local-admin-build-id
 .local-admin-supervisor.pid
 .local-admin-maintenance
+
+# Android build outputs: Gradle caches and build/ trees are hundreds of MB of
+# regenerable artefacts. Historical APKs under public/downloads/ are published
+# to users and stay tracked on purpose.
+mobile/android/**/build/
+mobile/android/**/.gradle/
+mobile/android/**/.idea/
+mobile/android/**/local.properties
+mobile/android/**/.kotlin/
+
+# Firebase configuration for the Android apps. It carries project identifiers
+# and an API key and must be supplied per environment (README explains where to
+# place it) — never committed.
+mobile/android/**/google-services.json
+mobile/android/**/*.jks
+mobile/android/**/*.keystore
+

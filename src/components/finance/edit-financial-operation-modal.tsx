@@ -9,6 +9,7 @@ import { parseDMYToDate } from "@/lib/date-utils";
 import { useRouter } from "next/navigation";
 import { programmerUpdateTransactionAction } from "@/app/[locale]/(dashboard)/dashboard/finance/treasury/actions";
 import { programmerUpdateExpenseAction } from "@/app/[locale]/(dashboard)/dashboard/finance/expenses/actions";
+import { financeErrorMessage, financeErrorCode } from "@/lib/finance/error-text";
 import type { UnifiedFinancialOperation } from "./financial-operations-table";
 
 interface EditFinancialOperationModalProps {
@@ -81,8 +82,11 @@ export function EditFinancialOperationModal({
       toast.success(isAr ? "تم تعديل العملية المالية بنجاح" : "Opération financière modifiée avec succès");
       setIsOpen(false);
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || (isAr ? "حدث خطأ أثناء تعديل العملية" : "Erreur lors de la modification"));
+    } catch (err) {
+      toast.error(
+        financeErrorMessage(financeErrorCode(err), locale) ||
+          (isAr ? "حدث خطأ أثناء تعديل العملية" : "Erreur lors de la modification")
+      );
     } finally {
       setIsPending(false);
     }

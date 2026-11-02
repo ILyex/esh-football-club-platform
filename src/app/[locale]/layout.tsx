@@ -40,7 +40,35 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     : "Association Sportive Espoir Sidi Hosni de Football";
 
   return {
-    title: name,
+    metadataBase: new URL((process.env.NEXT_PUBLIC_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")),
+    title: {
+      default: name,
+      template: `%s | ${locale === "ar" ? "أمل سيدي حسني" : "ESH"}`
+    },
+    description: locale === "ar"
+      ? "الموقع الرسمي للجمعية الرياضية أمل سيدي حسني: الأخبار، المباريات، الترتيب، الفرق، والمعرض."
+      : "Site officiel de l'Association Sportive Espoir Sidi Hosni : actualités, matchs, classement, équipes et galerie.",
+    alternates: {
+      canonical: `/${locale === "ar" ? "ar" : "fr"}`,
+      languages: { ar: "/ar", fr: "/fr", "x-default": "/ar" }
+    },
+    openGraph: {
+      type: "website",
+      siteName: name,
+      locale: locale === "ar" ? "ar_DZ" : "fr_DZ",
+      alternateLocale: locale === "ar" ? "fr_DZ" : "ar_DZ",
+      title: name,
+      description: locale === "ar"
+        ? "الموقع الرسمي للجمعية الرياضية أمل سيدي حسني."
+        : "Site officiel de l'Association Sportive Espoir Sidi Hosni.",
+      url: `/${locale === "ar" ? "ar" : "fr"}`,
+      images: [{ url: "/branding/esh-header-crest.png", width: 1200, height: 630, alt: name }]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: name,
+      images: ["/branding/esh-header-crest.png"]
+    },
     icons: {
       icon: [
         { url: "/branding/esh-logo-32.png", sizes: "32x32", type: "image/png" },
@@ -136,15 +164,10 @@ export default async function LocaleLayout({
             })()`
           }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){
-              function isImageTarget(target){ return target instanceof HTMLImageElement || (target && target.closest && target.closest('img')); }
-              document.addEventListener('dragstart', function(e){ if (isImageTarget(e.target)) e.preventDefault(); }, true);
-              document.addEventListener('contextmenu', function(e){ if (isImageTarget(e.target)) e.preventDefault(); }, true);
-            })()`
-          }}
-        />
+        {/* The old inline script blocked right-click and drag-start on every
+            image. It never protected anything (the files are public URLs) and
+            it broke "open image in new tab", copy and drag-into-upload — so it
+            is gone. */}
       </head>
       <body>
         <NextIntlClientProvider messages={messages}>

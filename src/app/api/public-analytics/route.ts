@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getTrustedClientIp } from "@/lib/security/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +68,15 @@ export async function POST(request: NextRequest) {
 
   const device = deviceFrom(request.headers.get("user-agent") || "");
   if (device === "BOT") return new NextResponse(null, { status: 204 });
+
+  // Unauthenticated write endpoint: throttle per client so the reporting table
+  // cannot be flooded (or blown up in size) by a scripted loop. Requests stay
+  // silent-failing (204) so the visitor experience is unchanged.
+  const clientIp = getTrustedClientIp(request);
+  if (clientIp) {
+    const limit = await checkRateLimit({ key: `analytics:ip:${clientIp}`, limit: 120, windowMs: 60 * 1000 });
+    if (!limit.allowed) return new NextResponse(null, { status: 204 });
+  }
 
   const cookieValue = request.cookies.get(COOKIE_NAME)?.value;
   const visitorId = cookieValue && UUID_PATTERN.test(cookieValue) ? cookieValue : randomUUID();

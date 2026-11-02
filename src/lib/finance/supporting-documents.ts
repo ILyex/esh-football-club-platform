@@ -83,6 +83,29 @@ export async function saveSupportingFinanceDocument({
 }
 
 /**
+ * Compensating cleanup for a supporting document whose owning finance row was
+ * never created (or was rolled back). Uploading happens before the expense's
+ * transaction, so without this the private blob and its Document row survive
+ * as orphans that nobody can find or delete from the UI.
+ *
+ * Best-effort by design: failing to clean up must never mask the original
+ * error the caller is already propagating.
+ */
+export async function discardSupportingFinanceDocument(documentId: string | null): Promise<void> {
+  if (!documentId) return;
+  try {
+    const document = await db.document.findUnique({ where: { id: documentId }, select: { storageKey: true } });
+    await db.document.deleteMany({ where: { id: documentId } });
+    if (document?.storageKey) {
+      const { deletePrivateFile } = await import("@/lib/storage");
+      await deletePrivateFile(document.storageKey);
+    }
+  } catch (error) {
+    console.warn("[finance] orphan supporting document could not be removed", documentId, error);
+  }
+}
+
+/**
  * Server action to attach or update a stamped invoice/receipt for an existing expense.
  */
 export async function attachExpenseDocumentAction(expenseId: string, formData: FormData) {

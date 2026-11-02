@@ -7,6 +7,7 @@ import { loginSchema } from "@/lib/validations/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { isLoginCaptchaEnabled, verifyLoginCaptcha } from "@/lib/security/cap-captcha";
+import { getTrustedClientIp } from "@/lib/security/client-ip";
 
 /** Credential verifier shared by Auth.js and the first-party native app. */
 export async function authenticatePlatformCredentials(raw: Record<string, unknown> | undefined, request: Request) {
@@ -23,11 +24,7 @@ export async function authenticatePlatformCredentials(raw: Record<string, unknow
   if (!parsed.success) return null;
   const email = parsed.data.email.trim().toLowerCase();
   const { password } = parsed.data;
-  const ipCandidates = [
-    request.headers.get("x-real-ip")?.trim(),
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-  ];
-  const clientIp = ipCandidates.find((candidate) => candidate && /^[a-fA-F0-9:.]{1,64}$/.test(candidate)) ?? null;
+  const clientIp = getTrustedClientIp(request);
   const accountHash = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(email));
   const accountKey = Array.from(new Uint8Array(accountHash), (byte) => byte.toString(16).padStart(2, "0")).join("");
   const windowMs = 15 * 60 * 1000;

@@ -2,6 +2,8 @@ name: Quality checks
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -43,8 +45,8 @@ jobs:
         run: npm run lint
       - name: Run unit and security regression suites
         run: npm run test:all
-      - name: Audit all dependencies
-        run: npm audit --audit-level=moderate
+      - name: Audit production dependencies (critical/high gate)
+        run: npm run test:security:audit
       - name: Build and prepare cPanel production bundle
         run: npm run build:cpanel
       - name: Package cPanel runtime
@@ -58,3 +60,27 @@ jobs:
           path: release/cpanel
           if-no-files-found: error
           retention-days: 30
+
+  cloudflare-build:
+    name: Cloudflare build (OpenNext)
+    # The production target is Cloudflare Workers, but no workflow ever built
+    # for it: a Next/OpenNext upgrade could break the deployed runtime while
+    # every other check stayed green. This job only compiles + validates.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/football_club?schema=public
+      AUTH_SECRET: ci-only-placeholder-secret-do-not-use-in-production
+      NEXT_PUBLIC_PUBLIC_SITE_URL: https://example.invalid
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build for Cloudflare Workers
+        run: npm run build:cloudflare

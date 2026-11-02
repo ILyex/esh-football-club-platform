@@ -121,16 +121,20 @@ test("Validation: correction can clear measurements for a non-valid status", () 
 });
 
 test("Validation: SprintCalculator rejects physiologically impossible sprint times", () => {
-  // 1.5s 30m sprint is impossible (world record for 30m split is ~3.7s)
-  const impossibleInput = [{ key: "time_1", value: "1.2", numericValue: 1.2 }];
+  // 1.2s for a full 30m sprint is impossible (world record 30m split is ~3.7s)
+  const impossibleInput = [{ key: "time_30m_1", value: "1.2", numericValue: 1.2 }];
   const val = SprintCalculator.validate(impossibleInput);
   assert.equal(val.valid, false);
   assert.match(val.error!, /Realistic range/);
 
   // 4.12s 30m sprint is realistic
-  const realisticInput = [{ key: "time_1", value: "4.12", numericValue: 4.12 }];
+  const realisticInput = [{ key: "time_30m_1", value: "4.12", numericValue: 4.12 }];
   const val2 = SprintCalculator.validate(realisticInput);
   assert.equal(val2.valid, true);
+
+  // 5m split times are legitimately under 2.5s and must be storable
+  const splitInput = [{ key: "time_5m_1", value: "1.2", numericValue: 1.2 }];
+  assert.equal(SprintCalculator.validate(splitInput).valid, true);
 });
 
 test("Validation: JumpCalculator rejects physiologically impossible jump heights", () => {

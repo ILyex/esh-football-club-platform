@@ -31,9 +31,28 @@ test("TreasuryTransaction is written only inside treasury-service.ts (direct, ne
   assert.deepEqual(offenders, []);
   assert.ok(direct.test(sources.find((s) => s.path === SERVICE)!.text), "sanity: the service does write the ledger");
 });
-test("the ledger service never updates or deletes a TreasuryTransaction (posted rows are immutable)", () => {
+test("ledger rows are only deleted through the guarded deleteTreasuryTransaction path", () => {
   const service = sources.find((s) => s.path === SERVICE)!.text;
-  assert.ok(!/treasuryTransaction\s*\.\s*(update|updateMany|upsert|delete|deleteMany)\b/.test(service));
+  const deleteCalls = [...service.matchAll(/treasuryTransaction\s*\.\s*delete\s*\(/g)].length;
+  assert.equal(deleteCalls, 1, "exactly one deletion site, inside deleteTreasuryTransaction");
+
+  const deleteFnStart = service.indexOf("export async function deleteTreasuryTransaction");
+  const deleteCallIndex = service.indexOf("treasuryTransaction.delete(");
+  assert.ok(deleteFnStart >= 0 && deleteCallIndex > deleteFnStart, "the deletion must live inside deleteTreasuryTransaction");
+
+  // The three guards that keep financial history out of reach are mandatory.
+  const deleteFn = service.slice(deleteFnStart, service.length);
+  for (const guard of ['"REVERSAL_IMMUTABLE"', '"MIRROR_ROW_IMMUTABLE"', '"EXPENSE_LINKED_ROW_IMMUTABLE"']) {
+    assert.ok(deleteFn.includes(guard), `deleteTreasuryTransaction must refuse rows carrying history (${guard})`);
+  }
+
+  // The only bulk update allowed on the ledger is detaching a deleted document;
+  // it must not touch a financial column.
+  const detachStart = service.indexOf("export async function detachDocumentsFromLedger");
+  assert.ok(detachStart >= 0, "detachDocumentsFromLedger is the single sanctioned document-detach helper");
+  const detachFn = service.slice(detachStart, detachStart + 400);
+  assert.match(detachFn, /data:\s*\{\s*documentId:\s*null\s*\}/);
+  assert.ok(!/amount|balance|relatedExpense|treasuryAccountId/.test(detachFn.split("data:")[1] ?? ""), "detach must not touch money columns");
 });
 test("money columns are Int; there is no Float/Decimal and no stored balance on any finance model", () => {
   for (const m of ["Budget", "Expense", "TreasuryAccount", "TreasuryTransaction"]) {

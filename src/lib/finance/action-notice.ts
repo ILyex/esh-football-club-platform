@@ -32,7 +32,18 @@ export const FINANCE_ERROR_CODES = [
   "INVALID_EXPENSE_LINK",
   "REVERSAL_OF_REVERSAL",
   "IDEMPOTENCY_CONFLICT",
-  "CONCURRENT_UPDATE"
+  "CONCURRENT_UPDATE",
+  // Integrity guards added after the audit: historical rows are corrected by
+  // reversal, never by mutation or deletion, and the cash mirror is never an
+  // independent movement.
+  "REVERSAL_IMMUTABLE",
+  "MIRROR_ROW_IMMUTABLE",
+  "MIRROR_MUST_BE_REVERSED_WITH_PARENT",
+  "EXPENSE_LINKED_ROW_IMMUTABLE",
+  "POSTED_EXPENSE_DELETE_BLOCKED",
+  "EXPENSE_HAS_LEDGER_MOVEMENT",
+  "EXPENSE_SETTLED_AMOUNT_IMMUTABLE",
+  "FORBIDDEN_PROGRAMMER"
 ] as const;
 
 const KNOWN_CODES = new Set<string>(FINANCE_ERROR_CODES);

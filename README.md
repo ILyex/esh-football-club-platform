@@ -131,17 +131,22 @@ Never use demo seed data on a production database.
 ```powershell
 npm run dev                  # Development only; Webpack compiles routes on demand
 npm run build:cpanel         # Prepare optimized standalone production runtime
-npm run start                # Serve an existing production build
 npm run build                # Production build
-npm run start                # Serve a production build
-npm run lint                 # ESLint
+npm run start                # Serve an existing production build
+npm run lint                 # ESLint (flat config)
 npm run typecheck            # TypeScript check
 npm run i18n:check           # Arabic/French message key parity
 npm run test:finance         # Finance unit tests
 npm run test:rbac            # RBAC unit tests
 npm run test:testing         # Player testing unit tests
-npm run test:all             # All configured unit suites
+npm run test:root            # Storage/schema/attendance/label/conductor tests
+npm run test:security:audit  # Production dependency gate
+npm run test:all             # Every suite above, in CI order
 ```
+
+Official documents are rendered as real A4 sheets; see
+[documents and printing](docs/documents-and-printing-ar.md) before changing any
+print style.
 
 See [development setup](docs/development.md), [architecture](docs/architecture.md),
 [security](docs/security.md), [operations](OPERATIONS.md), and the

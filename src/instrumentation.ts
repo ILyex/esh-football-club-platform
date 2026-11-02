@@ -36,4 +36,29 @@ denoRuntime?.cron?.(
 export async function register() {
   // The cron definition above is registered at module initialization so Deno
   // Deploy can discover it in the Next.js runtime module graph.
+  //
+  // Fail-fast environment validation. It existed but was never called, so a
+  // production deployment with a placeholder AUTH_SECRET or a missing
+  // CRON_SECRET started happily. Warnings are always logged; hard issues stop
+  // the boot unless ENV_VALIDATION_WARN_ONLY=true is set for a temporary
+  // migration window.
+  try {
+    const { validateEnvironment, assertProductionEnvironment } = await import("@/lib/env");
+    const result = validateEnvironment();
+    for (const warning of result.warnings) console.warn(`[env] ${warning}`);
+    if (!result.ok) {
+      const detail = result.issues.map((issue) => ` - ${issue}`).join("\n");
+      if (process.env.ENV_VALIDATION_WARN_ONLY === "true") {
+        console.error(`[env] INVALID PRODUCTION CONFIGURATION (warn-only mode):\n${detail}`);
+      } else {
+        assertProductionEnvironment();
+      }
+    }
+  } catch (error) {
+    if (process.env.ENV_VALIDATION_WARN_ONLY === "true") {
+      console.error("[env] environment validation failed", error instanceof Error ? error.message : error);
+      return;
+    }
+    throw error;
+  }
 }

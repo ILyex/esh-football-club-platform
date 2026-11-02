@@ -26,6 +26,9 @@ describe("Storage Subsystem & Configuration Invariants", () => {
   describe("Configuration Contract & Fail-Fast Verification", () => {
     test("in production without STORAGE_PRIVATE_BUCKET, throws StorageConfigurationError fail-fast", async () => {
       process.env.NODE_ENV = "production";
+      // Pin the S3 driver: with the local/database drivers a bucket is
+      // legitimately not required, which is what the test used to trip over.
+      process.env.STORAGE_DRIVER = "s3";
       delete process.env.STORAGE_PRIVATE_BUCKET;
 
       await assert.rejects(
@@ -70,20 +73,28 @@ describe("Storage Subsystem & Configuration Invariants", () => {
     test("validateEnvironment enforces STORAGE_PRIVATE_BUCKET in production", () => {
       const prodWithoutStorage = validateEnvironment({
         NODE_ENV: "production",
+        STORAGE_DRIVER: "s3",
         DATABASE_URL: "postgresql://user:pass@host:5432/db?sslmode=require",
         AUTH_SECRET: "a-very-long-production-auth-secret-key-32-chars-plus",
         CRON_SECRET: "valid-production-cron-secret-123456789"
       });
       assert.equal(prodWithoutStorage.ok, false);
-      assert.ok(prodWithoutStorage.issues.some((i) => i.includes("STORAGE_PRIVATE_BUCKET is strictly required")));
+      assert.ok(prodWithoutStorage.issues.some((i) => i.includes("STORAGE_PRIVATE_BUCKET is required in production")));
 
       const prodWithStorage = validateEnvironment({
         NODE_ENV: "production",
+        STORAGE_DRIVER: "s3",
         DATABASE_URL: "postgresql://user:pass@host:5432/db?sslmode=require",
         AUTH_SECRET: "a-very-long-production-auth-secret-key-32-chars-plus",
         CRON_SECRET: "valid-production-cron-secret-123456789",
         STORAGE_PRIVATE_BUCKET: "esh-private-bucket",
-        STORAGE_PUBLIC_BUCKET: "esh-public-bucket"
+        STORAGE_PUBLIC_BUCKET: "esh-public-bucket",
+        // S3-backed storage requires the full credential triple; without it the
+        // validator (correctly) reports the deployment as misconfigured.
+        AUTH_URL: "https://esh.example.dz",
+        STORAGE_ENDPOINT: "https://s3.example.com",
+        STORAGE_ACCESS_KEY_ID: "test-access-key",
+        STORAGE_SECRET_ACCESS_KEY: "test-secret-key"
       });
       assert.equal(prodWithStorage.ok, true);
     });

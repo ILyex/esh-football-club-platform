@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js 22.12 or newer
+- Node.js 22.12 or newer (CI and `.nvmrc` currently pin 24.19.0)
 - npm
 - PostgreSQL 14 or newer
 - A local `.env` based on `.env.example`
@@ -45,6 +45,28 @@ committed.
 4. Run the relevant unit suite and `npm run typecheck` before submitting work.
 5. Run `npm run build` for changes affecting routing, server components,
    configuration or production dependencies.
+
+### Quality commands
+
+| Command | What it covers |
+|---|---|
+| `npm run typecheck` | TypeScript, `src/` only (tests have their own tsconfigs) |
+| `npm run lint` | ESLint flat config (`eslint.config.mjs`) |
+| `npm run test:all` | Finance + RBAC + testing + root suites + dependency gates |
+| `npm run test:root` | `tests/*.test.ts` (storage, schema, attendance, labels, conductor) |
+| `npm run test:security:audit` | Production dependency gate (fails on critical/high except documented exceptions) |
+| `npm run i18n:check` | Arabic/French key parity and ICU brace balance |
+
+**Lint note:** `eslint.config.mjs` no longer extends `next/core-web-vitals`
+through `FlatCompat`. That legacy path loads `@rushstack/eslint-patch`, which
+cannot patch ESLint ≥ 9.30 and made `npm run lint` crash before evaluating a
+single rule. The flat config registers `@next/eslint-plugin-next`,
+`eslint-plugin-react-hooks` and the TypeScript parser directly. Keep it that
+way when adding rules.
+
+**Prisma note:** never edit `prisma/schema.mysql.prisma`; it is a generated
+artifact. Schema changes must also provide a checked-in migration under
+`prisma/migrations/`, because `db:migrate:deploy` is what production runs.
 
 Never point a local seed or test script at production data. Integration tests
 that use a live database are documented in `tests/finance/README.md`.

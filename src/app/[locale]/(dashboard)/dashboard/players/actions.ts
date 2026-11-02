@@ -495,8 +495,20 @@ export async function restorePlayerAction(playerId: string) {
 export async function hardDeletePlayerAction(playerId: string) {
   const user = await requirePermission("players.delete"); // granted to Super Admin only in seed data
   const scopeContext = await getMutationScopeContext();
-  const player = await db.player.findUniqueOrThrow({ where: { id: playerId }, include: { team: true } });
+  const player = await db.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: {
+      team: true,
+      // Medical documents are RESTRICTED private files. Deleting the player
+      // used to leave both the Document rows and the blobs behind forever, so
+      // they are collected here and removed after the profile commit.
+      medicalRecords: { where: { documentId: { not: null } }, select: { document: { select: { id: true, storageKey: true } } } }
+    }
+  });
   assertTeamScope(scopeContext, player.teamId, "Player");
+  const medicalDocuments = player.medicalRecords
+    .map((record) => record.document)
+    .filter((document): document is { id: string; storageKey: string } => Boolean(document));
 
   // Preserve historical match events while removing the player's live profile.
   // Explicitly detach restrictive foreign keys first so deletion cost and
@@ -521,6 +533,21 @@ export async function hardDeletePlayerAction(playerId: string) {
   // Object storage is outside the database transaction. Delete it after the
   // profile commit so a slow storage provider cannot prevent the UI action.
   if (player.photoUrl) await deletePublicFile(player.photoUrl).catch(() => {});
+
+  if (medicalDocuments.length > 0) {
+    const { deletePrivateFile } = await import("@/lib/storage");
+    await db.document.deleteMany({ where: { id: { in: medicalDocuments.map((document) => document.id) } } }).catch(() => {});
+    for (const document of medicalDocuments) {
+      await deletePrivateFile(document.storageKey).catch(() => {});
+    }
+    await writeAuditLog({
+      userId: user.id,
+      action: "player.medical_documents.deleted",
+      entityType: "Player",
+      entityId: playerId,
+      changes: { documentCount: medicalDocuments.length, reason: "player hard delete" }
+    });
+  }
 
   await writeAuditLog({ userId: user.id, action: "player.delete", entityType: "Player", entityId: playerId });
   const categorySlug = player.team?.category?.toLowerCase();

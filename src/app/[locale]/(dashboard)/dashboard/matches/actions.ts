@@ -9,6 +9,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { getMutationScopeContext, assertTeamScope, assertDualTeamScope } from "@/lib/mutation-guards";
 import { revalidatePath as nextRevalidatePath } from "next/cache";
 import { getMatchClockState, isShootoutDecided } from "@/lib/matches/clock";
+import { detachDocumentsFromLedger } from "@/lib/finance/treasury-service";
 import { resolveShootoutWinner } from "@/lib/matches/result";
 import { getFAFConfig } from "@/lib/integrations/faf/config";
 import { importUpcomingFafMatches } from "@/lib/integrations/faf/scheduled-match-import";
@@ -17,7 +18,7 @@ import { enqueueJob } from "@/lib/jobs/queue";
 import { processQueuedJobAfterResponse } from "@/lib/jobs/after-response";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
-import { createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
+import { createLiveScoreGoalOutboxes, createMatchPushOutbox, enqueueMatchPushOutbox, getMatchPushKind } from "@/lib/push/match-push";
 import { estimateShotXg } from "@/lib/matches/xg";
 import { matchStadium } from "@/lib/matches/stadium";
 import { deletePrivateFile } from "@/lib/storage";
@@ -306,7 +307,7 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
   const homeTeamName = parsed.isHomeFixture ? clubName : opponentName;
   const awayTeamName = parsed.isHomeFixture ? opponentName : clubName;
 
-  const { match, outbox } = await db.$transaction(async (tx) => {
+  const { match, outboxes } = await db.$transaction(async (tx) => {
     const updated = await tx.match.update({
       where: { id: matchId },
       data: {
@@ -333,12 +334,13 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
       }
     });
     await syncCalendarEvent(tx, updated.id, `${homeTeamName} vs ${awayTeamName}`, updated.matchDate, updated.teamId, updated.stadium || null);
-    let notification = null;
+    const notifications = [];
     const pushKind = getMatchPushKind(before.status, updated.status);
-    if (updated.teamId && pushKind) {
+    const scoreIncreased = (updated.homeScore ?? 0) > (before.homeScore ?? 0) || (updated.awayScore ?? 0) > (before.awayScore ?? 0);
+    if (updated.teamId && (pushKind || scoreIncreased)) {
       const team = await tx.team.findUnique({ where: { id: updated.teamId }, select: { category: true } });
       if (team) {
-        notification = await createMatchPushOutbox(tx, {
+        if (pushKind) notifications.push(await createMatchPushOutbox(tx, {
           dedupKey: `${pushKind}:${updated.id}:${updated.updatedAt.getTime()}`,
           matchId: updated.id,
           kind: pushKind,
@@ -351,7 +353,20 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
             homeScore: updated.homeScore,
             awayScore: updated.awayScore
           }
-        });
+        }));
+        notifications.push(...await createLiveScoreGoalOutboxes(tx, {
+          matchId: updated.id,
+          teamId: updated.teamId,
+          category: team.category,
+          status: updated.status,
+          mutationId: updated.updatedAt.getTime(),
+          homeTeamName,
+          awayTeamName,
+          previousHomeScore: before.homeScore,
+          previousAwayScore: before.awayScore,
+          homeScore: updated.homeScore,
+          awayScore: updated.awayScore
+        }));
       }
     }
     await writeAuditLog({
@@ -361,9 +376,9 @@ export async function updateMatchAction(matchId: string, formData: FormData) {
       entityId: updated.id,
       changes: { before, after: parsed }
     }, tx);
-    return { match: updated, outbox: notification };
+    return { match: updated, outboxes: notifications };
   });
-  if (outbox) await enqueueMatchPushOutbox(outbox.id);
+  await Promise.all(outboxes.map((outbox) => enqueueMatchPushOutbox(outbox.id)));
 
   if (parsed.status === "FINISHED" && before.status !== "FINISHED") {
     await enqueueAutomaticFafMatchSync(match.id, user.id);
@@ -507,7 +522,7 @@ export async function deleteMatchAction(matchId: string) {
     if (linkedDocumentIds.length) {
       await tx.contract.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
       await tx.expense.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
-      await tx.treasuryTransaction.updateMany({ where: { documentId: { in: linkedDocumentIds } }, data: { documentId: null } });
+      await detachDocumentsFromLedger(tx, linkedDocumentIds);
       await tx.correspondenceAttachment.deleteMany({ where: { documentId: { in: linkedDocumentIds } } });
       await tx.meetingAttachment.deleteMany({ where: { documentId: { in: linkedDocumentIds } } });
     }
@@ -932,6 +947,11 @@ export async function addShootoutKickAction(matchId: string, formData: FormData)
   }
 
   await db.$transaction(async (tx) => {
+    const kicksBefore = await tx.matchShootoutKick.findMany({ where: { matchId }, select: { side: true, attemptNumber: true, result: true } });
+    // A decided shootout is final: extra kicks after the winning kick would
+    // change the recorded result without changing the winner.
+    if (isShootoutDecided(kicksBefore)) throw new Error("shootoutAlreadyDecided");
+
     const existingSideKicks = await tx.matchShootoutKick.count({ where: { matchId, side: parsed.side } });
     const kick = await tx.matchShootoutKick.create({
       data: {
@@ -944,12 +964,19 @@ export async function addShootoutKickAction(matchId: string, formData: FormData)
       }
     });
     const allKicks = await tx.matchShootoutKick.findMany({ where: { matchId }, select: { side: true, attemptNumber: true, result: true } });
+    const shootoutDecided = isShootoutDecided(allKicks);
+    // The winning kick ends the match, exactly like deleting a kick reopens
+    // it — otherwise the fixture stayed "LIVE" forever after a decided
+    // shootout while its result was already public.
+    if (shootoutDecided) {
+      await tx.match.update({ where: { id: matchId }, data: { status: "FINISHED" } });
+    }
     await writeAuditLog({
       userId: user.id,
       action: "match.shootout_kick.create",
       entityType: "MatchShootoutKick",
       entityId: kick.id,
-      changes: { after: { ...parsed, playerId, playerName, attemptNumber: kick.attemptNumber }, shootoutDecided: isShootoutDecided(allKicks) }
+      changes: { after: { ...parsed, playerId, playerName, attemptNumber: kick.attemptNumber }, shootoutDecided, matchFinished: shootoutDecided }
     }, tx);
   });
   revalidatePath(`/[locale]/dashboard/matches/${matchId}`, "page");

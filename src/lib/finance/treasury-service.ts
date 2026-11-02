@@ -269,7 +269,7 @@ export async function postTreasuryMovement(params: PostMovementParams): Promise<
                 "DEPOSIT",
                 params.transactionDate
               );
-              await tx.treasuryTransaction.create({
+              const mirror = await tx.treasuryTransaction.create({
                 data: {
                   referenceNumber: cashRef,
                   idempotencyKey: `auto-cash-${transaction.id}`,
@@ -281,9 +281,35 @@ export async function postTreasuryMovement(params: PostMovementParams): Promise<
                   balanceBefore: cashBefore,
                   balanceAfter: cashAfter,
                   documentId: params.documentId || null,
-                  createdById: params.createdById
+                  createdById: params.createdById,
+                  // The pair is ONE financial event: this link is what lets the
+                  // reversal/deletion paths act on both rows together instead of
+                  // silently leaving the cash side behind (which created money).
+                  parentTransactionId: transaction.id
                 }
               });
+              // The mirror moves real money, so it needs its own audit row —
+              // previously it was written with no audit trail at all.
+              await writeAuditLog(
+                {
+                  userId: params.createdById,
+                  action: "treasury.cash_mirror",
+                  entityType: "TreasuryTransaction",
+                  entityId: mirror.id,
+                  changes: {
+                    after: {
+                      referenceNumber: mirror.referenceNumber,
+                      treasuryAccountId: cashAccount.id,
+                      amount: params.amount,
+                      balanceBefore: cashBefore,
+                      balanceAfter: cashAfter,
+                      parentTransactionId: transaction.id,
+                      parentReferenceNumber: refNumber
+                    }
+                  }
+                },
+                tx
+              );
             }
           }
 
@@ -312,11 +338,110 @@ export async function postTreasuryMovement(params: PostMovementParams): Promise<
   throw new FinanceError("CONCURRENT_UPDATE"); // unreachable: the loop always returns or throws
 }
 
+/** Minimal row shape the reversal helper needs — kept explicit instead of `any`. */
+type ReversibleRow = {
+  id: string;
+  referenceNumber: string;
+  treasuryAccountId: string;
+  type: "DEPOSIT" | "WITHDRAWAL";
+  amount: number;
+};
+
+/** Row shape captured in the deletion audit trail (parent and its mirror share it). */
+type DeletableLedgerRow = {
+  id: string;
+  referenceNumber: string;
+  type: "DEPOSIT" | "WITHDRAWAL";
+  amount: number;
+  transactionDate: Date;
+  description: string | null;
+  treasuryAccountId: string;
+  parentTransactionId: string | null;
+  treasuryAccountName: string | null;
+};
+
+/**
+ * Writes one opposite-direction reversal row plus its audit record.
+ * Shared by the primary row and its cash mirror so both sides are reversed by
+ * exactly the same rules (solvency check included) inside one transaction.
+ */
+async function insertReversal(
+  tx: Prisma.TransactionClient,
+  row: ReversibleRow,
+  createdById: string,
+  description: string
+): Promise<{ id: string; referenceNumber: string }> {
+  const reversalType: "DEPOSIT" | "WITHDRAWAL" = row.type === "DEPOSIT" ? "WITHDRAWAL" : "DEPOSIT";
+  const balanceBefore = await computeBalance(tx, row.treasuryAccountId);
+  const balanceAfter = reversalType === "DEPOSIT" ? balanceBefore + row.amount : balanceBefore - row.amount;
+
+  if (reversalType === "WITHDRAWAL" && balanceAfter < 0) {
+    throw new FinanceError("INSUFFICIENT_FUNDS", "Reversing this movement would leave the account negative");
+  }
+
+  const refNumber = await generateSequentialFinanceReference(tx, "REVERSAL", new Date());
+  const reversal = await tx.treasuryTransaction.create({
+    data: {
+      referenceNumber: refNumber,
+      idempotencyKey: `reversal-${row.id}`,
+      treasuryAccountId: row.treasuryAccountId,
+      type: reversalType,
+      amount: row.amount,
+      transactionDate: new Date(),
+      description,
+      balanceBefore,
+      balanceAfter,
+      reversalOfTransactionId: row.id,
+      createdById
+    }
+  });
+
+  await writeAuditLog(
+    {
+      userId: createdById,
+      action: "treasury.reverse",
+      entityType: "TreasuryTransaction",
+      entityId: reversal.id,
+      changes: {
+        after: {
+          referenceNumber: reversal.referenceNumber,
+          reversalOfTransactionId: row.id,
+          treasuryAccountId: row.treasuryAccountId,
+          amount: row.amount,
+          balanceBefore,
+          balanceAfter
+        }
+      }
+    },
+    tx
+  );
+
+  return { id: reversal.id, referenceNumber: reversal.referenceNumber };
+}
+
+/**
+ * Detaches a deleted supporting document from ledger rows WITHOUT touching any
+ * financial column. Keeping this here (instead of letting another module write
+ * to TreasuryTransaction directly) preserves the "the ledger is only written by
+ * treasury-service.ts" invariant while still allowing a document to be removed.
+ */
+export async function detachDocumentsFromLedger(tx: Prisma.TransactionClient, documentIds: string[]): Promise<void> {
+  if (documentIds.length === 0) return;
+  await tx.treasuryTransaction.updateMany({
+    where: { documentId: { in: documentIds } },
+    data: { documentId: null }
+  });
+}
+
 /**
  * Reverses a posted transaction by creating a new, opposite-direction entry
  * that references it — the original row is never modified (spec section
  * 10: "Original transaction must remain visible... Do not mutate historical
  * balances").
+ *
+ * A bank withdrawal that funded the cash box exists as a linked pair, so the
+ * whole pair is reversed together. Reversing only the bank side used to leave
+ * the cash deposit in place, i.e. it created money out of an undo.
  */
 export async function reverseTreasuryTransaction(params: { transactionId: string; createdById: string; description?: string }): Promise<{ id: string; referenceNumber: string }> {
   for (let attempt = 0; attempt < MAX_SERIALIZATION_RETRIES; attempt++) {
@@ -331,57 +456,33 @@ export async function reverseTreasuryTransaction(params: { transactionId: string
           // again, that is a NEW deposit/withdrawal, not a reversal.
           if (original.reversalOfTransactionId) throw new FinanceError("REVERSAL_OF_REVERSAL");
 
+          // The cash mirror is not an independent movement — it belongs to its
+          // parent. Reversing it alone would corrupt the pair, so the operator
+          // must reverse the parent (which reverses both).
+          if (original.parentTransactionId) throw new FinanceError("MIRROR_MUST_BE_REVERSED_WITH_PARENT");
+
           const alreadyReversed = await tx.treasuryTransaction.findUnique({ where: { reversalOfTransactionId: original.id } });
           if (alreadyReversed) throw new FinanceError("DUPLICATE_TRANSACTION", "This transaction has already been reversed");
 
-          const reversalType = original.type === "DEPOSIT" ? "WITHDRAWAL" : "DEPOSIT";
-          const balanceBefore = await computeBalance(tx, original.treasuryAccountId);
-          const balanceAfter = reversalType === "DEPOSIT" ? balanceBefore + original.amount : balanceBefore - original.amount;
+          const reversal = await insertReversal(
+            tx,
+            { id: original.id, referenceNumber: original.referenceNumber, treasuryAccountId: original.treasuryAccountId, type: original.type, amount: original.amount },
+            params.createdById,
+            params.description ?? `Reversal of ${original.referenceNumber}`
+          );
 
-          if (reversalType === "WITHDRAWAL" && balanceAfter < 0) {
-            throw new FinanceError("INSUFFICIENT_FUNDS", "Reversing this deposit would leave the account negative");
+          const mirror = await tx.treasuryTransaction.findUnique({ where: { parentTransactionId: original.id } });
+          if (mirror) {
+            const mirrorAlreadyReversed = await tx.treasuryTransaction.findUnique({ where: { reversalOfTransactionId: mirror.id } });
+            if (mirrorAlreadyReversed) throw new FinanceError("DUPLICATE_TRANSACTION", "The cash counterpart of this transaction has already been reversed");
+            await insertReversal(
+              tx,
+              { id: mirror.id, referenceNumber: mirror.referenceNumber, treasuryAccountId: mirror.treasuryAccountId, type: mirror.type, amount: mirror.amount },
+              params.createdById,
+              `Reversal of linked cash counterpart ${mirror.referenceNumber} (parent ${original.referenceNumber})`
+            );
           }
 
-          const refNumber = await generateSequentialFinanceReference(
-            tx,
-            "REVERSAL",
-            new Date()
-          );
-
-          const reversal = await tx.treasuryTransaction.create({
-            data: {
-              referenceNumber: refNumber,
-              idempotencyKey: `reversal-${original.id}`,
-              treasuryAccountId: original.treasuryAccountId,
-              type: reversalType,
-              amount: original.amount,
-              transactionDate: new Date(),
-              description: params.description ?? `Reversal of ${original.referenceNumber}`,
-              balanceBefore,
-              balanceAfter,
-              reversalOfTransactionId: original.id,
-              createdById: params.createdById
-            }
-          });
-          await writeAuditLog(
-            {
-              userId: params.createdById,
-              action: "treasury.reverse",
-              entityType: "TreasuryTransaction",
-              entityId: reversal.id,
-              changes: {
-                after: {
-                  referenceNumber: reversal.referenceNumber,
-                  reversalOfTransactionId: original.id,
-                  treasuryAccountId: original.treasuryAccountId,
-                  amount: original.amount,
-                  balanceBefore,
-                  balanceAfter
-                }
-              }
-            },
-            tx
-          );
           return { id: reversal.id, referenceNumber: reversal.referenceNumber };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
@@ -428,6 +529,17 @@ export async function updateTreasuryTransaction(params: UpdateTransactionParams)
             include: { treasuryAccount: true }
           });
 
+          // Immutability rules that protect the ledger's meaning:
+          //  - a reversal row is a correction and may never be edited;
+          //  - a cash mirror belongs to its parent and must change with it;
+          //  - a row that settles an expense carries that expense's amount,
+          //    so editing it would break the AMOUNT_MISMATCH invariant.
+          if (original.reversalOfTransactionId) throw new FinanceError("REVERSAL_IMMUTABLE");
+          if (original.parentTransactionId) throw new FinanceError("MIRROR_ROW_IMMUTABLE");
+          if (original.relatedExpenseId) throw new FinanceError("EXPENSE_LINKED_ROW_IMMUTABLE");
+          const linkedMirror = await tx.treasuryTransaction.findUnique({ where: { parentTransactionId: original.id } });
+          if (linkedMirror) throw new FinanceError("MIRROR_ROW_IMMUTABLE", "Reverse the movement (which reverses both rows) and post a new one instead");
+
           const targetAccount = await tx.treasuryAccount.findUniqueOrThrow({
             where: { id: params.treasuryAccountId }
           });
@@ -459,17 +571,17 @@ export async function updateTreasuryTransaction(params: UpdateTransactionParams)
             }
           }
 
-          const transactionLedger = (tx as any)["treasuryTransaction"];
-          const updated = await transactionLedger.update({
+          // balanceBefore/balanceAfter are immutable snapshots of the ORIGINAL
+          // posting (see schema.prisma). Rewriting them here made receipts show
+          // numbers that never happened, so they are deliberately not updated.
+          const updated = await tx.treasuryTransaction.update({
             where: { id: params.transactionId },
             data: {
               type: params.type,
               amount: params.amount,
               transactionDate: params.transactionDate,
               description: params.description,
-              treasuryAccountId: params.treasuryAccountId,
-              balanceBefore: currentBalance,
-              balanceAfter: projectedBalance
+              treasuryAccountId: params.treasuryAccountId
             }
           });
 
@@ -518,20 +630,13 @@ export async function updateTreasuryTransaction(params: UpdateTransactionParams)
 }
 
 /**
- * Helper to unlink an expense from a treasury transaction inside a transaction.
- */
-export async function unlinkExpenseFromLedger(expenseId: string, tx: any) {
-  const transactionLedger = (tx as any)["treasuryTransaction"];
-  await transactionLedger.updateMany({
-    where: { relatedExpenseId: expenseId },
-    data: { relatedExpenseId: null }
-  });
-}
-
-/**
- * Deletes a treasury transaction (restricted strictly to programmer/super admin).
- * Validates that deleting a deposit does not render the treasury account negative,
- * records a full pre-deletion audit trail, and deletes the row safely.
+ * Deletes a treasury transaction (restricted strictly to the system programmer).
+ *
+ * Only rows that carry no financial history may be deleted: a reversal row, a
+ * row linked to an expense, or a cash mirror (whose parent owns it) are
+ * refused — those must be corrected by a reversal so the original stays
+ * visible. When the deleted row has a cash mirror, the mirror is deleted in the
+ * same transaction, because leaving it behind would invent money.
  */
 export async function deleteTreasuryTransaction(params: { transactionId: string; createdById: string }) {
   for (let attempt = 0; attempt < MAX_SERIALIZATION_RETRIES; attempt++) {
@@ -540,18 +645,50 @@ export async function deleteTreasuryTransaction(params: { transactionId: string;
         async (tx) => {
           const original = await tx.treasuryTransaction.findUniqueOrThrow({
             where: { id: params.transactionId },
-            include: { treasuryAccount: true, relatedExpense: true }
+            include: { treasuryAccount: true, relatedExpense: true, mirrorTransaction: true }
           });
 
-          // If deleting a DEPOSIT, verify account balance remains non-negative
-          if (original.type === "DEPOSIT") {
-            const currentBal = await computeBalance(tx, original.treasuryAccountId);
-            if (currentBal - original.amount < 0) {
-              throw new FinanceError("INSUFFICIENT_FUNDS", "لا يمكن حذف هذا الإيداع لأن الرصيد الحالي لا يكفي (سيصبح الحساب مكشوفاً)");
+          if (original.reversalOfTransactionId) throw new FinanceError("REVERSAL_IMMUTABLE", "سجل عكسي لا يمكن حذفه؛ صحّح العملية الأصلية بعكس جديد");
+          if (original.parentTransactionId) throw new FinanceError("MIRROR_ROW_IMMUTABLE", "احذف العملية الأصلية لحذف طرفها النقدي المرتبط");
+          if (original.relatedExpenseId) throw new FinanceError("EXPENSE_LINKED_ROW_IMMUTABLE", "هذه العملية تسدد مصروفاً؛ استخدم العكس بدل الحذف");
+
+          const rows: DeletableLedgerRow[] = [
+            {
+              id: original.id,
+              referenceNumber: original.referenceNumber,
+              type: original.type,
+              amount: original.amount,
+              transactionDate: original.transactionDate,
+              description: original.description,
+              treasuryAccountId: original.treasuryAccountId,
+              parentTransactionId: original.parentTransactionId,
+              treasuryAccountName: original.treasuryAccount.name
+            }
+          ];
+          if (original.mirrorTransaction) {
+            rows.push({
+              id: original.mirrorTransaction.id,
+              referenceNumber: original.mirrorTransaction.referenceNumber,
+              type: original.mirrorTransaction.type,
+              amount: original.mirrorTransaction.amount,
+              transactionDate: original.mirrorTransaction.transactionDate,
+              description: original.mirrorTransaction.description,
+              treasuryAccountId: original.mirrorTransaction.treasuryAccountId,
+              parentTransactionId: original.mirrorTransaction.parentTransactionId,
+              treasuryAccountName: null
+            });
+          }
+
+          // A deletion must never leave any affected account overdrawn.
+          for (const row of rows) {
+            if (row.type === "DEPOSIT") {
+              const currentBalance = await computeBalance(tx, row.treasuryAccountId);
+              if (currentBalance - row.amount < 0) {
+                throw new FinanceError("INSUFFICIENT_FUNDS", "لا يمكن حذف هذه العملية لأن الرصيد الحالي لا يكفي (سيصبح الحساب مكشوفاً)");
+              }
             }
           }
 
-          // Full audit log written BEFORE or concurrently with deletion inside same serializable transaction
           await writeAuditLog(
             {
               userId: params.createdById,
@@ -559,36 +696,27 @@ export async function deleteTreasuryTransaction(params: { transactionId: string;
               entityType: "TreasuryTransaction",
               entityId: original.id,
               changes: {
-                deletedRecord: {
-                  id: original.id,
-                  referenceNumber: original.referenceNumber,
-                  type: original.type,
-                  amount: original.amount,
-                  transactionDate: original.transactionDate,
-                  description: original.description,
-                  treasuryAccountId: original.treasuryAccountId,
-                  accountName: original.treasuryAccount.name,
-                  relatedExpenseId: original.relatedExpenseId,
-                  relatedExpenseRef: original.relatedExpense?.referenceNumber
-                },
+                deletedRecords: rows.map((row) => ({
+                  id: row.id,
+                  referenceNumber: row.referenceNumber,
+                  type: row.type,
+                  amount: row.amount,
+                  transactionDate: row.transactionDate,
+                  description: row.description,
+                  treasuryAccountId: row.treasuryAccountId,
+                  accountName: row.treasuryAccountName,
+                  parentTransactionId: row.parentTransactionId
+                })),
                 reason: "حذف العملية المالية بواسطة المبرمج"
               }
             },
             tx
           );
 
-          // If linked to an expense, decouple first
-          if (original.relatedExpenseId) {
-            await tx.expense.update({
-              where: { id: original.relatedExpenseId },
-              data: { notes: "[DEBT] ديون غير مسددة" }
-            });
+          // Mirror first: it references the parent through parentTransactionId.
+          for (const row of [...rows].reverse()) {
+            await tx.treasuryTransaction.delete({ where: { id: row.id } });
           }
-
-          const transactionLedger = (tx as any)["treasuryTransaction"];
-          await transactionLedger.delete({
-            where: { id: params.transactionId }
-          });
 
           return { success: true, referenceNumber: original.referenceNumber };
         },
@@ -613,14 +741,17 @@ export interface DashboardFinancialTrendRow {
 }
 
 export async function queryMonthlyFinancialTrend(startIso: string): Promise<DashboardFinancialTrendRow[]> {
+  // Group by the FINANCIAL date (transactionDate), not by the row's insertion
+  // timestamp: a payment entered today for a June expense belongs to June, and
+  // grouping by createdAt quietly moved it into the current month.
   return db.$queryRaw<DashboardFinancialTrendRow[]>`
     SELECT
-      date_trunc('month', "createdAt") AS "month",
+      date_trunc('month', "transactionDate") AS "month",
       "type"::text AS "type",
       SUM("amount")::double precision AS "total"
     FROM "TreasuryTransaction"
-    WHERE "createdAt" >= ${new Date(startIso)}
-    GROUP BY date_trunc('month', "createdAt"), "type"
-    ORDER BY date_trunc('month', "createdAt") ASC
+    WHERE "transactionDate" >= ${new Date(startIso)}
+    GROUP BY date_trunc('month', "transactionDate"), "type"
+    ORDER BY date_trunc('month', "transactionDate") ASC
   `;
 }

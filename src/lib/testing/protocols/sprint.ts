@@ -17,8 +17,13 @@ export const SprintCalculator: TestCalculator = {
     }
     for (const m of timeM) {
       const val = Number(m.numericValue ?? m.value);
-      if (isNaN(val) || val <= 2.5 || val > 15.0) {
-        return { valid: false, error: `Invalid sprint time: ${val}s. Realistic range is 2.5s to 15s.` };
+      // Distance-aware bound: a full 30 m sprint cannot be faster than ~2.5 s,
+      // while 5 m/10 m split times legitimately are. Splits used to be rejected
+      // outright because one global floor was applied to every time key.
+      const isFullSprint = /30/.test(m.key);
+      const minimum = isFullSprint ? 2.5 : 0.6;
+      if (isNaN(val) || val < minimum || val > 15.0) {
+        return { valid: false, error: `Invalid sprint time: ${val}s. Realistic range is ${minimum}s to 15s.` };
       }
     }
     return { valid: true };
@@ -39,11 +44,14 @@ export const SprintCalculator: TestCalculator = {
     const rounded = Math.round(bestTime * 100) / 100;
     const scoreDisplay = `${rounded.toFixed(2)} s`;
 
+    // Only time measurements are in seconds. Rewriting EVERY measurement's unit
+    // to "s" relabelled unrelated values (body mass, distance) that share the
+    // payload, so the original unit is preserved whenever one was supplied.
     const normalizedMeasurements: RawMeasurement[] = input.measurements.map((m, idx) => ({
       key: m.key,
       value: String(m.value),
       numericValue: Number(m.numericValue ?? m.value),
-      unit: "s",
+      unit: m.unit ?? (m.key.startsWith("time") ? "s" : ""),
       attempt: m.attempt ?? idx + 1
     }));
 

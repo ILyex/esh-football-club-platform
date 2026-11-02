@@ -36,9 +36,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pla
     }
     const archive = zip.generate({ type: "uint8array", compression: "DEFLATE" });
     const archiveBuffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
-    await writeAuditLog({ userId: user.id, action: "medical_record.documents_downloaded", entityType: "Player", entityId: player.id, changes: { documentCount: player.medicalRecords.length } });
     const fileStem = `${player.firstName}-${player.lastName}`.replace(/[^\p{L}\p{N}-]+/gu, "-");
-    return new Response(archiveBuffer, { headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="medical-record-${fileStem}.zip"`, "Cache-Control": "private, no-store" } });
+    // HTTP header values must be Latin-1. An Arabic/French-accented name kept
+    // by the \p{L} filter made the Headers constructor throw, turning every
+    // download for such a player into a 500 — after the audit row had already
+    // been written. The ASCII fallback keeps old clients working and the
+    // RFC 5987 `filename*` carries the real name.
+    const asciiStem = fileStem.replace(/[^\x20-\x7E]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "medical-record";
+    const utf8Stem = encodeURIComponent(`medical-record-${fileStem}.zip`);
+    // Audited only once the archive actually exists and can be served.
+    await writeAuditLog({ userId: user.id, action: "medical_record.documents_downloaded", entityType: "Player", entityId: player.id, changes: { documentCount: player.medicalRecords.length } });
+    return new Response(archiveBuffer, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="medical-record-${asciiStem}.zip"; filename*=UTF-8''${utf8Stem}`,
+        "Cache-Control": "private, no-store"
+      }
+    });
   } catch (error) {
     const httpError = toHttpErrorResponse(error);
     if (httpError) return httpError;

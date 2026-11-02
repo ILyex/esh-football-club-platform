@@ -46,6 +46,21 @@ export function isProgrammer(user: Pick<SessionUser, "roleKey" | "permissions">)
   return user.roleKey === "developer" || (user.roleKey === "super_admin" && user.permissions.includes("*"));
 }
 
+/**
+ * Finance "programmer" capability: editing or deleting an already-posted
+ * financial row is an engineering operation, not a business permission.
+ *
+ * SECURITY: this used to be decided by `user.email.includes("dev")` in four
+ * separate Server Actions, which meant any self-provisioned account whose
+ * address happened to contain "dev" (e.g. dave@…) could rewrite the ledger.
+ * The only accepted proofs now are the immutable super-admin wildcard, the
+ * explicit `developer` role, or the dedicated `finance.programmer` permission
+ * granted to the DEV role. No email/name heuristic may ever be reintroduced.
+ */
+export function isFinanceProgrammer(user: Pick<SessionUser, "roleKey" | "permissions">): boolean {
+  return isProgrammer(user) || user.permissions.includes("finance.programmer");
+}
+
 /** Returns the current session's user, or throws UnauthenticatedError. */
 export const getSessionOrThrow = cache(async (): Promise<SessionUser> => {
   const session = await getRequestAuthSession();

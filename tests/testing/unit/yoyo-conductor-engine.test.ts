@@ -7,7 +7,7 @@ import {
 } from "@/lib/testing/protocols/yoyo-conductor-engine";
 
 test("Yo-Yo IR1 conductor schedule follows every programmed shuttle without cumulative rounding", () => {
-  assert.equal(YOYO_IR1_FULL_SCHEDULE.length, 91);
+  assert.equal(YOYO_IR1_FULL_SCHEDULE.length, 92);
   for (let index = 0; index < YOYO_IR1_FULL_SCHEDULE.length; index++) {
     const shuttle = YOYO_IR1_FULL_SCHEDULE[index]!;
     assert.equal(shuttle.cumulativeDistanceMeters, (index + 1) * 40);
@@ -30,6 +30,6 @@ test("Yo-Yo IR1 conductor distance advances only when a shuttle is completed", (
 
   const secondShuttle = YOYO_IR1_FULL_SCHEDULE[1]!;
   const duringSecondShuttle = deriveConductorState(COUNTDOWN_DURATION_SEC + secondShuttle.timelineStartSec);
-  assert.equal(duringSecondShuttle.currentShuttle?.level, 9);
+  assert.equal(duringSecondShuttle.currentShuttle?.level, 5);
   assert.equal(duringSecondShuttle.cumulativeDistanceMeters, 40);
 });

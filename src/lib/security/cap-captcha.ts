@@ -5,6 +5,7 @@ import { generateChallenge, validateChallenge, type ValidateChallengeBody } from
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getDeploymentEnvironment } from "@/lib/deployment-environment";
+import { getTrustedClientIp } from "@/lib/security/client-ip";
 
 const LOGIN_SCOPE = "esh-login-v1";
 const TOKEN_PREFIX = "cap:login-token:";
@@ -75,10 +76,9 @@ async function consumeChallengeNonce(signatureHex: string, ttlMs: number): Promi
 export async function createLoginChallenge(request: Request) {
   if (!isLoginCaptchaEnabled()) throw new Error("CAPTCHA is disabled");
   const secret = await getCaptchaSecret();
-  const address = request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-real-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown";
+  // Trusted-proxy aware: spoofable headers no longer create a fresh challenge
+  // bucket per request.
+  const address = getTrustedClientIp(request) ?? "unknown";
   const ipHash = createHash("sha256").update(address.slice(0, 128)).digest("hex");
   const limit = await checkRateLimit({ key: `cap:challenge-ip:${ipHash}`, limit: 40, windowMs: 10 * 60 * 1000 });
   if (!limit.allowed) {

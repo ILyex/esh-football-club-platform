@@ -12,7 +12,18 @@ jobs:
   smoke:
     name: Check live site and platform health
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
+    # Probe every real production host, not just the Vercel preview: the
+    # October outage happened on the Workers deployment while this job stayed
+    # green against a preview URL.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: cloudflare
+            base: https://esh.football-club-platform.workers.dev
+          - host: cpanel
+            base: ${{ vars.ESH_CPANEL_BASE_URL }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -21,4 +32,7 @@ jobs:
         with:
           node-version: 24.19.0
       - name: Probe production health and public pages
+        if: matrix.base != ''
+        env:
+          SMOKE_BASE_URL: ${{ matrix.base }}
         run: node scripts/smoke-production.mjs

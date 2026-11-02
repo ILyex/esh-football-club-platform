@@ -140,19 +140,17 @@ test("addStaffTeamAction: uses upsert on staffTeam (safe no-op on duplicate)", (
   assert.match(staffActions, /staffTeam\.upsert/);
 });
 
-test("addStaffTeamAction: does NOT bump tokenVersion (StaffTeam != authorization)", () => {
-  // This is the most critical structural invariant for the StaffTeam actions:
-  // StaffTeam is OPERATIONAL, not AUTHORIZATION. Adding a staff-team assignment
-  // MUST NOT change any user's session. Only UserTeam mutations trigger
-  // tokenVersion bumps — this is the architectural guarantee that keeps the
-  // two tables' semantics completely separate.
+test("addStaffTeamAction: invalidates the linked account because it also writes UserTeam", () => {
+  // The original version of this test asserted that these actions never bump
+  // tokenVersion, on the theory that StaffTeam is operational. In practice both
+  // actions ALSO upsert/delete UserTeam — which IS the authorization source — so
+  // skipping the bump would leave a revoked team accessible in a live session.
+  // The invariant that actually matters: whenever UserTeam changes, the session
+  // is invalidated in the same transaction.
   const afterAdd = staffActions.slice(staffActions.indexOf("addStaffTeamAction"));
   const beforeRemove = afterAdd.slice(0, afterAdd.indexOf("removeStaffTeamAction"));
-  assert.equal(
-    /tokenVersion/.test(beforeRemove),
-    false,
-    "addStaffTeamAction must NOT bump tokenVersion — StaffTeam is not an authorization mechanism"
-  );
+  assert.match(beforeRemove, /userTeam\.upsert/);
+  assert.match(beforeRemove, /tokenVersion:\s*\{\s*increment:\s*1\s*\}/);
 });
 
 test("addStaffTeamAction: writes an audit log entry", () => {
@@ -165,13 +163,10 @@ test("removeStaffTeamAction: uses deleteMany scoped to (staffId, teamId)", () =>
   assert.match(staffActions, /removeStaffTeamAction/);
 });
 
-test("removeStaffTeamAction: does NOT bump tokenVersion", () => {
+test("removeStaffTeamAction: invalidates the linked account because it also writes UserTeam", () => {
   const afterRemove = staffActions.slice(staffActions.indexOf("removeStaffTeamAction"));
-  assert.equal(
-    /tokenVersion/.test(afterRemove),
-    false,
-    "removeStaffTeamAction must NOT bump tokenVersion — StaffTeam is not an authorization mechanism"
-  );
+  assert.match(afterRemove, /userTeam\.deleteMany/);
+  assert.match(afterRemove, /tokenVersion:\s*\{\s*increment:\s*1\s*\}/);
 });
 
 test("removeStaffTeamAction: writes an audit log entry", () => {

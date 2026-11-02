@@ -33,11 +33,14 @@ export function SafeImage({ fallbackSrc, src, alt = "", onError, ...props }: Saf
   return (
     // eslint-disable-next-line @next/next/no-img-element -- requires legacy URL normalization and runtime fallback.
     <img
+      // Below-the-fold media should never compete with the first paint. A caller
+      // that renders a hero/LCP image passes loading="eager" and wins here.
+      loading={props.loading ?? "lazy"}
+      decoding={props.decoding ?? "async"}
       {...props}
       ref={imageRef}
       src={imageSrc || fallbackSrc}
       alt={alt}
-      draggable={false}
       data-protected-image="true"
       onError={(event) => {
         if (imageSrc !== fallbackSrc) setImageSrc(fallbackSrc);

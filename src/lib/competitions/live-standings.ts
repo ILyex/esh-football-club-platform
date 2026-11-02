@@ -22,6 +22,16 @@ function normalizeClubName(value: string): string {
   return value.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 
+const WITHDRAWN_SENIOR_TEAM_IDS = new Set(["official-r2-crb-serguine", "official-r2-irb-mechraa-sfa"]);
+const WITHDRAWN_SENIOR_TEAM_NAMES = new Set(["crb serguine", "irb mechraa sfa"]);
+
+function removeWithdrawnSeniorTeams(rows: StandingTeamEntry[]): StandingTeamEntry[] {
+  return rows.filter((row) =>
+    !WITHDRAWN_SENIOR_TEAM_IDS.has(row.id) &&
+    !WITHDRAWN_SENIOR_TEAM_NAMES.has(normalizeClubName(row.teamName))
+  );
+}
+
 /** Match official abbreviated table names to the full names saved from fixtures. */
 function clubNameVariants(value: string): string[] {
   const variants = new Set([value]);
@@ -231,13 +241,15 @@ export async function ensureCompetitionStandingsBaseline(competitionId: string):
   const snapshot = competition as unknown as CompetitionSnapshot;
   const stored = Array.isArray(competition.standingsData) ? competition.standingsData as unknown as StandingTeamEntry[] : [];
   let baseline = stored;
+  const isRoundTwoSenior = await isRoundTwoSeniorCompetition(snapshot);
 
-  if (!baseline.length && await isRoundTwoSeniorCompetition(snapshot)) {
+  if (!baseline.length && isRoundTwoSenior) {
     baseline = getOfficialRoundTwoSeniorStandings();
     await db.competition.update({ where: { id: competitionId }, data: { standingsData: baseline as any } });
   } else if (baseline.length) {
     baseline = baseline.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT }));
-    if (stored.some((row) => !row.baselineAt)) {
+    if (isRoundTwoSenior) baseline = removeWithdrawnSeniorTeams(baseline);
+    if (JSON.stringify(stored) !== JSON.stringify(baseline)) {
       await db.competition.update({ where: { id: competitionId }, data: { standingsData: baseline as any } });
     }
   }
@@ -255,10 +267,12 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
   });
   if (!competition) return [];
   let baselineRows = Array.isArray(value) ? value as StandingTeamEntry[] : [];
-  if (!baselineRows.length && await isRoundTwoSeniorCompetition(competition as unknown as CompetitionSnapshot)) {
+  const isRoundTwoSenior = await isRoundTwoSeniorCompetition(competition as unknown as CompetitionSnapshot);
+  if (!baselineRows.length && isRoundTwoSenior) {
     baselineRows = getOfficialRoundTwoSeniorStandings();
   }
   if (!baselineRows.length) return [];
+  if (isRoundTwoSenior) baselineRows = removeWithdrawnSeniorTeams(baselineRows);
   baselineRows = baselineRows.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT, pointsAdjustment: row.pointsAdjustment ?? 0, manualStatsAdjustment: row.manualStatsAdjustment ?? {} }));
   const baselineAt = baselineRows.find((row) => row.baselineAt)?.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT;
   const matches = await db.match.findMany({
@@ -269,6 +283,20 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
 
   const rows = baselineRows.map((row) => ({ ...row }));
   const index = buildNameIndex(rows);
+
+  // The imported table is authoritative, and it can legally disagree with
+  // "points = 3×won + drawn" (federation deductions) or with "GD = GF − GA"
+  // (points deductions that also alter the goal column). Recomputing points
+  // from scratch on every new result silently erased those official
+  // corrections, so each team's baseline offset is measured once and carried
+  // through every applied result.
+  const pointsOffset = new Map<string, number>();
+  const goalDifferenceOffset = new Map<string, number>();
+  for (const row of rows) {
+    pointsOffset.set(row.id, row.points - (row.won * 3 + row.drawn + (row.pointsAdjustment ?? 0)));
+    goalDifferenceOffset.set(row.id, row.goalDifference - (row.goalsFor - row.goalsAgainst));
+  }
+
   const applyResult = (row: StandingTeamEntry | undefined, goalsFor: number, goalsAgainst: number) => {
     if (!row) return;
     row.played += 1;
@@ -277,8 +305,8 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
     if (goalsFor > goalsAgainst) row.won += 1;
     else if (goalsFor === goalsAgainst) row.drawn += 1;
     else row.lost += 1;
-    row.goalDifference = row.goalsFor - row.goalsAgainst;
-    row.points = row.won * 3 + row.drawn + (row.pointsAdjustment ?? 0);
+    row.goalDifference = row.goalsFor - row.goalsAgainst + (goalDifferenceOffset.get(row.id) ?? 0);
+    row.points = row.won * 3 + row.drawn + (row.pointsAdjustment ?? 0) + (pointsOffset.get(row.id) ?? 0);
   };
 
   if (matches.length === 0) return resolveStandingsLogos(competitionId, rankRowsWithManualAdjustments(baselineRows));

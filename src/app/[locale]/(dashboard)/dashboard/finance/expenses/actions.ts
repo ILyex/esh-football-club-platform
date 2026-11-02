@@ -1,7 +1,7 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, hasPermission, isFinanceProgrammer } from "@/lib/permissions";
 import { expenseSchema } from "@/lib/validations/finance";
 import { writeAuditLog } from "@/lib/audit";
 import { financeSerializableTransaction } from "@/lib/finance/transactions";
@@ -68,12 +68,19 @@ export async function createExpenseAction(formData: FormData) {
     });
   }
 
-  const expense = await financeSerializableTransaction(async (tx) => {
+  const expense = await (async () => {
+    try {
+      return await financeSerializableTransaction(async (tx) => {
     if (parsed.budgetId) {
       await assertExpenseBudgetConsistency(tx, parsed.budgetId, parsed.teamId || null, parsed.seasonId, true);
     }
 
     const autoPost = formData.get("autoPost") === "true";
+    // Posting is a higher bar than recording: `autoPost` is a form hint, so the
+    // server must still refuse to post on behalf of a user who lacks
+    // finance.approve. Without this, the single expense form (which always sends
+    // autoPost=true) silently bypassed the approval gate.
+    const canPost = autoPost && hasPermission(user, "finance.approve");
     const isDebt = formData.get("isDebt") === "true";
     const statusNote = isDebt ? "[DEBT]" : "[SETTLED]";
     const combinedNotes = parsed.notes ? `${statusNote} ${parsed.notes}`.trim() : statusNote;
@@ -93,14 +100,22 @@ export async function createExpenseAction(formData: FormData) {
         relatedMatchId: parsed.relatedMatchId || null,
         relatedTrainingId: parsed.relatedTrainingId || null,
         documentId: documentId || null,
-        status: autoPost ? "POSTED" : "DRAFT",
+        status: canPost ? "POSTED" : "DRAFT",
         notes: combinedNotes,
         createdById: user.id
       }
     });
     await writeAuditLog({ userId: user.id, action: "expense.create", entityType: "Expense", entityId: created.id, changes: { after: parsed, documentId } }, tx);
     return created;
-  });
+      });
+    } catch (error) {
+      // The receipt was uploaded outside the transaction (storage writes are
+      // not transactional); if the expense never landed it becomes an orphan.
+      const { discardSupportingFinanceDocument } = await import("@/lib/finance/supporting-documents");
+      await discardSupportingFinanceDocument(documentId);
+      throw error;
+    }
+  })();
 
   revalidatePath("/[locale]/dashboard/finance", "page");
   revalidatePath("/[locale]/dashboard/finance/expenses", "page");
@@ -226,7 +241,11 @@ export async function cancelExpenseAction(expenseId: string) {
 /**
  * Programmer-only expense update action.
  * Allows modifying amount, date, description, payee, and national ID.
- * Strictly checks that user is the programmer/super_admin.
+ *
+ * A posted expense that is already settled by a ledger movement keeps its
+ * amount: the payment row was validated against it, so changing it afterwards
+ * would break the AMOUNT_MISMATCH invariant silently. Such a correction goes
+ * through cancel/reverse + repost (the audit trail stays intact).
  */
 export async function programmerUpdateExpenseAction(params: {
   expenseId: string;
@@ -236,26 +255,21 @@ export async function programmerUpdateExpenseAction(params: {
   payeeName?: string | null;
 }) {
   const user = await requirePermission("finance.manage");
-
-  const isProgrammer =
-    user.permissions.includes("*") ||
-    user.roleKey === "super_admin" ||
-    user.roleKey === "developer" ||
-    user.email === "admin@esh.dz" ||
-    user.email.includes("dev");
-
-  if (!isProgrammer) {
-    throw new Error("403 Forbidden: تعديل العملية المالية متاح حصرياً للمبرمج المسؤول للنظام");
-  }
+  if (!isFinanceProgrammer(user)) throw new Error("FORBIDDEN_PROGRAMMER");
 
   if (!Number.isInteger(params.amount) || params.amount <= 0) {
-    throw new Error("المبلغ يجب أن يكون رقماً صحيحاً وموجباً");
+    throw new Error("INVALID_AMOUNT");
   }
 
   const { db } = await import("@/lib/db");
   const original = await db.expense.findUniqueOrThrow({
-    where: { id: params.expenseId }
+    where: { id: params.expenseId },
+    include: { treasuryTransaction: { select: { id: true } } }
   });
+
+  if (original.treasuryTransaction && original.amount !== params.amount) {
+    throw new Error("EXPENSE_SETTLED_AMOUNT_IMMUTABLE");
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const res = await tx.expense.update({
@@ -307,26 +321,28 @@ export async function programmerUpdateExpenseAction(params: {
 
 /**
  * Programmer-only expense delete action.
- * Strictly verifies super_admin/developer and captures complete audit trail before deleting.
+ *
+ * DESTRUCTIVE-ONLY-FOR-DRAFT: a POSTED expense is accounting history. Deleting
+ * it (with its ledger link) is exactly how the "paid" trail disappeared before.
+ * Posted rows must be cancelled/reversed through the documented lifecycle; this
+ * action only removes DRAFT records the club never posted.
  */
 export async function programmerDeleteExpenseAction(params: { expenseId: string }) {
   const user = await requirePermission("finance.manage");
-
-  const isProgrammer =
-    user.permissions.includes("*") ||
-    user.roleKey === "super_admin" ||
-    user.roleKey === "developer" ||
-    user.email === "admin@esh.dz" ||
-    user.email.includes("dev");
-
-  if (!isProgrammer) {
-    throw new Error("403 Forbidden: حذف العملية المالية متاح حصرياً للمبرمج المسؤول للنظام");
-  }
+  if (!isFinanceProgrammer(user)) throw new Error("FORBIDDEN_PROGRAMMER");
 
   const { db } = await import("@/lib/db");
   const original = await db.expense.findUniqueOrThrow({
-    where: { id: params.expenseId }
+    where: { id: params.expenseId },
+    include: { treasuryTransaction: { select: { id: true, referenceNumber: true } } }
   });
+
+  if (original.status === "POSTED") {
+    throw new Error("POSTED_EXPENSE_DELETE_BLOCKED");
+  }
+  if (original.treasuryTransaction) {
+    throw new Error("EXPENSE_HAS_LEDGER_MOVEMENT");
+  }
 
   await db.$transaction(async (tx) => {
     await writeAuditLog(
@@ -344,21 +360,16 @@ export async function programmerDeleteExpenseAction(params: { expenseId: string 
             description: original.description,
             category: original.category,
             payeeName: original.payeeName,
-            status: original.status
+            status: original.status,
+            notes: original.notes
           },
-          reason: "حذف المصروف المالي بواسطة المبرمج"
+          reason: "حذف مسودة مصروف بواسطة المبرمج"
         }
       },
       tx
     );
 
-    // If a treasury transaction is linked, decouple via ledger service
-    const { unlinkExpenseFromLedger } = await import("@/lib/finance/treasury-service");
-    await unlinkExpenseFromLedger(params.expenseId, tx);
-
-    await tx.expense.delete({
-      where: { id: params.expenseId }
-    });
+    await tx.expense.delete({ where: { id: params.expenseId } });
   });
 
   revalidatePath("/[locale]/dashboard/finance", "page");

@@ -103,7 +103,12 @@ export async function updateInventoryItemAction(id: string, formData: FormData) 
 }
 
 export async function deleteInventoryItemAction(id: string) {
-  const user = await requireInventoryManage();
+  // Deleting stock is an inventory decision. `training.manage` may edit items
+  // (that is how coaches consume equipment) but may not erase the register.
+  const user = await getSessionOrThrow();
+  if (!hasPermission(user, "inventory.manage") && !hasPermission(user, "teams.manage")) {
+    throw new ForbiddenError("inventory.manage");
+  }
   const scopeContext = await getMutationScopeContext();
   const before = await db.inventoryItem.findUniqueOrThrow({ where: { id } });
   assertTeamScope(scopeContext, before.teamId, "InventoryItem");

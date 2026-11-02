@@ -19,44 +19,44 @@ test("Yo-Yo IR1: exact Bangsbo cumulative distance verification", () => {
   assert.equal(calculateYoYoDistance(5, 1), 40);
 
   // Speed level 9 (12 km/h), shuttle 1 -> 80m
-  assert.equal(calculateYoYoDistance(9, 1), 80);
+  assert.equal(calculateYoYoDistance(9, 1), 120);
 
   // Level 11, shuttle 1 -> 120m, shuttle 2 -> 160m
-  assert.equal(calculateYoYoDistance(11, 1), 120);
-  assert.equal(calculateYoYoDistance(11, 2), 160);
+  assert.equal(calculateYoYoDistance(11, 1), 160);
+  assert.equal(calculateYoYoDistance(11, 2), 200);
 
   // Level 12, shuttle 3 -> 280m
-  assert.equal(calculateYoYoDistance(12, 3), 280);
+  assert.equal(calculateYoYoDistance(12, 3), 320);
 
   // Level 13, shuttle 4 -> 440m
-  assert.equal(calculateYoYoDistance(13, 4), 440);
+  assert.equal(calculateYoYoDistance(13, 4), 480);
 
   // Level 14, shuttle 8 -> 760m
-  assert.equal(calculateYoYoDistance(14, 8), 760);
+  assert.equal(calculateYoYoDistance(14, 8), 800);
 
   // Level 15, shuttle 8 -> 1,080m
-  assert.equal(calculateYoYoDistance(15, 8), 1080);
+  assert.equal(calculateYoYoDistance(15, 8), 1120);
 
   // Level 16, shuttle 3 -> 1,200m (1080 + 3*40)
-  assert.equal(calculateYoYoDistance(16, 3), 1200);
+  assert.equal(calculateYoYoDistance(16, 3), 1240);
 
   // Level 16, shuttle 8 -> 1,400m
-  assert.equal(calculateYoYoDistance(16, 8), 1400);
+  assert.equal(calculateYoYoDistance(16, 8), 1440);
 
   // Level 17, shuttle 8 -> 1,720m
-  assert.equal(calculateYoYoDistance(17, 8), 1720);
+  assert.equal(calculateYoYoDistance(17, 8), 1760);
 
   // Level 18, shuttle 8 -> 2,040m
-  assert.equal(calculateYoYoDistance(18, 8), 2040);
+  assert.equal(calculateYoYoDistance(18, 8), 2080);
 
   // Level 23, shuttle 8 -> 3,640m (maximum protocol limit)
-  assert.equal(calculateYoYoDistance(23, 8), 3640);
+  assert.equal(calculateYoYoDistance(23, 8), 3680);
 });
 
 test("Yo-Yo IR1 uses the official speed levels and rejects impossible partial-shuttle distances", () => {
   assert.equal(YOYO_IR1_LEVELS[1]?.level, 9);
   assert.equal(YOYO_IR1_LEVELS[1]?.speedKmh, 12);
-  assert.deepEqual(deriveYoYoLevelAndShuttle(80), { level: 9, shuttle: 1 });
+  assert.deepEqual(deriveYoYoLevelAndShuttle(80), { level: 5, shuttle: 2 });
   assert.throws(() => deriveYoYoLevelAndShuttle(81), /completed 40m shuttle/);
   assert.equal(YoYoIR1Calculator.validate([{ key: "distance", value: "81", numericValue: 81 }]).valid, false);
   assert.equal(YoYoIR1Calculator.validate([
@@ -109,7 +109,7 @@ test("Yo-Yo IR1: VO2max Bangsbo formula verification", () => {
 });
 
 test("Yo-Yo IR1: boundary checks and invalid input rejection", () => {
-  // Level 6 is not in IR1 (jumps from 5 to 8, then 11)
+  // Level 6 is not in IR1 (jumps from 5 to 9, then 11)
   assert.throws(() => calculateYoYoDistance(6, 1), /Invalid Yo-Yo IR1 level/);
 
   // Shuttle 0 is invalid
@@ -119,17 +119,17 @@ test("Yo-Yo IR1: boundary checks and invalid input rejection", () => {
   assert.throws(() => calculateYoYoDistance(15, 9), /Maximum shuttles is 8/);
 
   // Shuttle 2 on Level 5 (max is 1)
-  assert.throws(() => calculateYoYoDistance(5, 2), /Maximum shuttles is 1/);
+  assert.throws(() => calculateYoYoDistance(5, 3), /Maximum shuttles is 2/);
 });
 
 test("Yo-Yo IR1: inverse derivation of level and shuttle from meters", () => {
   const d1 = deriveYoYoLevelAndShuttle(40);
   assert.deepEqual(d1, { level: 5, shuttle: 1 });
 
-  const d2 = deriveYoYoLevelAndShuttle(1200);
+  const d2 = deriveYoYoLevelAndShuttle(1240);
   assert.deepEqual(d2, { level: 16, shuttle: 3 });
 
-  const d3 = deriveYoYoLevelAndShuttle(1400);
+  const d3 = deriveYoYoLevelAndShuttle(1440);
   assert.deepEqual(d3, { level: 16, shuttle: 8 });
 });
 
@@ -145,8 +145,8 @@ test("Yo-Yo IR1 Calculator: end-to-end execution", () => {
   assert.equal(validation.valid, true);
 
   const output = YoYoIR1Calculator.calculate(input);
-  assert.equal(output.summaryScore, 1200);
-  assert.equal(output.secondaryScore, 46.5); // 1200 * 0.0084 + 36.4 = 46.48 -> 46.5
+  assert.equal(output.summaryScore, 1240);
+  assert.equal(output.secondaryScore, 46.8); // 1240 * 0.0084 + 36.4 = 46.816 -> 46.8
   assert.equal(output.primaryUnit, "m");
-  assert.equal(output.scoreDisplay, "16.3 (1,200 m)");
+  assert.equal(output.scoreDisplay, "16.3 (1,240 m)");
 });

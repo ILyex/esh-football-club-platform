@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { programmerDeleteTransactionAction } from "@/app/[locale]/(dashboard)/dashboard/finance/treasury/actions";
 import { programmerDeleteExpenseAction } from "@/app/[locale]/(dashboard)/dashboard/finance/expenses/actions";
+import { financeErrorMessage, financeErrorCode } from "@/lib/finance/error-text";
 import type { UnifiedFinancialOperation } from "./financial-operations-table";
 
 interface DeleteFinancialOperationDialogProps {
@@ -40,8 +41,11 @@ export function DeleteFinancialOperationDialog({
       );
       setIsOpen(false);
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || (isAr ? "حدث خطأ أثناء حذف العملية" : "Erreur lors de la suppression"));
+    } catch (err) {
+      toast.error(
+        financeErrorMessage(financeErrorCode(err), locale) ||
+          (isAr ? "حدث خطأ أثناء حذف العملية" : "Erreur lors de la suppression")
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -142,3 +146,4 @@ export function DeleteFinancialOperationDialog({
     </>
   );
 }
+

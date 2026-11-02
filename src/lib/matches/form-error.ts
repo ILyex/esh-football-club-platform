@@ -31,6 +31,16 @@ export function getMatchFormError(error: unknown, locale: string): MatchFormErro
       }
     };
   }
+  if (message === "shootoutAlreadyDecided") {
+    return {
+      formError: {
+        field: "hasPenaltyShootout",
+        message: isArabic
+          ? "ركلات الترجيح محسومة بالفعل. احذف الركلة الأخيرة إذا أردت تصحيح النتيجة."
+          : "La séance de tirs au but est déjà décidée. Supprimez le dernier tir pour corriger le résultat."
+      }
+    };
+  }
   const issues = (error as { issues?: Array<{ path?: Array<string | number> }> } | null)?.issues;
   let field = issues?.[0]?.path?.[0]?.toString();
 

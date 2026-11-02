@@ -43,7 +43,9 @@ export const JumpCalculator: TestCalculator = {
       key: m.key,
       value: String(m.value),
       numericValue: Number(m.numericValue ?? m.value),
-      unit: "cm",
+      // Only the jump-height entries are centimetres; preserving a supplied
+      // unit keeps unrelated values (body mass, age) correctly labelled.
+      unit: m.unit ?? (m.key.startsWith("height") || m.key.startsWith("jump") ? "cm" : ""),
       attempt: m.attempt ?? idx + 1
     }));
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyOAuthState, getGoogleOAuthConfig, getPublicApplicationOrigin } from "@/lib/integrations/gmail/config";
 import { connectOfficialGmail } from "@/lib/integrations/gmail/service";
 import { db } from "@/lib/db";
+import { getRequestAuthSession } from "@/lib/auth";
 import type { SessionUser } from "@/lib/permissions";
 
 // ============================================================================
@@ -41,7 +42,20 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 2. Fetch authenticated user to enforce RBAC
+  // 2. The callback must belong to the SAME browser session that started the
+  // flow. Previously only the signed state was checked, so any authenticated
+  // operator could be walked into completing someone else's authorization and
+  // silently replace the club mailbox. The state is still required, but it no
+  // longer substitutes for a session check.
+  const session = await getRequestAuthSession();
+  const sessionUserId = (session?.user as { id?: unknown } | null | undefined)?.id;
+  if (typeof sessionUserId !== "string" || sessionUserId !== stateVerification.userId) {
+    return NextResponse.redirect(
+      new URL(`/${locale}/dashboard/mail?error=oauth_session_mismatch`, baseUrl)
+    );
+  }
+
+  // 3. Fetch authenticated user to enforce RBAC
   const user = await db.user.findUnique({
     where: { id: stateVerification.userId },
     include: {

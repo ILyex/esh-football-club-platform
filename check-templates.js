@@ -11,4 +11,11 @@ async function main() {
   }
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch((error) => {
+    // A diagnostic script must exit non-zero: swallowing the error made a failed
+    // inspection look like a successful run to any caller or CI step.
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

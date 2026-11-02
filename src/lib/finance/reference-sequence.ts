@@ -1,3 +1,6 @@
+import "server-only";
+import type { Prisma } from "@prisma/client";
+
 export type FinanceReferenceType = "DEPOSIT" | "WITHDRAWAL" | "PAYMENT" | "REVERSAL";
 
 const PREFIX_MAP: Record<FinanceReferenceType, string> = {
@@ -22,7 +25,7 @@ const PREFIX_MAP: Record<FinanceReferenceType, string> = {
  * - Suffix: -ESH (Espoir Sidi Hosni)
  */
 export async function generateSequentialFinanceReference(
-  tx: any,
+  tx: Prisma.TransactionClient,
   type: FinanceReferenceType,
   targetDate?: Date | string | null
 ): Promise<string> {
@@ -32,32 +35,21 @@ export async function generateSequentialFinanceReference(
   const patternPrefix = `${prefix}-${year}-`;
   const suffix = "-ESH";
 
-  let existingRefs: string[] = [];
-  try {
-    if (type === "PAYMENT") {
-      const rows = await tx.expense.findMany({
-        where: {
-          referenceNumber: {
-            contains: patternPrefix
-          }
-        },
+  // The read is part of the caller's serializable transaction, so the computed
+  // sequence cannot be based on a snapshot that a concurrent posting already
+  // moved past. Errors are NOT swallowed: the old `catch → seq = 001` fallback
+  // silently reused an existing reference and then surfaced as a misleading
+  // "duplicate transaction" error.
+  const rows = type === "PAYMENT"
+    ? await tx.expense.findMany({
+        where: { referenceNumber: { contains: patternPrefix } },
+        select: { referenceNumber: true }
+      })
+    : await tx.treasuryTransaction.findMany({
+        where: { referenceNumber: { contains: patternPrefix } },
         select: { referenceNumber: true }
       });
-      existingRefs = rows.map((r: { referenceNumber: string }) => r.referenceNumber);
-    } else {
-      const rows = await tx.treasuryTransaction.findMany({
-        where: {
-          referenceNumber: {
-            contains: patternPrefix
-          }
-        },
-        select: { referenceNumber: true }
-      });
-      existingRefs = rows.map((r: { referenceNumber: string }) => r.referenceNumber);
-    }
-  } catch (err) {
-    console.warn("Could not query existing references for sequence:", err);
-  }
+  const existingRefs = rows.map((row) => row.referenceNumber);
 
   // Parse highest sequence number for this prefix & year
   // Matches WITH-2026-001-ESH or similar

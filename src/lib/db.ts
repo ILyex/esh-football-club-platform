@@ -33,17 +33,17 @@ function prismaLogLevels(): ("warn" | "error")[] {
 }
 
 function nodePoolOptions() {
-  // Two connections are enough for the club's single Node process and keep a
-  // small PC/host from carrying an unnecessary idle pool. Larger deployments
-  // can opt in with DATABASE_POOL_MAX.
-  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "2", 10);
-  // Keep each Node process conservative by default. On shared cPanel hosting,
-  // Passenger may run more than one process, so total connections are
-  // DATABASE_POOL_MAX × process count. Cap the setting to avoid accidental
-  // exhaustion of a small managed PostgreSQL plan.
+  // A dashboard page can issue several queries in parallel (counts, filters,
+  // related rows) and the public site shares the same process. A pool of two
+  // connections serialised those queries, so a single click could queue behind
+  // the rest. Ten is a safe default for a small managed PostgreSQL plan;
+  // shared cPanel hosts can lower it with DATABASE_POOL_MAX (per process).
+  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "10", 10);
+  // Cap the setting to avoid accidental exhaustion of a small managed plan:
+  // total connections are DATABASE_POOL_MAX × process count.
   const max = Number.isInteger(configuredMax) && configuredMax >= 1
     ? Math.min(configuredMax, 20)
-    : 2;
+    : 10;
 
   return {
     connectionString: process.env.DATABASE_URL,

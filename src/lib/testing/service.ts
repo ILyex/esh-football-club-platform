@@ -22,14 +22,18 @@ export class TestingDomainError extends Error {
 }
 
 /**
- * Checks either "testing.<action>" or "player_tests.<action>" (or wildcard) for user flexibility.
+ * Checks either "testing.<action>" or the legacy "player_tests.<action>" alias.
+ *
+ * `training.*` is deliberately NOT an alias for `manage`: a team coach who may
+ * run training sessions could therefore create, complete and DELETE test
+ * sessions without holding testing.manage, destroying performance history.
+ * Reading (`view`) through training.view is kept as a reporting convenience.
  */
 function checkTestingPermission(user: SessionUser, action: "view" | "manage" | "correct" | "manage_definitions"): boolean {
   return (
     hasPermission(user, `testing.${action}`) ||
     hasPermission(user, `player_tests.${action}`) ||
-    (action === "view" && hasPermission(user, "training.view")) ||
-    (action === "manage" && hasPermission(user, "training.manage"))
+    (action === "view" && hasPermission(user, "training.view"))
   );
 }
 

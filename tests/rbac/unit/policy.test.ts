@@ -141,11 +141,12 @@ test("policy.ts contains no `Record<string, unknown>` authorization shortcut as 
     .replace(/\/\*[\s\S]*?\*\//g, ""); // strip any /* */ block comments defensively
   assert.equal(/Record<\s*string\s*,\s*unknown\s*>/.test(codeOnly), false, "found outside comments");
 });
-test("policy.ts is not imported by any page, Server Action, or Route Handler yet (P1 = foundation only, not wired)", () => {
-  // Uses a pure Node.js recursive walk — no `grep`, no `|| true`, works on
-  // both Windows and Linux. Semantics are identical to the former grep -rln:
-  // collect every .ts/.tsx file under src/app/ that mentions "lib/authz" or
-  // "@/lib/authz/policy", and assert the list is empty.
+test("policy.ts is wired into server code only — never into a Client Component", () => {
+  // This test used to assert that policy.ts was imported by NOTHING (the P1
+  // "foundation only" state). P4 wired it into the mobile API, the search
+  // service and the mutation guards, so the invariant now is the one that
+  // matters for security: team-scope resolution is server-only and must never
+  // end up in a browser bundle.
   function walkTs(dir: string): string[] {
     const results: string[] = [];
     for (const entry of readdirSync(dir)) {
@@ -158,15 +159,16 @@ test("policy.ts is not imported by any page, Server Action, or Route Handler yet
     }
     return results;
   }
-  const appDir = join(ROOT, "src", "app");
-  const importing: string[] = [];
-  for (const file of walkTs(appDir)) {
+  const rootDir = join(ROOT, "src");
+  const importers = walkTs(rootDir).filter((file) => {
     const src = readFileSync(file, "utf8") as string;
-    if (src.includes("lib/authz") || src.includes("@/lib/authz/policy")) {
-      importing.push(file);
-    }
-  }
-  assert.deepEqual(importing, [], `policy.ts must not be imported by app code yet; found in:\n${importing.join("\n")}`);
+    return src.includes("@/lib/authz/policy") && file.replace(/\\/g, "/") !== "src/lib/authz/policy.ts";
+  });
+  assert.ok(importers.length > 0, "policy.ts must be used by the app, not left as dead foundation code");
+  const clientImporters = importers.filter((file) => (readFileSync(file, "utf8") as string).includes('"use client"'));
+  assert.deepEqual(clientImporters, [], "no Client Component may import the authorization policy directly");
+  // The module itself must stay server-only so a mistake fails the build.
+  assert.match(readFileSync(join(ROOT, "src/lib/authz/policy.ts"), "utf8") as string, /^import "server-only";/m);
 });
 test("Role.teamScoped defaults to false in schema.prisma (existing role behavior preserved)", () => {
   const schema = readFileSync(join(ROOT, "prisma/schema.prisma"), "utf8");

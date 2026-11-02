@@ -75,21 +75,46 @@ const nextConfig = {
   },
   experimental: {
     ...(lowMemoryBuild ? { cpus: 1 } : {}),
+    // Rewrites barrel-file imports to per-module ones. Without this, importing a
+    // handful of icons from "lucide-react" (used in ~180 components) pulls the
+    // whole icon barrel into the client graph, and recharts/date-fns behave the
+    // same way. This is a build-time transform only — no runtime behaviour
+    // changes.
+    optimizePackageImports: ["lucide-react", "date-fns", "recharts"],
+    // Keep a visited dashboard page in the client router cache for a short time
+    // so Back/Forward and re-visits paint instantly instead of re-fetching the
+    // whole RSC payload. Mutations still call revalidatePath(), which
+    // invalidates the entry immediately.
+    staleTimes: { dynamic: 30, static: 300 },
     serverActions: {
       bodySizeLimit: "40mb" // website media videos may be up to 35MB
     }
   },
   async headers() {
     return [
-      // Revalidate HTML and RSC responses after a local rebuild. Keep public
-      // media out of this rule: no-store on static images disables both browser
-      // caching and Vercel's CDN cache, making every first visit refetch logos.
+      // Management surfaces must never be cached: they render the signed-in
+      // operator's data.
       {
-        source: "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:avif|gif|jpe?g|png|svg|webp|mp4|webm|woff2?)$).*)",
+        source: "/:locale(ar|fr)/(dashboard|field)/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store, max-age=0" }]
+      },
+      // API responses carry per-session data by definition.
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store, max-age=0" }]
+      },
+      // The PUBLIC website is anonymous (no session-derived HTML), so it can be
+      // served from the CDN for a minute instead of hitting Postgres on every
+      // visit. `no-store` used to be applied to every HTML response, which made
+      // the 441 revalidate*() calls in the codebase meaningless.
+      {
+        source: "/:locale(ar|fr)/:path*",
         headers: [
-          { key: "Cache-Control", value: "no-store, max-age=0" }
+          { key: "Cache-Control", value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300" }
         ]
       },
+      // Public media is immutable enough to cache for a long time; this rule is
+      // intentionally declared after the HTML rules so assets keep winning.
       {
         source: "/((?:branding/|.*\\.(?:avif|gif|jpe?g|png|svg|webp|mp4|webm|woff2?))$)",
         headers: [

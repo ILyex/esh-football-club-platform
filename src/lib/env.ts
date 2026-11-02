@@ -1,5 +1,4 @@
 import "server-only";
-import path from "node:path";
 
 // ============================================================================
 // PHASE 13 — PRODUCTION ENVIRONMENT VALIDATOR & FAIL-FAST AUDIT
@@ -22,6 +21,14 @@ const INSECURE_DEFAULT_SECRETS = [
   "1234567890",
   "supersecret"
 ];
+
+/**
+ * Cross-platform absolute-path check without node:path (see the local-storage
+ * branch below): POSIX "/x", Windows "C:\x" or a UNC "\\server\share".
+ */
+function isAbsolutePath(value: string): boolean {
+  return /^([A-Za-z]:[\\/]|[\\/]{1,2}[^\\/])/.test(value.trim());
+}
 
 /**
  * Validates the runtime environment against production security invariants.
@@ -118,10 +125,13 @@ export function validateEnvironment(customEnv?: Record<string, string | undefine
   }
   if (isProduction) {
     if (storageDriver === "local") {
-      if (!localStorageRoot || !path.isAbsolute(localStorageRoot)) {
+      // Implemented without node:path so this module stays importable from the
+      // Edge bundle too (the startup validator in instrumentation.ts would
+      // otherwise fail the build with "Reading from node:path is not handled").
+      if (!localStorageRoot || !isAbsolutePath(localStorageRoot)) {
         issues.push("STORAGE_LOCAL_ROOT must be an absolute persistent directory when local storage is used in production.");
       } else {
-        const normalizedRoot = path.resolve(localStorageRoot).replace(/\\/g, "/").toLowerCase();
+        const normalizedRoot = localStorageRoot.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
         if (/(^|\/)public_html(\/|$)/.test(normalizedRoot)) {
           issues.push("STORAGE_LOCAL_ROOT must be outside public_html to prevent direct access to private documents.");
         }
