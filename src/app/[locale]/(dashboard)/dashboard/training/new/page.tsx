@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePagePermission } from "@/lib/permissions";
 import { getCurrentTeamId } from "@/lib/team-context";
+import { getPlayerDisplayName } from "@/lib/utils";
 import { createTrainingSessionAction } from "../actions";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default async function NewTrainingSessionPage({ params }: { params: Promi
   }));
   const coachOptions = coaches.map((coach) => ({
     id: coach.id,
-    label: `${coach.firstName} ${coach.lastName}`.trim(),
+    label: getPlayerDisplayName(coach, locale),
     teamIds: [coach.teamId, ...coach.teamAssignments.map((assignment) => assignment.teamId)].filter((id): id is string => Boolean(id))
   }));
 

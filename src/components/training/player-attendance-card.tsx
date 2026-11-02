@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { localizedClubName } from "@/lib/public/locale-text";
+import { getPlayerDisplayName } from "@/lib/utils";
 
 export interface PlayerAttendanceRecord {
   trainingId: string;
@@ -234,7 +235,7 @@ export function PlayerAttendanceCard({ attendances = [], locale = "ar" }: Player
                   {record.training.coach && (
                     <span>
                       {isAr ? "المدرب: " : "Coach : "}
-                      {`${record.training.coach.firstName || ""} ${record.training.coach.lastName || ""}`.trim()}
+                      {getPlayerDisplayName(record.training.coach, locale)}
                     </span>
                   )}
                 </div>

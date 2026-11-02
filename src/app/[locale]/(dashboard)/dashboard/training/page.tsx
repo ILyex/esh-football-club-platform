@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { deleteTrainingSessionAction } from "./actions";
+import { getPlayerDisplayName } from "@/lib/utils";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   SCHEDULED: "neutral",
@@ -94,7 +95,7 @@ export default async function TrainingListPage({
                 <td className="px-4 py-2">{new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(s.date)}</td>
                 <td className="px-4 py-2">{s.team ? tTeams(`categories.${s.team.category}` as any) : "—"}</td>
                 <td className="px-4 py-2">{s.location ?? "—"}</td>
-                <td className="px-4 py-2">{s.coach ? `${s.coach.firstName} ${s.coach.lastName}` : "—"}</td>
+                <td className="px-4 py-2">{s.coach ? getPlayerDisplayName(s.coach, locale) : "—"}</td>
                 <td className="px-4 py-2">
                   <Badge tone={STATUS_TONE[s.status]}>{t(`statuses.${s.status}` as any)}</Badge>
                 </td>

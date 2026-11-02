@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
+import { getPlayerDisplayName } from "@/lib/utils";
 import { requirePagePermission, hasPermission } from "@/lib/permissions";
 import { getMutationScopeContext, assertTeamScope } from "@/lib/mutation-guards";
 import { notFound, redirect } from "next/navigation";
@@ -808,7 +809,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             const playerName = e.player
               ? locale === "fr" ? [e.player.firstNameFr, e.player.lastNameFr].filter(Boolean).join(" ") || `${e.player.firstName} ${e.player.lastName}` : `${e.player.firstName} ${e.player.lastName}`
               : e.playerName ? locale === "fr" ? e.playerNameFr || "Joueur" : e.playerName
-                : e.staff ? `${e.staff.firstName} ${e.staff.lastName}` : "";
+                : e.staff ? getPlayerDisplayName(e.staff, locale) : "";
             const assistName = e.shot?.assistPlayer
               ? locale === "fr" ? [e.shot.assistPlayer.firstNameFr, e.shot.assistPlayer.lastNameFr].filter(Boolean).join(" ") || `${e.shot.assistPlayer.firstName} ${e.shot.assistPlayer.lastName}` : `${e.shot.assistPlayer.firstName} ${e.shot.assistPlayer.lastName}`
               : "";
@@ -860,7 +861,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
                     eventTypes={EVENT_TYPES.map((type) => ({ value: type, label: t(`events.${type}` as any) }))}
                     players={trackedPlayers.map((player) => ({ id: player.id, label: `${player.firstName} ${player.lastName}` }))}
-                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: `${member.firstName} ${member.lastName}` }))}
+                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: getPlayerDisplayName(member, locale) }))}
                     action={updateEvent}
                   />}
                   {isSubstitution && eventGroup.map((groupedEvent) => <MatchEventEditDialog key={groupedEvent.id}
@@ -871,7 +872,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
                     clubSide={match.isHomeFixture ? "HOME" : "AWAY"}
                     eventTypes={EVENT_TYPES.map((type) => ({ value: type, label: t(`events.${type}` as any) }))}
                     players={trackedPlayers.map((player) => ({ id: player.id, label: `${player.firstName} ${player.lastName}` }))}
-                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: `${member.firstName} ${member.lastName}` }))}
+                    staff={staff.filter((member) => member.teamId === match.teamId).map((member) => ({ id: member.id, label: getPlayerDisplayName(member, locale) }))}
                     action={async (formData) => { "use server"; await updateMatchEventAction(id, groupedEvent.id, formData); }}
                   />)}
                   <ConfirmDialog onConfirm={removeEvent}>

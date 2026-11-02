@@ -221,7 +221,7 @@ export default async function TrainingDetailPage({ params, searchParams }: { par
                 <option value="">—</option>
                 {coaches.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.firstName} {c.lastName}
+                    {getPlayerDisplayName(c, locale)}
                   </option>
                 ))}
               </select>
