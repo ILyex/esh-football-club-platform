@@ -3,15 +3,22 @@ import assert from "node:assert/strict";
 import {
   findBestPlayerMatch,
   parseReportDeterministically,
+  hasExplicitEventEvidence,
   type SquadPlayer
 } from "@/lib/ai/referee-report-ai-service";
+import {
+  extractFinalMatchReportSection,
+  isRawDocumentDump
+} from "@/lib/matches/referee-report-section";
 
-// A small squad standing in for the club roster. Ids are stable so assertions
+// A squad standing in for the club roster. Ids are stable so assertions
 // can name the exact player the parser is expected to attach an event to.
 const squad: SquadPlayer[] = [
   { id: "p1", firstName: "كريم", lastName: "بن علي", firstNameFr: "Karim", lastNameFr: "Benali", shirtNumber: 9 },
   { id: "p2", firstName: "ياسين", lastName: "مرابط", firstNameFr: "Yacine", lastNameFr: "Merabet", shirtNumber: 6 },
-  { id: "p3", firstName: "سفيان", lastName: "حمدي", firstNameFr: "Sofiane", lastNameFr: "Hamdi", shirtNumber: 17 }
+  { id: "p3", firstName: "سفيان", lastName: "حمدي", firstNameFr: "Sofiane", lastNameFr: "Hamdi", shirtNumber: 17 },
+  { id: "p4", firstName: "محمد", lastName: "عبده", firstNameFr: "Mohamed", lastNameFr: "Abde", shirtNumber: 10 },
+  { id: "p5", firstName: "عبد الله", lastName: "قادري", firstNameFr: "Abdallah", lastNameFr: "Kadri", shirtNumber: 8 }
 ];
 
 test("referee report parser: extracts a goal with its minute and player", () => {
@@ -93,4 +100,65 @@ test("referee report parser: a cards heading yields a booking, not a goal", () =
   const card = result.events.find((event) => event.type === "YELLOW_CARD");
   assert.ok(card);
   assert.equal(card.playerId, "p2");
+});
+
+test("referee report parser: recognizes Mohamed Abde with Algerian spelling variants (عبدو vs عبده)", () => {
+  const result = parseReportDeterministically("هدف محمد عبدو د 34", squad);
+  const goal = result.events.find((event) => event.type === "GOAL");
+  assert.ok(goal, "goal for Mohamed Abde must be extracted");
+  assert.equal(goal.playerId, "p4", "Mohamed Abdou variant must resolve to player Mohamed Abde (p4)");
+  assert.equal(goal.minute, 34);
+});
+
+test("player matcher: matches compound names (عبد الله vs عبدالله, بن علي vs بنعلي)", () => {
+  assert.equal(findBestPlayerMatch("عبدالله قادري", null, squad)?.id, "p5");
+  assert.equal(findBestPlayerMatch("عبد الله قادري", null, squad)?.id, "p5");
+  assert.equal(findBestPlayerMatch("بنعلي كريم", null, squad)?.id, "p1");
+  assert.equal(findBestPlayerMatch("كريم بنعلي", null, squad)?.id, "p1");
+});
+
+test("player matcher: matches French transliteration and initials (M. Abde, Mohamed Abde)", () => {
+  assert.equal(findBestPlayerMatch("Mohamed Abde", null, squad)?.id, "p4");
+  assert.equal(findBestPlayerMatch("M. Abde", null, squad)?.id, "p4");
+  assert.equal(findBestPlayerMatch("K. Benali", null, squad)?.id, "p1");
+});
+
+test("referee report parser: validates explicit event evidence for matched player", () => {
+  const event = {
+    playerId: "p4",
+    playerName: "محمد عبده",
+    shirtNumber: 10,
+    type: "GOAL" as const,
+    minute: 34
+  };
+  const text = "تقرير اللقاء\nسجل اللاعب محمد عبدو هدفا رائعا في د 34 من اللقاء";
+  assert.ok(hasExplicitEventEvidence(text, event, squad), "event evidence must be confirmed for spelling variant");
+});
+
+test("extractFinalMatchReportSection: extracts Algerian narrative headings and strips signatures", () => {
+  const textWithArRemarks = [
+    "ورقة التحكيم الرسمية",
+    "التشكيلة والبطاقات ...",
+    "ملاحظات الحكم: جرت المقابلة في ظروف جيدة وبروح رياضية عالية بين الفريقين دون أي حادث.",
+    "توقيع الحكم: بوحفص أمين"
+  ].join("\n");
+
+  const extracted = extractFinalMatchReportSection(textWithArRemarks);
+  assert.ok(extracted, "narrative report section must be extracted");
+  assert.equal(extracted, "جرت المقابلة في ظروف جيدة وبروح رياضية عالية بين الفريقين دون أي حادث.");
+  assert.ok(!extracted.includes("توقيع الحكم"), "trailing signature must be stripped");
+});
+
+test("extractFinalMatchReportSection: rejects raw document dumps without genuine narrative", () => {
+  const rawDump = [
+    "FAF-EMS FEUILLE DE MATCH OFFICIELLE",
+    "Ligue de Football de la Wilaya de Tiaret",
+    "Dossard Nom Prénom Licence N°",
+    "1 Belkacem Yacine 26-00123",
+    "4 Ferhat Karim 26-00456",
+    "5 Cherif Nabil 26-00789"
+  ].join("\n");
+
+  assert.equal(extractFinalMatchReportSection(rawDump), null, "raw document dump must return null");
+  assert.ok(isRawDocumentDump(rawDump), "isRawDocumentDump must recognize document tables");
 });

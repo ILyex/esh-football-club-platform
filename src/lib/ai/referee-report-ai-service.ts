@@ -4,7 +4,7 @@ import { runAICompletion, checkAIAvailability } from "./provider";
 import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { AIError } from "./types";
-import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-section";
+import { extractFinalMatchReportSection, isRawDocumentDump } from "@/lib/matches/referee-report-section";
 
 export interface ParsedEventItem {
   playerId: string | null;
@@ -30,6 +30,8 @@ export interface RefereeReportAnalysisResult {
 
 /**
  * Normalizes Arabic and Latin player names for robust fuzzy matching.
+ * Handles common Algerian compound name variations (عبد الله / عبدالله، بن علي / بنعلي),
+ * Arabic letters (أ/إ/آ -> ا، ة -> ه، ى -> ي) and French compound spacing.
  */
 export function normalizeName(str: string): string {
   if (!str) return "";
@@ -37,11 +39,19 @@ export function normalizeName(str: string): string {
     .normalize("NFKC")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f\u064B-\u065F\u0670ـ]/g, "")
+    .replace(/[\u0300-\u036f\u064B-\u065F\u0670ـ]/g, "") // remove diacritics & tatweel
     .replace(/[أإآٱ]/g, "ا")
     .replace(/[ة]/g, "ه")
     .replace(/[ى]/g, "ي")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/(?<=^|\s)عبد\s+/gu, "عبد")
+    .replace(/(?<=^|\s)بن\s+/gu, "بن")
+    .replace(/(?<=^|\s)بو\s+/gu, "بو")
+    .replace(/(?<=^|\s)ابو\s+/gu, "ابو")
+    .replace(/(?<=^|\s)ben\s+/gu, "ben")
+    .replace(/(?<=^|\s)bou\s+/gu, "bou")
+    .replace(/(?<=^|\s)abdel\s+/gu, "abdel")
+    .replace(/(?<=^|\s)abd\s+/gu, "abd")
     .trim()
     .replace(/\s+/g, " ");
 }
@@ -55,6 +65,79 @@ export type SquadPlayer = {
   shirtNumber: number | null;
   teamId?: string | null;
 };
+
+export const REPORT_LINE_STOPWORDS = new Set([
+  "هدف", "اهداف", "أهداف", "سجل", "مسجل", "من", "طرف", "اللاعب", "لاعب", "في", "الدقيقة", "دقيقة", "د", "رقم",
+  "بطاقة", "صفراء", "حمراء", "انذار", "إنذار", "طرد", "تبديل", "دخول", "الداخل", "خرج", "خروج", "الخارج", "المستبدل",
+  "استبدال", "بدلا", "مكان", "تمريرة", "حاسمة", "صنع", "صانع", "النتيجة", "النهائية", "ضد", "مرماه", "جزاء",
+  "but", "buts", "goal", "goals", "marqu", "marque", "par", "joueur", "minute", "min", "mn", "numero", "num", "no",
+  "carton", "jaune", "rouge", "avertissement", "expulsion", "remplacement", "substitution", "entrant", "sortant",
+  "entree", "sortie", "remplace", "passe", "decisive", "assist", "csc", "penalty"
+]);
+
+function stripArabicArticle(token: string): string {
+  if (token.startsWith("ال") && token.length >= 5) {
+    return token.slice(2);
+  }
+  return token;
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0]![j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (a.charAt(i - 1) === b.charAt(j - 1)) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!;
+      } else {
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j - 1]! + 1,
+          matrix[i]![j - 1]! + 1,
+          matrix[i - 1]![j]! + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length]![a.length]!;
+}
+
+export function tokenSimilarity(t1: string, t2: string): number {
+  if (!t1 || !t2) return 0;
+  if (t1 === t2) return 1;
+
+  // Single-letter initial in French (e.g. 'm' for 'mohamed', 'k' for 'karim')
+  if (t1.length === 1 && t2.length >= 3 && t2.startsWith(t1)) return 0.90;
+  if (t2.length === 1 && t1.length >= 3 && t1.startsWith(t2)) return 0.90;
+
+  const s1 = stripArabicArticle(t1);
+  const s2 = stripArabicArticle(t2);
+  if (s1 === s2) return 0.98;
+
+  // Common Algerian spelling interchangeability: final 'ه' / 'و' (e.g. عبده / عبدو for Abde)
+  const normFinalHehWaw = (w: string) => w.replace(/[هو]$/u, "");
+  if (s1.length >= 3 && s2.length >= 3 && normFinalHehWaw(s1) === normFinalHehWaw(s2)) {
+    return 0.95;
+  }
+
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen <= 2) return 0;
+
+  const dist = levenshteinDistance(s1, s2);
+  if (dist === 1 && maxLen >= 4) return 0.88;
+  if (dist <= 2 && maxLen >= 7) return 0.82;
+
+  return Math.max(0, 1 - dist / maxLen);
+}
+
+function extractCandidateNameTokens(normQuery: string): string[] {
+  const rawTokens = normQuery.split(" ").filter(Boolean);
+  const filtered = rawTokens.filter((token) => !REPORT_LINE_STOPWORDS.has(token) && !/^\d+$/.test(token));
+  return filtered.length > 0 ? filtered : rawTokens;
+}
 
 function parseEventMinute(value: unknown): number | null {
   if (typeof value === "number") {
@@ -76,86 +159,171 @@ function eventMinuteFromReportLine(line: string): number | null {
 }
 
 /**
- * Attempts to match a name or shirt number against a squad of players.
+ * Attempts to match a name or shirt number against a squad of players with
+ * comprehensive support for Algerian Arabic and French transliterations,
+ * compound prefixes (عبد / بن / بو), article variations (الـ), and spelling variations (عبده / عبدو).
  */
 export function findBestPlayerMatch(
   queryName: string,
   queryNumber: number | null | undefined,
-  squad: SquadPlayer[]
+  squad: SquadPlayer[],
+  options?: { preferredTeamId?: string | null; preferredPlayerIds?: Set<string> }
 ): SquadPlayer | null {
+  const normQuery = normalizeName(queryName);
+  const candidateTokens = normQuery ? extractCandidateNameTokens(normQuery) : [];
+  const candidateStr = candidateTokens.join(" ");
+
   if (queryNumber) {
     const byNumber = squad.filter((p) => p.shirtNumber === queryNumber);
-    if (byNumber.length === 1) return byNumber[0]!;
+    if (byNumber.length === 1) {
+      if (!candidateTokens.length) return byNumber[0]!;
+      const numPlayer = byNumber[0]!;
+      const playerTokens = [numPlayer.firstName, numPlayer.lastName, numPlayer.firstNameFr, numPlayer.lastNameFr]
+        .map((part) => normalizeName(part || ""))
+        .filter(Boolean)
+        .flatMap((s) => s.split(" "));
+      const hasAnyToken = candidateTokens.some((c) => playerTokens.some((p) => tokenSimilarity(c, p) >= 0.85));
+      if (hasAnyToken) return numPlayer;
+    }
   }
 
-  const normQuery = normalizeName(queryName);
-  if (!normQuery) return null;
-  const queryTokens = new Set(normQuery.split(" "));
-  const ranked = squad.map((player) => {
-    const nameVariants = [
-      [player.firstName, player.lastName], [player.lastName, player.firstName],
-      [player.firstNameFr, player.lastNameFr], [player.lastNameFr, player.firstNameFr]
-    ].map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean));
-    const hasAll = (tokens: string[]) => tokens.length > 0 && tokens.every((token) => queryTokens.has(token));
+  if (!candidateTokens.length) return null;
 
-    let score = 0;
-    for (const tokens of nameVariants) {
-      if (normQuery === tokens.join(" ")) score = Math.max(score, 100);
-      else if (hasAll(tokens)) score = Math.max(score, 90);
-      else {
-        const distinctiveTokens = tokens.filter((token) => token.length >= 4);
-        const matchedTokens = distinctiveTokens.filter((token) => queryTokens.has(token));
-        if (matchedTokens.length) score = Math.max(score, 70 + Math.min(20, matchedTokens.length * 5));
+  const ranked = squad.map((player) => {
+    const nameVariants: string[][] = [
+      [player.firstName, player.lastName],
+      [player.lastName, player.firstName],
+      [player.firstNameFr, player.lastNameFr],
+      [player.lastNameFr, player.firstNameFr]
+    ]
+      .map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean))
+      .filter((parts) => parts.length > 0);
+
+    let maxScore = 0;
+
+    for (const variantParts of nameVariants) {
+      const variantStr = variantParts.join(" ");
+      const variantTokens = variantStr.split(" ").filter(Boolean);
+
+      // 1. Exact string match
+      if (candidateStr === variantStr || normQuery === variantStr) {
+        maxScore = Math.max(maxScore, 100);
+        continue;
+      }
+
+      // 2. Substring match if full name is contained
+      if (candidateStr.length >= 6 && variantStr.length >= 6) {
+        if (candidateStr.includes(variantStr) || variantStr.includes(candidateStr)) {
+          maxScore = Math.max(maxScore, 95);
+          continue;
+        }
+      }
+
+      // 3. Token-by-token fuzzy match
+      if (variantTokens.length > 0 && candidateTokens.length > 0) {
+        const matchedSimilarities: number[] = [];
+        for (const vToken of variantTokens) {
+          let bestSim = 0;
+          for (const cToken of candidateTokens) {
+            const sim = tokenSimilarity(vToken, cToken);
+            if (sim > bestSim) bestSim = sim;
+          }
+          matchedSimilarities.push(bestSim);
+        }
+
+        const allMatched = matchedSimilarities.every((sim) => sim >= 0.82);
+        if (allMatched && matchedSimilarities.length >= 2) {
+          const avgSim = matchedSimilarities.reduce((a, b) => a + b, 0) / matchedSimilarities.length;
+          const score = Math.round(avgSim * 92);
+          maxScore = Math.max(maxScore, score);
+        } else if (matchedSimilarities.some((sim) => sim >= 0.95)) {
+          const highMatches = matchedSimilarities.filter((sim) => sim >= 0.95);
+          const distinctiveTokenLen = variantTokens.find((t) => t.length >= 5);
+          if (highMatches.length >= 1 && distinctiveTokenLen) {
+            maxScore = Math.max(maxScore, 75);
+          }
+        }
       }
     }
-    return { player, score };
-  }).filter((candidate) => candidate.score > 0).sort((a, b) => b.score - a.score);
 
-  if (!ranked.length || ranked[0]!.score < 70) return null;
-  if (ranked.length > 1 && ranked[0]!.score === ranked[1]!.score) return null;
-  return ranked[0]!.player;
+    if (queryNumber && player.shirtNumber === queryNumber && maxScore >= 60) {
+      maxScore += 10;
+    }
+    if (options?.preferredTeamId && player.teamId === options.preferredTeamId) {
+      maxScore += 1;
+    }
+    if (options?.preferredPlayerIds?.has(player.id)) {
+      maxScore += 2;
+    }
+
+    return { player, score: maxScore };
+  })
+    .filter((candidate) => candidate.score >= 70)
+    .sort((a, b) => b.score - a.score);
+
+  if (!ranked.length) return null;
+  if (ranked.length === 1) return ranked[0]!.player;
+  if (ranked[0]!.score > ranked[1]!.score) {
+    return ranked[0]!.player;
+  }
+  return null;
 }
 
 export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: SquadPlayer[]): boolean {
   const eventPattern: Record<ParsedEventItem["type"], RegExp> = {
-    GOAL: /هدف|سجل|أهداف|\bbut\b|\bgoal\b|marqu/iu,
-    ASSIST: /تمريرة\s*حاسمة|صنع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
+    GOAL: /هدف|سجل|أهداف|اهداف|\bbut\b|\bgoal\b|marqu/iu,
+    ASSIST: /تمريرة\s*حاسمة|صنع|صانع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
     YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|carton\s+jaune|avertissement|\byellow\b/iu,
     RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|carton\s+rouge|expulsion|\bred\s+card\b/iu,
-    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
-    SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
+    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|تغيير|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
+    SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|تغيير|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
   };
 
   const player = squad.find((candidate) => candidate.id === event.playerId);
   if (!player) return false;
-  const nameVariants = [
-    [player.firstName, player.lastName],
-    [player.lastName, player.firstName],
-    [player.firstNameFr, player.lastNameFr],
-    [player.lastNameFr, player.firstNameFr]
-  ]
-    .map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean))
-    .filter((parts) => parts.length >= 2);
 
-  const lines = text.split(/[\r\n;.!?]+/u).map((line) => normalizeName(line)).filter(Boolean);
-  const playerNames = nameVariants.map((parts) => parts.filter(Boolean));
-  const lineHasName = (line: string) => {
-    const tokens = new Set(line.split(" "));
-    return playerNames.some((parts) => parts.length >= 2 && parts.every((part) =>
-      part.includes(" ") ? line.includes(part) : tokens.has(part)
-    ));
+  const lines = text.split(/[\r\n;.!?]+/u).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return false;
+
+  // Track section context across lines for column-extracted FAF tables
+  const sectionAt: Array<ParsedEventItem["type"] | null> = [];
+  let currentSection: ParsedEventItem["type"] | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]!;
+    if (/الأهداف|أهداف\s+المباراة|\bbuts\b|\bgoals\b/iu.test(l) && l.length < 40) currentSection = "GOAL";
+    else if (/البطاقات|إنذارات|\bcartons\b|\bbookings\b/iu.test(l) && l.length < 40) currentSection = "YELLOW_CARD";
+    else if (/طرد|\bexpulsions\b/iu.test(l) && l.length < 40) currentSection = "RED_CARD";
+    else if (/التغييرات|التبديلات|\bremplacements?\b|\bsubstitutions?\b/iu.test(l) && l.length < 40) {
+      currentSection = event.type === "SUBSTITUTION_OUT" ? "SUBSTITUTION_OUT" : "SUBSTITUTION_IN";
+    }
+    sectionAt[i] = currentSection;
+  }
+
+  const matchesPlayer = (windowText: string) => {
+    return Boolean(findBestPlayerMatch(windowText, event.shirtNumber, [player]));
   };
-  const lineHasMinute = (line: string) => {
-    const timeTokens = line.match(/\d{1,3}(?:\s*\+\s*\d{1,2})?/gu) ?? [];
-    return timeTokens.some((token) => parseEventMinute(token) === event.minute);
+
+  const windowHasMinute = (windowText: string) => {
+    const minuteTokens = windowText.match(/\d{1,3}(?:\s*\+\s*\d{1,2})?/gu) ?? [];
+    return minuteTokens.some((token) => parseEventMinute(token) === event.minute);
   };
-  // PDF table extraction often places the event heading, player and minute on
-  // adjacent lines instead of one sentence. Accept a compact row window while
-  // still requiring both the exact player and exact minute in that window.
-  return lines.some((_line, index) => {
-    const row = lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 3)).join(" ");
-    return lineHasName(row) && lineHasMinute(row) && eventPattern[event.type].test(row);
-  });
+
+  for (let index = 0; index < lines.length; index++) {
+    const start = Math.max(0, index - 3);
+    const end = Math.min(lines.length, index + 4);
+    const windowText = lines.slice(start, end).join(" ");
+
+    if (matchesPlayer(windowText) && windowHasMinute(windowText)) {
+      const section = sectionAt[index] || sectionAt[start];
+      const hasTypeKeyword = eventPattern[event.type].test(windowText);
+      const matchesSection = section === event.type || (section === "YELLOW_CARD" && event.type === "RED_CARD");
+      if (hasTypeKeyword || matchesSection) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -354,22 +522,49 @@ export function parseSubstitutionsFromReport(text: string, squad: SquadPlayer[])
   const outgoingCue = /خروج|خرج|الخارج|المستبدل|استبدل|بدلا\s+من|مكان|joueur\s+sortant|sortant|sortie|sorti|remplac[eé]|\bout\b/iu;
   const mentionedPlayers = (window: string) => {
     const normalized = ` ${normalizeName(window)} `;
-    return squad.flatMap((player) => {
+    const found: Array<{ player: SquadPlayer; matching: string }> = [];
+    const seenIds = new Set<string>();
+
+    for (const player of squad) {
+      if (seenIds.has(player.id)) continue;
       const variants = [
         [player.firstName, player.lastName], [player.lastName, player.firstName],
         [player.firstNameFr, player.lastNameFr], [player.lastNameFr, player.firstNameFr]
       ].map((parts) => parts.map((part) => normalizeName(part || "")).filter(Boolean).join(" "))
         .filter((name) => name.split(" ").length >= 2);
       const matching = variants.find((name) => normalized.includes(` ${name} `));
-      return matching ? [{ player, matching }] : [];
-    });
+      if (matching) {
+        seenIds.add(player.id);
+        found.push({ player, matching });
+      } else {
+        const fuzzyMatched = findBestPlayerMatch(window, null, [player]);
+        if (fuzzyMatched) {
+          seenIds.add(player.id);
+          found.push({ player: fuzzyMatched, matching: `${player.firstName} ${player.lastName}` });
+        }
+      }
+    }
+    return found;
   };
   const roleDistance = (window: string, name: string, cue: RegExp) => {
     const normalizedWindow = normalizeName(window);
     const normalizedName = normalizeName(name);
-    const nameStart = normalizedWindow.indexOf(normalizedName);
+    let nameStart = normalizedWindow.indexOf(normalizedName);
+    let nameEnd = nameStart + normalizedName.length;
+
+    if (nameStart < 0) {
+      const nameTokens = normalizedName.split(" ").filter(Boolean);
+      for (const token of nameTokens) {
+        const tokenIdx = normalizedWindow.indexOf(token);
+        if (tokenIdx >= 0) {
+          nameStart = tokenIdx;
+          nameEnd = tokenIdx + token.length;
+          break;
+        }
+      }
+    }
     if (nameStart < 0) return Number.POSITIVE_INFINITY;
-    const nameEnd = nameStart + normalizedName.length;
+
     const flags = cue.flags.includes("g") ? cue.flags : `${cue.flags}g`;
     const globalCue = new RegExp(cue.source, flags);
     let nearest = Number.POSITIVE_INFINITY;
@@ -481,23 +676,43 @@ export async function parseAndApplyRefereeReportWithAI(params: {
     }
   });
 
-  // Pull all available club players or team players for recognition
-  const eligibleTeamIds = match.teamId ? [match.teamId] : [];
-  if (match.team?.category === "SENIOR") {
-    const u20 = await db.team.findUnique({ where: { category: "U20" }, select: { id: true } });
-    if (u20?.id) eligibleTeamIds.push(u20.id);
-  }
-  const squad = await db.player.findMany({
-    where: { teamId: { in: eligibleTeamIds }, status: { not: "ARCHIVED" } },
+  // Capture match-day lineups and jersey numbers
+  const matchLineups = await db.matchLineup.findMany({
+    where: { matchId },
+    select: { playerId: true, shirtNumber: true }
+  });
+  const lineupNumberByPlayerId = new Map(matchLineups.map((l) => [l.playerId, l.shirtNumber]));
+  const lineupPlayerIds = matchLineups.map((l) => l.playerId).filter(Boolean) as string[];
+
+  // Pull all active club players, prioritizing those in the match lineup or team
+  const allPlayers = await db.player.findMany({
+    where: {
+      OR: [
+        { status: { not: "ARCHIVED" } },
+        { id: { in: lineupPlayerIds } }
+      ]
+    },
     select: { id: true, firstName: true, lastName: true, firstNameFr: true, lastNameFr: true, shirtNumber: true, teamId: true }
   });
 
-  // Determine report text to analyze. Explicit human-entered text wins; for
-  // FAF imports, analyze the actual official report before the curated public
-  // event summary already stored on the match.
+  const squad: SquadPlayer[] = allPlayers.map((p) => ({
+    id: p.id,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    firstNameFr: p.firstNameFr,
+    lastNameFr: p.lastNameFr,
+    shirtNumber: lineupNumberByPlayerId.get(p.id) ?? p.shirtNumber,
+    teamId: p.teamId
+  }));
+
+  // Determine narrative report text to store (ONLY genuine referee narrative, never raw table dumps)
   const suppliedReportText = (reportText || "").trim();
   const suppliedReportSection = extractFinalMatchReportSection(suppliedReportText);
-  let textToAnalyze = suppliedReportSection || suppliedReportText;
+  let narrativeToAnalyze = suppliedReportSection || (isRawDocumentDump(suppliedReportText) ? "" : suppliedReportText);
+
+  // Full document text for extracting events (goals, cards, substitutions)
+  let eventEvidenceText = (eventSourceText || suppliedReportText).trim();
+
   const fafFinalReport = match.documents.find((document) =>
     document.matchDocumentType === "REFEREE_REPORT" && /^FAF-EMS-.+-final-report-ar\.pdf$/i.test(document.originalName || "")
   );
@@ -507,25 +722,25 @@ export async function parseAndApplyRefereeReportWithAI(params: {
       || document.name.toLowerCase().includes("rapport")
       || document.originalName?.toLowerCase().includes("referee")
   );
-  if (!textToAnalyze && refDoc) {
-    // A filename is not report content and must never be fed to the parser as evidence.
-    if (refDoc) {
-      try {
-        const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
-          import("@/lib/storage"),
-          import("./document-verifier")
-        ]);
-        const buffer = await getPrivateFileBuffer(refDoc.storageKey);
-        const extractedDocument = (await extractDocumentText(buffer, refDoc.mimeType)) || "";
-        textToAnalyze = extractFinalMatchReportSection(extractedDocument) || "";
-      } catch (error) {
-        console.warn("[AI Referee Report] Could not read attached report", error);
+
+  if ((!eventEvidenceText || !narrativeToAnalyze) && refDoc) {
+    try {
+      const [{ getPrivateFileBuffer }, { extractDocumentText }] = await Promise.all([
+        import("@/lib/storage"),
+        import("./document-verifier")
+      ]);
+      const buffer = await getPrivateFileBuffer(refDoc.storageKey);
+      const extractedDocument = (await extractDocumentText(buffer, refDoc.mimeType)) || "";
+      if (!eventEvidenceText) eventEvidenceText = extractedDocument.trim();
+      if (!narrativeToAnalyze) {
+        narrativeToAnalyze = extractFinalMatchReportSection(extractedDocument) || "";
       }
+    } catch (error) {
+      console.warn("[AI Referee Report] Could not read attached report", error);
     }
   }
-  if (!textToAnalyze && !refDoc) textToAnalyze = match.matchReport || "";
 
-  if (!textToAnalyze) {
+  if (!eventEvidenceText && !narrativeToAnalyze) {
     return {
       success: false,
       eventsCreated: 0,
@@ -534,11 +749,6 @@ export async function parseAndApplyRefereeReportWithAI(params: {
       aiProviderUsed: "INTELLIGENT_NLP_ENGINE"
     };
   }
-
-  // FAF places goals/cards/substitutions in tables that can precede the final
-  // narrative section. Analyze the full extracted file for events while still
-  // storing only the curated narrative section as the match report.
-  const eventEvidenceText = (eventSourceText || textToAnalyze).trim();
 
   let parsedEvents: ParsedEventItem[] = [];
   let detectedScore: { home: number; away: number } | null = null;
@@ -666,6 +876,21 @@ ${squadRoster}
   }
   if (fallback.detectedScore && !detectedScore) detectedScore = fallback.detectedScore;
   if ((!hasVerifiableAiEvent && fallbackHasVerifiableEvent) || (!parsedEvents.length && !hasVerifiableAiEvent)) aiProviderUsed = "INTELLIGENT_NLP_ENGINE";
+
+  // Reconcile unlinked player names against the squad before filtering
+  for (const event of parsedEvents) {
+    if (!event.playerId && event.playerName) {
+      const matched = findBestPlayerMatch(event.playerName, event.shirtNumber, squad, { preferredTeamId: match.teamId });
+      if (matched) {
+        event.playerId = matched.id;
+        event.matchedPlayerName = `${matched.firstName} ${matched.lastName}`;
+        event.playerName = `${matched.firstName} ${matched.lastName}`;
+        if (matched.firstNameFr || matched.lastNameFr) {
+          event.playerNameFr = [matched.firstNameFr, matched.lastNameFr].filter(Boolean).join(" ");
+        }
+      }
+    }
+  }
 
   // Only persist events that can be verified in the source report itself.
   // This prevents model guesses or broad mentions in the narrative from
@@ -808,15 +1033,15 @@ ${squadRoster}
   }
 
   // Update match report and status if not set.
-  // The report is now written even when the caller asked to preserve existing
-  // match data, as long as the field is still EMPTY — otherwise a FAF sync that
-  // failed to isolate the "final report" section left the report blank forever.
-  const reportToStore = suppliedReportSection || suppliedReportText;
-  const shouldWriteReport = Boolean(reportToStore) && (!preserveExistingMatchData || !match.matchReport?.trim());
+  // CRITICAL: NEVER store raw document dumps into matchReport. Only store genuine referee narrative.
+  const reportToStore = narrativeToAnalyze.trim();
+  const shouldWriteReport = Boolean(reportToStore) && (!preserveExistingMatchData || !match.matchReport?.trim() || isRawDocumentDump(match.matchReport));
+  const shouldClearPollutedReport = !reportToStore && match.matchReport && isRawDocumentDump(match.matchReport);
+
   await db.match.update({
     where: { id: matchId },
     data: {
-      ...(shouldWriteReport ? { matchReport: reportToStore } : {}),
+      ...(shouldWriteReport ? { matchReport: reportToStore } : shouldClearPollutedReport ? { matchReport: null } : {}),
       ...(!preserveExistingMatchData && detectedScore ? { homeScore: detectedScore.home, awayScore: detectedScore.away } : {})
     }
   });

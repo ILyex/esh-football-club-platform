@@ -8,7 +8,7 @@ import { getFafEmsClient } from "./ems-client";
 import { enqueueRefereeReportAnalysis } from "@/lib/ai/referee-report-job";
 import { RetryableError } from "@/lib/jobs/types";
 import { applyMatchSheetLineup } from "@/lib/matches/lineup-from-sheet";
-import { extractFinalMatchReportSection } from "@/lib/matches/referee-report-section";
+import { extractFinalMatchReportSection, isRawDocumentDump } from "@/lib/matches/referee-report-section";
 import { extractDocumentText, extractDocumentTextWithVision } from "@/lib/ai/document-verifier";
 import { matchStadium } from "@/lib/matches/stadium";
 import { extractFafRefereeCrew, isArabicRefereeName } from "./referee-crew";
@@ -676,15 +676,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       warnings.push("حُفظ التقرير النهائي، لكن تعذر استخراج نصه للتحليل الآلي.");
     }
   }
-  // The report field used to stay EMPTY whenever the "final report" heading was
-  // not found verbatim (scanned sheets, different federation layout). Keep a
-  // readable excerpt of the official text instead of publishing a blank report.
+  // If the document does not contain an explicit referee narrative section, do NOT dump
+  // raw OCR table/lineup text into the match report field. Keep the document in documents
+  // section and pass its source text solely for extracting match events (goals/cards/subs).
   if (!refereeReportText && refereeReportSourceText) {
-    const readableExcerpt = refereeReportSourceText.replace(/\s+/g, " ").trim().slice(0, 5000);
-    if (readableExcerpt) {
-      refereeReportText = readableExcerpt;
-      warnings.push("لم يُعثر على عنوان قسم السرد النهائي؛ حُفظ نص التقرير الرسمي كما ورد لملء خانة التقرير.");
-    }
+    warnings.push("حُفظ التقرير الرسمي في وثائق المباراة؛ لم يُعثر على قسم ملاحظات سردية للحكم، وسيتم استخراج الأحداث من الجداول دون تلويث حقل التقرير.");
   }
   if (firstReportResult.status === "rejected") warnings.push(`تعذر جلب وثيقة بداية المباراة: ${firstReportResult.reason instanceof Error ? firstReportResult.reason.message : "خطأ غير معروف"}`);
   if (finalReportResult.status === "rejected") warnings.push(`تعذر جلب التقرير النهائي: ${finalReportResult.reason instanceof Error ? finalReportResult.reason.message : "خطأ غير معروف"}`);
@@ -854,7 +850,11 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
       refereeName: referee || local.refereeName,
       refereeNameAr: refereeNameAr || previousArabicRefereeNames,
       refereeNameFr: refereeNameFr || local.refereeNameFr,
-      ...(refereeReportText ? { matchReport: refereeReportText } : {}),
+      ...(refereeReportText
+        ? { matchReport: refereeReportText }
+        : local.matchReport && isRawDocumentDump(local.matchReport)
+          ? { matchReport: null }
+          : {}),
       ...(explicitlyFinished ? { status: "FINISHED" as const } : explicitlyLive ? { status: "LIVE" as const } : {})
     }
   });

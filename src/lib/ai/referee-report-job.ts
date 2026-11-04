@@ -67,15 +67,23 @@ export function registerRefereeReportAnalysisJob(): void {
         const { getPrivateFileBuffer } = await import("@/lib/storage");
         const { extractDocumentText } = await import("@/lib/ai/document-verifier");
         const buffer = await getPrivateFileBuffer(doc.storageKey);
-        const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
+        const { extractFinalMatchReportSection, isRawDocumentDump } = await import("@/lib/matches/referee-report-section");
         const extractedDocument = (await extractDocumentText(buffer, doc.mimeType || "application/pdf"))?.trim() || "";
         fullEventSourceText ||= extractedDocument;
-        sourceText = extractFinalMatchReportSection(extractedDocument) || extractedDocument.slice(0, 5000);
+        sourceText = extractFinalMatchReportSection(extractedDocument) || "";
       } else if (sourceText && !reportTextIsSection) {
-        const { extractFinalMatchReportSection } = await import("@/lib/matches/referee-report-section");
-        sourceText = extractFinalMatchReportSection(sourceText) || sourceText;
+        const { extractFinalMatchReportSection, isRawDocumentDump } = await import("@/lib/matches/referee-report-section");
+        const section = extractFinalMatchReportSection(sourceText);
+        if (section) {
+          sourceText = section;
+        } else if (isRawDocumentDump(sourceText)) {
+          fullEventSourceText ||= sourceText;
+          sourceText = "";
+        }
       }
-      if (!sourceText) throw new Error("Could not find the final match report section in the referee report document");
+      if (!sourceText && !fullEventSourceText) {
+        throw new Error("Could not find any readable content in the referee report document");
+      }
 
       const { parseAndApplyRefereeReportWithAI } = await import("@/lib/ai/referee-report-ai-service");
       const result = await parseAndApplyRefereeReportWithAI({ matchId, reportText: sourceText, eventSourceText: fullEventSourceText || undefined, preserveExistingMatchData, userId });
