@@ -1,0 +1,36 @@
+name: Weekly Neon Database Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 0" # Every Sunday at 04:00 UTC
+
+jobs:
+  backup:
+    name: Backup PostgreSQL Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Take Database Dump
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is not configured in GitHub repository secrets. Skipping dump."
+            exit 0
+          fi
+          mkdir -p backups
+          TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
+          pg_dump --no-owner --no-acl "$DATABASE_URL" | gzip > "backups/esh-db-backup-$TIMESTAMP.sql.gz"
+          echo "Backup created successfully: $(ls -lh backups/)"
+
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-db-backup
+          path: backups/
+          retention-days: 30

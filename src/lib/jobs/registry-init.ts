@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { registerFAFJobHandlers } from "@/lib/integrations/faf/job-handler";
 import { registerRefereeReportAnalysisJob } from "@/lib/ai/referee-report-job";
 import { registerMedicalDocumentCheckJob } from "@/lib/ai/medical-document-check-job";
+import { registerMaintenanceJobHandler } from "@/lib/maintenance/maintenance-job";
 
 // ============================================================================
 // P5 — BUILT-IN JOB HANDLERS REGISTRATION
@@ -22,6 +23,7 @@ export function initializeJobRegistry(): void {
   registerFAFJobHandlers();
   registerRefereeReportAnalysisJob();
   registerMedicalDocumentCheckJob();
+  registerMaintenanceJobHandler();
 
   if (!hasJobHandler("insights.sync")) {
     registerJobHandler({
