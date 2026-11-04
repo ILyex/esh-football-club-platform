@@ -2,11 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-if (process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV)) {
-  console.log("Skipping cPanel standalone preparation on Vercel deployment.");
-  process.exit(0);
-}
-
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBuild = path.join(projectRoot, ".next");
 const standaloneRoot = path.join(nextBuild, "standalone");
