@@ -7,6 +7,7 @@ import {
   normalizeTeamName,
   OFFICIAL_CATEGORY_NAMES,
   rankStandings,
+  getOfficialRoundThreeSeniorStandings,
   type StandingTeamEntry
 } from "@/lib/competitions";
 
@@ -145,4 +146,58 @@ test("Algeria clock formatter produces 24h format matching HH:mm:ss without am/p
   const timeStr = formatter.format(testDate);
   assert.match(timeStr, /^\d{2}:\d{2}:\d{2}$/);
   assert.equal(timeStr.includes("AM") || timeStr.includes("PM") || timeStr.includes("am") || timeStr.includes("pm"), false);
+});
+
+test("official round 3 senior standings match LWFT federation rankings", () => {
+  const standings = getOfficialRoundThreeSeniorStandings();
+  assert.equal(standings.length, 10);
+
+  const ranked = rankStandings(standings);
+  assert.equal(ranked[0].teamName, "E Sidi Hosni");
+  assert.equal(ranked[0].points, 7);
+  assert.equal(ranked[0].goalsFor, 9);
+  assert.equal(ranked[0].goalsAgainst, 1);
+  assert.equal(ranked[0].goalDifference, 8);
+  assert.equal(ranked[0].played, 3);
+  assert.equal(ranked[0].won, 2);
+  assert.equal(ranked[0].drawn, 1);
+  assert.equal(ranked[0].lost, 0);
+
+  assert.equal(ranked[1].teamName, "RB Sougueur");
+  assert.equal(ranked[1].points, 7);
+  assert.equal(ranked[1].goalDifference, 6);
+
+  assert.equal(ranked[2].teamName, "AG Tiaret");
+  assert.equal(ranked[2].points, 4);
+  assert.equal(ranked[2].goalDifference, 3);
+
+  assert.equal(ranked[3].teamName, "JS Frenda");
+  assert.equal(ranked[3].points, 4);
+  assert.equal(ranked[3].goalDifference, -1);
+
+  assert.equal(ranked[4].teamName, "S Ain Meriem");
+  assert.equal(ranked[4].points, 3);
+  assert.equal(ranked[4].goalDifference, -5);
+
+  assert.equal(ranked[5].teamName, "CSNR Tiaret");
+  assert.equal(ranked[5].points, 2);
+  assert.equal(ranked[5].goalDifference, 0);
+  assert.equal(ranked[5].goalsFor, 2);
+
+  assert.equal(ranked[6].teamName, "AB Rosfa");
+  assert.equal(ranked[6].points, 2);
+  assert.equal(ranked[6].goalDifference, 0);
+  assert.equal(ranked[6].goalsFor, 1);
+
+  assert.equal(ranked[7].teamName, "Noudjoum Tiaret");
+  assert.equal(ranked[7].points, 1);
+  assert.equal(ranked[7].goalDifference, -3);
+
+  assert.equal(ranked[8].teamName, "AWF Chellala");
+  assert.equal(ranked[8].points, 1);
+  assert.equal(ranked[8].goalDifference, -5);
+
+  assert.equal(ranked[9].teamName, "UM Tiaret");
+  assert.equal(ranked[9].points, 0);
+  assert.equal(ranked[9].goalDifference, -3);
 });

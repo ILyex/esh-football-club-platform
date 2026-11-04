@@ -39,9 +39,9 @@ const nextConfig = {
   // Give each Cloudflare build a version marker so an open browser tab can
   // detect a newer deployment and reload before invoking stale Server Actions.
   ...(process.env.VERCEL_DEPLOYMENT_ID ? { deploymentId: process.env.VERCEL_DEPLOYMENT_ID } : process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
-  // Keep the production runtime small for cPanel shared hosting. The build
-  // helper copies public/static assets into this standalone runtime folder.
-  output: "standalone",
+  // Keep the production runtime small for cPanel shared hosting. On Vercel,
+  // native serverless functions are used.
+  output: process.env.VERCEL ? undefined : (process.env.BUILD_STANDALONE === "false" ? undefined : "standalone"),
   // OpenNext packages the regular `.next` output in its worker bundle.
   reactStrictMode: true,
   // Hide Next.js development indicator from the application UI.

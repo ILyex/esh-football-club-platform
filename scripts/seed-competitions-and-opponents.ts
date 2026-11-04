@@ -46,6 +46,51 @@ const SEED_OPPONENTS: Record<string, { name: string; logoUrl: string; stadium?: 
     logoUrl: "/branding/opponents/irb-ain-deheb.svg",
     stadium: "ملعب عين الذهب البلدي",
     updatedAt: new Date().toISOString()
+  },
+  "rb sougueur": {
+    name: "رائد بلدية السوقر (RB Sougueur)",
+    logoUrl: "/branding/opponents/rb-sougueur.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "ag tiaret": {
+    name: "جيل تيارت (AG Tiaret)",
+    logoUrl: "/branding/opponents/ag-tiaret.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "js frenda": {
+    name: "شبيبة فرندة (JS Frenda)",
+    logoUrl: "/branding/opponents/js-frenda.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "s ain meriem": {
+    name: "شباب عين مريم (S Ain Meriem)",
+    logoUrl: "/branding/opponents/s-ain-meriem.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "csnr tiaret": {
+    name: "نادي السكة الحديدية تيارت (CSNR Tiaret)",
+    logoUrl: "/branding/opponents/csnr-tiaret.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "ab rosfa": {
+    name: "أمل الرصفة (AB Rosfa)",
+    logoUrl: "/branding/opponents/ab-rosfa.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "noudjoum tiaret": {
+    name: "نجوم تيارت (Noudjoum Tiaret)",
+    logoUrl: "/branding/opponents/noudjoum-tiaret.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "awf chellala": {
+    name: "وفاق شلالة (AWF Chellala)",
+    logoUrl: "/branding/opponents/awf-chellala.svg",
+    updatedAt: new Date().toISOString()
+  },
+  "um tiaret": {
+    name: "اتحاد مدينة تيارت (UM Tiaret)",
+    logoUrl: "/branding/opponents/um-tiaret.svg",
+    updatedAt: new Date().toISOString()
   }
 };
 

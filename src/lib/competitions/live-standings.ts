@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { rankStandings } from "./standings";
 import type { StandingTeamEntry } from "./types";
 import { getOfficialRoundTwoSeniorStandings, OFFICIAL_ROUND_TWO_BASELINE_AT } from "./round-two-seniors";
+import { getOfficialRoundThreeSeniorStandings, OFFICIAL_ROUND_THREE_BASELINE_AT } from "./round-three-seniors";
 import { findOpponentLogo, getAllOpponentsList, getOpponentsMap, saveOpponentClub } from "@/lib/opponents";
 import { CLUB_DEFAULT_CREST } from "./types";
 import { normalizePublicMediaUrl } from "@/lib/media-utils";
@@ -22,7 +23,10 @@ function normalizeClubName(value: string): string {
   return value.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 
-const WITHDRAWN_SENIOR_TEAM_IDS = new Set(["official-r2-crb-serguine", "official-r2-irb-mechraa-sfa"]);
+const WITHDRAWN_SENIOR_TEAM_IDS = new Set([
+  "official-r2-crb-serguine", "official-r2-irb-mechraa-sfa",
+  "official-r3-crb-serguine", "official-r3-irb-mechraa-sfa"
+]);
 const WITHDRAWN_SENIOR_TEAM_NAMES = new Set(["crb serguine", "irb mechraa sfa"]);
 
 function removeWithdrawnSeniorTeams(rows: StandingTeamEntry[]): StandingTeamEntry[] {
@@ -92,7 +96,7 @@ function buildNameIndex(standings: StandingTeamEntry[]): Map<string, StandingTea
   const index = new Map<string, StandingTeamEntry>();
   for (const row of standings) {
     index.set(normalizeClubName(row.teamName), row);
-    if (row.id === "official-r2-esh") {
+    if (row.id === "official-r2-esh" || row.id === "official-r3-esh" || row.isOurClub) {
       for (const alias of ["Association Sportive Espoir Sidi Hosni", "Espoir Sidi Hosni", "E Sidi Hosni", "ES Sidi Hosni", "Amel Sidi Hosni", "أمل سيدي حسني", "الجمعية الرياضية أمل سيدي حسني"]) {
         index.set(normalizeClubName(alias), row);
       }
@@ -206,7 +210,7 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
   }
 
   return Promise.all(rows.map(async (row) => {
-    if (row.isOurClub || row.id === "official-r2-esh") return { ...row, teamLogo: clubLogo };
+    if (row.isOurClub || row.id === "official-r2-esh" || row.id === "official-r3-esh") return { ...row, teamLogo: clubLogo };
 
     const savedLogo = findOpponentLogo(opponents, row.teamName);
     const usableSavedLogo = savedLogo && !isDefaultOpponentCrest(savedLogo) ? savedLogo : null;
@@ -231,7 +235,16 @@ async function resolveStandingsLogos(competitionId: string, rows: StandingTeamEn
   }));
 }
 
-/** Initialize the official round-two baseline once, when a match is added or points are adjusted. */
+function isLegacySeniorSnapshot(rows: StandingTeamEntry[]): boolean {
+  if (!rows.length) return true;
+  return rows.some((row) =>
+    row.id.startsWith("official-r2-") ||
+    (row.isOurClub && row.played < 3) ||
+    (row.baselineAt && new Date(row.baselineAt).getTime() < new Date(OFFICIAL_ROUND_THREE_BASELINE_AT).getTime())
+  );
+}
+
+/** Initialize the official standings baseline once, when a match is added or points are adjusted. */
 export async function ensureCompetitionStandingsBaseline(competitionId: string): Promise<StandingTeamEntry[]> {
   const competition = await db.competition.findUnique({
     where: { id: competitionId },
@@ -243,11 +256,11 @@ export async function ensureCompetitionStandingsBaseline(competitionId: string):
   let baseline = stored;
   const isRoundTwoSenior = await isRoundTwoSeniorCompetition(snapshot);
 
-  if (!baseline.length && isRoundTwoSenior) {
-    baseline = getOfficialRoundTwoSeniorStandings();
+  if (isRoundTwoSenior && isLegacySeniorSnapshot(baseline)) {
+    baseline = getOfficialRoundThreeSeniorStandings();
     await db.competition.update({ where: { id: competitionId }, data: { standingsData: baseline as any } });
   } else if (baseline.length) {
-    baseline = baseline.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT }));
+    baseline = baseline.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_THREE_BASELINE_AT }));
     if (isRoundTwoSenior) baseline = removeWithdrawnSeniorTeams(baseline);
     if (JSON.stringify(stored) !== JSON.stringify(baseline)) {
       await db.competition.update({ where: { id: competitionId }, data: { standingsData: baseline as any } });
@@ -268,13 +281,18 @@ export async function getLiveCompetitionStandings(competitionId: string, value: 
   if (!competition) return [];
   let baselineRows = Array.isArray(value) ? value as StandingTeamEntry[] : [];
   const isRoundTwoSenior = await isRoundTwoSeniorCompetition(competition as unknown as CompetitionSnapshot);
-  if (!baselineRows.length && isRoundTwoSenior) {
-    baselineRows = getOfficialRoundTwoSeniorStandings();
+  if (isRoundTwoSenior && isLegacySeniorSnapshot(baselineRows)) {
+    baselineRows = getOfficialRoundThreeSeniorStandings();
+    try {
+      await db.competition.update({ where: { id: competitionId }, data: { standingsData: baselineRows as any } });
+    } catch {
+      // In read-only contexts or concurrent requests, proceed with the computed baseline
+    }
   }
   if (!baselineRows.length) return [];
   if (isRoundTwoSenior) baselineRows = removeWithdrawnSeniorTeams(baselineRows);
-  baselineRows = baselineRows.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT, pointsAdjustment: row.pointsAdjustment ?? 0, manualStatsAdjustment: row.manualStatsAdjustment ?? {} }));
-  const baselineAt = baselineRows.find((row) => row.baselineAt)?.baselineAt || OFFICIAL_ROUND_TWO_BASELINE_AT;
+  baselineRows = baselineRows.map((row) => ({ ...row, baselineAt: row.baselineAt || OFFICIAL_ROUND_THREE_BASELINE_AT, pointsAdjustment: row.pointsAdjustment ?? 0, manualStatsAdjustment: row.manualStatsAdjustment ?? {} }));
+  const baselineAt = baselineRows.find((row) => row.baselineAt)?.baselineAt || OFFICIAL_ROUND_THREE_BASELINE_AT;
   const matches = await db.match.findMany({
     where: { competitionId, status: "FINISHED", matchDate: { gt: new Date(baselineAt) }, homeScore: { not: null }, awayScore: { not: null } },
     select: { teamId: true, homeTeamName: true, awayTeamName: true, isHomeFixture: true, homeScore: true, awayScore: true, matchDate: true },

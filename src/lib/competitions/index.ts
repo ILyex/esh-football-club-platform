@@ -5,6 +5,7 @@ import type { TeamCategory } from "@prisma/client";
 export * from "./types";
 export * from "./standings";
 export * from "./display-data";
+export * from "./round-three-seniors";
 import { CLUB_DEFAULT_CREST, normalizeTeamName, type CupBracketData, type StandingTeamEntry } from "./types";
 
 /** Empty state only: standings must come from verified competition records. */

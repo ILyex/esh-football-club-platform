@@ -1,6 +1,11 @@
 import type { StandingTeamEntry } from "./types";
+import { getOfficialRoundThreeSeniorStandings, OFFICIAL_ROUND_THREE_BASELINE_AT } from "./round-three-seniors";
 
 export const OFFICIAL_ROUND_TWO_BASELINE_AT = "2026-10-23T00:00:00.000Z";
+export { getOfficialRoundThreeSeniorStandings, OFFICIAL_ROUND_THREE_BASELINE_AT };
+
+/** The current authoritative senior standings baseline. */
+export const getOfficialSeniorStandings = getOfficialRoundThreeSeniorStandings;
 
 /** Structured transcription of the official Seniors standings after round two. */
 export function getOfficialRoundTwoSeniorStandings(baselineAt = OFFICIAL_ROUND_TWO_BASELINE_AT): StandingTeamEntry[] {
