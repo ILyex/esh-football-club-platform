@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run db:mysql:generate && node scripts/vercel-production-migrations.mjs && npm run db:backfill-staff-users && npm run build",
+  "buildCommand": "node scripts/vercel-production-migrations.mjs && npm run db:backfill-staff-users && npm run build",
   "crons": [
     {
       "path": "/api/cron/import-faf-matches",

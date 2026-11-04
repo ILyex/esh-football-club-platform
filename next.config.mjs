@@ -41,7 +41,7 @@ const nextConfig = {
   ...(process.env.VERCEL_DEPLOYMENT_ID ? { deploymentId: process.env.VERCEL_DEPLOYMENT_ID } : process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
   // Keep the production runtime small for cPanel shared hosting. The build
   // helper copies public/static assets into this standalone runtime folder.
-  output: "standalone",
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   // OpenNext packages the regular `.next` output in its worker bundle.
   reactStrictMode: true,
   // Hide Next.js development indicator from the application UI.

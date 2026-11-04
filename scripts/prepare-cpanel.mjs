@@ -2,12 +2,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+if (process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV)) {
+  console.log("Skipping cPanel standalone preparation on Vercel deployment.");
+  process.exit(0);
+}
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBuild = path.join(projectRoot, ".next");
 const standaloneRoot = path.join(nextBuild, "standalone");
 
 if (!fs.existsSync(path.join(standaloneRoot, "server.js"))) {
-  throw new Error("Next.js standalone server was not generated. Check `output: standalone` in next.config.mjs.");
+  console.log("Next.js standalone server was not generated (e.g. Vercel deployment). Skipping cPanel packaging.");
+  process.exit(0);
 }
 
 const staticSource = path.join(nextBuild, "static");

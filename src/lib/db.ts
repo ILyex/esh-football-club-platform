@@ -38,17 +38,20 @@ function nodePoolOptions() {
   // connections serialised those queries, so a single click could queue behind
   // the rest. Ten is a safe default for a small managed PostgreSQL plan;
   // shared cPanel hosts can lower it with DATABASE_POOL_MAX (per process).
-  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "10", 10);
+  // In serverless hosts (Vercel/Neon), default to 2 to prevent connection exhaustion.
+  const isServerless = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const defaultMax = isServerless ? "2" : "10";
+  const configuredMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? defaultMax, 10);
   // Cap the setting to avoid accidental exhaustion of a small managed plan:
   // total connections are DATABASE_POOL_MAX × process count.
   const max = Number.isInteger(configuredMax) && configuredMax >= 1
     ? Math.min(configuredMax, 20)
-    : 10;
+    : (isServerless ? 2 : 10);
 
   return {
     connectionString: process.env.DATABASE_URL,
     max,
-    idleTimeoutMillis: 30_000,
+    idleTimeoutMillis: isServerless ? 10_000 : 30_000,
     connectionTimeoutMillis: 10_000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000

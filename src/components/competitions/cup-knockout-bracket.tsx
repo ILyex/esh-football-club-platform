@@ -293,9 +293,12 @@ export function CupKnockoutBracket({
                 }`}
               >
                 {finalMatch.homeTeam.logo ? (
-                  <img
+                  <Image
                     src={finalMatch.homeTeam.logo}
                     alt={finalMatch.homeTeam.name}
+                    width={96}
+                    height={96}
+                    unoptimized
                     className="h-full w-full object-contain"
                   />
                 ) : (
@@ -353,9 +356,12 @@ export function CupKnockoutBracket({
                 }`}
               >
                 {finalMatch.awayTeam.logo ? (
-                  <img
+                  <Image
                     src={finalMatch.awayTeam.logo}
                     alt={finalMatch.awayTeam.name}
+                    width={96}
+                    height={96}
+                    unoptimized
                     className="h-full w-full object-contain"
                   />
                 ) : (
@@ -518,7 +524,7 @@ export function CupKnockoutBracket({
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className="h-6 w-6 shrink-0 rounded-md overflow-hidden border border-border/70 bg-background flex items-center justify-center shadow-2xs">
                                   {m.homeTeam.logo ? (
-                                    <img src={m.homeTeam.logo} alt="" className="h-full w-full object-contain p-0.5" />
+                                    <Image src={m.homeTeam.logo} alt="" width={24} height={24} unoptimized className="h-full w-full object-contain p-0.5" />
                                   ) : (
                                     <Shield className={`h-3.5 w-3.5 ${m.homeTeam.isOurClub ? "text-club-primary" : "text-muted-foreground"}`} />
                                   )}
@@ -600,7 +606,7 @@ export function CupKnockoutBracket({
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className="h-6 w-6 shrink-0 rounded-md overflow-hidden border border-border/70 bg-background flex items-center justify-center shadow-2xs">
                                   {m.awayTeam.logo ? (
-                                    <img src={m.awayTeam.logo} alt="" className="h-full w-full object-contain p-0.5" />
+                                    <Image src={m.awayTeam.logo} alt="" width={24} height={24} unoptimized className="h-full w-full object-contain p-0.5" />
                                   ) : (
                                     <Shield className={`h-3.5 w-3.5 ${m.awayTeam.isOurClub ? "text-club-primary" : "text-muted-foreground"}`} />
                                   )}

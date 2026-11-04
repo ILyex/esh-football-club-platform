@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getTranslations } from "next-intl/server";
@@ -118,7 +119,7 @@ export default async function PlayerMedicalFilePage({ params, searchParams }: { 
             <div className="flex flex-wrap items-center gap-4">
               <div className="relative h-[76px] w-[76px] shrink-0" role="img" aria-label={isAr ? `اكتمال وثائق اللاعب ${documentCompletion}%` : `Documents du joueur complétés à ${documentCompletion}%`}>
                 <svg viewBox="0 0 76 76" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true"><circle cx="38" cy="38" r="32" fill="none" className="stroke-border" strokeWidth="5" /><circle cx="38" cy="38" r="32" fill="none" stroke={`hsl(${progressHue} 76% 48%)`} strokeWidth="5" strokeLinecap="round" strokeDasharray={ringCircumference} strokeDashoffset={ringCircumference * (1 - documentCompletion / 100)} className="transition-all duration-500" /></svg>
-                <div className="absolute inset-[7px] overflow-hidden rounded-full border border-border bg-muted">{player.photoUrl ? <img src={player.photoUrl} alt={heading} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-primary">{player.firstName.slice(0, 1)}{player.lastName.slice(0, 1)}</span>}</div>
+                <div className="absolute inset-[7px] overflow-hidden rounded-full border border-border bg-muted">{player.photoUrl ? <Image src={player.photoUrl} alt={heading} width={62} height={62} unoptimized className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-primary">{player.firstName.slice(0, 1)}{player.lastName.slice(0, 1)}</span>}</div>
                 <span className="absolute -bottom-1 start-1/2 -translate-x-1/2 rounded-full border border-background bg-card px-1.5 py-0.5 text-[9px] font-black tabular-nums shadow-sm" style={{ color: `hsl(${progressHue} 76% 48%)` }}>{documentCompletion}%</span>
               </div>
               <div><h1 className="text-xl font-black sm:text-2xl">{isAr ? "الملف الطبي للاعب" : "Dossier médical du joueur"}</h1><p className="mt-1 text-sm text-muted-foreground">{heading}</p><p className="mt-1 text-[11px] text-muted-foreground">{isAr ? `${uploadedDocumentTypes.size} من ${recordTypes.length} وثائق مرفوعة` : `${uploadedDocumentTypes.size} document(s) sur ${recordTypes.length}`}</p></div>

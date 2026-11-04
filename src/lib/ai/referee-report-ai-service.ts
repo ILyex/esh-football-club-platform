@@ -263,6 +263,80 @@ export function parseReportDeterministically(
     }
   }
 
+  // Second pass — column-separated layouts.
+  // PDF text extraction often emits the name column and the minute column as
+  // two separate blocks (the FAF final report does exactly this). The per-line
+  // pass then sees names without minutes and minutes without names, so the
+  // timeline stayed empty even though the document states every event. Pair
+  // each minute with the nearest name when the span between them names an
+  // event type, and only when the strict pass produced nothing.
+  if (events.length === 0) {
+    const namesAt: Array<{ index: number; player: SquadPlayer }> = [];
+    const minutesAt: Array<{ index: number; minute: number }> = [];
+    // Section headings ("الأهداف", "البطاقات", "التغييرات") tell the type when
+    // the row itself only carries an icon, a name and a minute.
+    const sectionAt: Array<"GOAL" | "CARD" | "SUBSTITUTION" | null> = [];
+    let section: "GOAL" | "CARD" | "SUBSTITUTION" | null = null;
+    lines.forEach((raw, index) => {
+      const line = raw.trim();
+      if (/الأهداف|أهداف المباراة|\bbuts\b|\bgoals\b/i.test(line) && line.length < 40) section = "GOAL";
+      else if (/البطاقات|إنذارات|\bcartons\b|\bbookings\b/i.test(line) && line.length < 40) section = "CARD";
+      else if (/التغييرات|التبديلات|\bremplacements?\b|\bsubstitutions?\b/i.test(line) && line.length < 40) section = "SUBSTITUTION";
+      sectionAt[index] = section;
+
+      if (!line) return;
+      // A column-extracted minute often arrives as a bare number on its own
+      // line ("34"), with no "min"/"د" marker to recognise.
+      const bareMinute = /^\d{1,3}$/.test(line) ? Number(line) : null;
+      const minute = eventMinuteFromReportLine(line) ?? (bareMinute && bareMinute >= 1 && bareMinute <= 130 ? bareMinute : null);
+      if (minute) minutesAt.push({ index, minute });
+      const matched = findBestPlayerMatch(line, null, squad);
+      if (matched) namesAt.push({ index, player: matched });
+    });
+
+    const seen = new Set<string>();
+    for (const { index, minute } of minutesAt) {
+      const nearest = namesAt
+        .filter((entry) => Math.abs(entry.index - index) <= 8)
+        .sort((left, right) => Math.abs(left.index - index) - Math.abs(right.index - index))[0];
+      if (!nearest) continue;
+
+      const from = Math.max(0, Math.min(index, nearest.index) - 1);
+      const to = Math.max(index, nearest.index) + 2;
+      const window = lines.slice(from, to).join(" ");
+      const explicit: ParsedEventItem["type"] | null =
+        /حمراء|طرد|rouge|expulsion/i.test(window) ? "RED_CARD"
+          : /صفراء|إنذار|انذار|jaune|avertissement/i.test(window) ? "YELLOW_CARD"
+            : /دخل|دخول|بديل|entrant|entr[eé]e\s+en\s+jeu/i.test(window) ? "SUBSTITUTION_IN"
+              : /خرج|خروج|sortant|sortie/i.test(window) ? "SUBSTITUTION_OUT"
+                : /هدف|سجل|but\b|goal|marqu/i.test(window) ? "GOAL"
+                  : null;
+
+      const context = sectionAt[index] ?? sectionAt[nearest.index] ?? null;
+      const fromSection: ParsedEventItem["type"] | null =
+        context === "GOAL" ? "GOAL"
+          : context === "CARD" ? "YELLOW_CARD"
+            : context === "SUBSTITUTION" ? "SUBSTITUTION_IN"
+              : null;
+      const type = explicit ?? fromSection;
+      if (!type) continue;
+
+      const dedupeKey = `${type}:${nearest.player.id}:${minute}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      const fullName = `${nearest.player.firstName} ${nearest.player.lastName}`;
+      events.push({
+        playerId: nearest.player.id,
+        playerName: fullName,
+        shirtNumber: nearest.player.shirtNumber,
+        type,
+        minute,
+        notes: "مطابقة عمودية من تقرير الحكم",
+        matchedPlayerName: fullName
+      });
+    }
+  }
+
   // Score detection e.g. "2 - 1", "2-0", "(1)-(0)"
   const scoreMatch = text.match(/(\d+)\s*[-–:]\s*(\d+)/);
   const detectedScore = scoreMatch ? { home: parseInt(scoreMatch[1]!, 10), away: parseInt(scoreMatch[2]!, 10) } : null;

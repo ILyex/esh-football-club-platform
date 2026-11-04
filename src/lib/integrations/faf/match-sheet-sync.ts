@@ -884,8 +884,43 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   }
 
-  // STEP 2 — queue the AI enrichment pass and give it an immediate execution
-  // slot after the response (serverless-safe), with the durable queue as fallback.
+  // Diagnostics: keep what the extractor actually saw for this fixture. When a
+  // report "contains everything" but nothing lands on the timeline, the only
+  // way to tell "no text layer" from "no matching player" is to look at the
+  // extracted text itself — so it is stored with the run counters.
+  const reportCharCount = refereeReportSourceText?.length ?? 0;
+  if (reportCharCount > 0 || inlineAnalysisCreated > 0) {
+    await db.integrationState.upsert({
+      where: { key: `faf-ems-report-text-${externalId}` },
+      create: {
+        key: `faf-ems-report-text-${externalId}`,
+        value: JSON.stringify({
+          matchId: local.id,
+          chars: reportCharCount,
+          eventsFromReport: inlineAnalysisCreated,
+          extractedAt: new Date().toISOString(),
+          sample: refereeReportSourceText?.slice(0, 4000) ?? null
+        })
+      },
+      update: {
+        value: JSON.stringify({
+          matchId: local.id,
+          chars: reportCharCount,
+          eventsFromReport: inlineAnalysisCreated,
+          extractedAt: new Date().toISOString(),
+          sample: refereeReportSourceText?.slice(0, 4000) ?? null
+        })
+      }
+    }).catch(() => undefined);
+  }
+  if (finalReportBytes && inlineAnalysisCreated === 0) {
+    warnings.push(
+      reportCharCount === 0
+        ? "لم يُستخرج أي نص من مستند التقرير (يبدو مسحاً ضوئياً بلا طبقة نصية)؛ أضف الأحداث يدوياً أو أعد المزامنة بعد تفعيل قراءة الصور."
+        : `استُخرج ${reportCharCount} حرفاً من التقرير لكن لم يُطابق أي حدث. تحقق من أن أسماء اللاعبين في التقرير مطابقة لأسمائهم في ملفات اللاعبين (الاسم واللقب أو الاسم الفرنسي).`
+    );
+  }
+
   if (refereeReportDocumentId && (refereeReportText || refereeReportSourceText)) {
     // The report bytes came directly from FAF EMS in this request. Pass the
     // extracted text to the job so analysis does not depend on a cross-function

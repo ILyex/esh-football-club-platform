@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Image as ImageIcon, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
@@ -33,7 +34,7 @@ export function CompetitionLogoUploadField({ locale, currentLogoUrl }: Competiti
       </label>
       <label className={`${IMAGE_UPLOAD_FRAME} min-h-24 w-full cursor-pointer gap-4 px-4 py-3`}>
         <span className={`${IMAGE_UPLOAD_PREVIEW} h-14 w-14 rounded-lg`}>
-          {preview ? <img src={preview} alt="" className="h-full w-full object-contain" /> : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
+          {preview ? <Image src={preview} alt="" width={56} height={56} unoptimized className="h-full w-full object-contain" /> : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 text-sm font-semibold text-foreground">

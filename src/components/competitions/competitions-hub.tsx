@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Trophy,
@@ -214,9 +215,12 @@ export function CompetitionsHub({
               {/* Competition Logo */}
               <div className="relative h-10 w-10 shrink-0 rounded-xl border border-border/80 bg-background p-1 flex items-center justify-center shadow-xs overflow-hidden sm:h-16 sm:w-16 sm:rounded-2xl sm:p-1.5">
                 {currentComp.logoUrl ? (
-                  <img
+                  <Image
                     src={currentComp.logoUrl}
                     alt={competitionDisplayName(currentComp.name)}
+                    width={64}
+                    height={64}
+                    unoptimized
                     className="h-full w-full object-contain"
                   />
                 ) : activeType === "CUP" ? (

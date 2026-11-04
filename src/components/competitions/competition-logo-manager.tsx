@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef } from "react";
+import Image from "next/image";
 import { Save, Upload, Image as ImageIcon, AlertCircle, X } from "lucide-react";
 import { uploadCompetitionLogoAction } from "@/app/[locale]/(dashboard)/dashboard/competitions/actions";
 import { IMAGE_UPLOAD_ACTION, IMAGE_UPLOAD_FRAME, IMAGE_UPLOAD_PREVIEW } from "@/components/ui/image-upload-frame";
@@ -153,7 +154,7 @@ export function CompetitionLogoManager({
               >
                 <div className={`${IMAGE_UPLOAD_PREVIEW} mb-2 h-20 w-20 rounded-2xl p-2 shadow-2xs`}>
                   {preview ? (
-                    <img src={preview} alt="Logo" className="h-full w-full object-contain" />
+                    <Image src={preview} alt="Logo" width={80} height={80} unoptimized className="h-full w-full object-contain" />
                   ) : (
                     <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   )}

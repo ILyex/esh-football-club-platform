@@ -64,3 +64,33 @@ test("player matcher: fuzzy Arabic name variants resolve to the right player", (
   assert.equal(findBestPlayerMatch("Karim Benali", null, squad)?.id, "p1");
   assert.equal(findBestPlayerMatch("لاعب غير موجود", null, squad), null);
 });
+
+// FAF's final report is a layout PDF: extraction emits the whole name column,
+// then the minute column. The line-by-line parser sees no event at all, which is
+// exactly why imported matches had an empty timeline.
+test("referee report parser: pairs a name column with a minute column under a goals heading", () => {
+  const text = ["الأهداف", "كريم بن علي", "34"].join("\n");
+  const result = parseReportDeterministically(text, squad);
+  const goal = result.events.find((event) => event.type === "GOAL");
+  assert.ok(goal, "the column layout must still produce the goal");
+  assert.equal(goal.playerId, "p1");
+  assert.equal(goal.minute, 34);
+});
+
+test("referee report parser: uses the substitutions heading for a column-only row", () => {
+  const text = ["التغييرات", "سفيان حمدي", "70"].join("\n");
+  const result = parseReportDeterministically(text, squad);
+  const substitution = result.events.find((event) => event.type === "SUBSTITUTION_IN");
+  assert.ok(substitution, "the substitution must be recovered from the section heading");
+  assert.equal(substitution.playerId, "p3");
+  assert.equal(substitution.minute, 70);
+});
+
+test("referee report parser: a cards heading yields a booking, not a goal", () => {
+  const text = ["البطاقات", "ياسين مرابط", "52"].join("\n");
+  const result = parseReportDeterministically(text, squad);
+  assert.equal(result.events.filter((event) => event.type === "GOAL").length, 0);
+  const card = result.events.find((event) => event.type === "YELLOW_CARD");
+  assert.ok(card);
+  assert.equal(card.playerId, "p2");
+});
