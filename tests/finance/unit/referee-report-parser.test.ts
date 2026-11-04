@@ -4,6 +4,8 @@ import {
   findBestPlayerMatch,
   parseReportDeterministically,
   hasExplicitEventEvidence,
+  parseEventMinute,
+  parseFafReportTables,
   type SquadPlayer
 } from "@/lib/ai/referee-report-ai-service";
 import {
@@ -161,4 +163,114 @@ test("extractFinalMatchReportSection: rejects raw document dumps without genuine
 
   assert.equal(extractFinalMatchReportSection(rawDump), null, "raw document dump must return null");
   assert.ok(isRawDocumentDump(rawDump), "isRawDocumentDump must recognize document tables");
+});
+
+test("referee report parser: handles special match minutes (half-time and full-time)", () => {
+  assert.equal(parseEventMinute("بين الشوطين"), 45);
+  assert.equal(parseEventMinute("mi-temps"), 45);
+  assert.equal(parseEventMinute("بعد نهاية المباراة"), 90);
+  assert.equal(parseEventMinute("fin du match"), 90);
+  assert.equal(parseEventMinute("90+3"), 93);
+});
+
+test("referee report parser: full official FAF-EMS report (ESH vs RBS) with 2-column tables", () => {
+  const eshSquad: SquadPlayer[] = [
+    { id: "esh-3", firstName: "لحسن", lastName: "عماري", shirtNumber: 3 },
+    { id: "esh-12", firstName: "ياسر الدين اسماعيل", lastName: "ذياب", shirtNumber: 12 },
+    { id: "esh-17", firstName: "سيف الاسلام وائل", lastName: "عمارة", shirtNumber: 17 },
+    { id: "esh-15", firstName: "ابراهيم", lastName: "جلولي", shirtNumber: 15 },
+    { id: "esh-34", firstName: "عامر بلقاسم", lastName: "بوخرص", shirtNumber: 34 },
+    { id: "esh-19", firstName: "محمد اسلام", lastName: "فرحات", shirtNumber: 19 },
+    { id: "esh-11", firstName: "ميلود", lastName: "زرقان", shirtNumber: 11 },
+    { id: "esh-10", firstName: "جمال الدين", lastName: "بن صحراوي", shirtNumber: 10 },
+    { id: "esh-4", firstName: "محمد صالح", lastName: "عواد", shirtNumber: 4 },
+    { id: "esh-41", firstName: "محمد أيوب", lastName: "لعروسي", shirtNumber: 41 },
+    { id: "esh-5", firstName: "معتز بالله", lastName: "ساكت", shirtNumber: 5 },
+    { id: "esh-9", firstName: "أحمد", lastName: "بومعزة", shirtNumber: 9 }
+  ];
+
+  const officialFafReportText = [
+    "تقرير المباراة النهائي — نادي أمل سيدي حسني ضد ر.سوقر (RBS)",
+    "FAF-EMS-259687-final-report-ar.pdf",
+    "",
+    "التغييرات",
+    "عماري لحسن 3 ذياب ياسر الدين اسماعيل 12 بين الشوطين",
+    "عمارة سيف الاسلام وائل 17 جلولي ابراهيم 15 71'",
+    "بوخرص عامر بلقاسم 34 عمارة سيف الاسلام وائل 17 90'",
+    "فرحات محمد اسلام 19 زرقان ميلود 11 90'",
+    "ملياني محمد ياسين 31 محمد بهاء الدين بوهني 20 61'",
+    "بن عتو نصرو 22 قرن يوسف 8 81'",
+    "",
+    "البطاقات",
+    "بن صحراوي جمال الدين 10 اللعب الخطير 10'",
+    "عواد محمد صالح 4 اللعب الخطير 25'",
+    "لعروسي محمد أيوب 41 سلوك غير رياضي 30'",
+    "ساكت معتز بالله 5 سلوك غير رياضي 82'",
+    "ذياب ياسر الدين اسماعيل 12 اهانة تجاه حكم بعد نهاية المباراة",
+    "بلحواس جمال الدين 12 اللعب الخطير 34'",
+    "",
+    "الاهداف",
+    "بومعزة أحمد 9 هدف 67'",
+    "عامر أسامة 24 هدف 20'",
+    "بغداد كمال 9 هدف 78'",
+    "",
+    "تقرير المباراة",
+    "R.A.S"
+  ].join("\n");
+
+  const result = parseReportDeterministically(officialFafReportText, eshSquad, { clubIsHome: true });
+
+  // 1. Verify goals
+  const goals = result.events.filter((e) => e.type === "GOAL");
+  assert.equal(goals.length, 3, "should extract 3 goals");
+  const eshGoal = goals.find((g) => g.playerId === "esh-9");
+  assert.ok(eshGoal, "ESH goal by Boumaza Ahmed must be linked to squad");
+  assert.equal(eshGoal.minute, 67);
+  assert.equal(eshGoal.side, "HOME");
+
+  const rbsGoal1 = goals.find((g) => g.playerName.includes("عامر أسامة"));
+  assert.ok(rbsGoal1, "RBS goal by Amer Oussama must be extracted");
+  assert.equal(rbsGoal1.minute, 20);
+  assert.equal(rbsGoal1.playerId, null, "Opponent goal should have playerId: null");
+  assert.equal(rbsGoal1.side, "AWAY");
+
+  const rbsGoal2 = goals.find((g) => g.playerName.includes("بغداد كمال"));
+  assert.ok(rbsGoal2, "RBS goal by Baghdad Kamal must be extracted");
+  assert.equal(rbsGoal2.minute, 78);
+  assert.equal(rbsGoal2.playerId, null);
+  assert.equal(rbsGoal2.side, "AWAY");
+
+  // 2. Verify score
+  assert.deepEqual(result.detectedScore, { home: 1, away: 2 });
+
+  // 3. Verify cards
+  const cards = result.events.filter((e) => e.type === "YELLOW_CARD" || e.type === "RED_CARD");
+  assert.equal(cards.length, 6, "should extract 6 cards total");
+
+  const redCard = cards.find((c) => c.type === "RED_CARD");
+  assert.ok(redCard, "Direct red card for referee insult must be recognized");
+  assert.equal(redCard.playerId, "esh-12");
+  assert.equal(redCard.minute, 90);
+
+  const opponentCard = cards.find((c) => c.playerName.includes("بلحواس جمال الدين"));
+  assert.ok(opponentCard, "Opponent yellow card must be extracted");
+  assert.equal(opponentCard.playerId, null);
+  assert.equal(opponentCard.side, "AWAY");
+  assert.equal(opponentCard.minute, 34);
+
+  // 4. Verify substitutions
+  const subsIn = result.events.filter((e) => e.type === "SUBSTITUTION_IN");
+  const subsOut = result.events.filter((e) => e.type === "SUBSTITUTION_OUT");
+  assert.equal(subsIn.length, 6, "should extract 6 incoming substitutions");
+  assert.equal(subsOut.length, 6, "should extract 6 outgoing substitutions");
+
+  const htSubIn = subsIn.find((s) => s.playerId === "esh-3");
+  const htSubOut = subsOut.find((s) => s.playerId === "esh-12");
+  assert.ok(htSubIn && htSubOut, "Half-time substitution must be extracted and paired");
+  assert.equal(htSubIn.minute, 45);
+  assert.equal(htSubOut.minute, 45);
+  assert.equal(htSubIn.substitutionPairKey, htSubOut.substitutionPairKey);
+
+  // 5. Verify narrative report extraction
+  assert.equal(extractFinalMatchReportSection(officialFafReportText), "R.A.S");
 });

@@ -16,6 +16,7 @@ export interface ParsedEventItem {
   notes?: string;
   matchedPlayerName?: string;
   substitutionPairKey?: string;
+  side?: "HOME" | "AWAY";
 }
 
 export interface RefereeReportAnalysisResult {
@@ -139,19 +140,24 @@ function extractCandidateNameTokens(normQuery: string): string[] {
   return filtered.length > 0 ? filtered : rawTokens;
 }
 
-function parseEventMinute(value: unknown): number | null {
+export function parseEventMinute(value: unknown): number | null {
   if (typeof value === "number") {
     return Number.isInteger(value) && value >= 1 && value <= 130 ? value : null;
   }
   const text = String(value ?? "").trim();
+  if (/^(?:بين\s+الشوطين|mi[\s-]temps?|half[\s-]time)$/iu.test(text)) return 45;
+  if (/^(?:بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match|fin\s+de\s+match|full[\s-]time)$/iu.test(text)) return 90;
   const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu);
   if (!match) return null;
   const minute = Number(match[1]) + Number(match[2] || 0);
   return Number.isInteger(minute) && minute >= 1 && minute <= 130 ? minute : null;
 }
 
-function eventMinuteFromReportLine(line: string): number | null {
-  const match = line.match(/(?:دقيقة|د|min(?:ute)?|mn)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
+export function eventMinuteFromReportLine(line: string): number | null {
+  if (/بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(line)) return 45;
+  if (/بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match|fin\s+de\s+match/iu.test(line)) return 90;
+  const match = line.match(/(?:^|\s)(?:دقيقة|د)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
+    || line.match(/(?:^|\s)(?:min(?:ute)?|mn)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
     || line.match(/(?:^|\s)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′])?(?:\s|$)/u)
     || line.match(/(?:^|\s)(\d{1,3})\s*(?:['’′]|mn|mins?)(?:\s|$)/iu)
     || line.match(/(?:^|\s)(\d{1,3})(?:er|e|ème)\s*(?:minute|min)/iu);
@@ -182,8 +188,8 @@ export function findBestPlayerMatch(
         .map((part) => normalizeName(part || ""))
         .filter(Boolean)
         .flatMap((s) => s.split(" "));
-      const hasAnyToken = candidateTokens.some((c) => playerTokens.some((p) => tokenSimilarity(c, p) >= 0.85));
-      if (hasAnyToken) return numPlayer;
+      const matchedCount = candidateTokens.filter((c) => playerTokens.some((p) => tokenSimilarity(c, p) >= 0.85)).length;
+      if (matchedCount >= 2 || (candidateTokens.length === 1 && matchedCount === 1)) return numPlayer;
     }
   }
 
@@ -231,15 +237,26 @@ export function findBestPlayerMatch(
           matchedSimilarities.push(bestSim);
         }
 
-        const allMatched = matchedSimilarities.every((sim) => sim >= 0.82);
-        if (allMatched && matchedSimilarities.length >= 2) {
+        const candidateMatchedSims = candidateTokens.map((cToken) => {
+          let bestSim = 0;
+          for (const vToken of variantTokens) {
+            const sim = tokenSimilarity(vToken, cToken);
+            if (sim > bestSim) bestSim = sim;
+          }
+          return bestSim;
+        });
+
+        const allMatched = matchedSimilarities.every((sim) => sim >= 0.82)
+          || (candidateMatchedSims.length >= 2 && candidateMatchedSims.every((sim) => sim >= 0.82));
+
+        if (allMatched && (matchedSimilarities.length >= 2 || candidateTokens.length >= 2)) {
           const avgSim = matchedSimilarities.reduce((a, b) => a + b, 0) / matchedSimilarities.length;
           const score = Math.round(avgSim * 92);
           maxScore = Math.max(maxScore, score);
-        } else if (matchedSimilarities.some((sim) => sim >= 0.95)) {
-          const highMatches = matchedSimilarities.filter((sim) => sim >= 0.95);
+        } else if (candidateTokens.length === 1 && matchedSimilarities.some((sim) => sim >= 0.95)) {
+          // Single-token query (e.g. last name only "Boumaza" or "بن علي")
           const distinctiveTokenLen = variantTokens.find((t) => t.length >= 5);
-          if (highMatches.length >= 1 && distinctiveTokenLen) {
+          if (distinctiveTokenLen) {
             maxScore = Math.max(maxScore, 75);
           }
         }
@@ -248,6 +265,8 @@ export function findBestPlayerMatch(
 
     if (queryNumber && player.shirtNumber === queryNumber && maxScore >= 60) {
       maxScore += 10;
+    } else if (queryNumber && player.shirtNumber && queryNumber !== player.shirtNumber && maxScore < 95) {
+      maxScore -= 30; // Strong penalty if shirt numbers explicitly conflict
     }
     if (options?.preferredTeamId && player.teamId === options.preferredTeamId) {
       maxScore += 1;
@@ -274,14 +293,12 @@ export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, s
     GOAL: /هدف|سجل|أهداف|اهداف|\bbut\b|\bgoal\b|marqu/iu,
     ASSIST: /تمريرة\s*حاسمة|صنع|صانع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
     YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|carton\s+jaune|avertissement|\byellow\b/iu,
-    RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|carton\s+rouge|expulsion|\bred\s+card\b/iu,
-    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|تغيير|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
-    SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|تغيير|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
+    RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|carton\s+rouge|expulsion|\bred\s+card\b/iu,
+    SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|تغيير|تغييرات|تبديلات|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
+    SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|تغيير|تغييرات|تبديلات|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
   };
 
-  const player = squad.find((candidate) => candidate.id === event.playerId);
-  if (!player) return false;
-
+  const player = event.playerId ? squad.find((candidate) => candidate.id === event.playerId) : null;
   const lines = text.split(/[\r\n;.!?]+/u).map((line) => line.trim()).filter(Boolean);
   if (!lines.length) return false;
 
@@ -290,33 +307,47 @@ export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, s
   let currentSection: ParsedEventItem["type"] | null = null;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i]!;
-    if (/الأهداف|أهداف\s+المباراة|\bbuts\b|\bgoals\b/iu.test(l) && l.length < 40) currentSection = "GOAL";
-    else if (/البطاقات|إنذارات|\bcartons\b|\bbookings\b/iu.test(l) && l.length < 40) currentSection = "YELLOW_CARD";
-    else if (/طرد|\bexpulsions\b/iu.test(l) && l.length < 40) currentSection = "RED_CARD";
-    else if (/التغييرات|التبديلات|\bremplacements?\b|\bsubstitutions?\b/iu.test(l) && l.length < 40) {
+    if (/(?:الأهداف|الاهداف|أهداف\s+المباراة|اهداف\s+المباراة|\bbuts\b|\bgoals\b)/iu.test(l) && l.length < 40) currentSection = "GOAL";
+    else if (/(?:البطاقات|بطاقات|إنذارات|انذارات|\bcartons\b|\bbookings\b)/iu.test(l) && l.length < 40) currentSection = "YELLOW_CARD";
+    else if (/(?:طرد|\bexpulsions\b)/iu.test(l) && l.length < 40) currentSection = "RED_CARD";
+    else if (/(?:التغييرات|تغييرات|التبديلات|تبديلات|\bremplacements?\b|\bsubstitutions?\b)/iu.test(l) && l.length < 40) {
       currentSection = event.type === "SUBSTITUTION_OUT" ? "SUBSTITUTION_OUT" : "SUBSTITUTION_IN";
     }
     sectionAt[i] = currentSection;
   }
 
   const matchesPlayer = (windowText: string) => {
-    return Boolean(findBestPlayerMatch(windowText, event.shirtNumber, [player]));
+    if (player) {
+      return Boolean(findBestPlayerMatch(windowText, event.shirtNumber, [player]));
+    }
+    if (event.playerName) {
+      const normWin = normalizeName(windowText);
+      const normName = normalizeName(event.playerName);
+      if (normWin.includes(normName)) return true;
+      const tokens = normName.split(" ").filter(Boolean);
+      return tokens.length >= 2 && tokens.every((tok) => normWin.includes(tok));
+    }
+    return false;
   };
 
   const windowHasMinute = (windowText: string) => {
+    if (event.minute === 45 && /بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(windowText)) return true;
+    if (event.minute === 90 && /بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match/iu.test(windowText)) return true;
     const minuteTokens = windowText.match(/\d{1,3}(?:\s*\+\s*\d{1,2})?/gu) ?? [];
     return minuteTokens.some((token) => parseEventMinute(token) === event.minute);
   };
 
   for (let index = 0; index < lines.length; index++) {
-    const start = Math.max(0, index - 3);
-    const end = Math.min(lines.length, index + 4);
+    const start = Math.max(0, index - 4);
+    const end = Math.min(lines.length, index + 5);
     const windowText = lines.slice(start, end).join(" ");
 
     if (matchesPlayer(windowText) && windowHasMinute(windowText)) {
       const section = sectionAt[index] || sectionAt[start];
       const hasTypeKeyword = eventPattern[event.type].test(windowText);
-      const matchesSection = section === event.type || (section === "YELLOW_CARD" && event.type === "RED_CARD");
+      const matchesSection = section === event.type
+        || (section === "YELLOW_CARD" && (event.type === "RED_CARD" || event.type === "YELLOW_CARD"))
+        || (section === "SUBSTITUTION_IN" && (event.type === "SUBSTITUTION_IN" || event.type === "SUBSTITUTION_OUT"));
       if (hasTypeKeyword || matchesSection) {
         return true;
       }
@@ -327,21 +358,354 @@ export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, s
 }
 
 /**
+ * Parses structured two-column / tabular event tables from official FAF-EMS match reports.
+ * Recognizes substitutions (paired in/out), cards (yellow and red by offense), and goals
+ * for both club players (matched to squad) and opponent players.
+ */
+export function parseFafReportTables(
+  text: string,
+  squad: SquadPlayer[],
+  options?: { clubIsHome?: boolean }
+): { events: ParsedEventItem[]; detectedScore?: { home: number; away: number } | null } {
+  const events: ParsedEventItem[] = [];
+  const clubIsHome = options?.clubIsHome ?? true;
+  const clubSide: "HOME" | "AWAY" = clubIsHome ? "HOME" : "AWAY";
+  const opponentSide: "HOME" | "AWAY" = clubIsHome ? "AWAY" : "HOME";
+
+  const resolvePlayer = (name: string, shirtNumber: number | null) => {
+    const matched = findBestPlayerMatch(name, shirtNumber, squad);
+    if (matched) {
+      const fullName = `${matched.firstName} ${matched.lastName}`;
+      return {
+        playerId: matched.id,
+        playerName: fullName,
+        playerNameFr: [matched.firstNameFr, matched.lastNameFr].filter(Boolean).join(" ") || undefined,
+        shirtNumber: matched.shirtNumber ?? shirtNumber,
+        matchedPlayerName: fullName,
+        side: clubSide
+      };
+    }
+    return {
+      playerId: null,
+      playerName: name.trim(),
+      shirtNumber,
+      side: opponentSide
+    };
+  };
+
+  const rawLines = text.split(/[\r\n]+/);
+  type SectionType = "SUB" | "CARD" | "GOAL" | "REPORT" | "NONE";
+  const sections: Array<{ type: SectionType; lines: string[] }> = [];
+  let currentSection: SectionType = "NONE";
+  let currentLines: string[] = [];
+
+  for (const raw of rawLines) {
+    const line = raw.trim();
+    if (!line) continue;
+    let nextSection: SectionType | null = null;
+    if (/^(?:التغييرات|تغييرات|التبديلات|تبديلات|\bremplacements?\b|\bsubstitutions?\b)\s*$/iu.test(line)
+      || (/^(?:التغييرات|تغييرات|التبديلات|تبديلات)/iu.test(line) && line.length < 35)) {
+      nextSection = "SUB";
+    } else if (/^(?:البطاقات|بطاقات|الإنذارات|الانذارات|إنذارات|انذارات|\bcartons\b|\bbookings\b)\s*$/iu.test(line)
+      || (/^(?:البطاقات|بطاقات|إنذارات|انذارات)/iu.test(line) && line.length < 35)) {
+      nextSection = "CARD";
+    } else if (/^(?:الأهداف|الاهداف|أهداف\s+المباراة|اهداف\s+المباراة|\bbuts\b|\bgoals\b)\s*$/iu.test(line)
+      || (/^(?:الأهداف|الاهداف|أهداف|اهداف)/iu.test(line) && line.length < 35)) {
+      nextSection = "GOAL";
+    } else if (/^(?:تقرير\s+المباراة|تقرير\s+الحكم|ملاحظات\s+الحكم|تقرير|ملاحظات|\brapport\b)\s*$/iu.test(line)
+      || (/^(?:تقرير\s+المباراة|ملاحظات\s+الحكم)/iu.test(line) && line.length < 35)) {
+      nextSection = "REPORT";
+    }
+
+    if (nextSection) {
+      if (currentLines.length > 0) sections.push({ type: currentSection, lines: currentLines });
+      currentSection = nextSection;
+      currentLines = [];
+    } else {
+      currentLines.push(line);
+    }
+  }
+  if (currentLines.length > 0) sections.push({ type: currentSection, lines: currentLines });
+
+  let subCounter = 0;
+
+  for (const sec of sections) {
+    if (sec.type === "REPORT") break;
+
+    if (sec.type === "SUB") {
+      const unconsumedLines: string[] = [];
+      for (const line of sec.lines) {
+        const singleLineMatch = line.match(/^(.+?)\s+(\d{1,2})\s+(.+?)\s+(\d{1,2})\s*(?:['’′]|د|min)?\s*(بين\s+الشوطين|بعد\s+نهاية\s+المباراة|\d{1,3}(?:\s*\+\s*\d{1,2})?['’′]?)?$/u);
+        const lineMinute = eventMinuteFromReportLine(line);
+        if (singleLineMatch && lineMinute) {
+          const p1 = resolvePlayer(singleLineMatch[1]!, parseInt(singleLineMatch[2]!, 10));
+          const p2 = resolvePlayer(singleLineMatch[3]!, parseInt(singleLineMatch[4]!, 10));
+          const pairKey = `faf-sub-${lineMinute}-${subCounter++}`;
+          events.push({
+            playerId: p1.playerId,
+            playerName: p1.playerName,
+            playerNameFr: p1.playerNameFr,
+            shirtNumber: p1.shirtNumber,
+            type: "SUBSTITUTION_IN",
+            minute: lineMinute,
+            notes: "دخول بالتبديل (تقرير رسمي)",
+            matchedPlayerName: p1.matchedPlayerName,
+            substitutionPairKey: pairKey,
+            side: p1.side
+          });
+          events.push({
+            playerId: p2.playerId,
+            playerName: p2.playerName,
+            playerNameFr: p2.playerNameFr,
+            shirtNumber: p2.shirtNumber,
+            type: "SUBSTITUTION_OUT",
+            minute: lineMinute,
+            notes: "خروج بالتبديل (تقرير رسمي)",
+            matchedPlayerName: p2.matchedPlayerName,
+            substitutionPairKey: pairKey,
+            side: p2.side
+          });
+        } else {
+          unconsumedLines.push(line);
+        }
+      }
+
+      let chunk: string[] = [];
+      for (const line of unconsumedLines) {
+        const minute = eventMinuteFromReportLine(line) ?? (/^\d{1,3}$/.test(line) && Number(line) <= 130 ? Number(line) : null);
+        if (minute) {
+          const tokens: Array<{ name: string; number: number | null }> = [];
+          for (let i = 0; i < chunk.length; i++) {
+            const cur = chunk[i]!;
+            if (/^\d{1,2}$/.test(cur) && tokens.length > 0 && tokens[tokens.length - 1]!.number === null) {
+              tokens[tokens.length - 1]!.number = parseInt(cur, 10);
+            } else {
+              const numMatch = cur.match(/^(.+?)\s+(\d{1,2})$/u);
+              if (numMatch && !/دقيقة|د|min/iu.test(numMatch[1]!)) {
+                tokens.push({ name: numMatch[1]!.trim(), number: parseInt(numMatch[2]!, 10) });
+              } else if (!/^\d+$/.test(cur) && cur.length >= 2 && !/دخول|خروج|تبديل|arrow/iu.test(cur)) {
+                tokens.push({ name: cur.trim(), number: null });
+              }
+            }
+          }
+
+          if (tokens.length >= 2) {
+            const p1 = resolvePlayer(tokens[0]!.name, tokens[0]!.number);
+            const p2 = resolvePlayer(tokens[1]!.name, tokens[1]!.number);
+            const pairKey = `faf-sub-${minute}-${subCounter++}`;
+            events.push({
+              playerId: p1.playerId,
+              playerName: p1.playerName,
+              playerNameFr: p1.playerNameFr,
+              shirtNumber: p1.shirtNumber,
+              type: "SUBSTITUTION_IN",
+              minute,
+              notes: "دخول بالتبديل (تقرير رسمي)",
+              matchedPlayerName: p1.matchedPlayerName,
+              substitutionPairKey: pairKey,
+              side: p1.side
+            });
+            events.push({
+              playerId: p2.playerId,
+              playerName: p2.playerName,
+              playerNameFr: p2.playerNameFr,
+              shirtNumber: p2.shirtNumber,
+              type: "SUBSTITUTION_OUT",
+              minute,
+              notes: "خروج بالتبديل (تقرير رسمي)",
+              matchedPlayerName: p2.matchedPlayerName,
+              substitutionPairKey: pairKey,
+              side: p2.side
+            });
+          } else if (tokens.length === 1) {
+            const p = resolvePlayer(tokens[0]!.name, tokens[0]!.number);
+            events.push({
+              playerId: p.playerId,
+              playerName: p.playerName,
+              playerNameFr: p.playerNameFr,
+              shirtNumber: p.shirtNumber,
+              type: "SUBSTITUTION_IN",
+              minute,
+              notes: "تبديل (تقرير رسمي)",
+              matchedPlayerName: p.matchedPlayerName,
+              side: p.side
+            });
+          }
+          chunk = [];
+        } else {
+          chunk.push(line);
+        }
+      }
+    }
+
+    if (sec.type === "CARD") {
+      let chunk: string[] = [];
+      for (const line of sec.lines) {
+        const singleMatch = line.match(/^(.+?)\s+(\d{1,2})\s+([^\d]+?)\s*(?:['’′]|د|min)?\s*(بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|\d{1,3}(?:\s*\+\s*\d{1,2})?['’′]?)$/u);
+        const lineMinute = eventMinuteFromReportLine(line);
+        if (singleMatch && lineMinute) {
+          const rawReason = singleMatch[3]!.trim();
+          const isRed = /اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|طرد|حمراء|rouge|expulsion/iu.test(rawReason)
+            || /اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|طرد|حمراء|rouge|expulsion/iu.test(line);
+          const p = resolvePlayer(singleMatch[1]!, parseInt(singleMatch[2]!, 10));
+          events.push({
+            playerId: p.playerId,
+            playerName: p.playerName,
+            playerNameFr: p.playerNameFr,
+            shirtNumber: p.shirtNumber,
+            type: isRed ? "RED_CARD" : "YELLOW_CARD",
+            minute: lineMinute,
+            notes: rawReason ? `${isRed ? "بطاقة حمراء" : "بطاقة صفراء"} (${rawReason})` : (isRed ? "بطاقة حمراء رسمية" : "بطاقة صفراء رسمية"),
+            matchedPlayerName: p.matchedPlayerName,
+            side: p.side
+          });
+        } else {
+          const minute = lineMinute ?? (/^\d{1,3}$/.test(line) && Number(line) <= 130 ? Number(line) : null);
+          if (minute) {
+            let name = "";
+            let num: number | null = null;
+            let reason = "";
+            for (const item of chunk) {
+              if (/^\d{1,2}$/.test(item) && num === null) {
+                num = parseInt(item, 10);
+              } else if (/اللعب\s+الخطير|سلوك\s+غير\s+رياضي|اهانة|إهانة|احتجاج|faute/iu.test(item)) {
+                reason = item;
+              } else {
+                const numMatch = item.match(/^(.+?)\s+(\d{1,2})$/u);
+                if (numMatch) {
+                  name = numMatch[1]!.trim();
+                  num = parseInt(numMatch[2]!, 10);
+                } else if (!name) {
+                  name = item;
+                }
+              }
+            }
+            if (name) {
+              const isRed = /اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|طرد|حمراء|rouge|expulsion/iu.test(reason)
+                || /اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|طرد|حمراء|rouge|expulsion/iu.test(chunk.join(" "));
+              const p = resolvePlayer(name, num);
+              events.push({
+                playerId: p.playerId,
+                playerName: p.playerName,
+                playerNameFr: p.playerNameFr,
+                shirtNumber: p.shirtNumber,
+                type: isRed ? "RED_CARD" : "YELLOW_CARD",
+                minute,
+                notes: reason ? `${isRed ? "بطاقة حمراء" : "بطاقة صفراء"} (${reason})` : (isRed ? "بطاقة حمراء رسمية" : "بطاقة صفراء رسمية"),
+                matchedPlayerName: p.matchedPlayerName,
+                side: p.side
+              });
+            }
+            chunk = [];
+          } else {
+            chunk.push(line);
+          }
+        }
+      }
+    }
+
+    if (sec.type === "GOAL") {
+      let chunk: string[] = [];
+      for (const line of sec.lines) {
+        const singleMatch = line.match(/^(.+?)\s+(\d{1,2})\s+(?:هدف|but|goal)\s*(?:['’′]|د|min)?\s*(\d{1,3}(?:\s*\+\s*\d{1,2})?['’′]?)$/u)
+          || line.match(/^(?:هدف|but|goal)\s+(.+?)\s+(?:رقم\s*)?(\d{1,2})?\s*(?:['’′]|د|min)?\s*(\d{1,3}(?:\s*\+\s*\d{1,2})?['’′]?)$/u)
+          || line.match(/^(.+?)\s+(\d{1,2})\s*(?:['’′]|د|min)?\s*(\d{1,3}(?:\s*\+\s*\d{1,2})?['’′])$/u);
+        const lineMinute = eventMinuteFromReportLine(line);
+        if (singleMatch && lineMinute) {
+          const rawName = singleMatch[1]!.trim();
+          const rawNum = singleMatch[2] ? parseInt(singleMatch[2]!, 10) : null;
+          const p = resolvePlayer(rawName, rawNum);
+          events.push({
+            playerId: p.playerId,
+            playerName: p.playerName,
+            playerNameFr: p.playerNameFr,
+            shirtNumber: p.shirtNumber,
+            type: "GOAL",
+            minute: lineMinute,
+            notes: "هدف رسمي بتقرير الحكم",
+            matchedPlayerName: p.matchedPlayerName,
+            side: p.side
+          });
+        } else {
+          const minute = lineMinute ?? (/^\d{1,3}$/.test(line) && Number(line) <= 130 ? Number(line) : null);
+          if (minute) {
+            let name = "";
+            let num: number | null = null;
+            for (const item of chunk) {
+              if (/^\d{1,2}$/.test(item) && num === null) {
+                num = parseInt(item, 10);
+              } else if (/^هدف|but|goal$/iu.test(item)) {
+                // skip goal indicator
+              } else {
+                const numMatch = item.match(/^(.+?)\s+(\d{1,2})$/u);
+                if (numMatch) {
+                  name = numMatch[1]!.trim();
+                  num = parseInt(numMatch[2]!, 10);
+                } else if (!name) {
+                  name = item;
+                }
+              }
+            }
+            if (name) {
+              const p = resolvePlayer(name, num);
+              events.push({
+                playerId: p.playerId,
+                playerName: p.playerName,
+                playerNameFr: p.playerNameFr,
+                shirtNumber: p.shirtNumber,
+                type: "GOAL",
+                minute,
+                notes: "هدف رسمي بتقرير الحكم",
+                matchedPlayerName: p.matchedPlayerName,
+                side: p.side
+              });
+            }
+            chunk = [];
+          } else {
+            chunk.push(line);
+          }
+        }
+      }
+    }
+  }
+
+  const unique = events.filter((event, index) =>
+    events.findIndex((candidate) =>
+      candidate.type === event.type &&
+      (candidate.playerId ? candidate.playerId === event.playerId : candidate.playerName === event.playerName) &&
+      candidate.minute === event.minute
+    ) === index
+  );
+
+  return { events: unique };
+}
+
+/**
  * Deterministic NLP rule-based fallback if Ollama is offline or unavailable.
  * Identifies Arabic and French phrases for goals, cards, and penalties.
  */
 export function parseReportDeterministically(
   text: string,
-  squad: SquadPlayer[]
+  squad: SquadPlayer[],
+  options?: { clubIsHome?: boolean }
 ): { events: ParsedEventItem[]; detectedScore?: { home: number; away: number } | null } {
   const events: ParsedEventItem[] = [];
   const lines = text.split(/[\r\n;.]+/);
 
-  // FAF and scanned referee sheets commonly put the two players in separate
-  // columns/lines. Recover explicit in/out roles from a small row window and
-  // emit a paired pair-key so the timeline links the correct players.
+  // 1. Structured table extraction (FAF-EMS reports)
+  const tableResult = parseFafReportTables(text, squad, options);
+  events.push(...tableResult.events);
+
+  // 2. Sentence-based substitution extraction
   const substitutionEvents = parseSubstitutionsFromReport(text, squad);
-  events.push(...substitutionEvents);
+  for (const sub of substitutionEvents) {
+    const exists = events.some((e) =>
+      e.type === sub.type &&
+      (e.playerId ? e.playerId === sub.playerId : e.playerName === sub.playerName) &&
+      e.minute === sub.minute
+    );
+    if (!exists) events.push(sub);
+  }
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -372,46 +736,61 @@ export function parseReportDeterministically(
     }
 
     // Goal detection: "هدف", "سجل", "but", "goal", "marqué par"
-    if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /هدف|سجل|أهداف|but|goal|marqu/i.test(line)) {
+    if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /هدف|سجل|أهداف|اهداف|but|goal|marqu/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
-      const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
-      events.push({
-        playerId: matched?.id || null,
-        playerName: fullName,
-        shirtNumber,
-        type: "GOAL",
-        minute,
-        notes: `هدف مسجل بتقرير الحكم (${line.slice(0, 40)})`,
-        matchedPlayerName: matched ? fullName : undefined
-      });
+      const alreadyExtracted = events.some((e) =>
+        e.type === "GOAL" && e.minute === minute && (matched ? e.playerId === matched.id : normalizeName(line).includes(normalizeName(e.playerName)))
+      );
+      if (!alreadyExtracted) {
+        const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
+        events.push({
+          playerId: matched?.id || null,
+          playerName: fullName,
+          shirtNumber,
+          type: "GOAL",
+          minute,
+          notes: `هدف مسجل بتقرير الحكم (${line.slice(0, 40)})`,
+          matchedPlayerName: matched ? fullName : undefined
+        });
+      }
     }
     // Yellow card detection: "بطاقة صفراء", "إنذار", "carton jaune", "avertissement"
     else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /صفراء|إنذار|انذار|jaune|avertissement|yellow/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
-      const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
-      events.push({
-        playerId: matched?.id || null,
-        playerName: fullName,
-        shirtNumber,
-        type: "YELLOW_CARD",
-        minute,
-        notes: `بطاقة صفراء رسمية بتقرير الحكم (${line.slice(0, 40)})`,
-        matchedPlayerName: matched ? fullName : undefined
-      });
+      const alreadyExtracted = events.some((e) =>
+        (e.type === "YELLOW_CARD" || e.type === "RED_CARD") && e.minute === minute && (matched ? e.playerId === matched.id : normalizeName(line).includes(normalizeName(e.playerName)))
+      );
+      if (!alreadyExtracted) {
+        const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
+        events.push({
+          playerId: matched?.id || null,
+          playerName: fullName,
+          shirtNumber,
+          type: "YELLOW_CARD",
+          minute,
+          notes: `بطاقة صفراء رسمية بتقرير الحكم (${line.slice(0, 40)})`,
+          matchedPlayerName: matched ? fullName : undefined
+        });
+      }
     }
     // Red card detection: "بطاقة حمراء", "طرد", "carton rouge", "expulsion"
     else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /حمراء|طرد|rouge|expulsion|red card/i.test(line)) {
       const matched = findBestPlayerMatch(line, shirtNumber, squad);
-      const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
-      events.push({
-        playerId: matched?.id || null,
-        playerName: fullName,
-        shirtNumber,
-        type: "RED_CARD",
-        minute,
-        notes: `بطاقة حمراء رسمية بتقرير الحكم (${line.slice(0, 40)})`,
-        matchedPlayerName: matched ? fullName : undefined
-      });
+      const alreadyExtracted = events.some((e) =>
+        e.type === "RED_CARD" && e.minute === minute && (matched ? e.playerId === matched.id : normalizeName(line).includes(normalizeName(e.playerName)))
+      );
+      if (!alreadyExtracted) {
+        const fullName = matched ? `${matched.firstName} ${matched.lastName}` : line.slice(0, 30);
+        events.push({
+          playerId: matched?.id || null,
+          playerName: fullName,
+          shirtNumber,
+          type: "RED_CARD",
+          minute,
+          notes: `بطاقة حمراء رسمية بتقرير الحكم (${line.slice(0, 40)})`,
+          matchedPlayerName: matched ? fullName : undefined
+        });
+      }
     }
     // Assist detection: "تمريرة حاسمة", "صنع", "passe d", "assist"
     else if (!/دخل|دخول|شارك بدلا|remplaçant entrant|entr[eé] en jeu|substitut entrant|خرج|خروج|استبدل|rempla[cç]ant sortant|sorti du terrain|substitu[eé] out/i.test(line) && /تمريرة|صنع|passe d|assist/i.test(line)) {
@@ -441,15 +820,15 @@ export function parseReportDeterministically(
   if (events.length === 0) {
     const namesAt: Array<{ index: number; player: SquadPlayer }> = [];
     const minutesAt: Array<{ index: number; minute: number }> = [];
-    // Section headings ("الأهداف", "البطاقات", "التغييرات") tell the type when
+    // Section headings ("الأهداف", "الاهداف", "البطاقات", "التغييرات") tell the type when
     // the row itself only carries an icon, a name and a minute.
     const sectionAt: Array<"GOAL" | "CARD" | "SUBSTITUTION" | null> = [];
     let section: "GOAL" | "CARD" | "SUBSTITUTION" | null = null;
     lines.forEach((raw, index) => {
       const line = raw.trim();
-      if (/الأهداف|أهداف المباراة|\bbuts\b|\bgoals\b/i.test(line) && line.length < 40) section = "GOAL";
-      else if (/البطاقات|إنذارات|\bcartons\b|\bbookings\b/i.test(line) && line.length < 40) section = "CARD";
-      else if (/التغييرات|التبديلات|\bremplacements?\b|\bsubstitutions?\b/i.test(line) && line.length < 40) section = "SUBSTITUTION";
+      if (/(?:الأهداف|الاهداف|أهداف\s+المباراة|اهداف\s+المباراة|\bbuts\b|\bgoals\b)/iu.test(line) && line.length < 40) section = "GOAL";
+      else if (/(?:البطاقات|بطاقات|إنذارات|انذارات|\bcartons\b|\bbookings\b)/iu.test(line) && line.length < 40) section = "CARD";
+      else if (/(?:التغييرات|تغييرات|التبديلات|تبديلات|\bremplacements?\b|\bsubstitutions?\b)/iu.test(line) && line.length < 40) section = "SUBSTITUTION";
       sectionAt[index] = section;
 
       if (!line) return;
@@ -507,10 +886,20 @@ export function parseReportDeterministically(
 
   // Score detection e.g. "2 - 1", "2-0", "(1)-(0)"
   const scoreMatch = text.match(/(\d+)\s*[-–:]\s*(\d+)/);
-  const detectedScore = scoreMatch ? { home: parseInt(scoreMatch[1]!, 10), away: parseInt(scoreMatch[2]!, 10) } : null;
+  let detectedScore = scoreMatch ? { home: parseInt(scoreMatch[1]!, 10), away: parseInt(scoreMatch[2]!, 10) } : null;
+
+  if (!detectedScore) {
+    const homeGoals = events.filter((e) => ["GOAL", "PENALTY_GOAL"].includes(e.type) && e.side === "HOME").length;
+    const awayGoals = events.filter((e) => ["GOAL", "PENALTY_GOAL"].includes(e.type) && e.side === "AWAY").length;
+    if (homeGoals > 0 || awayGoals > 0) {
+      detectedScore = { home: homeGoals, away: awayGoals };
+    }
+  }
 
   const uniqueEvents = events.filter((event, index) => events.findIndex((candidate) =>
-    candidate.type === event.type && candidate.playerId === event.playerId && candidate.minute === event.minute
+    candidate.type === event.type &&
+    (candidate.playerId ? candidate.playerId === event.playerId : candidate.playerName === event.playerName) &&
+    candidate.minute === event.minute
   ) === index);
   return { events: uniqueEvents, detectedScore };
 }
@@ -842,15 +1231,17 @@ ${squadRoster}
   // Always run the deterministic parser as a second pass. AI often returns the
   // goals correctly while omitting the two player rows for a substitution.
   const hasVerifiableAiEvent = parsedEvents.some((event) =>
-    event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
+    hasExplicitEventEvidence(eventEvidenceText, event, squad)
   );
-  const fallback = parseReportDeterministically(eventEvidenceText, squad);
+  const fallback = parseReportDeterministically(eventEvidenceText, squad, { clubIsHome: match.isHomeFixture });
   const fallbackHasVerifiableEvent = fallback.events.some((event) =>
-    event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
+    hasExplicitEventEvidence(eventEvidenceText, event, squad)
   );
   for (const event of fallback.events) {
     const duplicateIndex = parsedEvents.findIndex((candidate) =>
-      candidate.type === event.type && candidate.playerId === event.playerId && candidate.minute === event.minute
+      candidate.type === event.type &&
+      (candidate.playerId ? candidate.playerId === event.playerId : candidate.playerName === event.playerName) &&
+      candidate.minute === event.minute
     );
     if (duplicateIndex < 0) parsedEvents.push(event);
     else if (event.substitutionPairKey && !parsedEvents[duplicateIndex]!.substitutionPairKey) {
@@ -877,6 +1268,9 @@ ${squadRoster}
   if (fallback.detectedScore && !detectedScore) detectedScore = fallback.detectedScore;
   if ((!hasVerifiableAiEvent && fallbackHasVerifiableEvent) || (!parsedEvents.length && !hasVerifiableAiEvent)) aiProviderUsed = "INTELLIGENT_NLP_ENGINE";
 
+  const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
+  const opponentSide = match.isHomeFixture ? "AWAY" : "HOME";
+
   // Reconcile unlinked player names against the squad before filtering
   for (const event of parsedEvents) {
     if (!event.playerId && event.playerName) {
@@ -885,6 +1279,7 @@ ${squadRoster}
         event.playerId = matched.id;
         event.matchedPlayerName = `${matched.firstName} ${matched.lastName}`;
         event.playerName = `${matched.firstName} ${matched.lastName}`;
+        event.side = clubSide;
         if (matched.firstNameFr || matched.lastNameFr) {
           event.playerNameFr = [matched.firstNameFr, matched.lastNameFr].filter(Boolean).join(" ");
         }
@@ -896,8 +1291,21 @@ ${squadRoster}
   // This prevents model guesses or broad mentions in the narrative from
   // becoming official match events.
   const validEvents = parsedEvents.filter((event) =>
-    event.playerId !== null && hasExplicitEventEvidence(eventEvidenceText, event, squad)
+    hasExplicitEventEvidence(eventEvidenceText, event, squad)
   );
+
+  if (!detectedScore) {
+    const homeGoals = validEvents.filter((e) =>
+      ["GOAL", "PENALTY_GOAL"].includes(e.type) && (e.side === "HOME" || (!e.side && (match.isHomeFixture ? e.playerId !== null : e.playerId === null)))
+    ).length;
+    const awayGoals = validEvents.filter((e) =>
+      ["GOAL", "PENALTY_GOAL"].includes(e.type) && (e.side === "AWAY" || (!e.side && (match.isHomeFixture ? e.playerId === null : e.playerId !== null)))
+    ).length;
+    if (homeGoals > 0 || awayGoals > 0) {
+      detectedScore = { home: homeGoals, away: awayGoals };
+    }
+  }
+
   // ASSIST is not a MatchEventType in the database. It belongs on the goal's
   // PlayerShot record, so keep it out of the event table and link it below.
   const validEventRows = validEvents.filter((event) => event.type !== "ASSIST");
@@ -910,6 +1318,7 @@ ${squadRoster}
   let eventsCorrected = 0;
   const isGoalType = (type: string) => ["GOAL", "PENALTY_GOAL", "OWN_GOAL"].includes(type);
   for (const candidate of validEventRows) {
+    const targetSide = candidate.side || (candidate.playerId ? clubSide : opponentSide);
     const possibleMatches = existingEvents.filter((event) => !reconciledIds.has(event.id)
       && (event.type === candidate.type || (isGoalType(event.type) && isGoalType(candidate.type)))
       && (event.playerId === candidate.playerId || (!event.playerId
@@ -927,7 +1336,7 @@ ${squadRoster}
       reconciledIds.add(matchedEvent.id);
       if (matchedEvent.minute !== candidate.minute || matchedEvent.type !== candidate.type
         || matchedEvent.playerId !== candidate.playerId
-        || matchedEvent.side !== (match.isHomeFixture ? "HOME" : "AWAY")
+        || matchedEvent.side !== targetSide
         || matchedEvent.playerName !== candidate.playerName || matchedEvent.playerNameFr !== (candidate.playerNameFr || null)) {
         await db.$transaction(async (tx) => {
           await tx.matchEvent.update({
@@ -935,7 +1344,7 @@ ${squadRoster}
             data: {
               type: candidate.type,
               minute: candidate.minute,
-              side: match.isHomeFixture ? "HOME" : "AWAY",
+              side: targetSide,
               playerId: candidate.playerId,
               playerName: candidate.playerName,
               playerNameFr: candidate.playerNameFr || null
@@ -943,12 +1352,12 @@ ${squadRoster}
           });
           await tx.playerShot.updateMany({
             where: { matchEventId: matchedEvent.id },
-            data: { minute: candidate.minute, side: match.isHomeFixture ? "HOME" : "AWAY", playerId: candidate.playerId }
+            data: { minute: candidate.minute, side: targetSide, playerId: candidate.playerId }
           });
         });
         matchedEvent.minute = candidate.minute;
         matchedEvent.type = candidate.type;
-        matchedEvent.side = match.isHomeFixture ? "HOME" : "AWAY";
+        matchedEvent.side = targetSide;
         matchedEvent.playerId = candidate.playerId;
         matchedEvent.playerName = candidate.playerName;
         matchedEvent.playerNameFr = candidate.playerNameFr || null;
@@ -960,18 +1369,20 @@ ${squadRoster}
     // one confidently, preserve the manual rows instead of adding an overlap.
     if (possibleMatches.length > 1) continue;
     const duplicatedInReport = newEventsToCreate.some(
-      (event) => event.playerId === candidate.playerId && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
+      (event) => (event.playerId ? event.playerId === candidate.playerId : event.playerName === candidate.playerName)
+        && event.type === candidate.type && Math.abs(event.minute - candidate.minute) <= 2
     );
     if (!duplicatedInReport) newEventsToCreate.push(candidate);
   }
 
   // Persist into database
   for (const item of newEventsToCreate) {
+    const eventSide = item.side || (item.playerId ? clubSide : opponentSide);
     await db.matchEvent.create({
       data: {
         matchId: match.id,
         playerId: item.playerId,
-        side: match.isHomeFixture ? "HOME" : "AWAY",
+        side: eventSide,
         type: item.type,
         source: "REFEREE_REPORT",
         minute: item.minute,
@@ -984,7 +1395,6 @@ ${squadRoster}
     });
   }
 
-  const clubSide = match.isHomeFixture ? "HOME" : "AWAY";
   const goals = await db.matchEvent.findMany({
     where: { matchId: match.id, side: clubSide, type: { in: ["GOAL", "PENALTY_GOAL"] }, playerId: { not: null } },
     include: { shot: true },
