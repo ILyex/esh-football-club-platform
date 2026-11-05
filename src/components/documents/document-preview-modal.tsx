@@ -5,6 +5,7 @@ import { Eye, Download, X, FileText, Image as ImageIcon, ExternalLink, Loader2, 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ESH_PRINT_WATERMARK_DATA_URL } from "@/lib/documents/watermark";
+import { printPdfOrDocumentUrl } from "@/lib/documents/print-helper";
 
 interface DocumentPreviewModalProps {
   documentId: string;
@@ -106,43 +107,10 @@ export function DocumentPreviewModal({
                 <button
                   type="button"
                   onClick={() => {
-                    const iframe = document.getElementById(`doc-preview-frame-${documentId}`) as HTMLIFrameElement;
-                    if (iframe && iframe.contentWindow) {
-                      try {
-                        iframe.contentWindow.focus();
-                        iframe.contentWindow.print();
-                      } catch {
-                        window.open(previewUrl, "_blank");
-                      }
-                    } else if (isImage) {
-                      const printWindow = window.open("", "_blank");
-                      if (printWindow) {
-                        printWindow.document.write(`
-                          <!DOCTYPE html>
-                          <html dir="${locale === "ar" ? "rtl" : "ltr"}">
-                            <head>
-                              <title>${title}</title>
-                              <style>
-                                @page { size: A4; margin: 10mm; }
-                                body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Traditional Arabic', 'Arabic Typesetting', serif; }
-                                .document-image { max-width: 95%; max-height: 88vh; object-fit: contain; position: relative; z-index: 1; }
-                                .watermark-layer { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: fill !important; z-index: 2 !important; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                              </style>
-                            </head>
-                            <body>
-                              <img class="watermark-layer" src="${ESH_PRINT_WATERMARK_DATA_URL}" alt="" aria-hidden="true" />
-                              <img class="document-image" src="${previewUrl}" alt="${title}" onload="window.print();" />
-                            </body>
-                          </html>
-                        `);
-                        printWindow.document.close();
-                      }
-                    } else {
-                      window.open(previewUrl, "_blank");
-                    }
+                    void printPdfOrDocumentUrl(previewUrl, title);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-2xs"
-                  title={locale === "ar" ? "طباعة الوثيقة مع العلامة المائية" : "Imprimer"}
+                  title={locale === "ar" ? "طباعة الوثيقة الرسمية" : "Imprimer le document"}
                 >
                   <Printer className="h-3.5 w-3.5 text-club-primary" />
                   <span>{locale === "ar" ? "طباعة" : "Imprimer"}</span>

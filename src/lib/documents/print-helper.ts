@@ -25,14 +25,13 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     return;
   }
 
-  const printWindow = window.open("about:blank", "_blank");
-  if (!printWindow) {
-    window.alert(document.documentElement.lang.startsWith("ar")
-      ? "تعذر فتح نافذة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."
-      : "Impossible d’ouvrir la fenêtre d’impression. Autorisez les fenêtres contextuelles puis réessayez.");
-    return;
+  let printWindow: Window | null = null;
+  try {
+    printWindow = window.open("about:blank", "_blank");
+  } catch {
+    printWindow = null;
   }
-  const printDocument = printWindow.document;
+
   const escapeHtml = (value: string) => value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -48,6 +47,7 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
 
   const clonedTarget = target.cloneNode(true) as HTMLElement;
   clonedTarget.removeAttribute("data-esh-print-target");
+  clonedTarget.classList.remove("esh-paginated-source");
   clonedTarget.classList.add("esh-print-page");
   clonedTarget.setAttribute("data-esh-print-page", "true");
   clonedTarget.setAttribute("dir", sourceDirection);
@@ -56,6 +56,12 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     /* Standard A4 page box with Chrome's default-like 10 mm margins. */
     @page { size: A4 portrait; margin: 10mm; }
     @page official-testing-report { size: A4 portrait; margin: 10mm; }
+
+    .esh-paginated-source {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
 
     html, body {
       width: 190mm !important;
@@ -418,6 +424,12 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     }
   `;
 
+  if (!printWindow) {
+    printViaHiddenIframe(clonedTarget, styleMarkup, printStyles, title);
+    return;
+  }
+
+  const printDocument = printWindow.document;
   printDocument.open();
   printDocument.write(`<!doctype html><html dir="${escapeHtml(sourceDirection)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="${escapeHtml(document.baseURI)}"><title>${escapeHtml(title || document.title)}</title>${styleMarkup}<style data-esh-print-style>${printStyles}</style></head><body><div class="esh-print-root"></div></body></html>`);
   printDocument.close();
@@ -482,4 +494,129 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
 
   void waitForAssets();
   window.setTimeout(cleanup, 120_000);
+}
+
+/**
+ * Fallback printing method via an in-page hidden iframe when popup windows are blocked.
+ */
+function printViaHiddenIframe(clonedTarget: HTMLElement, styleMarkup: string, printStyles: string, title?: string): void {
+  const existing = document.getElementById("esh-fallback-print-frame");
+  if (existing) existing.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "esh-fallback-print-frame";
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    window.print();
+    return;
+  }
+
+  const sourceDirection = clonedTarget.getAttribute("dir") || document.documentElement.getAttribute("dir") || "ltr";
+  doc.open();
+  doc.write(`<!doctype html><html dir="${sourceDirection}"><head><meta charset="utf-8"><title>${title || document.title}</title>${styleMarkup}<style>${printStyles}</style></head><body><div class="esh-print-root"></div></body></html>`);
+  doc.close();
+
+  const root = doc.querySelector<HTMLElement>(".esh-print-root");
+  if (root) root.appendChild(clonedTarget.cloneNode(true));
+
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.print();
+    }
+  }, 400);
+}
+
+/**
+ * Robust printing for remote or local PDF and document URLs.
+ * Uses a same-origin Blob URL in a hidden iframe to bypass browser cross-origin plugin restrictions.
+ */
+export async function printPdfOrDocumentUrl(url: string, title?: string): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const isImage = blob.type.startsWith("image/");
+    const mime = isImage ? blob.type : "application/pdf";
+    const objectBlob = new Blob([blob], { type: mime });
+    const blobUrl = URL.createObjectURL(objectBlob);
+
+    if (isImage) {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${title || "Document"}</title>
+              <style>
+                @page { size: A4; margin: 10mm; }
+                body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                img { max-width: 95%; max-height: 90vh; object-fit: contain; }
+              </style>
+            </head>
+            <body>
+              <img src="${blobUrl}" onload="window.print();" />
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        return;
+      }
+    }
+
+    const existing = document.getElementById("esh-pdf-print-frame");
+    if (existing) existing.remove();
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "esh-pdf-print-frame";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {
+          const w = window.open(blobUrl, "_blank");
+          if (w) {
+            w.onload = () => {
+              w.focus();
+              w.print();
+            };
+          }
+        }
+      }, 300);
+    };
+  } catch (err) {
+    console.warn("[printPdfOrDocumentUrl] Blob print failed, opening url directly", err);
+    const w = window.open(url, "_blank");
+    if (w) {
+      w.onload = () => {
+        w.focus();
+        w.print();
+      };
+    }
+  }
 }

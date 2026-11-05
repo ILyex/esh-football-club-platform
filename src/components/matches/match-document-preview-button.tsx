@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Eye, FileText, X } from "lucide-react";
+import { Download, Eye, FileText, Printer, X } from "lucide-react";
+import { printPdfOrDocumentUrl } from "@/lib/documents/print-helper";
 
 type MatchDocument = {
   id: string;
@@ -132,14 +133,27 @@ export function MatchDocumentPreviewButton({
                 ))}
               </nav>
               {activeDocument && (
-                <a
-                  href={`/api/documents/${activeDocument.id}/download`}
-                  download
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {isAr ? "تحميل" : "Télécharger"}
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void printPdfOrDocumentUrl(`/api/documents/${activeDocument.id}/download?inline=true`, activeDocument.name);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-2xs"
+                    title={isAr ? "طباعة الوثيقة الرسمية" : "Imprimer le document"}
+                  >
+                    <Printer className="h-3.5 w-3.5 text-primary" />
+                    <span>{isAr ? "طباعة" : "Imprimer"}</span>
+                  </button>
+                  <a
+                    href={`/api/documents/${activeDocument.id}/download`}
+                    download
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>{isAr ? "تحميل" : "Télécharger"}</span>
+                  </a>
+                </div>
               )}
             </div>
 

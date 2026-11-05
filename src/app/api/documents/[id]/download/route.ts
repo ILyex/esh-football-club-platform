@@ -56,11 +56,40 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const inline = _req.nextUrl.searchParams.get("inline") === "true";
-    const url = await getPrivateFileDownloadUrl(document.storageKey, 120, { inline });
+
+    // For inline previews in iframes/embeds, serve bytes directly on the same origin.
+    // Redirecting to third-party S3/Cloudflare R2 signed URLs causes Cross-Origin-Resource-Policy
+    // and iframe frame-ancestors blocking, and breaks browser print capabilities.
+    if (inline) {
+      const { getPrivateFileBuffer } = await import("@/lib/storage");
+      const buffer = await getPrivateFileBuffer(document.storageKey);
+      const filename = document.originalName || `${document.name}.pdf`;
+      const asciiFilename = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\;]/g, "_");
+      const mimeType = document.mimeType || (filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+
+      await writeAuditLog({
+        userId: user.id,
+        action: "document.view",
+        entityType: "Document",
+        entityId: document.id
+      });
+
+      return new Response(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": mimeType,
+          "Content-Disposition": `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          "Cache-Control": "private, max-age=300",
+          "X-Content-Type-Options": "nosniff"
+        }
+      });
+    }
+
+    const url = await getPrivateFileDownloadUrl(document.storageKey, 120, { inline: false });
 
     await writeAuditLog({
       userId: user.id,
-      action: inline ? "document.view" : "document.download",
+      action: "document.download",
       entityType: "Document",
       entityId: document.id
     });

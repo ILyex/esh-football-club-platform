@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Printer, Download, FileText, ZoomIn, ZoomOut, RotateCcw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { ESH_DOCUMENT_FONT_FAMILY, ESH_PRINT_WATERMARK_DATA_URL } from "@/lib/documents/watermark";
+import { printDocumentElement } from "@/lib/documents/print-helper";
 
 interface DocumentViewerLabels {
   print: string;
@@ -48,147 +49,8 @@ export function DocumentViewer({
       window.print();
       return;
     }
-
-    try {
-      const existingIframe = document.getElementById("esh-print-frame");
-      if (existingIframe) {
-        existingIframe.remove();
-      }
-
-      const iframe = document.createElement("iframe");
-      iframe.id = "esh-print-frame";
-      iframe.style.position = "fixed";
-      iframe.style.left = "0";
-      iframe.style.top = "0";
-      iframe.style.width = "210mm";
-      iframe.style.height = "297mm";
-      iframe.style.border = "none";
-      iframe.style.opacity = "0";
-      iframe.style.pointerEvents = "none";
-      iframe.style.zIndex = "-9999";
-      document.body.appendChild(iframe);
-
-      const doc = iframe.contentWindow?.document;
-      if (!doc) {
-        window.print();
-        return;
-      }
-
-      // Collect all stylesheets and style blocks from current page
-      const styleElements: string[] = [];
-      document.querySelectorAll("link[rel='stylesheet'], style").forEach((node) => {
-        styleElements.push(node.outerHTML);
-      });
-
-      const dir = isRtl ? "rtl" : "ltr";
-      const contentHtml = containerRef.current.innerHTML;
-
-      doc.open();
-      doc.write(`
-        <!DOCTYPE html>
-        <html dir="${dir}">
-          <head>
-            <meta charset="utf-8">
-            <title>${filename}</title>
-            ${styleElements.join("\n")}
-            <style>
-              @page {
-                size: auto;
-                margin: 0 !important;
-              }
-              *, *::before, *::after {
-                box-sizing: border-box;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #ffffff !important;
-                color: #000000 !important;
-                font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
-              }
-              .esh-print-watermark {
-                position: fixed !important;
-                inset: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                object-fit: fill !important;
-                z-index: 0 !important;
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                pointer-events: none !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .docx-preview-root { position: relative !important; z-index: 1 !important; background: transparent !important; }
-              u, ins, a, .underline {
-                text-decoration: none !important;
-              }
-              .docx-wrapper {
-                background: transparent !important;
-                padding: 0 !important;
-                margin: 0 !important;
-              }
-              .docx-wrapper > section.docx {
-                box-shadow: none !important;
-                border: none !important;
-                border-top: 3px solid #c8102e !important;
-                margin: 0 auto !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                min-height: auto !important;
-                page-break-after: always !important;
-                break-after: page !important;
-                position: relative !important;
-                background: transparent !important;
-                background-image: none !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color: #000000 !important;
-              }
-              .docx-wrapper > section.docx:last-child {
-                page-break-after: avoid !important;
-                break-after: avoid !important;
-              }
-              ${
-                isRtl
-                  ? `
-                .docx-wrapper > section.docx {
-                  direction: rtl !important;
-                  text-align: right !important;
-                }
-                .docx-wrapper > section.docx table {
-                  direction: rtl !important;
-                }
-              `
-                  : ""
-              }
-            </style>
-          </head>
-          <body class="${isRtl ? "docx-rtl" : "docx-ltr"}">
-            <img class="esh-print-watermark" src="${ESH_PRINT_WATERMARK_DATA_URL}" alt="" aria-hidden="true" />
-            <div class="docx-preview-root" dir="${dir}">
-              ${contentHtml}
-            </div>
-          </body>
-        </html>
-      `);
-      doc.close();
-
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          iframe.remove();
-        }, 3000);
-      }, 500);
-    } catch (e) {
-      console.warn("Isolated iframe print failed, falling back to window.print", e);
-      window.print();
-    }
-  }, [filename, isRtl]);
+    printDocumentElement(containerRef.current, filename);
+  }, [filename]);
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 10, 150));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 10, 60));
