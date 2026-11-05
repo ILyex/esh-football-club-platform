@@ -576,7 +576,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           }))}
           autoSuspendedPlayerIds={Array.from(previousRedCardPlayerIds)}
           canEdit={canManageLineup}
-          fetchFafLineup={canManageLineup ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
+          fetchFafLineup={canReport ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
           saveEntry={addLineupEntry}
           removeEntry={removeLineupPlayer}
           swapPositions={swapLineupPositions}

@@ -766,15 +766,42 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
           }
         }
         if (!lineupSummary.applied) {
-          warnings.push("حُفظت وثيقة المباراة، لكن لم تكن بيانات التشكيلة المقروءة كافية لتعديل قائمة اللاعبين.");
+          warnings.push("حُفظت وثيقة بداية المباراة، لكن لم تكن بيانات التشكيلة المقروءة كافية لتعديل قائمة اللاعبين.");
         }
         warnings.push(...lineupSummary.warnings);
       } else {
-        warnings.push("حُفظت وثيقة المباراة، لكن تعذرت قراءة الأسماء تلقائياً؛ لم يتم تغيير قائمة اللاعبين.");
+        warnings.push("حُفظت وثيقة بداية المباراة، لكن تعذرت قراءة الأسماء تلقائياً؛ لم يتم تغيير قائمة اللاعبين.");
       }
     } catch (error) {
       console.warn("[FAF EMS] Match sheet lineup extraction failed", error);
-      warnings.push("حُفظت وثيقة المباراة، لكن تعذر استخراج قائمة اللاعبين منها؛ لم يتم تغيير القائمة.");
+      warnings.push("حُفظت وثيقة بداية المباراة، لكن تعذر استخراج قائمة اللاعبين منها؛ لم يتم تغيير القائمة.");
+    }
+  }
+
+  // If the pre-match sheet did not yield a lineup (or was unavailable from FAF EMS),
+  // fall back to Page 1 of the referee report (final-report-ar.pdf), which contains the official lineup.
+  if (!lineupSummary?.applied && local.teamId) {
+    const finalReport = documentSpecs.find((item) => item.kind === "REFEREE_REPORT");
+    const sourceText = refereeReportSourceText || (finalReport?.bytes ? await extractDocumentText(finalReport.bytes, "application/pdf").catch(() => null) : null);
+    if (sourceText) {
+      try {
+        const fallbackSummary = await applyMatchSheetLineup(local.id, local.teamId, sourceText);
+        if (fallbackSummary.applied) {
+          lineupSummary = fallbackSummary;
+          warnings.push(...fallbackSummary.warnings);
+        } else if (finalReport?.bytes) {
+          const visualText = await extractDocumentTextWithVision(finalReport.bytes, "application/pdf").catch(() => null);
+          if (visualText) {
+            const visualSummary = await applyMatchSheetLineup(local.id, local.teamId, visualText);
+            if (visualSummary.applied) {
+              lineupSummary = visualSummary;
+              warnings.push(...visualSummary.warnings);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("[FAF EMS] Referee report lineup fallback extraction failed", error);
+      }
     }
   }
 

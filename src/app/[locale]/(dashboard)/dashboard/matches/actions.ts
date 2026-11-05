@@ -1236,10 +1236,10 @@ export async function importSavedFafLineupAction(matchId: string) {
   const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, select: { id: true, teamId: true, status: true } });
   if (!match.teamId) throw new Error("matchTeamMissing");
   assertTeamScope(scopeContext, match.teamId, "Match");
-  if (match.status !== "SCHEDULED" && match.status !== "LIVE") throw new Error("lineupNotAvailable");
+  if (match.status !== "SCHEDULED" && match.status !== "LIVE" && match.status !== "FINISHED") throw new Error("lineupNotAvailable");
 
   const document = await db.document.findFirst({
-    where: { relatedMatchId: matchId, teamId: match.teamId, matchDocumentType: "PRE_MATCH_SHEET" },
+    where: { relatedMatchId: matchId, teamId: match.teamId, matchDocumentType: { in: ["PRE_MATCH_SHEET", "REFEREE_REPORT"] } },
     orderBy: { createdAt: "desc" },
     select: { storageKey: true, mimeType: true }
   });
@@ -1373,7 +1373,7 @@ export async function attachMatchSheetAction(matchId: string, formData: FormData
   let lineupWarnings: string[] = [];
   let aiFallback: "quota" | "unavailable" | undefined;
   let refereeAnalysisWarning: string | undefined;
-  const shouldExtractLineup = sheetType === "PRE_MATCH_SHEET" && formData.getAll("autoLineup").includes("true");
+  const shouldExtractLineup = (sheetType === "PRE_MATCH_SHEET" || sheetType === "REFEREE_REPORT") && formData.getAll("autoLineup").includes("true");
   if (shouldExtractLineup && match.teamId) {
     try {
       const { extractDocumentText, extractDocumentTextWithVision } = await import("@/lib/ai/document-verifier");

@@ -3,7 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
-type SheetPlayer = {
+export type SheetPlayer = {
   id: string;
   firstName: string;
   lastName: string;
@@ -15,8 +15,8 @@ type SheetPlayer = {
   status: string;
 };
 
-type SelectionStatus = "STARTING" | "SUBSTITUTE" | "NOT_CALLED";
-type DetectedLineup = {
+export type SelectionStatus = "STARTING" | "SUBSTITUTE" | "NOT_CALLED";
+export type DetectedLineup = {
   players: Map<string, SelectionStatus>;
   hasStarterSection: boolean;
   hasBenchSection: boolean;
@@ -74,11 +74,11 @@ function playerMatchesLine(line: string, player: SheetPlayer): boolean {
 }
 
 const STARTING = /اساسي|التشكيل الاساسي|التشكيله الاساسيه|titulaires?|onze de depart|equipe titulaire|joueurs titulaires/;
-const SUBSTITUTE = /احتياط|بديل|بدلاء|دكه|remplacants?|banc|rempla[cç]ants? disponibles/;
+const SUBSTITUTE = /احتياط|بدلاء|دكه|(?:^|[\s_،,.-])(?:ال)?بديل(?:ين|ان|ة|ه)?(?=$|[\s_،,.-])|remplacants?|banc|rempla[cç]ants?/;
 const NOT_CALLED = /non convoques?|non retenus?|absents?|joueurs absents|غير مستدعى|غير مدعو|غيابات|قائمة الغياب/;
-const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة/;
+const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|انذار|انذارات|طرد|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة|تغيير|تغييرات|تبديل|تبديلات|تقرير/;
 
-function detectPlayers(text: string, players: SheetPlayer[]): DetectedLineup {
+export function detectPlayers(text: string, players: SheetPlayer[]): DetectedLineup {
   const found = new Map<string, SelectionStatus>();
   const warnings: string[] = [];
   let section: SelectionStatus | null = null;
@@ -142,22 +142,29 @@ function detectPlayers(text: string, players: SheetPlayer[]): DetectedLineup {
   return { players: found, hasStarterSection, hasBenchSection, hasExplicitNotCalledSection, warnings: [...new Set(warnings)] };
 }
 
-function detectOfficialCaptain(text: string, players: SheetPlayer[]): string | null {
+export function detectOfficialCaptain(text: string, players: SheetPlayer[]): string | null {
   for (const rawLine of text.split(/[\r\n]+/u)) {
-    if (!/(?:^|\s)\(?C\)?(?=\s|$|[.)])/i.test(rawLine)) continue;
+    if (!/(?:^|\s)\(?(?:C|ق)\)?(?=\s|$|[.)])/i.test(rawLine) && !/(?:^|\s)(?:قائد|capitaine)(?=\s|$|[.)])/i.test(rawLine)) continue;
     const candidates = players.filter((player) => playerMatchesLine(rawLine, player));
     if (candidates.length === 1) return candidates[0]!.id;
   }
   return null;
 }
 
-function detectOfficialShirtNumbers(text: string, players: SheetPlayer[]): Map<string, number> {
+export function detectOfficialShirtNumbers(text: string, players: SheetPlayer[]): Map<string, number> {
   const numbers = new Map<string, number>();
   for (const rawLine of text.split(/[\r\n]+/u)) {
-    const leadingNumber = rawLine.match(/^\s*(\d{1,2})(?=\s|\.)/u);
-    if (!leadingNumber) continue;
-    const shirtNumber = Number(leadingNumber[1]);
-    if (shirtNumber < 1 || shirtNumber > 99) continue;
+    let shirtNumber: number | null = null;
+    const leadingNumber = rawLine.match(/^\s*(\d{1,2})(?=[\s.-])/u);
+    if (leadingNumber) {
+      shirtNumber = Number(leadingNumber[1]);
+    } else {
+      const trailingNumber = rawLine.match(/(?:^|\s)(\d{1,2})(?:\s*\(?[cCق]\)?|\s*$)/u);
+      if (trailingNumber) {
+        shirtNumber = Number(trailingNumber[1]);
+      }
+    }
+    if (!shirtNumber || shirtNumber < 1 || shirtNumber > 99) continue;
     const candidates = players.filter((player) => playerMatchesLine(rawLine, player));
     if (candidates.length === 1) numbers.set(candidates[0]!.id, shirtNumber);
   }
@@ -230,7 +237,7 @@ export async function applyMatchSheetLineup(
 
   const starterCount = startingIds.length;
   const substituteCount = [...detected.players.values()].filter((status) => status === "SUBSTITUTE").length;
-  const hasRosterStructure = detected.hasExplicitNotCalledSection || (detected.hasBenchSection && substituteCount > 0);
+  const hasRosterStructure = detected.hasExplicitNotCalledSection || detected.hasBenchSection || substituteCount > 0;
   if (!detected.hasStarterSection || !hasRosterStructure || starterCount < 7 || listedStartingIds.length > 11 || goalkeeperIds.length > 1) {
     if (!hasRosterStructure) warnings.push("لم يُتعرف على حدّ فاصل موثوق بين الأساسيين والاحتياط/غير المستدعين؛ لم تُغيّر حالات اللاعبين.");
     return {
