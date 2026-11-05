@@ -920,6 +920,22 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   }
 
+  // If lineup has not been applied yet, re-run with newly created events in place
+  if (!lineupSummary?.applied && local.teamId && (refereeReportSourceText || finalReportBytes)) {
+    try {
+      const retryText = refereeReportSourceText || (finalReportBytes ? await extractDocumentText(finalReportBytes, "application/pdf").catch(() => null) : null);
+      if (retryText) {
+        const secondPass = await applyMatchSheetLineup(local.id, local.teamId, retryText);
+        if (secondPass.applied) {
+          lineupSummary = secondPass;
+          warnings.push(...secondPass.warnings);
+        }
+      }
+    } catch (error) {
+      console.warn("[FAF EMS] Post-event lineup second pass failed", error);
+    }
+  }
+
   // Diagnostics: keep what the extractor actually saw for this fixture. When a
   // report "contains everything" but nothing lands on the timeline, the only
   // way to tell "no text layer" from "no matching player" is to look at the

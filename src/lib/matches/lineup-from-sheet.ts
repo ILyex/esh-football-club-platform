@@ -49,6 +49,12 @@ function normalize(value: string): string {
     .replace(/\s+/gu, " ");
 }
 
+export function normalizeCompoundNames(text: string): string {
+  return text
+    .replace(/\b(بن|ابن|بو|بل|عبد|ايت)\s+/gu, "$1")
+    .replace(/\b(ben|bou|bel|abd|abdel|ait)\s+/giu, "$1");
+}
+
 function nameVariants(player: SheetPlayer): string[][] {
   const variants = [
     [player.firstName, player.lastName],
@@ -64,19 +70,68 @@ function nameVariants(player: SheetPlayer): string[][] {
   return [...unique.values()];
 }
 
-function playerMatchesLine(line: string, player: SheetPlayer): boolean {
+export function playerMatchesLine(line: string, player: SheetPlayer): boolean {
   const normalizedLine = ` ${normalize(line)} `;
-  const lineTokens = new Set(normalizedLine.trim().split(/\s+/u).filter(Boolean));
-  const hasName = nameVariants(player).some((tokens) => tokens.every((token) => lineTokens.has(token)));
-  const licence = normalize(player.licenceNumber || "").replace(/\s/g, "");
-  const licensed = licence.length >= 5 && normalizedLine.replace(/\s/g, "").includes(licence);
-  return hasName || licensed;
+  const compoundLine = ` ${normalizeCompoundNames(normalizedLine)} `;
+  const lineTokens = new Set(compoundLine.trim().split(/\s+/u).filter(Boolean));
+
+  // 1. Licence number match
+  const rawLicence = normalize(player.licenceNumber || "").replace(/\s/g, "");
+  if (rawLicence.length >= 5 && compoundLine.replace(/\s/g, "").includes(rawLicence)) {
+    return true;
+  }
+  const digitsMatch = rawLicence.match(/\d{5,}/);
+  if (digitsMatch && compoundLine.replace(/[^\d]/g, "").includes(digitsMatch[0])) {
+    return true;
+  }
+
+  // 2. Exact or compound name match
+  const variants = [
+    { first: player.firstName, last: player.lastName },
+    { first: player.firstNameFr, last: player.lastNameFr }
+  ];
+
+  for (const { first, last } of variants) {
+    if (!last) continue;
+    const normLast = normalizeCompoundNames(normalize(last));
+    const normFirst = normalizeCompoundNames(normalize(first || ""));
+    const lastTokens = normLast.split(" ").filter(Boolean);
+    const firstTokens = normFirst.split(" ").filter(Boolean);
+    const allTokens = [...lastTokens, ...firstTokens];
+    if (allTokens.length < 2) continue;
+
+    const full1 = `${normLast} ${normFirst}`;
+    const full2 = `${normFirst} ${normLast}`;
+    if (compoundLine.includes(` ${full1} `) || compoundLine.includes(` ${full2} `)) {
+      return true;
+    }
+
+    // Check if last name is matched in line
+    const lastMatched = lastTokens.every((t) => lineTokens.has(t))
+      || (lastTokens.length > 0 && compoundLine.includes(lastTokens.join("")));
+
+    if (lastMatched) {
+      if (firstTokens.length === 0) return true;
+      const matchedFirst = firstTokens.filter((t) => lineTokens.has(t)).length;
+      if (matchedFirst > 0 || (firstTokens.length > 1 && matchedFirst / firstTokens.length >= 0.5)) {
+        return true;
+      }
+    }
+
+    // Substantial token overlap (handles middle name omissions or reorderings)
+    const matchedCount = allTokens.filter((t) => lineTokens.has(t)).length;
+    if (allTokens.length >= 3 && matchedCount / allTokens.length >= 0.66) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-const STARTING = /اساسي|التشكيل الاساسي|التشكيله الاساسيه|titulaires?|onze de depart|equipe titulaire|joueurs titulaires/;
-const SUBSTITUTE = /احتياط|بدلاء|دكه|(?:^|[\s_،,.-])(?:ال)?بديل(?:ين|ان|ة|ه)?(?=$|[\s_،,.-])|remplacants?|banc|rempla[cç]ants?/;
-const NOT_CALLED = /non convoques?|non retenus?|absents?|joueurs absents|غير مستدعى|غير مدعو|غيابات|قائمة الغياب/;
-const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|remplacements?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|انذار|انذارات|طرد|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة|تغيير|تغييرات|تبديل|تبديلات|تقرير/;
+const STARTING = /اساسي|الاساسيون|الاساسيين|الاساسية|التشكيل الاساسي|التشكيلة الاساسية|التشكيله الاساسيه|قائمة البداية|قائمة الاساسيين|قائمة اللاعبين الاساسيين|titulaires?|onze de depart|equipe titulaire|joueurs titulaires|starting/iu;
+const SUBSTITUTE = /احتياط|الاحتياط|الاحتياطيون|الاحتياطيين|قائمة الاحتياط|اللاعبين الاحتياط|اللاعبون الاحتياطيون|بدلاء|البدلاء|قائمة البدلاء|دكة البدلاء|دكه البدلاء|اللاعبين البدلاء|اللاعبون البدلاء|(?:^|[\s_،,.-])(?:ال)?بديل(?:ين|ان|ة|ه)?(?=$|[\s_،,.-])|معوض|معوضين|المعوضين|قائمة المعوضين|اللاعبين المعوضين|remplacants?|banc|rempla[cç]ants?|substitutes?|reserves?|reservistes?/iu;
+const NOT_CALLED = /non convoques?|non retenus?|absents?|joueurs absents|غير مستدعى|غير مدعو|غيابات|قائمة الغياب/iu;
+const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|انذار|انذارات|طرد|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة|تقرير/iu;
 
 export function detectPlayers(text: string, players: SheetPlayer[]): DetectedLineup {
   const found = new Map<string, SelectionStatus>();
@@ -224,6 +279,92 @@ export async function applyMatchSheetLineup(
   const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true, isCaptain: true } });
   const existingById = new Map(existingLineups.map((entry) => [entry.playerId, entry]));
   const playerById = new Map(players.map((player) => [player.id, player]));
+
+  // 1. Cross-reference with substitution events (database and document):
+  // Players who entered as substitutes (SUBSTITUTION_IN) or exited (SUBSTITUTION_OUT)
+  const subsInIds = new Set<string>();
+  const subsOutIds = new Set<string>();
+
+  const existingEvents = await db.matchEvent.findMany({
+    where: { matchId },
+    select: { type: true, playerId: true, playerName: true, playerNameFr: true }
+  });
+  for (const ev of existingEvents) {
+    let resolvedId = ev.playerId;
+    if (!resolvedId) {
+      for (const evName of [ev.playerName, ev.playerNameFr].filter((n): n is string => Boolean(n))) {
+        const c = players.filter((p) => playerMatchesLine(evName, p));
+        if (c.length === 1) {
+          resolvedId = c[0]!.id;
+          break;
+        }
+      }
+    }
+    if (resolvedId) {
+      if (ev.type === "SUBSTITUTION_IN") subsInIds.add(resolvedId);
+      if (ev.type === "SUBSTITUTION_OUT") subsOutIds.add(resolvedId);
+    }
+  }
+
+  for (const player of players) {
+    for (const rawLine of text.split(/[\r\n]+/u)) {
+      if (playerMatchesLine(rawLine, player)) {
+        if (/دخول|بديل\s+داخل|entrant|remplaçant\s+entrant/iu.test(rawLine)) {
+          subsInIds.add(player.id);
+        } else if (/خروج|مستبدل|sortant|joueur\s+sortant/iu.test(rawLine)) {
+          subsOutIds.add(player.id);
+        }
+      }
+    }
+  }
+
+  // Any player who was subbed IN was on the bench
+  for (const inId of subsInIds) {
+    if (detected.players.get(inId) === "STARTING") {
+      detected.players.set(inId, "SUBSTITUTE");
+      detected.hasBenchSection = true;
+    }
+  }
+  // Any player who was subbed OUT was a starter
+  for (const outId of subsOutIds) {
+    if (detected.players.has(outId)) {
+      detected.players.set(outId, "STARTING");
+    }
+  }
+
+  // If all players were placed in STARTING because no bench header was matched
+  // (e.g. FAF EMS Page 1 with continuous roster), but there are >11 players:
+  // In football sheets, the first 11 are the starting XI, and remaining are bench.
+  const startingEntries = [...detected.players.entries()].filter(([, status]) => status === "STARTING");
+  if (startingEntries.length > 11 && !detected.hasBenchSection) {
+    let assigned = 0;
+    for (const [id] of startingEntries) {
+      if (subsInIds.has(id)) {
+        detected.players.set(id, "SUBSTITUTE");
+        continue;
+      }
+      if (assigned < 11 || subsOutIds.has(id)) {
+        detected.players.set(id, "STARTING");
+        assigned++;
+      } else {
+        detected.players.set(id, "SUBSTITUTE");
+      }
+    }
+    detected.hasBenchSection = true;
+  }
+
+  // If more than 1 goalkeeper is in starting lineup:
+  // In football squads, the first GK stays in STARTING, the backup GK moves to SUBSTITUTE
+  const currentGkStarters = [...detected.players.entries()]
+    .filter(([id, status]) => status === "STARTING" && playerById.get(id)?.position === "GOALKEEPER")
+    .map(([id]) => id);
+  if (currentGkStarters.length > 1) {
+    for (let i = 1; i < currentGkStarters.length; i++) {
+      detected.players.set(currentGkStarters[i]!, "SUBSTITUTE");
+      detected.hasBenchSection = true;
+    }
+  }
+
   const listedStartingIds = [...detected.players].filter(([, status]) => status === "STARTING").map(([id]) => id);
   const startingIds = listedStartingIds.filter((id) => !suspendedIds.has(id)
     && playerById.get(id)?.status !== "INJURED" && existingById.get(id)?.selectionStatus !== "INJURED");
@@ -237,7 +378,8 @@ export async function applyMatchSheetLineup(
 
   const starterCount = startingIds.length;
   const substituteCount = [...detected.players.values()].filter((status) => status === "SUBSTITUTE").length;
-  const hasRosterStructure = detected.hasExplicitNotCalledSection || detected.hasBenchSection || substituteCount > 0;
+  const hasRosterStructure = detected.hasExplicitNotCalledSection || detected.hasBenchSection || substituteCount > 0
+    || (starterCount === 11 && goalkeeperIds.length === 1);
   if (!detected.hasStarterSection || !hasRosterStructure || starterCount < 7 || listedStartingIds.length > 11 || goalkeeperIds.length > 1) {
     if (!hasRosterStructure) warnings.push("لم يُتعرف على حدّ فاصل موثوق بين الأساسيين والاحتياط/غير المستدعين؛ لم تُغيّر حالات اللاعبين.");
     return {

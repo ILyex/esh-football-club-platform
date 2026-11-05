@@ -412,8 +412,11 @@ export function parseFafReportTables(
     } else if (/^(?:الأهداف|الاهداف|أهداف\s+المباراة|اهداف\s+المباراة|\bbuts\b|\bgoals\b)\s*$/iu.test(line)
       || (/^(?:الأهداف|الاهداف|أهداف|اهداف)/iu.test(line) && line.length < 35)) {
       nextSection = "GOAL";
-    } else if (/^(?:تقرير\s+المباراة|تقرير\s+الحكم|ملاحظات\s+الحكم|تقرير|ملاحظات|\brapport\b)\s*$/iu.test(line)
-      || (/^(?:تقرير\s+المباراة|ملاحظات\s+الحكم)/iu.test(line) && line.length < 35)) {
+    } else if (
+      !/النهائي|قبل\s+اللقاء|بداية\s+المباراة|ضد|vs|حكم\s+اللقاء|FAF-EMS|\.pdf/iu.test(line) &&
+      (/^(?:تقرير\s+المباراة|تقرير\s+الحكم|ملاحظات\s+الحكم|تقرير|ملاحظات|\brapport\b)\s*[:：]?\s*$/iu.test(line)
+        || (/^(?:تقرير\s+المباراة|ملاحظات\s+الحكم)\s*[:：]?/iu.test(line) && line.length < 30))
+    ) {
       nextSection = "REPORT";
     }
 
@@ -430,7 +433,7 @@ export function parseFafReportTables(
   let subCounter = 0;
 
   for (const sec of sections) {
-    if (sec.type === "REPORT") break;
+    if (sec.type === "REPORT" || sec.type === "NONE") continue;
 
     if (sec.type === "SUB") {
       const unconsumedLines: string[] = [];

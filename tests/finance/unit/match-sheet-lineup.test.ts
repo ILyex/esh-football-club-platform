@@ -123,3 +123,46 @@ R.A.S
   assert.equal(detected.players.get("p3"), "SUBSTITUTE");
   assert.equal(detected.players.get("p4"), "SUBSTITUTE");
 });
+
+test("lineup parser: recognizes players with omitted middle names and compound prefixes", () => {
+  const { playerMatchesLine } = require("@/lib/matches/lineup-from-sheet");
+
+  // Middle name "وائل" omitted on sheet
+  assert.equal(playerMatchesLine("17 عمارة سيف الاسلام", squad.find((p) => p.id === "p3")!), true);
+
+  // Middle name "اسماعيل" omitted on sheet
+  assert.equal(playerMatchesLine("12 ذياب ياسر الدين", squad.find((p) => p.id === "p2")!), true);
+
+  // Compound prefix without space: بنصحراوي vs بن صحراوي
+  assert.equal(playerMatchesLine("10 بنصحراوي جمال الدين", squad.find((p) => p.id === "p8")!), true);
+
+  // Compound prefix with space: بو خرص vs بوخرص
+  assert.equal(playerMatchesLine("34 بو خرص عامر بلقاسم", squad.find((p) => p.id === "p5")!), true);
+});
+
+test("lineup parser: recognizes Algerian and French bench section headers", () => {
+  const variations = [
+    "قائمة الاحتياط",
+    "الاحتياطيين",
+    "قائمة البدلاء",
+    "بدلاء",
+    "المعوضين",
+    "Remplaçants"
+  ];
+
+  for (const header of variations) {
+    const text = `
+اللاعبون الأساسيون
+10 بن صحراوي جمال الدين
+4 عواد محمد صالح
+${header}
+17 عمارة سيف الاسلام وائل
+15 جلولي ابراهيم
+    `;
+    const detected = detectPlayers(text, squad);
+    assert.equal(detected.hasStarterSection, true, `Should detect starters with header: ${header}`);
+    assert.equal(detected.hasBenchSection, true, `Should detect bench with header: ${header}`);
+    assert.equal(detected.players.get("p8"), "STARTING");
+    assert.equal(detected.players.get("p3"), "SUBSTITUTE");
+  }
+});

@@ -273,4 +273,101 @@ test("referee report parser: full official FAF-EMS report (ESH vs RBS) with 2-co
 
   // 5. Verify narrative report extraction
   assert.equal(extractFinalMatchReportSection(officialFafReportText), "R.A.S");
+
+  // 6. Verify hasExplicitEventEvidence passes for all extracted events
+  for (const event of result.events) {
+    assert.ok(
+      hasExplicitEventEvidence(officialFafReportText, event, eshSquad),
+      `Event ${event.type} for ${event.playerName} at minute ${event.minute} must have explicit evidence`
+    );
+  }
+});
+
+test("referee report parser: real multiline PDF layout (names, cards, minutes on separate lines)", () => {
+  const eshSquad: SquadPlayer[] = [
+    { id: "esh-3", firstName: "لحسن", lastName: "عماري", shirtNumber: 3 },
+    { id: "esh-12", firstName: "ياسر الدين اسماعيل", lastName: "ذياب", shirtNumber: 12 },
+    { id: "esh-17", firstName: "سيف الاسلام وائل", lastName: "عمارة", shirtNumber: 17 },
+    { id: "esh-15", firstName: "ابراهيم", lastName: "جلولي", shirtNumber: 15 },
+    { id: "esh-34", firstName: "عامر بلقاسم", lastName: "بوخرص", shirtNumber: 34 },
+    { id: "esh-19", firstName: "محمد اسلام", lastName: "فرحات", shirtNumber: 19 },
+    { id: "esh-11", firstName: "ميلود", lastName: "زرقان", shirtNumber: 11 },
+    { id: "esh-10", firstName: "جمال الدين", lastName: "بن صحراوي", shirtNumber: 10 },
+    { id: "esh-4", firstName: "محمد صالح", lastName: "عواد", shirtNumber: 4 },
+    { id: "esh-41", firstName: "محمد أيوب", lastName: "لعروسي", shirtNumber: 41 },
+    { id: "esh-5", firstName: "معتز بالله", lastName: "ساكت", shirtNumber: 5 },
+    { id: "esh-9", firstName: "أحمد", lastName: "بومعزة", shirtNumber: 9 }
+  ];
+
+  const multilineFafReportText = [
+    "تقرير المباراة النهائي",
+    "FAF-EMS-259687-final-report-ar.pdf",
+    "",
+    "التغييرات",
+    "عماري لحسن 3",
+    "ذياب ياسر الدين اسماعيل 12",
+    "بين الشوطين",
+    "عمارة سيف الاسلام وائل 17",
+    "جلولي ابراهيم 15",
+    "71'",
+    "بوخرص عامر بلقاسم 34",
+    "عمارة سيف الاسلام وائل 17",
+    "90'",
+    "فرحات محمد اسلام 19",
+    "زرقان ميلود 11",
+    "90'",
+    "ملياني محمد ياسين 31",
+    "محمد بهاء الدين بوهني 20",
+    "61'",
+    "بن عتو نصرو 22",
+    "قرن يوسف 8",
+    "81'",
+    "",
+    "البطاقات",
+    "بن صحراوي جمال الدين 10",
+    "اللعب الخطير",
+    "10'",
+    "عواد محمد صالح 4",
+    "اللعب الخطير",
+    "25'",
+    "لعروسي محمد أيوب 41",
+    "سلوك غير رياضي",
+    "30'",
+    "ساكت معتز بالله 5",
+    "سلوك غير رياضي",
+    "82'",
+    "ذياب ياسر الدين اسماعيل 12",
+    "اهانة تجاه حكم",
+    "بعد نهاية المباراة",
+    "بلحواس جمال الدين 12",
+    "اللعب الخطير",
+    "34'",
+    "",
+    "الاهداف",
+    "بومعزة أحمد 9",
+    "هدف",
+    "67'",
+    "عامر أسامة 24",
+    "هدف",
+    "20'",
+    "بغداد كمال 9",
+    "هدف",
+    "78'",
+    "",
+    "تقرير المباراة",
+    "R.A.S"
+  ].join("\n");
+
+  const result = parseReportDeterministically(multilineFafReportText, eshSquad, { clubIsHome: true });
+  const goals = result.events.filter((e) => e.type === "GOAL");
+  assert.equal(goals.length, 3, `Expected 3 goals, got ${goals.length}: ${JSON.stringify(goals)}`);
+  assert.equal(result.events.filter((e) => e.type === "YELLOW_CARD" || e.type === "RED_CARD").length, 6, "should extract 6 cards from multiline text");
+  assert.equal(result.events.filter((e) => e.type === "SUBSTITUTION_IN").length, 6, "should extract 6 substitutions from multiline text");
+
+  for (const event of result.events) {
+    assert.ok(
+      hasExplicitEventEvidence(multilineFafReportText, event, eshSquad),
+      `Event ${event.type} for ${event.playerName} at minute ${event.minute} must have explicit evidence in multiline report`
+    );
+  }
 });
