@@ -26,7 +26,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 import { FormSelect } from "@/components/ui/form-select";
 import { MatchEditStatusFields } from "@/components/matches/match-edit-status-fields";
-import { Save, FileCheck, FileText, Download, Upload, Target, CircleDot, Square, UserCheck, Trophy, MapPin, CalendarDays, Sparkles, Trash2, CircleCheck, CircleX, Shield, ChevronDown } from "lucide-react";
+import { Save, FileCheck, FileText, Download, Upload, Target, CircleDot, Square, UserCheck, Users, Trophy, MapPin, CalendarDays, Sparkles, Trash2, CircleCheck, CircleX, Shield, ChevronDown } from "lucide-react";
 import { getOpponentLogo } from "@/lib/opponents";
 import { frenchCompetitionName } from "@/lib/public/locale-text";
 import { DocumentUploadPicker } from "@/components/documents/document-upload-picker";
@@ -36,7 +36,7 @@ import { MatchPeriodOptions } from "@/components/matches/match-period-options";
 import { MatchEditFixtureFields } from "@/components/matches/match-edit-fixture-fields";
 import { MatchEventForm } from "@/components/matches/match-event-form";
 import { MatchEventEditDialog } from "@/components/matches/match-event-edit-dialog";
-import { MatchManagementTabs } from "@/components/matches/match-management-tabs";
+import { MatchWorkflowStepper, type WorkflowStep } from "@/components/matches/match-workflow-stepper";
 import { OpponentNameInputs } from "@/components/matches/opponent-name-inputs";
 import { OpponentCrest } from "@/components/public/opponent-crest";
 import { getMatchClockState } from "@/lib/matches/clock";
@@ -206,18 +206,45 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
     ))
   );
 
-  const matchDataTab = { id: "match-data", label: locale === "ar" ? "بيانات المباراة" : "Données du match" };
-  const lineupTab = { id: "match-lineup", label: t("lineup.title") };
-  const documentsTab = { id: "match-documents", label: locale === "ar" ? "وثائق المباراة" : "Documents du match" };
-  const eventsTab = { id: "match-events", label: t("events.title") };
-  const shootoutTab = { id: "match-shootout", label: locale === "ar" ? "ركلات الترجيح" : "Tirs au but" };
-  const managementTabs = match.status === "LIVE"
-    ? [matchDataTab, eventsTab, lineupTab, ...(match.hasPenaltyShootout ? [shootoutTab] : []), documentsTab]
-    : match.status === "FINISHED"
-      ? [matchDataTab, eventsTab, documentsTab, lineupTab, ...(match.hasPenaltyShootout ? [shootoutTab] : [])]
-      : match.status === "POSTPONED" || match.status === "CANCELLED"
-        ? [matchDataTab, documentsTab, lineupTab, eventsTab, ...(match.hasPenaltyShootout ? [shootoutTab] : [])]
-        : [matchDataTab, lineupTab, documentsTab, eventsTab, ...(match.hasPenaltyShootout ? [shootoutTab] : [])];
+  const workflowSteps: WorkflowStep[] = [
+    {
+      id: "match-data",
+      label: locale === "ar" ? "بيانات المباراة" : "Données du match",
+      shortLabel: locale === "ar" ? "البيانات" : "Données",
+      description: locale === "ar" ? "الفريق والمسابقة والخصم والتوقيت والملعب" : "Équipes, horaire, stade et arbitres",
+      icon: "trophy"
+    },
+    {
+      id: "match-documents",
+      label: locale === "ar" ? "وثائق FAF EMS" : "Documents FAF EMS",
+      shortLabel: locale === "ar" ? "الوثائق" : "Documents",
+      description: locale === "ar" ? "جلب تقرير اللقاء والتشكيلة من FAF" : "Feuille de match et rapport d'arbitrage",
+      icon: "file-text"
+    },
+    {
+      id: "match-lineup",
+      label: locale === "ar" ? "تشكيلة الفريق" : "Composition",
+      shortLabel: locale === "ar" ? "التشكيلة" : "Composition",
+      description: locale === "ar" ? "الأساسيون والاحتياط وأرقام القمصان والقائد" : "Titulaires, remplaçants et capitaine",
+      icon: "users"
+    },
+    {
+      id: "match-events",
+      label: locale === "ar" ? "أحداث اللقاء" : "Événements",
+      shortLabel: locale === "ar" ? "الأحداث" : "Événements",
+      description: locale === "ar" ? "الخط الزمني للأهداف والإنذارات والتبديلات" : "Chronologie des buts, cartons et remplacements",
+      icon: "target"
+    },
+    ...(match.hasPenaltyShootout ? [{
+      id: "match-shootout",
+      label: locale === "ar" ? "ركلات الترجيح" : "Tirs au but",
+      shortLabel: locale === "ar" ? "ركلات الترجيح" : "Tirs au but",
+      description: locale === "ar" ? "تسجيل ركلات الترجيح وحسم نتيجة اللقاء" : "Séance de tirs au but décisive",
+      icon: "circle-dot" as const
+    }] : [])
+  ];
+
+  const initialStepId = match.status === "LIVE" ? "match-events" : "match-data";
 
   const homeLogoUrl = match.isHomeFixture ? "/branding/esh-logo-128.png" : opponentLogo;
   const awayLogoUrl = match.isHomeFixture ? opponentLogo : "/branding/esh-logo-128.png";
@@ -324,27 +351,41 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
         </div>
       </section>
 
-      <MatchManagementTabs
-        ariaLabel={locale === "ar" ? "التنقل في إدارة المباراة" : "Navigation de gestion du match"}
-        tabs={managementTabs}
+      <MatchWorkflowStepper
+        steps={workflowSteps}
+        locale={locale}
+        initialStepId={initialStepId}
+        ariaLabel={locale === "ar" ? "مسار إدارة المباراة" : "Parcours de gestion du match"}
       />
 
       <div className="grid min-w-0 grid-cols-1 items-stretch gap-5 2xl:gap-6">
-      <details id="match-data" open className="group min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
-        <summary className="mb-5 flex cursor-pointer list-none items-center justify-between border-b border-border/70 pb-4 marker:hidden">
+      <section id="match-data" className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-club-primary/10 text-club-primary ring-1 ring-club-primary/25">
               <Trophy className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-foreground">{locale === "ar" ? "بيانات المباراة وأوقاتها" : "Données et périodes du match"}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "الفريق والمسابقة والخصم وموعد المباراة" : "Équipe, compétition, adversaire et horaire"}</p>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-club-primary/15 px-2.5 py-0.5 text-xs font-bold text-club-primary">
+                  {locale === "ar" ? "الخطوة 1 من 4" : "Étape 1 sur 4"}
+                </span>
+                <h2 className="text-base font-bold text-foreground sm:text-lg">
+                  {locale === "ar" ? "بيانات وتفاصيل المباراة" : "Données et détails du match"}
+                </h2>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {locale === "ar" ? "الفريق والمسابقة والخصم وتاريخ وملعب المباراة وطاقم التحكيم" : "Équipes, compétition, adversaire, horaire, stade et arbitres"}
+              </p>
             </div>
           </div>
-          <span className="flex shrink-0 items-center gap-2">
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-          </span>
-        </summary>
+          {canUpdate && (
+            <Button type="submit" form="match-edit-form" size="sm" className="h-9 gap-2 rounded-xl bg-club-primary px-4 text-xs font-bold text-white shadow-sm hover:bg-club-primary-hover">
+              <Save className="h-4 w-4" aria-hidden="true" />
+              <span>{tCommon("save")}</span>
+            </Button>
+          )}
+        </header>
       <ActionFeedbackForm id="match-edit-form" action={update} successMessage={locale === "ar" ? "تم حفظ بيانات المباراة" : "Les données du match ont été enregistrées"} errorMessage={locale === "ar" ? "تعذر حفظ المباراة. تحقق من البيانات ثم أعد المحاولة." : "Impossible d’enregistrer le match. Vérifiez les données puis réessayez."} refreshOnSuccess className="grid w-full min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2 2xl:gap-6">
         <section className="min-w-0 space-y-4 rounded-2xl border border-border/70 bg-muted/15 p-4 sm:p-5 xl:row-start-1 xl:col-start-1">
           <div className="flex items-center gap-3 border-b border-border/60 pb-3">
@@ -534,95 +575,48 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           </div>
         </section>
       </ActionFeedbackForm>
-      </details>
+      </section>
 
-      {/* Lineup */}
-      <details id="match-lineup" open={canManageLineup} className="group h-full min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <summary className="mb-5 flex min-h-[88px] cursor-pointer list-none items-center justify-between gap-4 border-b border-border/70 pb-4 marker:hidden">
+      {/* Step 2: Match Documents */}
+      <section id="match-documents" className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-              <UserCheck className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-foreground">{t("lineup.title")}</h2>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{locale === "ar" ? `تُملأ القائمة من وثيقة FAF: الأساسيون والاحتياط، والباقون غير مدعوين. حدّد المصابين يدويًا؛ ويُحسب الإيقاف من البطاقة الحمراء في آخر مباراة سابقة ضمن المسابقة نفسها.${matchTeamCategory === "SENIOR" ? " لاعبو U20 متاحون أيضًا لتشكيلة الأكابر." : ""}` : `La feuille FAF renseigne les titulaires et les remplaçants ; les autres joueurs sont non convoqués. Saisissez les blessures manuellement. Une expulsion au dernier match précédent de cette compétition entraîne une suspension.${matchTeamCategory === "SENIOR" ? " Les joueurs U20 sont aussi disponibles avec les seniors." : ""}`}</p>
-            </div>
-          </div>
-          <span className="flex shrink-0 items-center gap-2">
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-          </span>
-        </summary>
-        <MatchLineupWorkspace
-          matchId={match.id}
-          locale={locale}
-          players={trackedPlayers.map((player) => ({
-            id: player.id,
-            firstName: player.firstName,
-            lastName: player.lastName,
-            firstNameFr: player.firstNameFr,
-            lastNameFr: player.lastNameFr,
-            photoUrl: player.photoUrl,
-            shirtNumber: player.shirtNumber,
-            position: player.position,
-            status: player.status
-          }))}
-          lineups={match.lineups.map((lineup) => ({
-            playerId: lineup.playerId,
-            isCaptain: lineup.isCaptain,
-            isStarting: lineup.isStarting,
-            selectionStatus: lineup.selectionStatus,
-            position: lineup.position,
-            shirtNumber: lineup.shirtNumber
-          }))}
-          autoSuspendedPlayerIds={Array.from(previousRedCardPlayerIds)}
-          canEdit={canManageLineup}
-          fetchFafLineup={canReport ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
-          saveEntry={addLineupEntry}
-          removeEntry={removeLineupPlayer}
-          swapPositions={swapLineupPositions}
-          syncAutomaticSuspensions={syncLineupSuspensions}
-        />
-
-      </details>
-
-
-{/* ---------------------------------- Match documents */}
-      <details id="match-documents" open={showRefereeReport} className="group h-full min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <summary className="mb-5 flex min-h-[88px] cursor-pointer list-none items-center justify-between gap-4 border-b border-border/70 pb-4 marker:hidden">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/25">
               <FileText className="h-5 w-5" aria-hidden="true" />
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <h2 className="text-base font-bold leading-tight text-foreground">
-                  {locale === "ar" ? "وثائق المباراة المحفوظة" : "Documents enregistrés du match"}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  {locale === "ar" ? "الخطوة 2 من 4" : "Étape 2 sur 4"}
+                </span>
+                <h2 className="text-base font-bold text-foreground sm:text-lg">
+                  {locale === "ar" ? "وثائق ورسميات المباراة — FAF EMS" : "Documents officiels du match — FAF EMS"}
                 </h2>
               </div>
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {locale === "ar"
-                  ? "اجلب وثيقة بداية المباراة والتقرير النهائي ومجريات اللقاء من سجل Historique في حساب النادي على FAF EMS مباشرة إلى المنصة."
-                  : "Importez ici la feuille de début, le rapport final et les événements depuis l’Historique FAF EMS du club."}
+                  ? "اجلب ورقة بداية المباراة والتقرير النهائي تلقائياً من FAF EMS لاستخراج التشكيلة والأحداث آلياً، أو ارفعها يدوياً"
+                  : "Importez automatiquement la feuille de début et le rapport final depuis FAF EMS ou déposez-les manuellement."}
               </p>
             </div>
           </div>
+          {canReport && (
+            <div className="shrink-0">
+              <FafEmsSyncButton matchId={match.id} locale={locale} />
+            </div>
+          )}
+        </header>
 
-          <span className="flex shrink-0 items-center gap-2">
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-          </span>
-        </summary>
-        {canReport && <div className="mb-4 flex justify-end"><FafEmsSyncButton matchId={match.id} locale={locale} /></div>}
         <div className="space-y-6">
-
         {/* 1. Pre-Match Lineup Sheet Card */}
-        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-              <FileCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-sm font-bold text-foreground">
-                {locale === "ar" ? "1. ورقة التشكيل قبل المباراة" : "1. Feuille de composition avant match"}
-              </h3>
+                <FileCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="text-sm font-bold text-foreground">
+                  {locale === "ar" ? "1. ورقة التشكيل قبل المباراة" : "1. Feuille de composition avant match"}
+                </h3>
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 {locale === "ar" ? "ارفع الورقة الرسمية، ويمكن استخراج اللاعبين منها تلقائياً." : "Déposez la feuille officielle et extrayez automatiquement les joueurs."}
@@ -642,7 +636,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           </div>
 
           {preMatchSheet ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
               <div>
                 <p className="font-semibold text-xs text-foreground">{preMatchSheet.name}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -704,14 +698,14 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
 
         {/* 2. Post-Match Referee Report Card */}
         {showRefereeReport && (
-        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-sm font-bold text-foreground">
-                {locale === "ar" ? "2. تقرير حكم اللقاء بعد المباراة" : "2. Rapport d'arbitrage après match"}
-              </h3>
+                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-sm font-bold text-foreground">
+                  {locale === "ar" ? "2. تقرير حكم اللقاء بعد المباراة" : "2. Rapport d'arbitrage après match"}
+                </h3>
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 {locale === "ar" ? "يجلب التقرير والنتيجة والأحداث مباشرة من FAF EMS عبر زر الجلب أعلى الصفحة." : "Le rapport, le score et les événements sont importés directement depuis FAF EMS avec le bouton en haut de page."}
@@ -731,7 +725,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           </div>
 
           {refereeReport ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
               <div>
                 <p className="font-semibold text-xs text-foreground">{refereeReport.name}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -759,28 +753,90 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
               </div>
             </div>
           ) : null}
-
         </div>
         )}
         </div>
-      </details>
+      </section>
 
-      {/* Match events */}
-      <details id="match-events" open={match.status === "LIVE"} className="group min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
-        <summary className="mb-5 flex cursor-pointer list-none items-center justify-between border-b border-border/70 pb-4 marker:hidden">
+      {/* Step 3: Match Lineup */}
+      <section id="match-lineup" className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 ring-1 ring-blue-500/25">
+              <Users className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-blue-500/15 px-2.5 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {locale === "ar" ? "الخطوة 3 من 4" : "Étape 3 sur 4"}
+                </span>
+                <h2 className="text-base font-bold text-foreground sm:text-lg">{t("lineup.title")}</h2>
+              </div>
+              <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+                {locale === "ar"
+                  ? `الأساسيون (11 لاعباً) والاحتياط، وأرقام القمصان والقائد. تم استخراجها من وثيقة FAF وتستطيع تعديلها يدوياً.${matchTeamCategory === "SENIOR" ? " لاعبو U20 متاحون أيضاً." : ""}`
+                  : "Titulaires, remplaçants, numéros et capitaine de l'équipe."}
+              </p>
+            </div>
+          </div>
+          {canReport && (
+            <div className="shrink-0">
+              <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} />
+            </div>
+          )}
+        </header>
+        <MatchLineupWorkspace
+          matchId={match.id}
+          locale={locale}
+          players={trackedPlayers.map((player) => ({
+            id: player.id,
+            firstName: player.firstName,
+            lastName: player.lastName,
+            firstNameFr: player.firstNameFr,
+            lastNameFr: player.lastNameFr,
+            photoUrl: player.photoUrl,
+            shirtNumber: player.shirtNumber,
+            position: player.position,
+            status: player.status
+          }))}
+          lineups={match.lineups.map((lineup) => ({
+            playerId: lineup.playerId,
+            isCaptain: lineup.isCaptain,
+            isStarting: lineup.isStarting,
+            selectionStatus: lineup.selectionStatus,
+            position: lineup.position,
+            shirtNumber: lineup.shirtNumber
+          }))}
+          autoSuspendedPlayerIds={Array.from(previousRedCardPlayerIds)}
+          canEdit={canManageLineup}
+          fetchFafLineup={canReport ? <FafEmsSyncButton matchId={match.id} locale={locale} buttonLabel={locale === "ar" ? "جلب التشكيلة من FAF EMS" : "Importer la composition FAF EMS"} /> : null}
+          saveEntry={addLineupEntry}
+          removeEntry={removeLineupPlayer}
+          swapPositions={swapLineupPositions}
+          syncAutomaticSuspensions={syncLineupSuspensions}
+        />
+      </section>
+
+      {/* Step 4: Match Events */}
+      <section id="match-events" className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/25">
               <Target className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-foreground">{t("events.title")}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "سجّل الأهداف والبطاقات أثناء المباراة المباشرة." : "Enregistrez les buts et sanctions pendant le direct."}</p>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  {locale === "ar" ? (match.hasPenaltyShootout ? "الخطوة 4 من 5" : "الخطوة 4 من 4") : (match.hasPenaltyShootout ? "Étape 4 sur 5" : "Étape 4 sur 4")}
+                </span>
+                <h2 className="text-base font-bold text-foreground sm:text-lg">{t("events.title")}</h2>
+              </div>
+              <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+                {locale === "ar" ? "سجل الأهداف والبطاقات والتبديلات المستخرجة من التقرير الرسمي أو أثناء النقل المباشر." : "Enregistrez les buts, cartons et remplacements extraits du rapport ou en direct."}
+              </p>
             </div>
           </div>
-          <span className="flex shrink-0 items-center gap-2">
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-          </span>
-        </summary>
+        </header>
         {(() => {
           let runningHome = 0;
           let runningAway = 0;
@@ -929,24 +985,28 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
             {locale === "ar" ? "تسجيل الأهداف والبطاقات متاح فقط عندما تكون المباراة مباشرة." : "L’enregistrement des buts et cartons est disponible uniquement lorsque le match est en direct."}
           </p>
         )}
-      </details>
+      </section>
 
       {match.hasPenaltyShootout && (
-        <details id="match-shootout" open={shootoutReady} className="group min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
-          <summary className="mb-4 flex cursor-pointer list-none items-center justify-between border-b border-border/70 pb-4 marker:hidden">
+        <section id="match-shootout" className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 xl:col-span-2">
+          <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 ring-1 ring-red-500/25">
                 <CircleDot className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-foreground">{locale === "ar" ? "ركلات الترجيح" : "Tirs au but"}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{locale === "ar" ? "كل ركلة مرتبطة باللاعب ونتيجتها" : "Chaque tir est associé au joueur et à son résultat"}</p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-md bg-red-500/15 px-2.5 py-0.5 text-xs font-bold text-red-600 dark:text-red-400">
+                    {locale === "ar" ? "الخطوة 5 من 5" : "Étape 5 sur 5"}
+                  </span>
+                  <h2 className="text-base font-bold text-foreground sm:text-lg">{locale === "ar" ? "ركلات الترجيح" : "Tirs au but"}</h2>
+                </div>
+                <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+                  {locale === "ar" ? "كل ركلة ترجيح مرتبطة باللاعب ونتيجتها (سجل أو أضاع)." : "Chaque tir au but est associé au joueur et à son résultat."}
+                </p>
               </div>
             </div>
-            <span className="flex shrink-0 items-center gap-2">
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-            </span>
-          </summary>
+          </header>
           {match.shootoutKicks.length > 0 ? <div className="mb-4 grid grid-cols-1 gap-3 2xl:grid-cols-2">
             {(["HOME", "AWAY"] as const).map((side) => <div key={side} className="rounded-xl border border-border/70 bg-background/40 p-3">
               <h3 className="mb-2 text-sm font-bold">{side === "HOME" ? homeTeamName : awayTeamName}</h3>
@@ -977,7 +1037,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ lo
           {canReport && <ActionFeedbackForm action={addShootoutKick} successMessage={locale === "ar" ? "تم تسجيل ركلة الترجيح" : "Le tir au but a été enregistré"} errorMessage={locale === "ar" ? "تعذر تسجيل الركلة. تحقق من البيانات ثم أعد المحاولة." : "Impossible d’enregistrer le tir. Vérifiez les données puis réessayez."}>
             <ShootoutKickForm available={shootoutReady} locale={locale} homeTeamName={homeTeamName} awayTeamName={awayTeamName} clubSide={match.isHomeFixture ? "HOME" : "AWAY"} players={trackedPlayers.filter((player) => player.status === "ACTIVE").map(({ id, firstName, lastName }) => ({ id, firstName, lastName }))} />
           </ActionFeedbackForm>}
-        </details>
+        </section>
       )}
       </div>
 
