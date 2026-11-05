@@ -83,10 +83,16 @@ export function A4Pager({ targetId, className }: { targetId: string; className?:
       const stage = document.createElement("div");
       try {
         const style = window.getComputedStyle(source);
-        const padTop = Number.parseFloat(style.paddingTop) || 0;
-        const padBottom = Number.parseFloat(style.paddingBottom) || 0;
-        const padLeft = Number.parseFloat(style.paddingLeft) || 0;
-        const padRight = Number.parseFloat(style.paddingRight) || 0;
+        const childStyle = source.firstElementChild instanceof HTMLElement ? window.getComputedStyle(source.firstElementChild) : null;
+        const rawPadTop = Number.parseFloat(style.paddingTop) || (childStyle ? Number.parseFloat(childStyle.paddingTop) : 0);
+        const rawPadBottom = Number.parseFloat(style.paddingBottom) || (childStyle ? Number.parseFloat(childStyle.paddingBottom) : 0);
+        const rawPadLeft = Number.parseFloat(style.paddingLeft) || (childStyle ? Number.parseFloat(childStyle.paddingLeft) : 0);
+        const rawPadRight = Number.parseFloat(style.paddingRight) || (childStyle ? Number.parseFloat(childStyle.paddingRight) : 0);
+        const minPadding = 10 * MM_TO_PX; // At least 10mm margins for real A4 layout
+        const padTop = Math.max(rawPadTop, minPadding);
+        const padBottom = Math.max(rawPadBottom, minPadding);
+        const padLeft = Math.max(rawPadLeft, minPadding);
+        const padRight = Math.max(rawPadRight, minPadding);
         const contentHeight = PAGE_HEIGHT_MM * MM_TO_PX - padTop - padBottom;
 
         // Measure at a real sheet width: a narrower stage changes text wrapping
@@ -108,6 +114,9 @@ export function A4Pager({ targetId, className }: { targetId: string; className?:
           page.style.fontSize = style.fontSize;
           page.style.lineHeight = style.lineHeight;
           page.style.color = style.color;
+          page.style.minHeight = `${PAGE_HEIGHT_MM}mm`;
+          page.style.height = `${PAGE_HEIGHT_MM}mm`;
+          page.style.boxSizing = "border-box";
           page.style.padding = `${padTop}px ${padRight}px ${padBottom}px ${padLeft}px`;
           for (const watermark of watermarks) page.appendChild(watermark.cloneNode(true));
           const body = document.createElement("div");
@@ -120,7 +129,8 @@ export function A4Pager({ targetId, className }: { targetId: string; className?:
         };
 
         let body = newPage();
-        const full = () => body.scrollHeight > contentHeight + 1;
+        const SAFETY_HEADROOM = 16;
+        const full = () => body.scrollHeight > (contentHeight - SAFETY_HEADROOM);
 
         for (const atom of collectAtoms(source, contentHeight * 0.6)) {
           if (atom.kind === "node") {

@@ -1,5 +1,4 @@
 "use client";
-import { A4Pager } from "@/components/shared/a4-pager";
 
 import { useState } from "react";
 import { Printer, Eye, X, Shield } from "lucide-react";
@@ -166,7 +165,6 @@ export function InventoryPreviewModal({
 
             {/* Printable Official Document Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-200/50 dark:bg-zinc-950/50 flex justify-center print:overflow-visible print:p-0 print:m-0 print:bg-white print:block">
-              <A4Pager targetId={elementId} />
               <div id={elementId} className="printable-document inventory-list-document mx-auto flex w-[210mm] shrink-0 flex-col gap-6 text-start text-black" style={{ fontFamily: ESH_DOCUMENT_FONT_FAMILY, direction: isAr ? "rtl" : "ltr" }}>
                 {pages.map((pageSections, pageIndex) => {
                   const isLastPage = pageIndex === pages.length - 1;

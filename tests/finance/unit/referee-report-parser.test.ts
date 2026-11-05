@@ -5,6 +5,7 @@ import {
   parseReportDeterministically,
   hasExplicitEventEvidence,
   parseEventMinute,
+  eventMinuteFromReportLine,
   parseFafReportTables,
   type SquadPlayer
 } from "@/lib/ai/referee-report-ai-service";
@@ -165,12 +166,18 @@ test("extractFinalMatchReportSection: rejects raw document dumps without genuine
   assert.ok(isRawDocumentDump(rawDump), "isRawDocumentDump must recognize document tables");
 });
 
-test("referee report parser: handles special match minutes (half-time and full-time)", () => {
+test("referee report parser: handles special match minutes (half-time, full-time, timestamps and bidi marks)", () => {
   assert.equal(parseEventMinute("بين الشوطين"), 45);
   assert.equal(parseEventMinute("mi-temps"), 45);
   assert.equal(parseEventMinute("بعد نهاية المباراة"), 90);
   assert.equal(parseEventMinute("fin du match"), 90);
   assert.equal(parseEventMinute("90+3"), 93);
+  assert.equal(parseEventMinute("67:00"), 67);
+  assert.equal(parseEventMinute("01:11:00"), 71);
+  assert.equal(parseEventMinute("\u200E25'"), 25);
+  assert.equal(parseEventMinute("\u200F82'"), 82);
+  assert.equal(eventMinuteFromReportLine("\u200E67'"), 67);
+  assert.equal(eventMinuteFromReportLine("هدف \u200F67:00"), 67);
 });
 
 test("referee report parser: full official FAF-EMS report (ESH vs RBS) with 2-column tables", () => {
@@ -370,4 +377,29 @@ test("referee report parser: real multiline PDF layout (names, cards, minutes on
       `Event ${event.type} for ${event.playerName} at minute ${event.minute} must have explicit evidence in multiline report`
     );
   }
+});
+
+test("referee report parser: handles text with invisible Bidi markers (\u200E, \u200F)", () => {
+  const eshSquad: SquadPlayer[] = [
+    { id: "esh-9", firstName: "أحمد", lastName: "بومعزة", shirtNumber: 9 },
+    { id: "esh-10", firstName: "جمال الدين", lastName: "بن صحراوي", shirtNumber: 10 }
+  ];
+
+  const bidiReportText = [
+    "\u200Eتقرير المباراة النهائي — نادي أمل سيدي حسني ضد ر.سوقر (RBS)",
+    "\u200Fالبطاقات",
+    "\u200Eبن صحراوي جمال الدين 10 اللعب الخطير \u200E10'",
+    "",
+    "\u200Fالاهداف",
+    "\u200Eبومعزة أحمد 9 هدف \u200F67'"
+  ].join("\n");
+
+  const result = parseReportDeterministically(bidiReportText, eshSquad, { clubIsHome: true });
+  assert.equal(result.events.length, 2, "must extract both events even with Bidi markers");
+  const goal = result.events.find((e) => e.type === "GOAL");
+  assert.ok(goal, "Goal must be extracted");
+  assert.equal(goal.minute, 67);
+  const card = result.events.find((e) => e.type === "YELLOW_CARD");
+  assert.ok(card, "Card must be extracted");
+  assert.equal(card.minute, 10);
 });

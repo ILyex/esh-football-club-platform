@@ -267,12 +267,34 @@ function eventMinute(value: unknown): number {
     return eventMinute(record.minute ?? record.min ?? record.value ?? record.time ?? record.temps);
   }
   if (typeof value === "number") return Number.isFinite(value) ? Math.min(130, Math.max(0, Math.trunc(value))) : 0;
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .trim();
+  if (!text) return 0;
   if (/بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(text)) return 45;
   if (/بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match/iu.test(text)) return 90;
+
+  // Handle timestamps like "67:00" or "01:07:00"
+  const colonMatch = text.match(/^(?:(\d{1,2}):)?(\d{1,3}):(\d{2})$/);
+  if (colonMatch) {
+    const hours = Number(colonMatch[1] || 0);
+    const mins = Number(colonMatch[2]);
+    const totalMin = hours * 60 + mins;
+    return totalMin > 0 ? Math.min(130, totalMin) : 0;
+  }
+
   const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu)
-    || text.match(/(?:^|\D)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?(?:$|\D)/iu);
-  if (!match) return 0;
+    || text.match(/(?:^|\D)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?(?:$|\D)/iu)
+    || text.match(/(?:^|\D)(\d{1,3})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)(?:$|\D)/iu);
+  if (!match) {
+    const plainNum = text.match(/\b(\d{1,3})\b/);
+    if (plainNum) {
+      const n = Number(plainNum[1]);
+      if (n > 0 && n <= 130) return n;
+    }
+    return 0;
+  }
   const minute = Number(match[1]) + Number(match[2] || 0);
   return Number.isFinite(minute) ? Math.min(130, Math.max(0, minute)) : 0;
 }

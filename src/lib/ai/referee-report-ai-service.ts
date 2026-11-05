@@ -144,23 +144,50 @@ export function parseEventMinute(value: unknown): number | null {
   if (typeof value === "number") {
     return Number.isInteger(value) && value >= 1 && value <= 130 ? value : null;
   }
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .trim();
   if (/^(?:بين\s+الشوطين|mi[\s-]temps?|half[\s-]time)$/iu.test(text)) return 45;
   if (/^(?:بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match|fin\s+de\s+match|full[\s-]time)$/iu.test(text)) return 90;
-  const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu);
+
+  const colonMatch = text.match(/^(?:(\d{1,2}):)?(\d{1,3}):(\d{2})$/);
+  if (colonMatch) {
+    const hours = Number(colonMatch[1] || 0);
+    const mins = Number(colonMatch[2]);
+    const totalMin = hours * 60 + mins;
+    return totalMin >= 1 && totalMin <= 130 ? totalMin : null;
+  }
+
+  const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu)
+    || text.match(/(?:^|\D)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?(?:$|\D)/iu)
+    || text.match(/(?:^|\D)(\d{1,3})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)(?:$|\D)/iu);
   if (!match) return null;
   const minute = Number(match[1]) + Number(match[2] || 0);
   return Number.isInteger(minute) && minute >= 1 && minute <= 130 ? minute : null;
 }
 
 export function eventMinuteFromReportLine(line: string): number | null {
-  if (/بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(line)) return 45;
-  if (/بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match|fin\s+de\s+match/iu.test(line)) return 90;
-  const match = line.match(/(?:^|\s)(?:دقيقة|د)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
-    || line.match(/(?:^|\s)(?:min(?:ute)?|mn)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
-    || line.match(/(?:^|\s)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′])?(?:\s|$)/u)
-    || line.match(/(?:^|\s)(\d{1,3})\s*(?:['’′]|mn|mins?)(?:\s|$)/iu)
-    || line.match(/(?:^|\s)(\d{1,3})(?:er|e|ème)\s*(?:minute|min)/iu);
+  const clean = String(line ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .trim();
+  if (/بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(clean)) return 45;
+  if (/بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match|fin\s+de\s+match/iu.test(clean)) return 90;
+
+  const colonMatch = clean.match(/(?:^|\s)(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:\s|$)/);
+  if (colonMatch) {
+    const hours = Number(colonMatch[1] || 0);
+    const mins = Number(colonMatch[2]);
+    const totalMin = hours * 60 + mins;
+    return totalMin >= 1 && totalMin <= 130 ? totalMin : null;
+  }
+
+  const match = clean.match(/(?:^|\s)(?:دقيقة|د)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
+    || clean.match(/(?:^|\s)(?:min(?:ute)?|mn)\s*[:.]?\s*(\d{1,3})(?:\s*\+\s*(\d{1,2}))?/iu)
+    || clean.match(/(?:^|\s)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′])?(?:\s|$)/u)
+    || clean.match(/(?:^|\s)(\d{1,3})\s*(?:['’′]|mn|mins?)(?:\s|$)/iu)
+    || clean.match(/(?:^|\s)(\d{1,3})(?:er|e|ème)\s*(?:minute|min)/iu);
   return match ? parseEventMinute(`${match[1]}${match[2] ? `+${match[2]}` : ""}`) : null;
 }
 
@@ -289,17 +316,23 @@ export function findBestPlayerMatch(
 }
 
 export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, squad: SquadPlayer[]): boolean {
+  // Events paired structurally by the official table parser already have explicit evidence
+  if (event.substitutionPairKey) return true;
+
   const eventPattern: Record<ParsedEventItem["type"], RegExp> = {
     GOAL: /هدف|سجل|أهداف|اهداف|\bbut\b|\bgoal\b|marqu/iu,
     ASSIST: /تمريرة\s*حاسمة|صنع|صانع|passe\s+d[eé]cisive|passe\s+d['’]|\bassist/iu,
-    YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|carton\s+jaune|avertissement|\byellow\b/iu,
-    RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|carton\s+rouge|expulsion|\bred\s+card\b/iu,
+    YELLOW_CARD: /بطاقة\s*صفراء|صفراء|إنذار|انذار|اللعب\s+الخطير|سلوك\s+غير\s+رياضي|احتجاج|اعتراض|عرقلة|carton\s+jaune|avertissement|\byellow\b/iu,
+    RED_CARD: /بطاقة\s*حمراء|حمراء|طرد|اهانة|إهانة|سب|شتم|اعتداء|بصق|سلوك\s+مشين|انذارين|إنذارين|carton\s+rouge|expulsion|\bred\s+card\b/iu,
     SUBSTITUTION_IN: /دخول|دخل|شارك\s+بدلا|بديل|تبديل|تغيير|تغييرات|تبديلات|remplacement|substitution|remplaçant|entrant|entr[eé]e|entr[eé]\s+en\s+jeu|substitut\s+entrant|\bin\b/iu,
     SUBSTITUTION_OUT: /خروج|خرج|استبدل|بدلا\s+من|مكان|تبديل|تغيير|تغييرات|تبديلات|remplacement|substitution|remplaçant|sortant|sortie|sorti\s+du\s+terrain|substitu[eé]\s+out|\bout\b/iu
   };
 
   const player = event.playerId ? squad.find((candidate) => candidate.id === event.playerId) : null;
-  const lines = text.split(/[\r\n;.!?]+/u).map((line) => line.trim()).filter(Boolean);
+  const lines = text
+    .split(/[\r\n;.!?]+/u)
+    .map((line) => line.normalize("NFKC").replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00A0]/g, " ").replace(/[\u064B-\u065F\u0670ـ]/g, "").trim())
+    .filter(Boolean);
   if (!lines.length) return false;
 
   // Track section context across lines for column-extracted FAF tables
@@ -338,8 +371,8 @@ export function hasExplicitEventEvidence(text: string, event: ParsedEventItem, s
   };
 
   for (let index = 0; index < lines.length; index++) {
-    const start = Math.max(0, index - 4);
-    const end = Math.min(lines.length, index + 5);
+    const start = Math.max(0, index - 10);
+    const end = Math.min(lines.length, index + 11);
     const windowText = lines.slice(start, end).join(" ");
 
     if (matchesPlayer(windowText) && windowHasMinute(windowText)) {
@@ -400,7 +433,11 @@ export function parseFafReportTables(
   let currentLines: string[] = [];
 
   for (const raw of rawLines) {
-    const line = raw.trim();
+    const line = raw
+      .normalize("NFKC")
+      .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00A0]/g, " ")
+      .replace(/[\u064B-\u065F\u0670ـ]/g, "")
+      .trim();
     if (!line) continue;
     let nextSection: SectionType | null = null;
     if (/^(?:التغييرات|تغييرات|التبديلات|تبديلات|\bremplacements?\b|\bsubstitutions?\b)\s*$/iu.test(line)

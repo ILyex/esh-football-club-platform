@@ -128,10 +128,10 @@ export function playerMatchesLine(line: string, player: SheetPlayer): boolean {
   return false;
 }
 
-const STARTING = /اساسي|الاساسيون|الاساسيين|الاساسية|التشكيل الاساسي|التشكيلة الاساسية|التشكيله الاساسيه|قائمة البداية|قائمة الاساسيين|قائمة اللاعبين الاساسيين|titulaires?|onze de depart|equipe titulaire|joueurs titulaires|starting/iu;
+const STARTING = /اساسي|الاساسيون|الاساسيين|الاساسية|التشكيل الاساسي|التشكيلة الاساسية|التشكيله الاساسيه|قائمة البداية|قائمة الاساسيين|قائمة اللاعبين الاساسيين|التشكيل|التشكيلة|الفريق\s+الاساسي|titulaires?|onze de depart|equipe titulaire|joueurs titulaires|composition|starting/iu;
 const SUBSTITUTE = /احتياط|الاحتياط|الاحتياطيون|الاحتياطيين|قائمة الاحتياط|اللاعبين الاحتياط|اللاعبون الاحتياطيون|بدلاء|البدلاء|قائمة البدلاء|دكة البدلاء|دكه البدلاء|اللاعبين البدلاء|اللاعبون البدلاء|(?:^|[\s_،,.-])(?:ال)?بديل(?:ين|ان|ة|ه)?(?=$|[\s_،,.-])|معوض|معوضين|المعوضين|قائمة المعوضين|اللاعبين المعوضين|remplacants?|banc|rempla[cç]ants?|substitutes?|reserves?|reservistes?/iu;
 const NOT_CALLED = /non convoques?|non retenus?|absents?|joueurs absents|غير مستدعى|غير مدعو|غيابات|قائمة الغياب/iu;
-const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|blesses?|score|resultat|blessures?|rapport|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|انذار|انذارات|طرد|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة|تقرير/iu;
+const OUTSIDE_LINEUP = /arbitres?|officiels?|delegues?|entraineurs?|coach|staff|encadrement|observations?|remarques?|signatures?|sanctions?|cartons?|buts?|evenements?|blesses?|score|resultat|blessures?|referees?|طاقم|حكام|مدربين|ملاحظات|توقيعات|عقوبات|بطاقات|انذار|انذارات|طرد|اهداف|أهداف|احداث|أحداث|نتيجه|نتيجة|(?:^|\s)(?:ملاحظات\s+الحكم|تقرير\s+الحكم)(?:\s|$)/iu;
 
 export function detectPlayers(text: string, players: SheetPlayer[]): DetectedLineup {
   const found = new Map<string, SelectionStatus>();
@@ -320,10 +320,8 @@ export async function applyMatchSheetLineup(
 
   // Any player who was subbed IN was on the bench
   for (const inId of subsInIds) {
-    if (detected.players.get(inId) === "STARTING") {
-      detected.players.set(inId, "SUBSTITUTE");
-      detected.hasBenchSection = true;
-    }
+    detected.players.set(inId, "SUBSTITUTE");
+    detected.hasBenchSection = true;
   }
   // Any player who was subbed OUT was a starter
   for (const outId of subsOutIds) {
@@ -378,6 +376,9 @@ export async function applyMatchSheetLineup(
 
   const starterCount = startingIds.length;
   const substituteCount = [...detected.players.values()].filter((status) => status === "SUBSTITUTE").length;
+  if (starterCount >= 7 && (substituteCount > 0 || detected.hasBenchSection)) {
+    detected.hasStarterSection = true;
+  }
   const hasRosterStructure = detected.hasExplicitNotCalledSection || detected.hasBenchSection || substituteCount > 0
     || (starterCount === 11 && goalkeeperIds.length === 1);
   if (!detected.hasStarterSection || !hasRosterStructure || starterCount < 7 || listedStartingIds.length > 11 || goalkeeperIds.length > 1) {

@@ -777,14 +777,25 @@ img[src^="blob:"] {
 .printable-document,
 .printable-document *,
 #official-inventory-document,
-#official-inventory-document *,
-#official-inventory-preview-document,
-#official-inventory-preview-document *,
-.esh-official-document,
-.esh-official-document * {
+#official-inventory-document:not(table, thead, tbody, tfoot, tr, th, td),
+#official-inventory-document *:not(table, thead, tbody, tfoot, tr, th, td),
+#official-inventory-preview-document:not(table, thead, tbody, tfoot, tr, th, td),
+#official-inventory-preview-document *:not(table, thead, tbody, tfoot, tr, th, td),
+.esh-official-document:not(table, thead, tbody, tfoot, tr, th, td),
+.esh-official-document *:not(table, thead, tbody, tfoot, tr, th, td) {
   font-family: 'Traditional Arabic', 'Arabic Typesetting', serif !important;
   font-size: 19px !important;
   line-height: 1.45 !important;
+}
+
+#official-inventory-document table th,
+#official-inventory-document table td,
+#official-inventory-preview-document table th,
+#official-inventory-preview-document table td,
+.esh-official-document table th,
+.esh-official-document table td {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
 }
 
 .esh-official-document-header,
@@ -1409,6 +1420,8 @@ button:active,
   position: relative;
   box-sizing: border-box;
   width: min(210mm, 100%);
+  min-height: 297mm;
+  height: 297mm;
   background: #ffffff;
   color: #111111;
   box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.08);

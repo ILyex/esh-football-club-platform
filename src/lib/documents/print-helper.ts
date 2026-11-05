@@ -121,11 +121,20 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
       font-family: ${ESH_DOCUMENT_FONT_FAMILY} !important;
     }
 
-    /* Apply the requested common document type size across every print view. */
-    .esh-print-page,
-    .esh-print-page * {
-      font-size: 19px !important;
+    /* Document typography: Paragraphs and narrative text use comfortable 18-19px, while tables keep compact readable 11-12px sizing so rows fit nicely on printed A4 pages. */
+    .esh-print-page {
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    .esh-print-page p,
+    .esh-print-page .esh-attestation-body {
+      font-size: 18px !important;
       line-height: 1.45 !important;
+    }
+    .esh-print-page table:not(.grand-total-section) th,
+    .esh-print-page table:not(.grand-total-section) td {
+      font-size: 11px !important;
+      line-height: 1.3 !important;
     }
 
     /* Named pages use the same A4 printable area as every other document. */
@@ -297,9 +306,9 @@ export function printDocumentElement(elementIdOrElement: string | HTMLElement, t
     }
     .esh-print-page.inventory-list-document table:not(.grand-total-section) th,
     .esh-print-page.inventory-list-document table:not(.grand-total-section) td {
-      font-size: 19px !important;
-      line-height: 1.35 !important;
-      padding-block: 4px !important;
+      font-size: 11px !important;
+      line-height: 1.3 !important;
+      padding-block: 2px !important;
     }
     .esh-print-page.inventory-list-document .grand-total-section th,
     .esh-print-page.inventory-list-document .grand-total-section td {
