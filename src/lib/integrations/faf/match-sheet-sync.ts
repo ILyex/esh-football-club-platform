@@ -268,6 +268,8 @@ function eventMinute(value: unknown): number {
   }
   if (typeof value === "number") return Number.isFinite(value) ? Math.min(130, Math.max(0, Math.trunc(value))) : 0;
   const text = String(value ?? "").trim();
+  if (/بين\s+الشوطين|mi[\s-]temps?|half[\s-]time/iu.test(text)) return 45;
+  if (/بعد\s+نهاية\s+المباراة|نهاية\s+المباراة|fin\s+du\s+match/iu.test(text)) return 90;
   const match = text.match(/^(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?$/iu)
     || text.match(/(?:^|\D)(\d{1,3})\s*\+\s*(\d{1,2})\s*(?:['’′]|min(?:ute)?s?|mn|د(?:قيقة)?)?(?:$|\D)/iu);
   if (!match) return 0;
@@ -276,9 +278,14 @@ function eventMinute(value: unknown): number {
 }
 
 function eventMinuteFrom(entry: any): number {
-  const values = [entry?.minute, entry?.minuteMatch, entry?.minuteJeu, entry?.minuteEvenement, entry?.minuteBut,
-    entry?.minuteCarton, entry?.minuteRemplacement, entry?.minuteRencontre, entry?.tempsBut, entry?.tempsCarton, entry?.tempsRemplacement,
-    entry?.tempsJeu, entry?.tempsMatch, entry?.temps, entry?.goalTime, entry?.cardTime, entry?.substitutionTime, entry?.time, entry?.chronologie];
+  const values = [
+    entry?.minute, entry?.minuteMatch, entry?.minuteJeu, entry?.minuteEvenement, entry?.minuteBut,
+    entry?.minuteCarton, entry?.minuteRemplacement, entry?.minuteRencontre, entry?.tempsBut, entry?.tempsCarton,
+    entry?.tempsRemplacement, entry?.tempsJeu, entry?.tempsMatch, entry?.temps, entry?.goalTime,
+    entry?.cardTime, entry?.substitutionTime, entry?.time, entry?.chronologie, entry?.chrono,
+    entry?.minute_jeu, entry?.minute_match, entry?.temps_jeu, entry?.temps_match, entry?.min,
+    entry?.timing, entry?.periode, entry?.period
+  ];
   const added = eventMinute(entry?.addedTime ?? entry?.additionalTime ?? entry?.tempsAdditionnel);
   for (const value of values) {
     const minute = eventMinute(value);
@@ -410,7 +417,9 @@ function remoteMatchEvents(match: any, externalId: number, remoteLocIsOurClub: b
       add(raw, type, side, label);
     }
   }
-  if (missingMinuteEvents) warnings.push(`تُرك ${missingMinuteEvents} أحداث دون استيراد لأن وثيقة FAF EMS لا تحتوي على دقيقة موثوقة لها.`);
+  if (missingMinuteEvents) {
+    warnings.push(`تُركت أحداث غير مؤرخة بدقائق في بيانات واجهة FAF EMS؛ سيتم استخراج الأحداث الرسمية وتوقيتها من جداول تقرير المباراة.`);
+  }
   return output;
 }
 
