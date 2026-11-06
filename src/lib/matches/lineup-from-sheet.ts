@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { parseReportDeterministically } from "@/lib/ai/referee-report-ai-service";
 
 export type SheetPlayer = {
   id: string;
@@ -36,6 +37,14 @@ export type MatchSheetLineupResult = {
   reason?: "no_roster" | "insufficient_recognition";
 };
 
+export type PlayerEventSummary = {
+  type: string;
+  playerId?: string | null;
+  playerName?: string | null;
+  playerNameFr?: string | null;
+  minute?: number | null;
+};
+
 function normalize(value: string): string {
   return value.toLocaleLowerCase("ar")
     .normalize("NFKD")
@@ -51,8 +60,8 @@ function normalize(value: string): string {
 
 export function normalizeCompoundNames(text: string): string {
   return text
-    .replace(/\b(بن|ابن|بو|بل|عبد|ايت)\s+/gu, "$1")
-    .replace(/\b(ben|bou|bel|abd|abdel|ait)\s+/giu, "$1");
+    .replace(/(^|[\s_،,.-])(بن|ابن|بو|بل|عبد|ايت)\s+/gu, "$1$2")
+    .replace(/(^|[\s_،,.-])(ben|bou|bel|abd|abdel|ait)\s+/giu, "$1$2");
 }
 
 function nameVariants(player: SheetPlayer): string[][] {
@@ -98,10 +107,10 @@ export function playerMatchesLine(line: string, player: SheetPlayer): boolean {
     const lastTokens = normLast.split(" ").filter(Boolean);
     const firstTokens = normFirst.split(" ").filter(Boolean);
     const allTokens = [...lastTokens, ...firstTokens];
-    if (allTokens.length < 2) continue;
+    if (allTokens.length < 1) continue;
 
-    const full1 = `${normLast} ${normFirst}`;
-    const full2 = `${normFirst} ${normLast}`;
+    const full1 = `${normLast} ${normFirst}`.trim();
+    const full2 = `${normFirst} ${normLast}`.trim();
     if (compoundLine.includes(` ${full1} `) || compoundLine.includes(` ${full2} `)) {
       return true;
     }
@@ -178,11 +187,23 @@ export function detectPlayers(text: string, players: SheetPlayer[]): DetectedLin
       if (section === "NOT_CALLED") hasExplicitNotCalledSection = true;
     }
 
-    const candidates = players.filter((player) => playerMatchesLine(rawLine, player));
+    let candidates = players.filter((player) => playerMatchesLine(rawLine, player));
     if (!section || candidates.length === 0) continue;
     if (candidates.length > 1) {
-      warnings.push("تعذر فصل بعض أسماء اللاعبين في الوثيقة بشكل موثوق؛ لم تُسند هذه الأسماء تلقائياً.");
-      continue;
+      // If one candidate is an exact full name match and others are only partial token matches,
+      // pick the exact match.
+      const exactMatches = candidates.filter((player) => {
+        const normLast = normalizeCompoundNames(normalize(player.lastName));
+        const normFirst = normalizeCompoundNames(normalize(player.firstName || ""));
+        const compoundLine = ` ${normalizeCompoundNames(normalize(rawLine))} `;
+        return compoundLine.includes(` ${normLast} ${normFirst} `) || compoundLine.includes(` ${normFirst} ${normLast} `);
+      });
+      if (exactMatches.length === 1) {
+        candidates = exactMatches;
+      } else {
+        warnings.push("تعذر فصل بعض أسماء اللاعبين في الوثيقة بشكل موثوق؛ لم تُسند هذه الأسماء تلقائياً.");
+        continue;
+      }
     }
     const player = candidates[0]!;
     const previous = found.get(player.id);
@@ -226,6 +247,150 @@ export function detectOfficialShirtNumbers(text: string, players: SheetPlayer[])
   return numbers;
 }
 
+export function resolvePlayerSelections(params: {
+  detected: DetectedLineup;
+  players: SheetPlayer[];
+  events: PlayerEventSummary[];
+  officialCaptainId?: string | null;
+  suspendedIds?: Set<string>;
+  injuredIds?: Set<string>;
+}): {
+  players: Map<string, SelectionStatus>;
+  starterCount: number;
+  substituteCount: number;
+  hasStarterSection: boolean;
+  hasBenchSection: boolean;
+  warnings: string[];
+} {
+  const warnings = [...params.detected.warnings];
+  const playersById = new Map(params.players.map((p) => [p.id, p]));
+  const suspendedIds = params.suspendedIds ?? new Set<string>();
+  const injuredIds = params.injuredIds ?? new Set<string>();
+
+  // 1. Cross-reference events (substitutions, goals, cards)
+  const subsInIds = new Set<string>();
+  const subsOutIds = new Set<string>();
+  const inMatchActiveIds = new Set<string>();
+
+  for (const ev of params.events) {
+    let resolvedId = ev.playerId;
+    if (!resolvedId) {
+      for (const evName of [ev.playerName, ev.playerNameFr].filter((n): n is string => Boolean(n))) {
+        const c = params.players.filter((p) => playerMatchesLine(evName, p));
+        if (c.length === 1) {
+          resolvedId = c[0]!.id;
+          break;
+        }
+      }
+    }
+    if (resolvedId) {
+      if (ev.type === "SUBSTITUTION_IN") {
+        subsInIds.add(resolvedId);
+      } else if (ev.type === "SUBSTITUTION_OUT") {
+        subsOutIds.add(resolvedId);
+      } else if (["GOAL", "PENALTY_GOAL", "YELLOW_CARD", "RED_CARD"].includes(ev.type)) {
+        inMatchActiveIds.add(resolvedId);
+      }
+    }
+  }
+
+  // 2. Strict football rules:
+  // - Any player who entered as a substitute (SUBSTITUTION_IN) started on the BENCH.
+  // - Any player who was subbed OUT and was NOT subbed in, was a STARTER.
+  // - Any player with in-match evidence (goals, bookings) who was NOT subbed in, was a STARTER.
+  const trueSubstitutes = new Set<string>(subsInIds);
+  const trueStarters = new Set<string>();
+
+  for (const outId of subsOutIds) {
+    if (!subsInIds.has(outId) && !suspendedIds.has(outId) && !injuredIds.has(outId)) {
+      trueStarters.add(outId);
+    }
+  }
+
+  for (const actId of inMatchActiveIds) {
+    if (!subsInIds.has(actId) && !suspendedIds.has(actId) && !injuredIds.has(actId)) {
+      trueStarters.add(actId);
+    }
+  }
+
+  const resultPlayers = new Map<string, SelectionStatus>(params.detected.players);
+
+  // Substituted-in players can NEVER be starting in the kickoff lineup
+  for (const inId of trueSubstitutes) {
+    resultPlayers.set(inId, "SUBSTITUTE");
+  }
+
+  // Confirmed starters MUST be starting
+  for (const starterId of trueStarters) {
+    resultPlayers.set(starterId, "STARTING");
+  }
+
+  // Goalkeeper handling: Exactly 1 starting GK
+  let currentStarters = [...resultPlayers.entries()]
+    .filter(([id, status]) => status === "STARTING" && !suspendedIds.has(id) && !injuredIds.has(id))
+    .map(([id]) => id);
+
+  const gkStarters = currentStarters.filter((id) => playersById.get(id)?.position === "GOALKEEPER");
+  if (gkStarters.length > 1) {
+    const primaryGk = gkStarters.find((id) => trueStarters.has(id) || id === params.officialCaptainId) ?? gkStarters[0]!;
+    for (const gkId of gkStarters) {
+      if (gkId !== primaryGk) {
+        resultPlayers.set(gkId, "SUBSTITUTE");
+      }
+    }
+    currentStarters = currentStarters.filter((id) => !gkStarters.includes(id) || id === primaryGk);
+  }
+
+  // If starters exceed 11:
+  if (currentStarters.length > 11) {
+    const prioritized = new Set<string>();
+    // 1st: trueStarters with direct event proof
+    for (const id of currentStarters) {
+      if (trueStarters.has(id)) prioritized.add(id);
+    }
+    // 2nd: starting GK
+    const startingGk = currentStarters.find((id) => playersById.get(id)?.position === "GOALKEEPER");
+    if (startingGk) prioritized.add(startingGk);
+
+    // 3rd: captain
+    if (params.officialCaptainId && currentStarters.includes(params.officialCaptainId)) {
+      prioritized.add(params.officialCaptainId);
+    }
+
+    // 4th: fill remaining slots up to 11 in document order
+    for (const id of currentStarters) {
+      if (prioritized.size >= 11) break;
+      prioritized.add(id);
+    }
+
+    // Demote excess starters to SUBSTITUTE
+    for (const id of currentStarters) {
+      if (!prioritized.has(id)) {
+        resultPlayers.set(id, "SUBSTITUTE");
+      }
+    }
+  }
+
+  const finalStarters = [...resultPlayers.entries()]
+    .filter(([id, status]) => status === "STARTING" && !suspendedIds.has(id) && !injuredIds.has(id))
+    .map(([id]) => id);
+  const finalSubstitutes = [...resultPlayers.entries()]
+    .filter(([, status]) => status === "SUBSTITUTE")
+    .map(([id]) => id);
+
+  const hasStarterSection = params.detected.hasStarterSection || finalStarters.length >= 7;
+  const hasBenchSection = params.detected.hasBenchSection || finalSubstitutes.length > 0 || trueSubstitutes.size > 0;
+
+  return {
+    players: resultPlayers,
+    starterCount: finalStarters.length,
+    substituteCount: finalSubstitutes.length,
+    hasStarterSection,
+    hasBenchSection,
+    warnings: [...new Set(warnings)]
+  };
+}
+
 /**
  * Imports only classifications explicitly supported by the match sheet.
  * Missing names remain available for manual selection; they are not silently
@@ -239,7 +404,7 @@ export async function applyMatchSheetLineup(
 ): Promise<MatchSheetLineupResult> {
   const match = await db.match.findUniqueOrThrow({
     where: { id: matchId },
-    select: { teamId: true, competitionId: true, matchDate: true, team: { select: { category: true } } }
+    select: { teamId: true, competitionId: true, matchDate: true, isHomeFixture: true, team: { select: { category: true } } }
   });
   const eligibleTeamIds = match.team?.category === "SENIOR"
     ? [teamId, ...(await db.team.findUnique({ where: { category: "U20" }, select: { id: true } }).then((team) => team?.id ? [team.id] : []))]
@@ -272,116 +437,69 @@ export async function applyMatchSheetLineup(
     }
   }
 
-  // Never infer that unmatched starting names belong on the bench. A second
-  // goalkeeper or an impossible >11 starters is a parser conflict, not a
-  // license to rewrite the player's status.
   const warnings = [...detected.warnings];
   const existingLineups = await db.matchLineup.findMany({ where: { matchId }, select: { playerId: true, selectionStatus: true, shirtNumber: true, isCaptain: true } });
   const existingById = new Map(existingLineups.map((entry) => [entry.playerId, entry]));
-  const playerById = new Map(players.map((player) => [player.id, player]));
 
-  // 1. Cross-reference with substitution events (database and document):
-  // Players who entered as substitutes (SUBSTITUTION_IN) or exited (SUBSTITUTION_OUT)
-  const subsInIds = new Set<string>();
-  const subsOutIds = new Set<string>();
-
+  // Gather all events from DB and directly from document text
   const existingEvents = await db.matchEvent.findMany({
     where: { matchId },
     select: { type: true, playerId: true, playerName: true, playerNameFr: true }
   });
-  for (const ev of existingEvents) {
-    let resolvedId = ev.playerId;
-    if (!resolvedId) {
-      for (const evName of [ev.playerName, ev.playerNameFr].filter((n): n is string => Boolean(n))) {
-        const c = players.filter((p) => playerMatchesLine(evName, p));
-        if (c.length === 1) {
-          resolvedId = c[0]!.id;
-          break;
-        }
-      }
-    }
-    if (resolvedId) {
-      if (ev.type === "SUBSTITUTION_IN") subsInIds.add(resolvedId);
-      if (ev.type === "SUBSTITUTION_OUT") subsOutIds.add(resolvedId);
-    }
-  }
+
+  const parsedFromText = parseReportDeterministically(text, players, { clubIsHome: match.isHomeFixture ?? true });
+  const allEvents: PlayerEventSummary[] = [
+    ...existingEvents.map((ev) => ({
+      type: ev.type,
+      playerId: ev.playerId,
+      playerName: ev.playerName,
+      playerNameFr: ev.playerNameFr
+    })),
+    ...parsedFromText.events.map((ev) => ({
+      type: ev.type,
+      playerId: ev.playerId,
+      playerName: ev.playerName,
+      playerNameFr: null,
+      minute: ev.minute
+    }))
+  ];
 
   for (const player of players) {
     for (const rawLine of text.split(/[\r\n]+/u)) {
       if (playerMatchesLine(rawLine, player)) {
         if (/دخول|بديل\s+داخل|entrant|remplaçant\s+entrant/iu.test(rawLine)) {
-          subsInIds.add(player.id);
+          allEvents.push({ type: "SUBSTITUTION_IN", playerId: player.id });
         } else if (/خروج|مستبدل|sortant|joueur\s+sortant/iu.test(rawLine)) {
-          subsOutIds.add(player.id);
+          allEvents.push({ type: "SUBSTITUTION_OUT", playerId: player.id });
         }
       }
     }
   }
 
-  // Any player who was subbed IN was on the bench
-  for (const inId of subsInIds) {
-    detected.players.set(inId, "SUBSTITUTE");
-    detected.hasBenchSection = true;
-  }
-  // Any player who was subbed OUT was a starter
-  for (const outId of subsOutIds) {
-    if (detected.players.has(outId)) {
-      detected.players.set(outId, "STARTING");
+  const injuredIds = new Set<string>();
+  for (const player of players) {
+    if (player.status === "INJURED" || existingById.get(player.id)?.selectionStatus === "INJURED") {
+      injuredIds.add(player.id);
     }
   }
 
-  // If all players were placed in STARTING because no bench header was matched
-  // (e.g. FAF EMS Page 1 with continuous roster), but there are >11 players:
-  // In football sheets, the first 11 are the starting XI, and remaining are bench.
-  const startingEntries = [...detected.players.entries()].filter(([, status]) => status === "STARTING");
-  if (startingEntries.length > 11 && !detected.hasBenchSection) {
-    let assigned = 0;
-    for (const [id] of startingEntries) {
-      if (subsInIds.has(id)) {
-        detected.players.set(id, "SUBSTITUTE");
-        continue;
-      }
-      if (assigned < 11 || subsOutIds.has(id)) {
-        detected.players.set(id, "STARTING");
-        assigned++;
-      } else {
-        detected.players.set(id, "SUBSTITUTE");
-      }
-    }
-    detected.hasBenchSection = true;
-  }
+  const resolved = resolvePlayerSelections({
+    detected,
+    players,
+    events: allEvents,
+    officialCaptainId,
+    suspendedIds,
+    injuredIds
+  });
 
-  // If more than 1 goalkeeper is in starting lineup:
-  // In football squads, the first GK stays in STARTING, the backup GK moves to SUBSTITUTE
-  const currentGkStarters = [...detected.players.entries()]
-    .filter(([id, status]) => status === "STARTING" && playerById.get(id)?.position === "GOALKEEPER")
-    .map(([id]) => id);
-  if (currentGkStarters.length > 1) {
-    for (let i = 1; i < currentGkStarters.length; i++) {
-      detected.players.set(currentGkStarters[i]!, "SUBSTITUTE");
-      detected.hasBenchSection = true;
-    }
-  }
+  warnings.push(...resolved.warnings);
 
-  const listedStartingIds = [...detected.players].filter(([, status]) => status === "STARTING").map(([id]) => id);
-  const startingIds = listedStartingIds.filter((id) => !suspendedIds.has(id)
-    && playerById.get(id)?.status !== "INJURED" && existingById.get(id)?.selectionStatus !== "INJURED");
-  const goalkeeperIds = startingIds.filter((id) => players.find((player) => player.id === id)?.position === "GOALKEEPER");
-  if (listedStartingIds.length > 11) {
-    warnings.push("تجاوز عدد الأساسيين 11 لاعباً؛ لم تُطبق التشكيلة لتجنب حفظ قراءة خاطئة.");
-  }
-  if (goalkeeperIds.length > 1) {
-    warnings.push("ظهرت أسماء أكثر من حارس كأساسي؛ لم تُطبق التشكيلة لتجنب تثبيت حراس في مراكز خاطئة.");
-  }
+  const starterCount = resolved.starterCount;
+  const substituteCount = resolved.substituteCount;
+  const hasRosterStructure = detected.hasExplicitNotCalledSection || resolved.hasBenchSection || substituteCount > 0
+    || (starterCount === 11);
 
-  const starterCount = startingIds.length;
-  const substituteCount = [...detected.players.values()].filter((status) => status === "SUBSTITUTE").length;
-  if (starterCount >= 7 && (substituteCount > 0 || detected.hasBenchSection)) {
-    detected.hasStarterSection = true;
-  }
-  const hasRosterStructure = detected.hasExplicitNotCalledSection || detected.hasBenchSection || substituteCount > 0
-    || (starterCount === 11 && goalkeeperIds.length === 1);
-  if (!detected.hasStarterSection || !hasRosterStructure || starterCount < 7 || listedStartingIds.length > 11 || goalkeeperIds.length > 1) {
+  if (!resolved.hasStarterSection || !hasRosterStructure || starterCount < 7 || starterCount > 11) {
     if (!hasRosterStructure) warnings.push("لم يُتعرف على حدّ فاصل موثوق بين الأساسيين والاحتياط/غير المستدعين؛ لم تُغيّر حالات اللاعبين.");
     return {
       applied: false,
@@ -391,7 +509,7 @@ export async function applyMatchSheetLineup(
       injured: 0,
       suspended: 0,
       untouched: players.length,
-      warnings,
+      warnings: [...new Set(warnings)],
       reason: "insufficient_recognition"
     };
   }
@@ -401,18 +519,16 @@ export async function applyMatchSheetLineup(
   let restoredUnlistedPlayers = 0;
 
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
-    if (officialCaptainId && detected.players.get(officialCaptainId) === "STARTING") {
+    if (officialCaptainId && resolved.players.get(officialCaptainId) === "STARTING") {
       await tx.matchLineup.updateMany({ where: { matchId, isCaptain: true, playerId: { not: officialCaptainId } }, data: { isCaptain: false } });
     }
     for (const player of players) {
-      const detectedStatus = detected.players.get(player.id);
+      const detectedStatus = resolved.players.get(player.id);
       const existing = existingById.get(player.id);
       const existingStatus = existing?.selectionStatus;
       const isSuspended = suspendedIds.has(player.id);
-      const isManuallyInjured = player.status === "INJURED" || existingStatus === "INJURED";
+      const isManuallyInjured = injuredIds.has(player.id);
 
-      // A valid report explicitly identifies the prior red-card suspension;
-      // a manual injury remains authoritative over the sheet.
       if (isSuspended) {
         counts.SUSPENDED++;
         classifiedIds.add(player.id);
@@ -435,17 +551,11 @@ export async function applyMatchSheetLineup(
       }
 
       if (!detectedStatus && existing && ["STARTING", "SUBSTITUTE", "NOT_CALLED", "SUSPENDED"].includes(existingStatus || "")) {
-        // Earlier imports could assign a status to a player because OCR missed
-        // their name. Remove stale inferred assignments so they return to the
-        // available roster. Only an explicit row in the document can create a
-        // NOT_CALLED status.
         await tx.matchLineup.deleteMany({ where: { matchId, playerId: player.id } });
         restoredUnlistedPlayers++;
         continue;
       }
 
-      // Missing or unreadable lines mean unknown, not uncalled. Only a player
-      // explicitly present in a labeled absence section may be marked so.
       const status = detectedStatus;
       if (!status) continue;
       const isStarting = status === "STARTING";
@@ -466,7 +576,7 @@ export async function applyMatchSheetLineup(
     }
   });
 
-  if (!detected.hasBenchSection) warnings.push("لم يُتعرف على قسم الاحتياط؛ تُرك اللاعبون غير المذكورين دون تغيير ليتم توزيعهم يدوياً.");
+  if (!resolved.hasBenchSection) warnings.push("لم يُتعرف على قسم الاحتياط؛ تُرك اللاعبون غير المذكورين دون تغيير ليتم توزيعهم يدوياً.");
   if (restoredUnlistedPlayers) warnings.push(`أُعيد ${restoredUnlistedPlayers} لاعباً إلى قائمة المتاحين؛ غياب الاسم عن التشكيلة لا يكفي لتصنيفه غير مستدعى.`);
   return {
     applied: true,

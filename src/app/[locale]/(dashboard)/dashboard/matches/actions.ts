@@ -1238,29 +1238,36 @@ export async function importSavedFafLineupAction(matchId: string) {
   assertTeamScope(scopeContext, match.teamId, "Match");
   if (match.status !== "SCHEDULED" && match.status !== "LIVE" && match.status !== "FINISHED") throw new Error("lineupNotAvailable");
 
-  const document = await db.document.findFirst({
+  const documents = await db.document.findMany({
     where: { relatedMatchId: matchId, teamId: match.teamId, matchDocumentType: { in: ["PRE_MATCH_SHEET", "REFEREE_REPORT"] } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
     select: { storageKey: true, mimeType: true }
   });
-  if (!document) throw new Error("lineupSheetMissing");
+  if (documents.length === 0) throw new Error("lineupSheetMissing");
 
   const [{ getPrivateFileBuffer }, { extractDocumentText, extractDocumentTextWithVision }] = await Promise.all([
     import("@/lib/storage"),
     import("@/lib/ai/document-verifier")
   ]);
-  const bytes = await getPrivateFileBuffer(document.storageKey);
-  const text = await extractDocumentText(bytes, document.mimeType);
-  let result = text?.trim() ? await applyMatchSheetLineup(matchId, match.teamId, text) : null;
-  if (!result?.applied && document.mimeType === "application/pdf") {
-    const visualText = await extractDocumentTextWithVision(bytes, document.mimeType);
-    if (visualText?.trim()) {
-      const visualResult = await applyMatchSheetLineup(matchId, match.teamId, visualText);
-      if (visualResult.applied) result = visualResult;
-      else if (!result) result = visualResult;
+
+  const texts: string[] = [];
+  for (const doc of documents) {
+    try {
+      const bytes = await getPrivateFileBuffer(doc.storageKey);
+      let docText = await extractDocumentText(bytes, doc.mimeType);
+      if (!docText?.trim() && doc.mimeType === "application/pdf") {
+        docText = await extractDocumentTextWithVision(bytes, doc.mimeType).catch(() => null);
+      }
+      if (docText?.trim()) texts.push(docText.trim());
+    } catch {
+      // Continue reading remaining documents
     }
   }
-  if (!result) throw new Error("lineupSheetUnreadable");
+
+  const combinedText = texts.join("\n\n");
+  if (!combinedText.trim()) throw new Error("lineupSheetUnreadable");
+
+  let result = await applyMatchSheetLineup(matchId, match.teamId, combinedText);
   if (result.applied) {
     await writeAuditLog({
       userId: user.id,

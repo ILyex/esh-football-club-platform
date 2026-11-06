@@ -942,19 +942,24 @@ export async function syncFafMatchDocuments(matchId: string, userId?: string): P
     }
   }
 
-  // If lineup has not been applied yet, re-run with newly created events in place
-  if (!lineupSummary?.applied && local.teamId && (refereeReportSourceText || finalReportBytes)) {
-    try {
-      const retryText = refereeReportSourceText || (finalReportBytes ? await extractDocumentText(finalReportBytes, "application/pdf").catch(() => null) : null);
-      if (retryText) {
-        const secondPass = await applyMatchSheetLineup(local.id, local.teamId, retryText);
-        if (secondPass.applied) {
-          lineupSummary = secondPass;
-          warnings.push(...secondPass.warnings);
+  // Re-run or reconcile lineup with newly created events in place if lineup was not applied or had incomplete starters
+  if (local.teamId && (refereeReportSourceText || finalReportBytes || matchSheet?.bytes)) {
+    const shouldReapply = !lineupSummary?.applied || (lineupSummary.starters < 11);
+    if (shouldReapply) {
+      try {
+        const sheetText = matchSheet?.bytes ? await extractDocumentText(matchSheet.bytes, "application/pdf").catch(() => null) : null;
+        const reportText = refereeReportSourceText || (finalReportBytes ? await extractDocumentText(finalReportBytes, "application/pdf").catch(() => null) : null);
+        const combinedText = [sheetText, reportText].filter(Boolean).join("\n\n");
+        if (combinedText) {
+          const secondPass = await applyMatchSheetLineup(local.id, local.teamId, combinedText);
+          if (secondPass.applied) {
+            lineupSummary = secondPass;
+            warnings.push(...secondPass.warnings);
+          }
         }
+      } catch (error) {
+        console.warn("[FAF EMS] Post-event lineup second pass failed", error);
       }
-    } catch (error) {
-      console.warn("[FAF EMS] Post-event lineup second pass failed", error);
     }
   }
 

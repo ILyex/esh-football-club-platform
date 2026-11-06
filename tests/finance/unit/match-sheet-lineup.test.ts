@@ -4,7 +4,9 @@ import {
   detectPlayers,
   detectOfficialCaptain,
   detectOfficialShirtNumbers,
-  type SheetPlayer
+  resolvePlayerSelections,
+  type SheetPlayer,
+  type PlayerEventSummary
 } from "@/lib/matches/lineup-from-sheet";
 
 const squad: SheetPlayer[] = [
@@ -165,4 +167,100 @@ ${header}
     assert.equal(detected.players.get("p8"), "STARTING");
     assert.equal(detected.players.get("p3"), "SUBSTITUTE");
   }
+});
+
+test("resolvePlayerSelections: correctly distinguishes starters from substitutes based on in-match events", () => {
+  const fullSquad: SheetPlayer[] = [
+    { id: "esh-1", firstName: "أيوب", lastName: "بدوي", firstNameFr: "Ayoub", lastNameFr: "Badaoui", shirtNumber: 1, licenceNumber: "950101", position: "GOALKEEPER", status: "ACTIVE" },
+    { id: "esh-2", firstName: "إلياس", lastName: "صقلي", firstNameFr: "Ilyes", lastNameFr: "Sakli", shirtNumber: 14, licenceNumber: "950102", position: "DEFENDER", status: "ACTIVE" },
+    { id: "esh-6", firstName: "إلياس", lastName: "طاهري", firstNameFr: "Ilyes", lastNameFr: "Taheri", shirtNumber: 20, licenceNumber: "950103", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-3", firstName: "لحسن", lastName: "عماري", firstNameFr: "Lahcen", lastNameFr: "Ammari", shirtNumber: 3, licenceNumber: "950104", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-12", firstName: "ياسر الدين اسماعيل", lastName: "ذياب", firstNameFr: "Yasser Eddine Ismail", lastNameFr: "Dhiab", shirtNumber: 12, licenceNumber: "950105", position: "DEFENDER", status: "ACTIVE" },
+    { id: "esh-17", firstName: "سيف الاسلام وائل", lastName: "عمارة", firstNameFr: "Saif El Islam Wael", lastNameFr: "Amara", shirtNumber: 17, licenceNumber: "950106", position: "FORWARD", status: "ACTIVE" },
+    { id: "esh-15", firstName: "ابراهيم", lastName: "جلولي", firstNameFr: "Brahim", lastNameFr: "Djellouli", shirtNumber: 15, licenceNumber: "950107", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-34", firstName: "عامر بلقاسم", lastName: "بوخرص", firstNameFr: "Amer Belkacem", lastNameFr: "Boukhras", shirtNumber: 34, licenceNumber: "950108", position: "FORWARD", status: "ACTIVE" },
+    { id: "esh-19", firstName: "محمد اسلام", lastName: "فرحات", firstNameFr: "Mohamed Islam", lastNameFr: "Farhat", shirtNumber: 19, licenceNumber: "950109", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-11", firstName: "ميلود", lastName: "زرقان", firstNameFr: "Miloud", lastNameFr: "Zergane", shirtNumber: 11, licenceNumber: "950110", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-10", firstName: "جمال الدين", lastName: "بن صحراوي", firstNameFr: "Djamel Eddine", lastNameFr: "Ben Sahraoui", shirtNumber: 10, licenceNumber: "950111", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-4", firstName: "محمد صالح", lastName: "عواد", firstNameFr: "Mohamed Salah", lastNameFr: "Aouad", shirtNumber: 4, licenceNumber: "950112", position: "DEFENDER", status: "ACTIVE" },
+    { id: "esh-41", firstName: "محمد أيوب", lastName: "لعروسي", firstNameFr: "Mohamed Ayoub", lastNameFr: "Laaroussi", shirtNumber: 41, licenceNumber: "950113", position: "MIDFIELDER", status: "ACTIVE" },
+    { id: "esh-5", firstName: "معتز بالله", lastName: "ساكت", firstNameFr: "Moataz Bellah", lastNameFr: "Saket", shirtNumber: 5, licenceNumber: "950114", position: "DEFENDER", status: "ACTIVE" },
+    { id: "esh-9", firstName: "أحمد", lastName: "بومعزة", firstNameFr: "Ahmed", lastNameFr: "Boumaaza", shirtNumber: 9, licenceNumber: "950115", position: "FORWARD", status: "ACTIVE" }
+  ];
+
+  // Simulated raw sheet where names were initially read as starting candidates
+  const detected = {
+    players: new Map<string, "STARTING" | "SUBSTITUTE" | "NOT_CALLED">([
+      ["esh-1", "STARTING"],
+      ["esh-2", "STARTING"],
+      ["esh-6", "STARTING"],
+      ["esh-3", "STARTING"],
+      ["esh-17", "STARTING"],
+      ["esh-34", "STARTING"],
+      ["esh-19", "STARTING"],
+      ["esh-10", "STARTING"],
+      ["esh-4", "STARTING"],
+      ["esh-41", "STARTING"],
+      ["esh-5", "STARTING"],
+      ["esh-9", "STARTING"]
+    ]),
+    hasStarterSection: true,
+    hasBenchSection: false,
+    hasExplicitNotCalledSection: false,
+    warnings: []
+  };
+
+  // Match events from the FAF EMS report:
+  const events: PlayerEventSummary[] = [
+    // Half-time: Ammari in, Dhiab out
+    { type: "SUBSTITUTION_IN", playerId: "esh-3", minute: 45 },
+    { type: "SUBSTITUTION_OUT", playerId: "esh-12", minute: 45 },
+    // 71': Amara in, Djellouli out
+    { type: "SUBSTITUTION_IN", playerId: "esh-17", minute: 71 },
+    { type: "SUBSTITUTION_OUT", playerId: "esh-15", minute: 71 },
+    // 90': Boukhras in, Amara out (Amara was subbed in earlier!)
+    { type: "SUBSTITUTION_IN", playerId: "esh-34", minute: 90 },
+    { type: "SUBSTITUTION_OUT", playerId: "esh-17", minute: 90 },
+    // 90': Farhat in, Zergane out
+    { type: "SUBSTITUTION_IN", playerId: "esh-19", minute: 90 },
+    { type: "SUBSTITUTION_OUT", playerId: "esh-11", minute: 90 },
+    // Cards:
+    { type: "YELLOW_CARD", playerId: "esh-10", minute: 10 },
+    { type: "YELLOW_CARD", playerId: "esh-4", minute: 25 },
+    { type: "YELLOW_CARD", playerId: "esh-41", minute: 30 },
+    { type: "YELLOW_CARD", playerId: "esh-5", minute: 82 },
+    { type: "RED_CARD", playerId: "esh-12", minute: 90 },
+    // Goal:
+    { type: "GOAL", playerId: "esh-9", minute: 67 }
+  ];
+
+  const resolved = resolvePlayerSelections({
+    detected,
+    players: fullSquad,
+    events,
+    officialCaptainId: "esh-10"
+  });
+
+  // 1. Starters must be exactly 11 players
+  assert.equal(resolved.starterCount, 11, "Must have exactly 11 starters");
+
+  // 2. Verified starters from match events must be in STARTING:
+  assert.equal(resolved.players.get("esh-10"), "STARTING", "Ben Sahraoui (card 10') must be STARTING");
+  assert.equal(resolved.players.get("esh-4"), "STARTING", "Aouad (card 25') must be STARTING");
+  assert.equal(resolved.players.get("esh-41"), "STARTING", "Laaroussi (card 30') must be STARTING");
+  assert.equal(resolved.players.get("esh-9"), "STARTING", "Boumaza (goal 67') must be STARTING");
+  assert.equal(resolved.players.get("esh-5"), "STARTING", "Saket (card 82') must be STARTING");
+  assert.equal(resolved.players.get("esh-12"), "STARTING", "Dhiab (subbed out HT) must be STARTING");
+  assert.equal(resolved.players.get("esh-15"), "STARTING", "Djellouli (subbed out 71') must be STARTING");
+  assert.equal(resolved.players.get("esh-11"), "STARTING", "Zergane (subbed out 90') must be STARTING");
+  assert.equal(resolved.players.get("esh-1"), "STARTING", "Badaoui (GK) must be STARTING");
+
+  // 3. Substituted-in players must NEVER be in STARTING:
+  assert.equal(resolved.players.get("esh-3"), "SUBSTITUTE", "Ammari (subbed IN) must be SUBSTITUTE");
+  assert.equal(resolved.players.get("esh-17"), "SUBSTITUTE", "Amara (subbed IN) must be SUBSTITUTE even though subbed out later");
+  assert.equal(resolved.players.get("esh-34"), "SUBSTITUTE", "Boukhras (subbed IN) must be SUBSTITUTE");
+  assert.equal(resolved.players.get("esh-19"), "SUBSTITUTE", "Farhat (subbed IN) must be SUBSTITUTE");
+
+  assert.equal(resolved.hasStarterSection, true);
+  assert.equal(resolved.hasBenchSection, true);
 });
